@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import LoginView from './views/LoginView.vue'
 import ModuleOffline from './views/ModuleOffline.vue'
+import PilotManageView from './views/PilotManageView.vue'
 import PilotRecordView from './views/PilotRecordView.vue'
 import RegistryView from './views/RegistryView.vue'
 
@@ -28,7 +29,7 @@ export const router = createRouter({
     {
       path: '/pilot',
       name: 'pilot',
-      component: ModuleOffline,
+      component: PilotManageView,
       meta: { title: 'pilot_management', summary: 'your pilot: register it, view it, file changes.' },
     },
     {

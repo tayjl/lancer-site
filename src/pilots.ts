@@ -1,11 +1,14 @@
+import type { Json } from './lib/database.types'
+
 // The public parts of a character (the characters table), which every logged-in user can see.
 // The registry cards and the pilot record page both use this shape.
+// Appearance, personality and traits are formatted text from the editor (shown with RichText.vue).
 
 export type PublicMech = {
   id: string
   name: string
   manufacturer_id: string
-  appearance: string | null
+  appearance: Json | null
   image: string | null
 }
 
@@ -21,11 +24,17 @@ export type PublicPilot = {
   weight: string | null
   eye_colour: string | null
   hair_colour: string | null
-  appearance: string | null
-  personality: string | null
-  traits: string | null
+  appearance: Json | null
+  personality: Json | null
+  traits: Json | null
   mechs: PublicMech[]
 }
+
+// One plain paragraph in the editor's format, for the example below.
+const paragraph = (text: string): Json => ({
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+})
 
 // shortcut: a hard-coded example to settle the look. Replace it with approved pilots from the
 // characters table once registration is built.
@@ -42,17 +51,19 @@ export const examplePilots: PublicPilot[] = [
     weight: '68 kg',
     eye_colour: 'grey',
     hair_colour: 'black, shaved at the sides',
-    appearance:
+    appearance: paragraph(
       'Wiry and sunburnt, with a crooked nose from a bad landing on Kos. Wears a patched flight jacket over everything, whatever the weather.',
-    personality:
+    ),
+    personality: paragraph(
       "Dry, quick and hard to rattle. Jokes when things go wrong, goes quiet when they go very wrong. Doesn't trust anyone who's never been hungry.",
-    traits: 'steady hands under fire. reads people fast. terrible at sitting still.',
+    ),
+    traits: paragraph('steady hands under fire. reads people fast. terrible at sitting still.'),
     mechs: [
       {
         id: 'm1',
         name: "Lantern's Due",
         manufacturer_id: '7GQ2-K41X-0B9D',
-        appearance: 'Matte grey plating with a hand-painted crescent moon on the left shoulder.',
+        appearance: paragraph('Matte grey plating with a hand-painted crescent moon on the left shoulder.'),
         image: null,
       },
     ],

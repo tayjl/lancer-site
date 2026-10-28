@@ -23,4 +23,6 @@ You need the [Supabase CLI](https://supabase.com/docs/guides/local-development) 
 
 - `supabase start` runs a local copy of Supabase, with Studio at http://127.0.0.1:55323.
 - `supabase test db` checks the security rules by trying to break them as each kind of user.
-- `supabase db reset` rebuilds the local database from the migrations.
+- `supabase db reset` rebuilds the local database from the migrations, and adds a local-only test account from `supabase/seed.sql`.
+- `npm run dev -- --mode localdb --port 5174` runs the site against the local database (put the local URL and publishable key from `supabase status` in `.env.localdb.local`).
+- `npm test` runs the app's unit tests (currently the formatted-text sanitiser).

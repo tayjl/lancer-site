@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import GlitchText from '../components/GlitchText.vue'
 import Portrait from '../components/Portrait.vue'
+import RichText from '../components/RichText.vue'
 import { examplePilots } from '../pilots'
 
 // One pilot's full public record, opened from a registry card. Only public fields: the private
@@ -46,17 +47,17 @@ const facts = computed(() => {
 
       <section v-if="pilot.appearance">
         <h2>appearance</h2>
-        <p class="prose">{{ pilot.appearance }}</p>
+        <RichText :doc="pilot.appearance" />
       </section>
 
       <section v-if="pilot.personality">
         <h2>personality</h2>
-        <p class="prose">{{ pilot.personality }}</p>
+        <RichText :doc="pilot.personality" />
       </section>
 
       <section v-if="pilot.traits">
         <h2>traits</h2>
-        <p class="prose">{{ pilot.traits }}</p>
+        <RichText :doc="pilot.traits" />
       </section>
 
       <section v-if="pilot.mechs.length">
@@ -66,7 +67,7 @@ const facts = computed(() => {
           <div>
             <h3>{{ mech.name }}</h3>
             <p class="dim">{{ mech.manufacturer_id }}</p>
-            <p v-if="mech.appearance" class="prose">{{ mech.appearance }}</p>
+            <RichText v-if="mech.appearance" :doc="mech.appearance" class="mech-appearance" />
           </div>
         </div>
       </section>
@@ -133,6 +134,10 @@ h2 {
 
 .mech h3 {
   margin: 0;
+}
+
+.mech-appearance {
+  margin-top: 0.5rem;
 }
 
 .mech p {

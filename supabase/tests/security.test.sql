@@ -37,7 +37,12 @@ insert into public.reputation (character_id, organisation_id, level_id) values (
 set local role authenticated;
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
-select is((select count(*)::int from public.profiles), 4, 'players can see every profile');
+-- Counts only this test's users, so it works whatever else is in the database (e.g. seed.sql's account).
+select is(
+  (select count(*)::int from public.profiles where id in (
+    '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222',
+    '33333333-3333-3333-3333-333333333333', '44444444-4444-4444-4444-444444444444')),
+  4, 'players can see every profile');
 select throws_ok(
   $$ update public.profiles set role = 'owner' where id = '11111111-1111-1111-1111-111111111111' $$,
   '42501', null, 'players cannot change their own role');
@@ -66,6 +71,11 @@ select lives_ok(
 select lives_ok(
   $$ update public.characters set callsign = 'Uno' where pilot_name = 'One' $$,
   'players can edit their pending character');
+select lives_ok(
+  $$ update public.characters
+     set appearance = '{"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Tall."}]}]}'
+     where pilot_name = 'One' $$,
+  'players can save formatted text on their pending character');
 select throws_ok(
   $$ update public.characters set status = 'approved' where pilot_name = 'One' $$,
   '42501', null, 'players cannot approve their own character');

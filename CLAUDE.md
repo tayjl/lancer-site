@@ -78,6 +78,13 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **Licence levels:** the pilot's licence level, plus their licence ranks in each frame.
 - **Talents and core bonuses:** included.
 - **Pilot equipment:** only LANCER pilot gear (armour, weapons, kit) from the game data. No free-text items.
+- **The pilot page is modular.** Each category (mechs, equipment, talents, licences, core bonuses, mech gear and so on) is a section with a `[ + ]` box to add an item.
+  - For game items, `[ + ]` opens a searchable picker of pre-made items from the imported LCPs. This is how most players add things, and the sheet stores only the item's ID.
+  - Mechs are added with a small form (name, manufacturer ID, appearance, image).
+  - Paragraph fields (appearance, personality, traits, backstory) use a rich-text editor (planned: TipTap, which stores formatting as structured data rather than raw HTML, so players can't inject code into each other's pages). Its toolbar offers bold, italic and underline; small, normal and large font sizes; the palette's accent colours (lilac, rose, sky) only; and bullet lists and small headings. Short fields are plain inputs.
+  - **No separate registration form.** `pilot_management` shows an empty modular pilot page when you have no pilot, and every section (identity included) is filled in place. The first save creates the pending pilot.
+  - Sections that need LANCER data (equipment, talents, licences and so on) show with their `[ + ]` boxes marked "module offline" until the packs are imported. Mechs work straight away.
+  - Pilot stats and mech skills get their own section on the page, added once their starting values are decided.
 - **Background:** a private backstory the player writes as free text. LANCER's ready-made backgrounds aren't used.
 - **Not used:** skill triggers (replaced by custom pilot stats), grit, save target, evasion, e-defense, tech attack, sensors, LANCER backgrounds, bonds, and (not on the field list) reserves and weapon mods.
 - **Manna:** the in-universe currency. It isn't in LANCER's data, so it's a plain number on the character. Players can only change it through a pending change, never directly. It's private: other players can't see it.
@@ -232,4 +239,13 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - A real Discord login works: the hosted database has the first profile.
 - TypeScript types are generated into `src/lib/database.types.ts`. Run `npm run types` after any database change.
 - The HOR_OS base look is built (see "Look and feel").
-- Next: set your role to owner in the dashboard, then the character list (Pending, Approved and Dead tabs).
+- Tay's hosted profile is set to `owner` for testing.
+- **pilot_management is built** (`src/views/PilotManageView.vue`):
+  - **Sections:** identity, appearance, personality, traits, backstory (private), mechs (add, edit, remove), and offline sections for stats, licences, talents, core bonuses, pilot gear and bionics.
+  - **Supporting pieces:** `src/components/AddBox.vue`, `RichTextEditor.vue` and `RichText.vue`. `src/richText.ts` is the allowlist sanitiser, tested in `src/richText.test.ts` (`npm test`).
+  - **Database:** migration `20261028085652_rich_text_paragraphs.sql` changes appearance, personality and traits to `jsonb`. **The hosted database needs this migration (push `main`) before pilot_management works there.**
+- **Testing locally with a login:**
+  - `supabase/seed.sql` creates a local-only password account, `test-pilot@hor-os.local` with password `local-test-pilot`, as a player.
+  - The `dev-localdb` launch config (`npm run dev -- --mode localdb --port 5174`) points the app at local Supabase, using the git-ignored `.env.localdb.local`.
+  - Sign in from the browser console with `supabase.auth.signInWithPassword`, since the site only has a Discord button.
+- Next: show real pilots in pilot_registry and pending_paperwork, and a GM approve action, so the whole loop works.

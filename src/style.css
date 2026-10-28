@@ -122,6 +122,21 @@ button:focus-visible {
   outline: none;
 }
 
+/* Text inputs, terminal style: an outlined box that turns lilac while you type in it. */
+input[type='text'] {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--text);
+  font: 400 0.9375rem/1.4 var(--mono);
+}
+
+input[type='text']:focus {
+  border-color: var(--lilac);
+  outline: none;
+}
+
 /* The standard page column. Pages read like terminal output, so their text is monospace by default. */
 .page {
   max-width: 72rem;
