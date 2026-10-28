@@ -158,11 +158,12 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
   - **Fonts** are bundled with the site (no Google Fonts, for privacy): Cascadia Mono (`--mono`) for headings, labels, buttons and the boot scrawl, and Atkinson Hyperlegible Next (`--read`) for anything read at length. Cascadia Mono is used because it has every block and shade character (`░▒▓█▄▀`), so the ASCII art lines up.
   - **Logged-in pages read like a terminal**, matching the login screen:
     - **Layout** (`src/App.vue`, from the developer's sketch):
-      - **Sidebar** on the left: the HORUS logo in lilac, centred at the top (12-line ASCII art in `src/assets/logo.txt`, 6px with 7px lines, linking home), the menu in four groups with space between them (pilot_management / registry, pending, those_who_passed / archive_viewer / pilot_gear, mech_gear), and a `[ gm view ]` toggle at the bottom for GMs and owners only. The top bar matches the logo's height on wide screens.
-      - **Top bar:** the current path (`~/pilot_registry`) on the left, and `uuid: <name> [role]  [ disconnect ]` on the right.
+      - **Sidebar** on the left: the HORUS logo in lilac, centred at the top (12-line ASCII art in `src/assets/logo.txt`, 6px with 7px lines, linking home), and the menu in four groups with space between them (pilot_management / registry, pending, those_who_passed / archive_viewer / pilot_gear, mech_gear). The top bar matches the logo's height on wide screens.
+      - **Top bar:** three slots. The current path (`~/pilot_registry`) on the left, a `[ gm view ]` toggle in the exact centre for GMs and owners only, and `uuid: <name> [role]  [ disconnect ]` on the right.
       - **Content** on the right.
       - **Net chat:** a fake live chat from `src/assets/net-chat.txt`, in the same format as the login chat.
         - On wide screens it's pinned to the bottom of the window under the page, 8 lines tall, with a thin line above it. The 5-line MOTD block at the top comes out quickly (0.3s a line), then a new message arrives every 1.8 seconds (`delay` and `quick-lines` on `ChatFeed` in `App.vue`).
+        - On wide screens a small `[ minimise ]` in its top-right corner shrinks it to one line with `[ show chat ]`. The choice is remembered in the browser (localStorage).
         - On phones a `[ chat ]` toggle (left of the logo, mirroring `[ menu ]`) pops it up over the bottom of the screen.
         - Both chats share `src/chat.ts` (parsing, hiding cut-off messages) and `src/components/ChatLine.vue` (colouring). `src/components/ChatFeed.vue` is the panel.
       - **Phones** (under 48rem wide):
@@ -216,7 +217,10 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
     - Text is slightly larger on wide screens.
     - It comes from COMP/CON (`src/features/main_menu/_components/startup_logs/horus.ts`, GPL-3.0, Massif Press) and is credited in the README. The `∙` character was swapped for `•`, because no bundled font has `∙` and it would break the art's alignment.
   - **In-universe labels** are lowercase HOR_OS-style, like `pilot_registry`, not ALL CAPS. Buttons still say plainly what they do ("Uplink with Discord", "Disconnect").
-- Don't copy COMP/CON's styling code or Massif's logos. Massif has a third-party licence for fan projects that asks for a notice on the site. Read it before launch.
+- Don't copy COMP/CON's styling code or Massif's logos.
+- **Massif's Lancer Third Party License** (https://massifpress.com/legal) requires two pieces of text: an acknowledgement that the site isn't an official Lancer product, and "Lancer is copyright Massif Press".
+  - Both are in `src/components/ThirdPartyNotice.vue`, which names the site HOR_OS. Keep the wording; only the name may change.
+  - It's shown under `[ uplink with discord ]` on the login screen only (the developer's choice), not on the logged-in pages.
 
 ## Priorities
 - No deadline. Getting the style right and making it work matter more than speed.
@@ -240,10 +244,25 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - TypeScript types are generated into `src/lib/database.types.ts`. Run `npm run types` after any database change.
 - The HOR_OS base look is built (see "Look and feel").
 - Tay's hosted profile is set to `owner` for testing.
-- **pilot_management is built** (`src/views/PilotManageView.vue`):
-  - **Sections:** identity, appearance, personality, traits, backstory (private), mechs (add, edit, remove), and offline sections for stats, licences, talents, core bonuses, pilot gear and bionics.
-  - **Supporting pieces:** `src/components/AddBox.vue`, `RichTextEditor.vue` and `RichText.vue`. `src/richText.ts` is the allowlist sanitiser, tested in `src/richText.test.ts` (`npm test`).
-  - **Database:** migration `20261028085652_rich_text_paragraphs.sql` changes appearance, personality and traits to `jsonb`. **The hosted database needs this migration (push `main`) before pilot_management works there.**
+- **pilot_management is built** as a full-width, COMP/CON-style sheet (`src/views/PilotManageView.vue`):
+  - **Top strip:** big callsign, name, player and status badge (rose while pending, sky once approved), plus a save status. Centred on phones.
+  - **Wide screens:** the long writing on the left, and the portrait with the identity table (age, gender, sexuality, height, weight, eyes, hair) on the right. The right column scrolls with the page (it doesn't follow you down). On phones the portrait and table sit between the top strip and appearance.
+  - **Always editable, no edit buttons** (while pending): appearance, personality and backstory [private] are open editors that save themselves 0.8s after you stop typing (`src/components/SheetField.vue`). Callsign, name and the table are inline inputs that save when you leave them. Traits are off the sheet for now (the `traits` column and `EntryList.vue` are kept, and the registry record still shows them).
+  - **Below, full width:**
+    - **Personal stats** (from the `pilot_stats` table) and **piloting stats** (HASE): horizontal rows with - and + (`src/components/StatRow.vue`). Everything starts at 1; 0 to 6 for now. Bionic bonuses show beside the number in sky. Stored in `sheet.pilot_stats` and `sheet.mech_skills`.
+    - **Bionics [private]**, then **gear loadout**: cards with a small `[ edit ]` that opens a picker of existing items only (`src/components/LoadoutBox.vue`). Bionics count their mod-point cost against the **mod limit** (`character_sheets.mod_points`, default 6 since migration `20261028183456_mod_limit_default.sql`), and the picker won't add one that goes over. Stored as ids in `sheet.bionics` and `sheet.pilot_gear`.
+    - **Mech hangar** at the bottom: mech cards centred, a `[ + ] new mech` box when there are none, otherwise `[ new mech ]` in its header.
+  - **Approved pilots** get the same sheet read-only, with a note that changes go through pending paperwork.
+  - **Mechs are separate objects** with their own page at `/pilot/mechs/:mechId` (`src/views/MechView.vue`): mech dossier, appearance, history [private], quirks [private], an offline loadout, and "scrap mech". Public mech fields live in `characters.mechs`; history and quirks in `sheet.mechs[mechId]`.
+  - **Shared pieces:**
+    - `src/myPilot.ts` loads and saves your own pilot. Saves queue up and run in order, so autosaves can't overtake each other.
+    - `src/gameData.ts` loads the catalogues (pilot gear from `content_items`, bionics with their bonuses, pilot stats).
+    - `.sheet-label` (in `src/style.css`) is the section tag: a filled block with a lilac edge.
+    - `src/components/EditableRichText.vue` (used by MechView), `Panel.vue`, `AddBox.vue`, `RichTextEditor.vue` and `RichText.vue`.
+    - `src/richText.ts` (the allowlist sanitiser) and `src/entries.ts` (the list parser) are tested in `src/*.test.ts` (`npm test`).
+  - Pages can opt into centring with the `.page.centered` class.
+  - **Local test data:** `supabase/seed.sql` also loads LANCER's core pilot gear (from `lancer-data`) and four made-up bionics, so the pickers work locally. The hosted database has no game content until LCP import is built.
+  - **Database:** migration `20261028085652_rich_text_paragraphs.sql` changes appearance, personality and traits to `jsonb`. **The hosted database needs this migration and `20261028183456_mod_limit_default.sql` (push `main`) before pilot_management works there.**
 - **Testing locally with a login:**
   - `supabase/seed.sql` creates a local-only password account, `test-pilot@hor-os.local` with password `local-test-pilot`, as a player.
   - The `dev-localdb` launch config (`npm run dev -- --mode localdb --port 5174`) points the app at local Supabase, using the git-ignored `.env.localdb.local`.

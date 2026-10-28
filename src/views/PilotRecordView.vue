@@ -4,12 +4,14 @@ import { useRoute } from 'vue-router'
 import GlitchText from '../components/GlitchText.vue'
 import Portrait from '../components/Portrait.vue'
 import RichText from '../components/RichText.vue'
+import { parseEntries } from '../entries'
 import { examplePilots } from '../pilots'
 
 // One pilot's full public record, opened from a registry card. Only public fields: the private
 // sheet (stats, loadouts, backstory) isn't shown here.
 const route = useRoute()
 const pilot = computed(() => examplePilots.find((p) => p.id === Number(route.params.id)))
+const traits = computed(() => parseEntries(pilot.value?.traits))
 
 const facts = computed(() => {
   const p = pilot.value
@@ -55,9 +57,12 @@ const facts = computed(() => {
         <RichText :doc="pilot.personality" />
       </section>
 
-      <section v-if="pilot.traits">
+      <section v-if="traits.length">
         <h2>traits</h2>
-        <RichText :doc="pilot.traits" />
+        <div v-for="trait in traits" :key="trait.id" class="trait">
+          <h3>{{ trait.name }}</h3>
+          <RichText v-if="trait.description" :doc="trait.description" />
+        </div>
       </section>
 
       <section v-if="pilot.mechs.length">
@@ -134,6 +139,15 @@ h2 {
 
 .mech h3 {
   margin: 0;
+}
+
+.trait + .trait {
+  margin-top: 0.75rem;
+}
+
+.trait h3 {
+  margin: 0 0 0.15rem;
+  font-size: 0.9375rem;
 }
 
 .mech-appearance {

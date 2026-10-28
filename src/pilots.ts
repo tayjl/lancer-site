@@ -2,7 +2,8 @@ import type { Json } from './lib/database.types'
 
 // The public parts of a character (the characters table), which every logged-in user can see.
 // The registry cards and the pilot record page both use this shape.
-// Appearance, personality and traits are formatted text from the editor (shown with RichText.vue).
+// Appearance and personality are formatted text from the editor (shown with RichText.vue); traits are a
+// list of named entries (see src/entries.ts).
 
 export type PublicMech = {
   id: string
@@ -57,7 +58,11 @@ export const examplePilots: PublicPilot[] = [
     personality: paragraph(
       "Dry, quick and hard to rattle. Jokes when things go wrong, goes quiet when they go very wrong. Doesn't trust anyone who's never been hungry.",
     ),
-    traits: paragraph('steady hands under fire. reads people fast. terrible at sitting still.'),
+    traits: [
+      { id: 't1', name: 'steady hands', description: paragraph('Stays calm and precise under fire.') },
+      { id: 't2', name: 'reads people', description: paragraph('Quick to tell when someone is lying.') },
+      { id: 't3', name: 'restless', description: paragraph('Terrible at sitting still for long.') },
+    ],
     mechs: [
       {
         id: 'm1',

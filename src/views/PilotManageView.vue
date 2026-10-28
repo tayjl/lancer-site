@@ -1,27 +1,29 @@
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef } from 'vue'
-import { session } from '../auth'
+import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { profile } from '../auth'
 import AddBox from '../components/AddBox.vue'
-import GlitchText from '../components/GlitchText.vue'
+import LoadoutBox from '../components/LoadoutBox.vue'
 import Portrait from '../components/Portrait.vue'
-import RichText from '../components/RichText.vue'
-import RichTextEditor from '../components/RichTextEditor.vue'
-import type { Json, Tables, TablesUpdate } from '../lib/database.types'
-import { supabase } from '../lib/supabaseClient'
+import SheetField from '../components/SheetField.vue'
+import StatRow from '../components/StatRow.vue'
+import { MECH_SKILLS, useGameData, type PilotStat } from '../gameData'
+import type { Json } from '../lib/database.types'
+import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
 
-// pilot_management: your own pilot, as a page of modular sections. There's no separate sign-up form:
-// with no pilot yet the page is empty, and saving the identity section for the first time creates
-// your pending pilot. While a pilot is pending, the database lets you edit it directly; once it's
-// approved, changes have to go through pending paperwork (not built yet).
+// pilot_management: your pilot as one sheet, laid out like COMP/CON. The important bits across the top,
+// long writing on the left, the portrait and identity table on the right (above the writing on phones),
+// then stats, bionics, gear and the mech hangar. Everything is edited in place and saves itself.
+// While a pilot is pending you can edit it directly; once it's approved, changes go through pending
+// paperwork (not built yet), so the sheet turns read-only.
 
-type Character = Tables<'characters'>
-type Paragraph = 'appearance' | 'personality' | 'traits' | 'backstory'
+const router = useRouter()
+const { character, sheet, modPoints, loading, loadError, editable, mechs, create, updateCharacter, updateSheet } = useMyPilot()
+const { gear, bionics, pilotStats } = useGameData()
 
-// Short fields: one-line inputs. [column, label]
+// The identity table under the portrait. [column, label]
 const IDENTITY = [
-  ['callsign', 'callsign'],
-  ['pilot_name', 'name'],
   ['age', 'age'],
   ['gender', 'gender'],
   ['sexuality', 'sexuality'],
@@ -30,391 +32,533 @@ const IDENTITY = [
   ['eye_colour', 'eyes'],
   ['hair_colour', 'hair'],
 ] as const
-type IdentityField = (typeof IDENTITY)[number][0]
+type TextColumn = (typeof IDENTITY)[number][0] | 'callsign' | 'pilot_name'
 
-// Paragraph fields: formatted text. Backstory is private, so it lives in the sheet, not the public card.
-const PARAGRAPHS: { key: Paragraph; label: string; private?: true }[] = [
-  { key: 'appearance', label: 'appearance' },
-  { key: 'personality', label: 'personality' },
-  { key: 'traits', label: 'traits' },
-  { key: 'backstory', label: 'backstory', private: true },
-]
+// Stats start at 1. shortcut: 0 to 6 for every stat (LANCER's range for mech skills); revisit once the
+// custom pilot stats' rules are decided.
+const STAT_MIN = 0
+const STAT_MAX = 6
 
-// Sections that need LANCER data or undecided rules: shown, but their [ + ] is offline for now.
-const OFFLINE_SECTIONS = ['pilot stats', 'licences', 'talents', 'core bonuses', 'pilot gear', 'bionics']
+// --- The save status shown in the top strip, for the one-line fields, stats and loadouts ---
+const status = ref('')
+const saveError = ref('')
 
-const MANUFACTURER_ID = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
+async function track(save: Promise<string | null>) {
+  status.value = 'saving...'
+  saveError.value = (await save) ?? ''
+  status.value = saveError.value ? '' : 'saved'
+  return saveError.value || null
+}
 
-// Shallow, like the drafts: these are replaced as a whole on every reload.
-const character = shallowRef<Character | null>(null)
-const sheet = shallowRef<{ [key: string]: Json | undefined }>({})
-const loading = ref(true)
-// The one section being edited: 'identity', a paragraph key, 'mech-new' or 'mech:<id>'.
-const editing = ref<string | null>(null)
-const saving = ref(false)
-const error = ref('')
+// One-line fields save when you leave them (or press enter). A pilot can't lose its name.
+function saveText(column: TextColumn, event: Event) {
+  const input = event.target as HTMLInputElement
+  const value = input.value.trim() || null
+  if (column === 'pilot_name' && !value) {
+    saveError.value = 'a pilot needs a name.'
+    input.value = character.value!.pilot_name
+    return
+  }
+  track(updateCharacter({ [column]: value }))
+}
 
-const identityDraft = reactive(Object.fromEntries(IDENTITY.map(([key]) => [key, ''])) as Record<IdentityField, string>)
-// Shallow: the document is always replaced as a whole, so Vue doesn't need to track inside it.
-const docDraft = shallowRef<Json | null>(null)
-const mechDraft = reactive({ id: '', name: '', manufacturer_id: '' })
-const mechAppearance = shallowRef<Json | null>(null)
+// --- Registering: just a name (and optionally a callsign), then the full sheet opens ---
+const newPilot = reactive({ callsign: '', name: '' })
+const registerError = ref('')
 
-const canEdit = computed(() => !character.value || character.value.status === 'pending')
-// The mechs column is plain JSON to the database; we always save it in the PublicMech shape.
-const mechs = computed(() => (character.value?.mechs ?? []) as unknown as PublicMech[])
-const facts = computed(() =>
-  IDENTITY.filter(([key]) => key !== 'callsign' && character.value?.[key]).map(([key, label]) => ({
-    label,
-    value: character.value![key],
+async function register() {
+  const name = newPilot.name.trim()
+  if (!name) {
+    registerError.value = 'a pilot needs a name.'
+    return
+  }
+  registerError.value = (await create({ pilot_name: name, callsign: newPilot.callsign.trim() || null })) ?? ''
+}
+
+// --- Long writing ---
+const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) => updateCharacter({ [column]: doc })
+const saveBackstory = (doc: Json | null) => updateSheet({ backstory: doc })
+
+// --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
+const chosenBionics = computed(() => bionics.value.filter((b) => sheet.value.bionics?.includes(b.id)))
+const bonusFor = (statId: string) =>
+  chosenBionics.value.flatMap((b) => b.bonuses).reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
+
+const statValues = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[]) =>
+  stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet.value[key]?.[stat.id] ?? 1 }))
+
+const personalStats = computed(() =>
+  statValues('pilot_stats', pilotStats.value).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
+)
+const pilotingStats = computed(() => statValues('mech_skills', MECH_SKILLS))
+
+// Saves every stat in the row, so the sheet records the defaults too, not just the one that changed.
+function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value: number }[], id: string, value: number) {
+  const values: Sheet['pilot_stats'] = Object.fromEntries(stats.map((stat) => [stat.id, stat.value]))
+  track(updateSheet({ [key]: { ...values, [id]: value } }))
+}
+
+// --- Bionics and gear: picked from the catalogues, stored as ids ---
+const bionicItems = computed(() =>
+  bionics.value.map((b) => ({
+    id: b.id,
+    name: b.name,
+    type: [...b.bonuses.map((bonus) => `+${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${b.manna_cost} manna`].join(', '),
+    description: b.description,
+    cost: b.mod_point_cost,
+    retired: b.retired,
   })),
 )
+const saveBionics = (ids: (string | number)[]) => updateSheet({ bionics: ids as number[] })
+const saveGear = (ids: (string | number)[]) => updateSheet({ pilot_gear: ids as string[] })
 
-async function load() {
-  const { data, error: loadError } = await supabase
-    .from('characters')
-    .select('*')
-    .eq('player_id', session.value!.user.id)
-    .in('status', ['pending', 'approved'])
-    .order('created_at')
-    .limit(1)
-    .maybeSingle()
-  if (loadError) error.value = loadError.message
-  character.value = data
-  if (data) {
-    const { data: sheetRow } = await supabase.from('character_sheets').select('sheet').eq('character_id', data.id).maybeSingle()
-    sheet.value = (sheetRow?.sheet ?? {}) as typeof sheet.value
-  }
-  loading.value = false
-}
-load()
+// --- Hangar: a new mech starts with just a name and manufacturer id, then opens its own page ---
+const addingMech = ref(false)
+const newMech = reactive({ name: '', manufacturerId: '' })
+const mechError = ref('')
 
-function open(section: string) {
-  error.value = ''
-  editing.value = section
+function openNewMech() {
+  Object.assign(newMech, { name: '', manufacturerId: '' })
+  mechError.value = ''
+  addingMech.value = true
 }
 
-function openIdentity() {
-  for (const [key] of IDENTITY) identityDraft[key] = character.value?.[key] ?? ''
-  open('identity')
-}
-
-function paragraphValue(key: Paragraph): Json | null {
-  return (key === 'backstory' ? sheet.value.backstory : character.value?.[key]) ?? null
-}
-
-function openParagraph(key: Paragraph) {
-  docDraft.value = paragraphValue(key)
-  open(key)
-}
-
-function openMech(mech?: PublicMech) {
-  Object.assign(mechDraft, { id: mech?.id ?? '', name: mech?.name ?? '', manufacturer_id: mech?.manufacturer_id ?? '' })
-  mechAppearance.value = mech?.appearance ?? null
-  open(mech ? `mech:${mech.id}` : 'mech-new')
-}
-
-function cancel() {
-  editing.value = null
-  error.value = ''
-}
-
-// Runs a save, shows any error, and reloads the pilot when it worked.
-async function save(action: () => PromiseLike<{ error: { message: string } | null }>) {
-  saving.value = true
-  error.value = ''
-  const { error: saveError } = await action()
-  saving.value = false
-  if (saveError) {
-    error.value = saveError.message
-    return
-  }
-  editing.value = null
-  await load()
-}
-
-function saveIdentity() {
-  const value = (key: IdentityField) => identityDraft[key].trim() || null
-  const pilotName = identityDraft.pilot_name.trim()
-  if (!pilotName) {
-    error.value = 'a pilot needs a name.'
-    return
-  }
-  const fields = {
-    callsign: value('callsign'),
-    pilot_name: pilotName,
-    age: value('age'),
-    gender: value('gender'),
-    sexuality: value('sexuality'),
-    height: value('height'),
-    weight: value('weight'),
-    eye_colour: value('eye_colour'),
-    hair_colour: value('hair_colour'),
-  }
-  return save(async () => {
-    if (character.value) return supabase.from('characters').update(fields).eq('id', character.value.id)
-    // First save: create the pending pilot, then its (empty) private sheet.
-    const { data, error: insertError } = await supabase
-      .from('characters')
-      .insert({ ...fields, player_id: session.value!.user.id })
-      .select('id')
-      .single()
-    if (insertError) return { error: insertError }
-    return supabase.from('character_sheets').insert({ character_id: data.id, sheet: {} })
-  })
-}
-
-function saveParagraph(key: Paragraph) {
-  const id = character.value!.id
-  if (key === 'backstory') {
-    // Upsert, so this also works if the sheet row was never created.
-    return save(() => supabase.from('character_sheets').upsert({ character_id: id, sheet: { ...sheet.value, backstory: docDraft.value } }))
-  }
-  const changes: TablesUpdate<'characters'> = {}
-  changes[key] = docDraft.value
-  return save(() => supabase.from('characters').update(changes).eq('id', id))
-}
-
-function saveMechs(list: PublicMech[]) {
-  return save(() => supabase.from('characters').update({ mechs: list }).eq('id', character.value!.id))
-}
-
-function saveMech() {
-  const name = mechDraft.name.trim()
-  const manufacturerId = mechDraft.manufacturer_id.trim().toUpperCase()
-  if (!name) {
-    error.value = 'a mech needs a name.'
-    return
-  }
-  if (!MANUFACTURER_ID.test(manufacturerId)) {
-    error.value = 'the manufacturer id should look like XXXX-XXXX-XXXX (letters and digits).'
-    return
-  }
+async function createMech() {
+  const name = newMech.name.trim()
+  const manufacturerId = newMech.manufacturerId.trim().toUpperCase()
+  mechError.value = mechProblem(name, manufacturerId) ?? ''
+  if (mechError.value) return
   // shortcut: duplicate manufacturer ids aren't checked yet. Warn about them once the registry reads real pilots.
-  const mech: PublicMech = {
-    id: mechDraft.id || crypto.randomUUID(),
-    name,
-    manufacturer_id: manufacturerId,
-    appearance: mechAppearance.value,
-    image: null,
-  }
-  return saveMechs(mechDraft.id ? mechs.value.map((m) => (m.id === mech.id ? mech : m)) : [...mechs.value, mech])
+  const mech: PublicMech = { id: crypto.randomUUID(), name, manufacturer_id: manufacturerId, appearance: null, image: null }
+  mechError.value = (await updateCharacter({ mechs: [...mechs.value, mech] })) ?? ''
+  if (!mechError.value) router.push({ name: 'mech', params: { mechId: mech.id } })
 }
-
-function removeMech(mech: PublicMech) {
-  if (window.confirm(`remove ${mech.name}? this can't be undone.`)) saveMechs(mechs.value.filter((m) => m.id !== mech.id))
-}
-
-const editingMech = computed(() => editing.value === 'mech-new' || editing.value?.startsWith('mech:'))
-const needsIdentity = computed(() => (character.value ? undefined : 'file your identity first'))
 </script>
 
 <template>
-  <main class="page">
-    <h1><span class="prompt" aria-hidden="true">&gt; </span><GlitchText text="pilot_management" /></h1>
-
+  <main class="page manage">
     <p v-if="loading" class="dim">loading pilot record...</p>
+    <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
 
-    <template v-else>
-      <p v-if="!character" class="status">no pilot on file. fill in your identity to register one.</p>
-      <p v-else-if="character.status === 'pending'" class="status">
-        status: <span class="lilac">[pending]</span> waiting on a gm. you can keep editing until then.
-      </p>
-      <p v-else class="status">
-        status: <span class="lilac">[approved]</span> changes to an approved pilot go through pending paperwork (module
-        offline).
-      </p>
+    <!-- No pilot yet: a name registers one, then the full sheet opens. -->
+    <section v-else-if="!character" class="register">
+      <h1 class="sheet-label">register a pilot</h1>
+      <form class="register-form" @submit.prevent="register">
+        <p>no pilot on file. a name is all that's needed to start; everything else is filled in on the sheet.</p>
+        <label>
+          <span class="dim">callsign</span>
+          <input v-model="newPilot.callsign" type="text" />
+        </label>
+        <label>
+          <span class="dim">name (required)</span>
+          <input v-model="newPilot.name" type="text" required />
+        </label>
+        <p v-if="registerError" class="rose" role="alert">{{ registerError }}</p>
+        <button type="submit">register pilot</button>
+      </form>
+    </section>
 
-      <!-- Identity: portrait and the short fields. -->
-      <section class="module">
-        <header>
-          <h2>identity</h2>
-          <button v-if="character && canEdit && editing !== 'identity'" type="button" @click="openIdentity">edit</button>
-        </header>
-
-        <form v-if="editing === 'identity'" class="edit-form" @submit.prevent="saveIdentity">
-          <div class="fields">
-            <label v-for="[key, label] in IDENTITY" :key="key">
-              <span class="dim">{{ label }}<template v-if="key === 'pilot_name'"> (required)</template></span>
-              <input v-model="identityDraft[key]" type="text" :required="key === 'pilot_name'" />
-            </label>
-          </div>
-          <p v-if="error" class="rose" role="alert">{{ error }}</p>
-          <div class="actions">
-            <button type="submit" :disabled="saving">{{ character ? 'save' : 'register pilot' }}</button>
-            <button v-if="character" type="button" @click="cancel">cancel</button>
-          </div>
-        </form>
-
-        <div v-else-if="character" class="identity">
-          <Portrait :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
+    <div v-else class="sheet">
+      <!-- At a glance: callsign, name, player, status. -->
+      <header class="glance">
+        <div class="names">
+          <input
+            v-if="editable"
+            class="inline callsign"
+            type="text"
+            aria-label="callsign"
+            placeholder="callsign"
+            :value="character.callsign ?? ''"
+            @change="saveText('callsign', $event)"
+          />
+          <h1 v-else class="callsign">{{ character.callsign ?? character.pilot_name }}</h1>
+          <input
+            v-if="editable"
+            class="inline name"
+            type="text"
+            aria-label="name"
+            placeholder="name"
+            :value="character.pilot_name"
+            @change="saveText('pilot_name', $event)"
+          />
+          <p v-else class="name">{{ character.pilot_name }}</p>
+        </div>
+        <dl class="glance-facts">
           <div>
-            <p class="callsign">{{ character.callsign ?? character.pilot_name }}</p>
-            <dl class="facts">
-              <template v-for="fact in facts" :key="fact.label">
-                <dt>{{ fact.label }}</dt>
-                <dd>{{ fact.value }}</dd>
-              </template>
-            </dl>
-            <p class="dim small">image upload: module offline</p>
+            <dt>player</dt>
+            <dd>{{ profile?.display_name ?? 'you' }}</dd>
           </div>
-        </div>
-
-        <AddBox v-else label="register your pilot" @click="openIdentity" />
-      </section>
-
-      <!-- Paragraphs: formatted text. -->
-      <section v-for="paragraph in PARAGRAPHS" :key="paragraph.key" class="module">
-        <header>
-          <h2>
-            {{ paragraph.label }}
-            <span v-if="paragraph.private" class="dim small">private: only you and gms</span>
-          </h2>
-          <button
-            v-if="canEdit && paragraphValue(paragraph.key) && editing !== paragraph.key"
-            type="button"
-            @click="openParagraph(paragraph.key)"
-          >
-            edit
-          </button>
-        </header>
-
-        <form v-if="editing === paragraph.key" class="edit-form" @submit.prevent="saveParagraph(paragraph.key)">
-          <RichTextEditor v-model="docDraft" :label="paragraph.label" />
-          <p v-if="error" class="rose" role="alert">{{ error }}</p>
-          <div class="actions">
-            <button type="submit" :disabled="saving">save</button>
-            <button type="button" @click="cancel">cancel</button>
+          <div>
+            <dt>status</dt>
+            <dd class="badge" :class="character.status">{{ character.status }}</dd>
           </div>
-        </form>
-        <RichText v-else-if="paragraphValue(paragraph.key)" :doc="paragraphValue(paragraph.key)" />
-        <AddBox
-          v-else-if="canEdit"
-          :label="`write ${paragraph.label}`"
-          :hint="needsIdentity"
-          @click="openParagraph(paragraph.key)"
+        </dl>
+        <p class="save-status" role="status">
+          <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+          <span v-else class="dim">{{ status }}</span>
+        </p>
+        <p v-if="!editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
+      </header>
+
+      <!-- Right on wide screens; between the top strip and appearance on phones. -->
+      <aside class="side">
+        <Portrait :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
+        <p class="dim small">image upload: module offline</p>
+        <table class="identity">
+          <tbody>
+            <tr v-for="[column, label] in IDENTITY" :key="column">
+              <th scope="row">{{ label }}</th>
+              <td>
+                <input
+                  v-if="editable"
+                  class="inline"
+                  type="text"
+                  :aria-label="label"
+                  :value="character[column] ?? ''"
+                  @change="saveText(column, $event)"
+                />
+                <template v-else>{{ character[column] ?? '-' }}</template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </aside>
+
+      <div class="writing">
+        <SheetField title="appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
+        <SheetField title="personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
+        <SheetField title="backstory" tag="private" :doc="sheet.backstory ?? null" :editable="editable" :save="saveBackstory" />
+      </div>
+
+      <div class="wide">
+        <StatRow
+          title="personal stats"
+          :stats="personalStats"
+          :editable="editable"
+          :min="STAT_MIN"
+          :max="STAT_MAX"
+          @set="(id, value) => setStat('pilot_stats', personalStats, id, value)"
         />
-        <p v-else class="dim">nothing on file.</p>
-      </section>
+        <StatRow
+          title="piloting stats"
+          :stats="pilotingStats"
+          :editable="editable"
+          :min="STAT_MIN"
+          :max="STAT_MAX"
+          @set="(id, value) => setStat('mech_skills', pilotingStats, id, value)"
+        />
+        <LoadoutBox
+          title="bionics"
+          tag="private"
+          :items="bionicItems"
+          :chosen="sheet.bionics ?? []"
+          :editable="editable"
+          :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
+          :save="saveBionics"
+        />
+        <LoadoutBox title="gear loadout" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
 
-      <!-- Mechs: added and edited with a small form. -->
-      <section class="module">
-        <header><h2>mechs</h2></header>
+        <section class="hangar">
+          <header class="hangar-head">
+            <h2 class="sheet-label">mech hangar</h2>
+            <button v-if="editable && mechs.length && !addingMech" type="button" @click="openNewMech">new mech</button>
+          </header>
+          <div class="hangar-body">
+            <ul v-if="mechs.length" class="mechs">
+              <li v-for="mech in mechs" :key="mech.id">
+                <RouterLink :to="{ name: 'mech', params: { mechId: mech.id } }" class="mech-card">
+                  <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
+                  <span class="mech-name">{{ mech.name }}</span>
+                  <span class="dim">{{ mech.manufacturer_id }}</span>
+                </RouterLink>
+              </li>
+            </ul>
 
-        <div v-for="mech in mechs" :key="mech.id" class="mech">
-          <template v-if="editing !== `mech:${mech.id}`">
-            <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
-            <div>
-              <p class="mech-name">{{ mech.name }}</p>
-              <p class="dim">{{ mech.manufacturer_id }}</p>
-              <RichText v-if="mech.appearance" :doc="mech.appearance" class="mech-appearance" />
-              <div v-if="canEdit && !editingMech" class="actions">
-                <button type="button" @click="openMech(mech)">edit</button>
-                <button type="button" @click="removeMech(mech)">remove</button>
+            <form v-if="addingMech" class="new-mech" @submit.prevent="createMech">
+              <label>
+                <span class="dim">mech name (required)</span>
+                <input v-model="newMech.name" type="text" required />
+              </label>
+              <label>
+                <span class="dim">manufacturer id (XXXX-XXXX-XXXX)</span>
+                <input v-model="newMech.manufacturerId" type="text" required />
+              </label>
+              <p v-if="mechError" class="rose" role="alert">{{ mechError }}</p>
+              <div class="actions">
+                <button type="submit">create mech</button>
+                <button type="button" @click="addingMech = false">cancel</button>
               </div>
-            </div>
-          </template>
-        </div>
-
-        <form v-if="editingMech" class="edit-form" @submit.prevent="saveMech">
-          <div class="fields">
-            <label>
-              <span class="dim">mech name (required)</span>
-              <input v-model="mechDraft.name" type="text" required />
-            </label>
-            <label>
-              <span class="dim">manufacturer id (XXXX-XXXX-XXXX)</span>
-              <input v-model="mechDraft.manufacturer_id" type="text" required />
-            </label>
+            </form>
+            <AddBox v-else-if="editable && !mechs.length" label="new mech" class="add-mech" @click="openNewMech" />
+            <p v-else-if="!mechs.length" class="dim">no mechs on file.</p>
           </div>
-          <span class="dim small">appearance</span>
-          <RichTextEditor v-model="mechAppearance" label="mech appearance" />
-          <p v-if="error" class="rose" role="alert">{{ error }}</p>
-          <div class="actions">
-            <button type="submit" :disabled="saving">{{ mechDraft.id ? 'save mech' : 'add mech' }}</button>
-            <button type="button" @click="cancel">cancel</button>
-          </div>
-        </form>
-        <AddBox v-else-if="canEdit" label="add a mech" :hint="needsIdentity" @click="openMech()" />
-      </section>
-
-      <!-- Everything that needs the LANCER content packs or undecided rules. -->
-      <div class="offline-grid">
-        <section v-for="title in OFFLINE_SECTIONS" :key="title" class="module">
-          <header><h2>{{ title }}</h2></header>
-          <AddBox :label="`add ${title}`" offline />
         </section>
       </div>
-    </template>
+    </div>
   </main>
 </template>
 
 <style scoped>
-.page {
-  max-width: 52rem;
-}
-
-.status {
-  margin-bottom: 2rem;
-}
-
-.module {
-  margin-bottom: 2.25rem;
-}
-
-.module header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.6rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--rule);
-}
-
-.module h2 {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: 0.875rem;
-  font-weight: 400;
-}
-
-.module header button {
-  padding: 0;
-  font-size: 0.875rem;
+/* Full width: the sheet uses the whole content area, not a centred column. */
+.manage {
+  max-width: none;
 }
 
 .small {
   font-size: 0.75rem;
 }
 
-.edit-form {
+/* --- Layout: top strip across, writing left, portrait right, then full-width sections --- */
+.sheet {
+  display: grid;
+  grid-template-areas:
+    'glance glance'
+    'writing side'
+    'wide wide';
+  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
+  gap: 1.5rem 2rem;
+  align-items: start;
+}
+
+.glance {
+  grid-area: glance;
+}
+
+.note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.writing {
+  grid-area: writing;
+}
+
+.side {
+  grid-area: side;
+}
+
+.wide {
+  grid-area: wide;
+}
+
+.writing,
+.wide {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* --- One-line fields: plain text until you point at them --- */
+.inline {
+  padding: 0.15rem 0.35rem;
+  border-color: transparent;
+}
+
+.inline:hover {
+  border-color: var(--rule);
+}
+
+/* --- Top strip --- */
+.glance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 2.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.names {
+  display: flex;
+  flex: 1 1 22rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.callsign {
+  margin: 0;
+  color: var(--lilac);
+  font: 700 2.5rem/1.1 var(--mono);
+}
+
+.name {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 1.125rem;
+}
+
+input.callsign,
+input.name {
+  margin-left: -0.35rem;
+}
+
+.glance-facts {
+  display: flex;
+  gap: 2rem;
+  margin: 0;
+}
+
+.glance-facts dt {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.glance-facts dd {
+  margin: 0;
+}
+
+/* The status as a small outlined badge: rose while pending, sky once approved. */
+.badge {
+  width: fit-content;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+}
+
+.badge.pending {
+  color: var(--rose);
+}
+
+.badge.approved {
+  color: var(--sky);
+}
+
+.save-status {
+  min-width: 8rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+/* --- Portrait and identity table --- */
+.side p {
+  margin: 0.35rem 0 1rem;
+}
+
+.identity {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.identity th,
+.identity td {
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.identity th {
+  width: 6.5rem;
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+/* --- Registering --- */
+.register {
+  max-width: 32rem;
+}
+
+.register-form {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--rule);
 }
 
-.fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: 0.75rem 1rem;
+.register-form p {
+  margin: 0;
 }
 
-.fields label {
+.register-form label,
+.new-mech label {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.8125rem;
 }
 
-.edit-form p {
+.register-form button {
+  align-self: flex-start;
+  padding-inline: 0;
+}
+
+/* --- Hangar: mechs centred, so a single mech sits in the middle --- */
+.hangar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hangar-head button {
+  padding: 0;
+  font-size: 0.8125rem;
+}
+
+.hangar-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--rule);
+}
+
+.mechs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mech-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 11rem;
+  padding: 0.6rem;
+  border: 1px solid var(--rule);
+  color: var(--text);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.mech-card:hover,
+.mech-card:focus-visible {
+  border-color: var(--lilac);
+}
+
+.mech-name {
+  margin-top: 0.35rem;
+  color: var(--lilac);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.add-mech {
+  max-width: 16rem;
+}
+
+.new-mech {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(100%, 24rem);
+}
+
+.new-mech p,
+.hangar-body > p {
   margin: 0;
 }
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  gap: 1rem;
 }
 
 .actions button {
@@ -422,67 +566,52 @@ const needsIdentity = computed(() => (character.value ? undefined : 'file your i
   font-size: 0.875rem;
 }
 
-.identity,
-.mech {
-  display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr);
-  gap: 1.25rem;
-  align-items: start;
-}
+/* --- Narrow screens: one column, with the portrait between the top strip and appearance --- */
+@media (max-width: 56rem) {
+  .sheet {
+    grid-template-areas: 'glance' 'side' 'writing' 'wide';
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-.mech {
-  margin-bottom: 1.25rem;
-}
+  /* A smaller portrait, so the writing isn't pushed a whole screen down. */
+  .side :deep(.portrait) {
+    width: min(100%, 14rem);
+    margin-inline: auto;
+  }
 
-.mech:empty {
-  display: none;
-}
+  .side p {
+    text-align: center;
+  }
 
-.callsign,
-.mech-name {
-  margin: 0 0 0.5rem;
-  color: var(--lilac);
-  font-weight: 600;
-}
+  .callsign {
+    font-size: 1.875rem;
+  }
 
-.mech-name {
-  margin-bottom: 0;
-}
+  /* The top strip, centred. */
+  .glance {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
 
-.mech p {
-  margin: 0;
-}
+  .names {
+    flex: none;
+    align-items: center;
+    width: 100%;
+  }
 
-.mech-appearance {
-  margin: 0.5rem 0;
-}
+  .names input {
+    margin-left: 0;
+    text-align: center;
+  }
 
-.facts {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.2rem 1.25rem;
-  margin: 0 0 0.75rem;
-}
+  .glance-facts dd {
+    margin-inline: auto;
+  }
 
-.facts dt {
-  color: var(--text-dim);
-}
-
-.facts dd {
-  margin: 0;
-}
-
-.offline-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: 0 1.25rem;
-}
-
-@media (max-width: 30rem) {
-  .identity,
-  .mech {
-    grid-template-columns: 5.5rem minmax(0, 1fr);
-    gap: 1rem;
+  .save-status {
+    min-width: 0;
+    text-align: center;
   }
 }
 </style>

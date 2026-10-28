@@ -32,6 +32,26 @@ const menuOpen = ref(false)
 const sidebar = useTemplateRef('sidebar')
 // The chat panel is always shown on wide screens; on phones, a [ chat ] toggle shows it.
 const chatOpen = ref(false)
+// Wide screens can minimise it to one line. Remembered in this browser (storage can be blocked, hence the try).
+const CHAT_KEY = 'hor_os.chat-minimised'
+const chatMinimised = ref(readFlag())
+
+function readFlag() {
+  try {
+    return localStorage.getItem(CHAT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function toggleChat() {
+  chatMinimised.value = !chatMinimised.value
+  try {
+    localStorage.setItem(CHAT_KEY, chatMinimised.value ? '1' : '0')
+  } catch {
+    // Not remembered; it still works for this visit.
+  }
+}
 
 watch(() => route.fullPath, () => (menuOpen.value = false))
 
@@ -98,14 +118,14 @@ async function disconnect() {
           </li>
         </ul>
       </nav>
+    </aside>
 
+    <!-- Three slots: where you are (left), the gm view toggle (centre), who you are (right). -->
+    <header class="topbar">
+      <p class="dim">~/{{ route.meta.title }}</p>
       <button v-if="isGm" type="button" class="gm-toggle" @click="toggleGmView">
         {{ route.meta.gm ? 'exit gm view' : 'gm view' }}
       </button>
-    </aside>
-
-    <header class="topbar">
-      <p class="dim">~/{{ route.meta.title }}</p>
       <div class="operator">
         <p v-if="profile">
           <span class="dim">uuid:</span> {{ profile.display_name }} <span class="role">[{{ profile.role }}]</span>
@@ -117,7 +137,10 @@ async function disconnect() {
     <RouterView />
 
     <!-- The net chat (src/assets/net-chat.txt), pinned to the bottom of the window. -->
-    <section id="net-chat" class="chat-panel" aria-label="Net chat">
+    <section id="net-chat" class="chat-panel" :class="{ minimised: chatMinimised }" aria-label="Net chat">
+      <button type="button" class="chat-minimise" :aria-expanded="!chatMinimised" @click="toggleChat">
+        {{ chatMinimised ? 'show chat' : 'minimise' }}
+      </button>
       <!-- The 5-line MOTD block comes out quickly, then a message every 1.8 seconds: slower than the
            login chat, so it's readable while browsing. -->
       <ChatFeed :text="netChat" :delay="1800" :quick-lines="5" />
@@ -217,16 +240,16 @@ async function disconnect() {
 }
 
 .gm-toggle {
-  align-self: flex-start;
-  margin: auto 1.5rem 1.25rem;
+  justify-self: center;
   padding-inline: 0;
+  font-size: 0.875rem;
 }
 
+/* Equal outer columns keep the gm view toggle in the exact centre, whatever's either side. */
 .topbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 0.25rem 1.5rem;
   min-height: var(--bar-height);
   padding: 0 1.5rem;
@@ -242,6 +265,7 @@ async function disconnect() {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-self: end;
   gap: 0 1.25rem;
 }
 
@@ -254,9 +278,13 @@ async function disconnect() {
   font-size: 0.875rem;
 }
 
-/* The page sits next to the sidebar rather than centred in the space. */
+/* Pages sit next to the sidebar rather than centred in the space, unless they ask to be centred. */
 .shell :deep(.page) {
   margin: 0;
+}
+
+.shell :deep(.page.centered) {
+  margin-inline: auto;
 }
 
 /* Sits at the bottom of the window, over the page as it scrolls. 8 chat lines tall, plus padding and the 1px line. */
@@ -267,6 +295,34 @@ async function disconnect() {
   padding: 0.75rem 1.5rem;
   border-top: 1px solid var(--rule);
   background: var(--void);
+}
+
+/* Wide screens only: a small option in the chat's top-right corner. */
+.chat-minimise {
+  position: absolute;
+  top: 0.5rem;
+  right: 1.5rem;
+  z-index: 1;
+  padding: 0;
+  font-size: 0.75rem;
+}
+
+/* Minimised: just the option, on one line. The feed keeps running underneath, so it doesn't restart. */
+@media (min-width: 48.0625rem) {
+  .chat-panel.minimised {
+    height: auto;
+    padding-block: 0.35rem;
+  }
+
+  .minimised .chat-minimise {
+    position: static;
+    display: block;
+    margin-left: auto;
+  }
+
+  .minimised :deep(.feed) {
+    display: none;
+  }
 }
 
 .menu-toggle,
@@ -306,6 +362,11 @@ async function disconnect() {
     right: 1rem;
   }
 
+  /* Phones open and close the chat with [ chat ] instead. */
+  .chat-minimise {
+    display: none;
+  }
+
   .chat-toggle {
     left: 1rem;
   }
@@ -325,7 +386,6 @@ async function disconnect() {
 
   /* Collapsed: only the logo and the toggle show. */
   .shell:not(.menu-open) .menu,
-  .shell:not(.menu-open) .gm-toggle,
   .shell:not(.menu-open) .topbar {
     display: none;
   }
@@ -359,14 +419,11 @@ async function disconnect() {
     content: ' <' / '';
   }
 
-  .gm-toggle {
-    align-self: center;
-    margin: 0.75rem 0 0;
-  }
-
   /* Stacked, the top bar doesn't sit beside the logo, so it doesn't need to match its height. */
   .topbar {
-    justify-content: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
     min-height: 0;
     padding: 0.75rem 1rem;
     text-align: center;

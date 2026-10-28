@@ -145,6 +145,23 @@ input[type='text']:focus {
   font: 400 0.9375rem/1.6 var(--mono);
 }
 
+/* A pilot sheet section's tag: a filled block with a lilac edge, sitting on the box below it. */
+.sheet-label {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.2rem 0.75rem 0.2rem 0.6rem;
+  border-left: 3px solid var(--lilac);
+  background: var(--panel);
+  color: var(--text);
+  font: 600 0.875rem/1.5 var(--mono);
+}
+
+.sheet-label .tag {
+  color: var(--rose);
+  font-weight: 400;
+}
+
 /* For anything read at length, like a backstory: the readable font instead of monospace. */
 .prose {
   font: 400 1.0625rem/1.55 var(--read);

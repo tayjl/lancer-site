@@ -2,6 +2,7 @@
 import { nextTick, ref, useTemplateRef } from 'vue'
 import { loginError } from '../auth'
 import BootSequence from '../components/BootSequence.vue'
+import ThirdPartyNotice from '../components/ThirdPartyNotice.vue'
 import { supabase } from '../lib/supabaseClient'
 
 const error = ref(loginError)
@@ -34,6 +35,7 @@ async function uplink() {
       <!-- Hidden (but still taking up its space) until the log finishes, so nothing jumps when it appears. -->
       <button ref="uplinkButton" type="button" :class="{ waiting: !booted }" @click="uplink">uplink with discord</button>
       <p v-if="error" role="alert" class="error">Uplink failed: {{ error }}</p>
+      <ThirdPartyNotice class="notice" />
     </div>
   </main>
 </template>

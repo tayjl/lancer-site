@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import LoginView from './views/LoginView.vue'
+import MechView from './views/MechView.vue'
 import ModuleOffline from './views/ModuleOffline.vue'
 import PilotManageView from './views/PilotManageView.vue'
 import PilotRecordView from './views/PilotRecordView.vue'
@@ -31,6 +32,13 @@ export const router = createRouter({
       name: 'pilot',
       component: PilotManageView,
       meta: { title: 'pilot_management', summary: 'your pilot: register it, view it, file changes.' },
+    },
+    // One of your mechs. "section" keeps pilot_management highlighted in the menu.
+    {
+      path: '/pilot/mechs/:mechId',
+      name: 'mech',
+      component: MechView,
+      meta: { title: 'pilot_management/mech', section: 'pilot' },
     },
     {
       path: '/pending',
