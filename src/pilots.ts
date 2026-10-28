@@ -1,4 +1,5 @@
-import type { Json } from './lib/database.types'
+import type { Json, Tables } from './lib/database.types'
+import { supabase } from './lib/supabaseClient'
 
 // The public parts of a character (the characters table), which every logged-in user can see.
 // The registry cards and the pilot record page both use this shape.
@@ -13,64 +14,27 @@ export type PublicMech = {
   image: string | null
 }
 
-export type PublicPilot = {
-  id: number
-  callsign: string | null
-  pilot_name: string
-  pilot_image: string | null
-  age: string | null
-  gender: string | null
-  sexuality: string | null
-  height: string | null
-  weight: string | null
-  eye_colour: string | null
-  hair_colour: string | null
-  appearance: Json | null
-  personality: Json | null
-  traits: Json | null
+// "player" is the owner's profile, joined in for their display name.
+export type PublicPilot = Omit<Tables<'characters'>, 'mechs'> & {
   mechs: PublicMech[]
+  player: { display_name: string } | null
 }
 
-// One plain paragraph in the editor's format, for the example below.
-const paragraph = (text: string): Json => ({
-  type: 'doc',
-  content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
-})
+const PILOT_FIELDS = '*, player:profiles(display_name)'
 
-// shortcut: a hard-coded example to settle the look. Replace it with approved pilots from the
-// characters table once registration is built.
-export const examplePilots: PublicPilot[] = [
-  {
-    id: 1,
-    callsign: 'HALFMOON',
-    pilot_name: 'Ines Varga',
-    pilot_image: null,
-    age: '29',
-    gender: 'woman',
-    sexuality: 'bisexual',
-    height: '1.74 m',
-    weight: '68 kg',
-    eye_colour: 'grey',
-    hair_colour: 'black, shaved at the sides',
-    appearance: paragraph(
-      'Wiry and sunburnt, with a crooked nose from a bad landing on Kos. Wears a patched flight jacket over everything, whatever the weather.',
-    ),
-    personality: paragraph(
-      "Dry, quick and hard to rattle. Jokes when things go wrong, goes quiet when they go very wrong. Doesn't trust anyone who's never been hungry.",
-    ),
-    traits: [
-      { id: 't1', name: 'steady hands', description: paragraph('Stays calm and precise under fire.') },
-      { id: 't2', name: 'reads people', description: paragraph('Quick to tell when someone is lying.') },
-      { id: 't3', name: 'restless', description: paragraph('Terrible at sitting still for long.') },
-    ],
-    mechs: [
-      {
-        id: 'm1',
-        name: "Lantern's Due",
-        manufacturer_id: '7GQ2-K41X-0B9D',
-        appearance: paragraph('Matte grey plating with a hand-painted crescent moon on the left shoulder.'),
-        image: null,
-      },
-    ],
-  },
-]
+// The mechs column is plain JSON to the database; the site always saves it in the PublicMech shape.
+const toPilot = (row: object) => {
+  const pilot = row as unknown as PublicPilot
+  return { ...pilot, mechs: Array.isArray(pilot.mechs) ? pilot.mechs : [] }
+}
+
+// Every pilot with this status, oldest first. Returns the pilots, or an error message.
+export async function fetchPilots(status: Tables<'characters'>['status']) {
+  const { data, error } = await supabase.from('characters').select(PILOT_FIELDS).eq('status', status).order('created_at')
+  return { pilots: (data ?? []).map(toPilot), error: error?.message ?? '' }
+}
+
+export async function fetchPilot(id: number) {
+  const { data, error } = await supabase.from('characters').select(PILOT_FIELDS).eq('id', id).maybeSingle()
+  return { pilot: data ? toPilot(data) : null, error: error?.message ?? '' }
+}

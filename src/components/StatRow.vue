@@ -1,16 +1,20 @@
 <script setup lang="ts">
 // A row of stats: each one's name and number, with - and + to change it when editable. One line when there's
 // room; in a narrow space (phones) each stat gets its own line instead, so they stay lined up.
-// "bonus" (e.g. from bionics) is shown next to the number, but isn't part of what you set.
+// "bonus" (e.g. from bionics) is shown next to the number, but isn't part of what you set. A null value
+// (not worked out yet) shows as "-". "icon" is an SVG's url, drawn in the text colour.
 defineProps<{
   title: string
   tag?: string
-  stats: { id: string; name: string; value: number; bonus?: number }[]
+  stats: { id: string; name: string; value: number | null; bonus?: number; icon?: string }[]
   editable: boolean
   min: number
   max: number
 }>()
 const emit = defineEmits<{ set: [id: string, value: number] }>()
+
+// Quoted, because Vite inlines small SVGs as data urls with spaces in them.
+const iconStyle = (url: string) => ({ maskImage: `url(${JSON.stringify(url)})` })
 </script>
 
 <template>
@@ -18,24 +22,27 @@ const emit = defineEmits<{ set: [id: string, value: number] }>()
     <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span></h2>
     <ul>
       <li v-for="stat in stats" :key="stat.id">
-        <span class="name">{{ stat.name }}</span>
+        <span class="name">
+          <span v-if="stat.icon" class="icon" :style="iconStyle(stat.icon)" aria-hidden="true"></span>
+          {{ stat.name }}
+        </span>
         <span class="value">
-          {{ stat.value }}<span v-if="stat.bonus" class="bonus"> +{{ stat.bonus }}</span>
+          {{ stat.value ?? '-' }}<span v-if="stat.bonus" class="bonus"> +{{ stat.bonus }}</span>
         </span>
         <span v-if="editable" class="steps">
           <button
             type="button"
             :aria-label="`lower ${stat.name}`"
-            :disabled="stat.value <= min"
-            @click="emit('set', stat.id, stat.value - 1)"
+            :disabled="stat.value === null || stat.value <= min"
+            @click="emit('set', stat.id, stat.value! - 1)"
           >
             -
           </button>
           <button
             type="button"
             :aria-label="`raise ${stat.name}`"
-            :disabled="stat.value >= max"
-            @click="emit('set', stat.id, stat.value + 1)"
+            :disabled="stat.value === null || stat.value >= max"
+            @click="emit('set', stat.id, stat.value! + 1)"
           >
             +
           </button>
@@ -73,8 +80,21 @@ li + li {
 }
 
 .name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--text-dim);
   font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* The symbol is a mask over a block of colour, so it takes the accent colour like text would. */
+.icon {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  background: var(--lilac);
+  mask: center / contain no-repeat;
 }
 
 .value {

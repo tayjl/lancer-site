@@ -7,7 +7,7 @@ import LoadoutBox from '../components/LoadoutBox.vue'
 import Portrait from '../components/Portrait.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
-import { MECH_SKILLS, useGameData, type PilotStat } from '../gameData'
+import { bionicItems, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
@@ -19,7 +19,7 @@ import type { PublicMech } from '../pilots'
 // paperwork (not built yet), so the sheet turns read-only.
 
 const router = useRouter()
-const { character, sheet, modPoints, loading, loadError, editable, mechs, create, updateCharacter, updateSheet } = useMyPilot()
+const { character, sheet, modPoints, reviewNote, loading, loadError, editable, mechs, create, updateCharacter, updateSheet } = useMyPilot()
 const { gear, bionics, pilotStats } = useGameData()
 
 // The identity table under the portrait. [column, label]
@@ -80,17 +80,7 @@ const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) 
 const saveBackstory = (doc: Json | null) => updateSheet({ backstory: doc })
 
 // --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
-const chosenBionics = computed(() => bionics.value.filter((b) => sheet.value.bionics?.includes(b.id)))
-const bonusFor = (statId: string) =>
-  chosenBionics.value.flatMap((b) => b.bonuses).reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
-
-const statValues = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[]) =>
-  stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet.value[key]?.[stat.id] ?? 1 }))
-
-const personalStats = computed(() =>
-  statValues('pilot_stats', pilotStats.value).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
-)
-const pilotingStats = computed(() => statValues('mech_skills', MECH_SKILLS))
+const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value))
 
 // Saves every stat in the row, so the sheet records the defaults too, not just the one that changed.
 function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value: number }[], id: string, value: number) {
@@ -99,16 +89,6 @@ function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value:
 }
 
 // --- Bionics and gear: picked from the catalogues, stored as ids ---
-const bionicItems = computed(() =>
-  bionics.value.map((b) => ({
-    id: b.id,
-    name: b.name,
-    type: [...b.bonuses.map((bonus) => `+${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${b.manna_cost} manna`].join(', '),
-    description: b.description,
-    cost: b.mod_point_cost,
-    retired: b.retired,
-  })),
-)
 const saveBionics = (ids: (string | number)[]) => updateSheet({ bionics: ids as number[] })
 const saveGear = (ids: (string | number)[]) => updateSheet({ pilot_gear: ids as string[] })
 
@@ -198,6 +178,10 @@ async function createMech() {
           <span v-else class="dim">{{ status }}</span>
         </p>
         <p v-if="!editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
+        <div v-else-if="reviewNote" class="gm-note" role="note">
+          <p class="rose">sent back by a gm. change what they asked, and it stays in pending_paperwork for review.</p>
+          <p>{{ reviewNote }}</p>
+        </div>
       </header>
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
@@ -234,25 +218,25 @@ async function createMech() {
         <StatRow
           title="personal stats"
           tag="private"
-          :stats="personalStats"
+          :stats="stats.personal"
           :editable="editable"
           :min="STAT_MIN"
           :max="STAT_MAX"
-          @set="(id, value) => setStat('pilot_stats', personalStats, id, value)"
+          @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
         />
         <StatRow
           title="piloting stats"
           tag="private"
-          :stats="pilotingStats"
+          :stats="stats.piloting"
           :editable="editable"
           :min="STAT_MIN"
           :max="STAT_MAX"
-          @set="(id, value) => setStat('mech_skills', pilotingStats, id, value)"
+          @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
         />
         <LoadoutBox
           title="bionics"
           tag="private"
-          :items="bionicItems"
+          :items="bionicItems(bionics)"
           :chosen="sheet.bionics ?? []"
           :editable="editable"
           :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
@@ -324,6 +308,20 @@ async function createMech() {
 
 .glance {
   grid-area: glance;
+}
+
+.gm-note {
+  flex-basis: 100%;
+  padding: 0.6rem 0.9rem;
+  border-left: 3px solid var(--rose);
+  background: var(--panel);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.gm-note p {
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 .note {

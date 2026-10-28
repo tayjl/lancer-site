@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
+import type { Tables } from './lib/database.types'
 import LoginView from './views/LoginView.vue'
 import MechView from './views/MechView.vue'
 import ModuleOffline from './views/ModuleOffline.vue'
@@ -10,6 +11,19 @@ import RegistryView from './views/RegistryView.vue'
 // Each page's meta: "title" is its name in the menu and the header path (e.g. ~/pilot_registry),
 // and "summary" says what it's for. "gm" pages are for GMs and owners only.
 // Pages that aren't built yet use the ModuleOffline placeholder.
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string
+    summary?: string
+    section?: string
+    gm?: boolean
+    public?: boolean
+    // Card grids (RegistryView): which pilots to list, and what to say when there are none.
+    status?: Tables<'characters'>['status']
+    empty?: string
+  }
+}
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -18,7 +32,12 @@ export const router = createRouter({
       path: '/registry',
       name: 'registry',
       component: RegistryView,
-      meta: { title: 'pilot_registry', summary: 'every approved pilot on the net. public records only.' },
+      meta: {
+        title: 'pilot_registry',
+        summary: 'every approved pilot on the net. public records only.',
+        status: 'approved',
+        empty: 'no approved pilots on the net yet.',
+      },
     },
     // "section" keeps pilot_registry highlighted in the menu while a record is open.
     {
@@ -43,8 +62,14 @@ export const router = createRouter({
     {
       path: '/pending',
       name: 'pending',
-      component: ModuleOffline,
-      meta: { title: 'pending_paperwork', summary: 'pilots and changes waiting on a gm.' },
+      component: RegistryView,
+      // shortcut: only new pilots for now. Changes to approved pilots join this list once pending changes are built.
+      meta: {
+        title: 'pending_paperwork',
+        summary: 'new pilots waiting on a gm. gms open a card to review it.',
+        status: 'pending',
+        empty: 'nothing waiting on a gm.',
+      },
     },
     {
       path: '/memorial',

@@ -38,6 +38,8 @@ export function useMyPilot() {
   const sheet = shallowRef<Sheet>({})
   // The mod limit. Lives beside the sheet, not in it, so after approval only GMs can change it.
   const modPoints = ref(6)
+  // A GM's note when they send a pending pilot back. Cleared when the pilot is approved.
+  const reviewNote = ref('')
   const loading = ref(true)
   const loadError = ref('')
 
@@ -63,11 +65,12 @@ export function useMyPilot() {
     if (data) {
       const { data: row } = await supabase
         .from('character_sheets')
-        .select('sheet, mod_points')
+        .select('sheet, mod_points, review_note')
         .eq('character_id', data.id)
         .maybeSingle()
       sheet.value = (row?.sheet ?? {}) as unknown as Sheet
       modPoints.value = row?.mod_points ?? 6
+      reviewNote.value = row?.review_note ?? ''
     }
     loading.value = false
   }
@@ -118,5 +121,5 @@ export function useMyPilot() {
 
   load()
 
-  return { character, sheet, modPoints, loading, loadError, editable, mechs, traits, load, create, updateCharacter, updateSheet }
+  return { character, sheet, modPoints, reviewNote, loading, loadError, editable, mechs, traits, load, create, updateCharacter, updateSheet }
 }

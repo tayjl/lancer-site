@@ -77,6 +77,7 @@ onBeforeUnmount(() => {
 }
 
 .readonly {
+  max-width: none;
   margin: 0;
   padding: 0.75rem;
   border: 1px solid var(--rule);

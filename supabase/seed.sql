@@ -21,6 +21,28 @@ values (
   'email', now(), now(), now()
 );
 
+-- A local GM, for testing reviews: email test-gm@hor-os.local, password local-test-gm (role: gm).
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, email_change, email_change_token_new, recovery_token
+) values (
+  '00000000-0000-0000-0000-000000000000', 'aaaaaaaa-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
+  'test-gm@hor-os.local', extensions.crypt('local-test-gm', extensions.gen_salt('bf')), now(),
+  '{"provider": "email", "providers": ["email"]}', '{"full_name": "Test GM"}', now(), now(),
+  '', '', '', ''
+);
+
+insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+values (
+  gen_random_uuid(), 'aaaaaaaa-0000-4000-8000-000000000002', 'aaaaaaaa-0000-4000-8000-000000000002',
+  '{"sub": "aaaaaaaa-0000-4000-8000-000000000002", "email": "test-gm@hor-os.local"}',
+  'email', now(), now(), now()
+);
+
+-- The sign-up trigger makes every new profile a player; promote this one.
+update public.profiles set role = 'gm' where id = 'aaaaaaaa-0000-4000-8000-000000000002';
+
 -- Game content for testing the pickers on pilot_management, until LCP import is built.
 -- Pilot gear is the core list from Massif Press's lancer-data (GPL-3.0-or-later), unchanged.
 with pack as (

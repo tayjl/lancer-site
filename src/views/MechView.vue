@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import EditableRichText from '../components/EditableRichText.vue'
-import EntryList from '../components/EntryList.vue'
-import GlitchText from '../components/GlitchText.vue'
-import Panel from '../components/Panel.vue'
 import Portrait from '../components/Portrait.vue'
-import { parseEntries, type Entry } from '../entries'
+import SheetField from '../components/SheetField.vue'
+import StatRow from '../components/StatRow.vue'
+import { mechStats } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 
-// One of your mechs: its own page, opened from the hangar on pilot_management. The name, manufacturer id,
-// appearance and image are public (on the pilot's card); history and quirks are private (in the sheet).
-// Frames and loadouts arrive with the LANCER content packs.
+// One of your mechs, opened from the hangar on pilot_management, laid out like the pilot sheet: the name
+// and manufacturer id across the top, writing on the left, the image on the right, then stats and loadout.
+// Everything is edited in place and saves itself. The name, manufacturer id, appearance and image are
+// public (on the pilot's card); history and the stats are private. Frames and loadouts arrive with the
+// LANCER content packs. Quirks are off the page for now, like the pilot's traits (still in the sheet).
 
 const route = useRoute()
 const router = useRouter()
@@ -22,9 +22,19 @@ const { character, sheet, loading, loadError, editable, mechs, updateCharacter, 
 const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
-const quirks = computed(() => parseEntries(details.value.quirks))
+const stats = mechStats()
 
 const OFFLINE_MODULES = ['frame', 'mounts and weapons', 'systems', 'mods']
+
+// --- The save status shown in the top strip, for the one-line fields ---
+const status = ref('')
+const saveError = ref('')
+
+async function track(save: Promise<string | null>) {
+  status.value = 'saving...'
+  saveError.value = (await save) ?? ''
+  status.value = saveError.value ? '' : 'saved'
+}
 
 // Public changes replace this mech in the pilot's mech list.
 const savePublic = (changes: Partial<PublicMech>) =>
@@ -36,24 +46,20 @@ const savePrivate = (changes: MechPrivate) =>
 
 const saveAppearance = (doc: Json | null) => savePublic({ appearance: doc })
 const saveHistory = (doc: Json | null) => savePrivate({ history: doc })
-const saveQuirks = (list: Entry[]) => savePrivate({ quirks: list })
 
-// --- Dossier: name and manufacturer id ---
-const editingDossier = ref(false)
-const draft = reactive({ name: '', manufacturerId: '' })
-const dossierError = ref('')
-
-function openDossier() {
-  Object.assign(draft, { name: mech.value!.name, manufacturerId: mech.value!.manufacturer_id })
-  dossierError.value = ''
-  editingDossier.value = true
-}
-
-async function saveDossier() {
-  const name = draft.name.trim()
-  const manufacturerId = draft.manufacturerId.trim().toUpperCase()
-  dossierError.value = mechProblem(name, manufacturerId) ?? (await savePublic({ name, manufacturer_id: manufacturerId })) ?? ''
-  if (!dossierError.value) editingDossier.value = false
+// The name and manufacturer id save when you leave them (or press enter). A bad one is put back.
+function saveText(field: 'name' | 'manufacturer_id', event: Event) {
+  const input = event.target as HTMLInputElement
+  const value = field === 'name' ? input.value.trim() : input.value.trim().toUpperCase()
+  const next = { name: mech.value!.name, manufacturer_id: mech.value!.manufacturer_id, [field]: value }
+  const problem = mechProblem(next.name, next.manufacturer_id)
+  if (problem) {
+    saveError.value = problem
+    input.value = mech.value![field]
+    return
+  }
+  input.value = value
+  track(savePublic({ [field]: value }))
 }
 
 // --- Scrapping: removes the mech from the pilot and its private details from the sheet ---
@@ -72,105 +78,95 @@ async function scrap() {
 </script>
 
 <template>
-  <main class="page centered mech-page">
+  <main class="page mech-page">
     <RouterLink :to="{ name: 'pilot' }" class="back">&lt; pilot_management</RouterLink>
 
     <p v-if="loading" class="dim">loading mech record...</p>
     <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
     <p v-else-if="!mech" class="rose">no mech with that id in your hangar.</p>
 
-    <template v-else>
-      <h1><span class="prompt" aria-hidden="true">&gt; </span><GlitchText :text="mech.name" /></h1>
-
-      <Panel title="mech dossier">
-        <template #actions>
-          <button v-if="editable && !editingDossier" type="button" @click="openDossier">edit</button>
-        </template>
-
-        <form v-if="editingDossier" class="edit-form" @submit.prevent="saveDossier">
-          <div class="fields">
-            <label>
-              <span class="dim">mech name (required)</span>
-              <input v-model="draft.name" type="text" required />
-            </label>
-            <label>
-              <span class="dim">manufacturer id (XXXX-XXXX-XXXX)</span>
-              <input v-model="draft.manufacturerId" type="text" required />
-            </label>
-          </div>
-          <p v-if="dossierError" class="rose" role="alert">{{ dossierError }}</p>
-          <div class="actions">
-            <button type="submit">save</button>
-            <button type="button" @click="editingDossier = false">cancel</button>
-          </div>
-        </form>
-
-        <div v-else class="dossier">
-          <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
-          <div class="dossier-info">
-            <p class="mech-name">{{ mech.name }}</p>
-            <dl class="facts">
-              <div>
-                <dt>manufacturer id</dt>
-                <dd>{{ mech.manufacturer_id }}</dd>
-              </div>
-              <div>
-                <dt>pilot</dt>
-                <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
-              </div>
-              <div>
-                <dt>frame</dt>
-                <dd class="dim">not set (module offline)</dd>
-              </div>
-            </dl>
-            <p class="dim small">image upload: module offline</p>
-          </div>
-        </div>
-      </Panel>
-
-      <div class="columns">
-        <div class="column">
-          <EditableRichText title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-          <EditableRichText
-            title="history"
-            tag="private"
-            :doc="details.history ?? null"
-            :editable="editable"
-            :save="saveHistory"
+    <div v-else class="sheet">
+      <!-- At a glance: name, manufacturer id, pilot, frame. -->
+      <header class="glance">
+        <div class="names">
+          <input
+            v-if="editable"
+            class="inline mech-name"
+            type="text"
+            aria-label="mech name"
+            placeholder="mech name"
+            :value="mech.name"
+            @change="saveText('name', $event)"
           />
+          <h1 v-else class="mech-name">{{ mech.name }}</h1>
+          <input
+            v-if="editable"
+            class="inline maker-id"
+            type="text"
+            aria-label="manufacturer id (XXXX-XXXX-XXXX)"
+            placeholder="XXXX-XXXX-XXXX"
+            :value="mech.manufacturer_id"
+            @change="saveText('manufacturer_id', $event)"
+          />
+          <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
         </div>
+        <dl class="glance-facts">
+          <div>
+            <dt>pilot</dt>
+            <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
+          </div>
+          <div>
+            <dt>frame</dt>
+            <dd class="dim">module offline</dd>
+          </div>
+        </dl>
+        <p class="save-status" role="status">
+          <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+          <span v-else class="dim">{{ status }}</span>
+        </p>
+        <p v-if="!editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
+      </header>
 
-        <div class="column">
-          <EntryList title="quirks" noun="quirk" tag="private" :entries="quirks" :editable="editable" :save="saveQuirks" />
+      <!-- Right on wide screens; between the top strip and appearance on phones. -->
+      <aside class="side">
+        <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
+        <p class="dim small">image upload: module offline</p>
+      </aside>
 
-          <Panel title="loadout">
-            <ul class="modules">
-              <li v-for="name in OFFLINE_MODULES" :key="name">
-                <span>{{ name }}</span>
-                <span class="dim">offline</span>
-              </li>
-            </ul>
-            <p class="dim small">these open once the LANCER content packs are imported.</p>
-          </Panel>
-
-          <Panel v-if="editable" title="decommission">
-            <p class="dim small">removes this mech from your hangar for good.</p>
-            <p v-if="scrapError" class="rose" role="alert">{{ scrapError }}</p>
-            <button type="button" class="scrap" @click="scrap">scrap mech</button>
-          </Panel>
-        </div>
+      <div class="writing">
+        <SheetField title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
+        <SheetField title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
       </div>
-    </template>
+
+      <div class="wide">
+        <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
+        <p class="dim small stats-note">worked out from the frame and your piloting stats once the LANCER content packs are imported.</p>
+
+        <section>
+          <h2 class="sheet-label">loadout<span class="tag"> [private]</span></h2>
+          <ul class="modules">
+            <li v-for="name in OFFLINE_MODULES" :key="name">
+              <span>{{ name }}</span>
+              <span class="dim">module offline</span>
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="editable" class="decommission">
+          <h2 class="sheet-label">decommission</h2>
+          <p class="dim small">removes this mech from your hangar for good.</p>
+          <p v-if="scrapError" class="rose" role="alert">{{ scrapError }}</p>
+          <button type="button" class="scrap" @click="scrap">scrap mech</button>
+        </section>
+      </div>
+    </div>
   </main>
 </template>
 
 <style scoped>
+/* Full width, like the pilot sheet. */
 .mech-page {
-  max-width: 64rem;
-}
-
-.mech-page :deep(.panel) {
-  margin-bottom: 1.25rem;
+  max-width: none;
 }
 
 .back {
@@ -189,84 +185,127 @@ async function scrap() {
   font-size: 0.75rem;
 }
 
-.dossier {
+/* --- Layout: top strip across, writing left, image right, then full-width sections (as pilot_management) --- */
+.sheet {
   display: grid;
-  grid-template-columns: 9rem minmax(0, 1fr);
-  gap: 1.5rem;
+  grid-template-areas:
+    'glance glance'
+    'writing side'
+    'wide wide';
+  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
+  gap: 1.5rem 2rem;
   align-items: start;
 }
 
-.dossier-info p {
+.glance {
+  grid-area: glance;
+}
+
+.writing {
+  grid-area: writing;
+}
+
+.side {
+  grid-area: side;
+}
+
+.wide {
+  grid-area: wide;
+}
+
+.writing,
+.wide {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* --- One-line fields: plain text until you point at them --- */
+.inline {
+  padding: 0.15rem 0.35rem;
+  border-color: transparent;
+}
+
+.inline:hover {
+  border-color: var(--rule);
+}
+
+/* --- Top strip --- */
+.glance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 2.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.names {
+  display: flex;
+  flex: 1 1 22rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mech-name {
+  margin: 0;
+  color: var(--lilac);
+  font: 700 2.5rem/1.1 var(--mono);
+}
+
+.maker-id {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 1.125rem;
+  letter-spacing: 0.05em;
+}
+
+input.mech-name,
+input.maker-id {
+  margin-left: -0.35rem;
+}
+
+.glance-facts {
+  display: flex;
+  gap: 2rem;
   margin: 0;
 }
 
-.dossier-info .mech-name {
-  margin-bottom: 1rem;
-  color: var(--lilac);
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-  gap: 0.6rem 1.25rem;
-  margin: 0 0 1rem;
-}
-
-.facts dt {
+.glance-facts dt {
   color: var(--text-dim);
   font-size: 0.75rem;
 }
 
-.facts dd {
+.glance-facts dd {
   margin: 0;
 }
 
-.edit-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.edit-form p {
+.save-status {
+  min-width: 8rem;
   margin: 0;
+  font-size: 0.8125rem;
+  text-align: right;
 }
 
-.fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
-  gap: 0.75rem 1rem;
-}
-
-.edit-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.note {
+  flex-basis: 100%;
+  margin: 0;
   font-size: 0.8125rem;
 }
 
-.actions {
-  display: flex;
-  gap: 1rem;
+.side p {
+  margin: 0.35rem 0 0;
 }
 
-.actions button {
-  padding-inline: 0;
-  font-size: 0.875rem;
-}
-
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 0 1.25rem;
-  align-items: start;
+/* --- Stats, loadout, decommission --- */
+.stats-note {
+  margin: -1.25rem 0 0;
 }
 
 .modules {
   margin: 0;
-  padding: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
   list-style: none;
 }
 
@@ -277,31 +316,58 @@ async function scrap() {
   font-size: 0.8125rem;
 }
 
-.modules + p {
-  margin: 0.6rem 0 0;
+.decommission p {
+  margin: 0.5rem 0 0;
 }
 
 .scrap {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
   padding-inline: 0;
   color: var(--rose);
   font-size: 0.875rem;
 }
 
-@media (max-width: 64rem) {
-  .columns {
+/* --- Narrow screens: one column, with the image between the top strip and appearance --- */
+@media (max-width: 56rem) {
+  .sheet {
+    grid-template-areas: 'glance' 'side' 'writing' 'wide';
     grid-template-columns: minmax(0, 1fr);
   }
-}
 
-@media (max-width: 30rem) {
-  .dossier {
-    grid-template-columns: 6rem minmax(0, 1fr);
-    gap: 1rem;
+  .side :deep(.portrait) {
+    width: min(100%, 14rem);
+    margin-inline: auto;
   }
 
-  .dossier-info .mech-name {
-    font-size: 1.375rem;
+  .side p {
+    text-align: center;
+  }
+
+  .mech-name {
+    font-size: 1.875rem;
+  }
+
+  /* The top strip, centred. */
+  .glance {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .names {
+    flex: none;
+    align-items: center;
+    width: 100%;
+  }
+
+  .names input {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .save-status {
+    min-width: 0;
+    text-align: center;
   }
 }
 </style>

@@ -1,23 +1,39 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { isGm } from '../auth'
 import GlitchText from '../components/GlitchText.vue'
+import GmReview from '../components/GmReview.vue'
 import Portrait from '../components/Portrait.vue'
 import RichText from '../components/RichText.vue'
 import { parseEntries } from '../entries'
-import { examplePilots } from '../pilots'
+import { fetchPilot, type PublicPilot } from '../pilots'
 
-// One pilot's full public record, opened from a registry card. Only public fields: the private
-// sheet (stats, loadouts, backstory) isn't shown here.
+// One pilot's full public record, opened from a card in pilot_registry or pending_paperwork. Only public
+// fields for everyone; GMs and owners also get the private sheet and the approval decision (GmReview).
 const route = useRoute()
-const pilot = computed(() => examplePilots.find((p) => p.id === Number(route.params.id)))
+const pilot = shallowRef<PublicPilot | null>(null)
+const loading = ref(true)
+const error = ref('')
 const traits = computed(() => parseEntries(pilot.value?.traits))
+// Back to the list the pilot is in.
+const back = computed(() =>
+  pilot.value?.status === 'pending' ? { name: 'pending', label: 'pending_paperwork' } : { name: 'registry', label: 'pilot_registry' },
+)
+
+async function load() {
+  ;({ pilot: pilot.value, error: error.value } = await fetchPilot(Number(route.params.id)))
+  loading.value = false
+}
+
+watch(() => route.params.id, load, { immediate: true })
 
 const facts = computed(() => {
   const p = pilot.value
   if (!p) return []
   const all: [label: string, value: string | null][] = [
     ['pilot', p.pilot_name],
+    ['player', p.player?.display_name ?? null],
     ['age', p.age],
     ['gender', p.gender],
     ['sexuality', p.sexuality],
@@ -32,10 +48,13 @@ const facts = computed(() => {
 
 <template>
   <main class="page">
-    <RouterLink :to="{ name: 'registry' }" class="back">&lt; pilot_registry</RouterLink>
+    <RouterLink :to="{ name: back.name }" class="back">&lt; {{ back.label }}</RouterLink>
 
-    <template v-if="pilot">
+    <p v-if="loading" class="dim">loading record...</p>
+    <p v-else-if="error" class="rose" role="alert">{{ error }}</p>
+    <template v-else-if="pilot">
       <h1><span class="prompt" aria-hidden="true">&gt; </span><GlitchText :text="pilot.callsign ?? pilot.pilot_name" /></h1>
+      <p v-if="pilot.status !== 'approved'" class="badge" :class="pilot.status">{{ pilot.status }}</p>
 
       <div class="top">
         <Portrait :src="pilot.pilot_image" :alt="`Portrait of ${pilot.callsign ?? pilot.pilot_name}`" />
@@ -76,6 +95,9 @@ const facts = computed(() => {
           </div>
         </div>
       </section>
+
+      <!-- :key reloads the review after a decision, so it shows the new status. -->
+      <GmReview v-if="isGm" :key="pilot.status" :pilot="pilot" @reviewed="load" />
     </template>
 
     <p v-else class="rose">no pilot record with that id.</p>
@@ -93,6 +115,23 @@ const facts = computed(() => {
 
 .back:hover {
   color: var(--lilac);
+}
+
+/* The status, as a small outlined badge: rose while pending, dim once dead. */
+.badge {
+  width: fit-content;
+  margin: -0.5rem 0 1.25rem;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  font-size: 0.8125rem;
+}
+
+.badge.pending {
+  color: var(--rose);
+}
+
+.badge.dead {
+  color: var(--text-dim);
 }
 
 .top {

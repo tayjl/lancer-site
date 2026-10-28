@@ -56,7 +56,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
   - Mechs (added in a follow-up answer): several per pilot, each with a name, appearance description, image, weapons on the frame's mounts, a manufacturer ID, and systems with system points.
   - Confirmed as staying, though not on the list: talents, core bonuses, licence level, pilot HP, manna and mod points.
 - **It's a general character manager, not a combat tracker.** It doesn't track current HP, structure, stress or heat.
-- **Mech stats:** standard LANCER, minus **grit, save target, evasion, e-defense, tech attack and sensors**. It's a Discord roleplay with little or no dice rolling, so stats that only matter for rolls don't apply. Grit is removed everywhere it normally appears (pilot HP, mech HP, attack bonus). Assumed: pilot evasion and e-defense go too. Calculate them from the character's choices and the game data (frame, licence levels, talents, core bonuses and so on). Don't store them, for the same reason item names and stats aren't stored.
+- **Mech stats:** standard LANCER, minus **grit, save target, e-defense, tech attack and sensors**. (Evasion was on this list, but the developer asked for it on the mech page on 2026-10-28, so mechs show it.) The mech page shows structure, stress, hp, heat cap, armour, evasion, repair cap and system points. It's a Discord roleplay with little or no dice rolling, so stats that only matter for rolls don't apply. Grit is removed everywhere it normally appears (pilot HP, mech HP, attack bonus). Assumed: pilot evasion and e-defense go too. Calculate them from the character's choices and the game data (frame, licence levels, talents, core bonuses and so on). Don't store them, for the same reason item names and stats aren't stored.
 - **Pilot stats are custom.** LANCER's skill triggers ("narrative triggers") are replaced by five homebrew stats: **physicality, dexterity, perception, acuity and tech-fluency**.
   - They're set when the character is made and **don't grow** with level. Bionics are the only way to raise them.
   - They're **private**: players see only their own.
@@ -183,8 +183,12 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
     - **Unbuilt pages** use `src/views/ModuleOffline.vue`, which shows the page's title and summary.
     - **pilot_registry** (`/registry`, `src/views/RegistryView.vue`; `/` redirects here) is a grid of small cards for easy browsing.
       - **The card** (`src/components/PilotCard.vue`) shows only the portrait, callsign, pilot name and mech name. The same card is meant for pending_paperwork and those_who_passed.
-      - **Clicking a card** opens the pilot record (`/registry/:id`, `src/views/PilotRecordView.vue`): portrait, every public identity fact, appearance and personality (in `.prose`), traits, and each mech with its image, manufacturer ID and appearance. Private sheet data and the backstory are never shown there.
-      - **Example data:** one hard-coded pilot in `src/pilots.ts`, which also defines the public pilot shape. To be replaced with the characters table.
+      - **Clicking a card** opens the pilot record (`/registry/:id`, `src/views/PilotRecordView.vue`): portrait, every public identity fact, appearance and personality (in `.prose`), traits, and each mech with its image, manufacturer ID and appearance. Private sheet data and the backstory are never shown there, except to GMs (see "GM review" below).
+      - **Real data:** `src/pilots.ts` loads pilots from the `characters` table (`fetchPilots`, `fetchPilot`), with the player's display name from `profiles`. It also defines the public pilot shape.
+      - **pending_paperwork** uses the same grid (`RegistryView.vue`), listing pending pilots instead. Each route's `meta.status` picks which pilots, and `meta.empty` is the text when there are none (typed in `src/router.ts`). Changes to approved pilots will join this list once pending changes are built.
+      - **GM review** (`src/components/GmReview.vue`): GMs and owners see the pilot's private sheet under the record (stats, bionics, gear, backstory, read-only). While the pilot is pending they also get a decision box:
+        - **Approve pilot** (after an "are you sure?"): sets the mod limit, clears any note, sets the status to approved and `approved_at`. The pilot moves to the registry and the player's sheet turns read-only.
+        - **Send back with note** (a note is required): saves it to `character_sheets.review_note`. The pilot stays pending, and the player sees the note at the top of their sheet until the pilot is approved.
       - **Images:** `src/components/Portrait.vue` is the 3:4 image frame, an empty dashed frame when there's no image.
       - **Menu highlight:** the menu marks an item "current" for its own page, or a page whose route `meta.section` names it (so the record page keeps pilot_registry highlighted).
     - **Menu marker:** the current page gets a `> ` marker like a terminal menu.
@@ -253,18 +257,20 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
     - **Bionics [private]**, then **gear loadout [private]**: cards with a small `[ edit ]` that opens a picker of existing items only (`src/components/LoadoutBox.vue`). Bionics count their mod-point cost against the **mod limit** (`character_sheets.mod_points`, default 6 since migration `20261028183456_mod_limit_default.sql`), and the picker won't add one that goes over. Stored as ids in `sheet.bionics` and `sheet.pilot_gear`.
     - **Mech hangar** at the bottom: mech cards centred, a `[ + ] new mech` box when there are none, otherwise `[ new mech ]` in its header.
   - **Approved pilots** get the same sheet read-only, with a note that changes go through pending paperwork.
-  - **Mechs are separate objects** with their own page at `/pilot/mechs/:mechId` (`src/views/MechView.vue`): mech dossier, appearance, history [private], quirks [private], an offline loadout, and "scrap mech". Public mech fields live in `characters.mechs`; history and quirks in `sheet.mechs[mechId]`.
+  - **Mechs are separate objects** with their own page at `/pilot/mechs/:mechId` (`src/views/MechView.vue`), laid out like pilot_management: name and manufacturer id edited in place across the top (with pilot and frame), appearance and history [private] on the left, the image on the right, then mech stats [private], an offline loadout, and "scrap mech". Public mech fields live in `characters.mechs`; history (and quirks, off the page for now like traits) in `sheet.mechs[mechId]`.
+    - **Mech stats** are a `StatRow` with LANCER's symbols (`mechStats()` in `src/gameData.ts`, SVGs in `src/assets/icons/`, credited in the README). Every value shows "-" until frames are imported, then they're calculated from the frame and HASE.
   - **Shared pieces:**
     - `src/myPilot.ts` loads and saves your own pilot. Saves queue up and run in order, so autosaves can't overtake each other.
     - `src/gameData.ts` loads the catalogues (pilot gear from `content_items`, bionics with their bonuses, pilot stats).
     - `.sheet-label` (in `src/style.css`) is the section tag: a filled block with a lilac edge.
-    - `src/components/EditableRichText.vue` (used by MechView), `Panel.vue`, `AddBox.vue`, `RichTextEditor.vue` and `RichText.vue`.
+    - `src/components/EditableRichText.vue`, `EntryList.vue` and `Panel.vue` (the older panel style, unused since the mech page moved to the sheet layout), `AddBox.vue`, `RichTextEditor.vue` and `RichText.vue`.
     - `src/richText.ts` (the allowlist sanitiser) and `src/entries.ts` (the list parser) are tested in `src/*.test.ts` (`npm test`).
   - Pages can opt into centring with the `.page.centered` class.
   - **Local test data:** `supabase/seed.sql` also loads LANCER's core pilot gear (from `lancer-data`) and four made-up bionics, so the pickers work locally. The hosted database has no game content until LCP import is built.
   - **Database:** migration `20261028085652_rich_text_paragraphs.sql` changes appearance, personality and traits to `jsonb`. **The hosted database needs this migration and `20261028183456_mod_limit_default.sql` (push `main`) before pilot_management works there.**
 - **Testing locally with a login:**
-  - `supabase/seed.sql` creates a local-only password account, `test-pilot@hor-os.local` with password `local-test-pilot`, as a player.
+  - `supabase/seed.sql` creates local-only password accounts: `test-pilot@hor-os.local` (password `local-test-pilot`, a player) and `test-gm@hor-os.local` (password `local-test-gm`, a GM).
   - The `dev-localdb` launch config (`npm run dev -- --mode localdb --port 5174`) points the app at local Supabase, using the git-ignored `.env.localdb.local`.
   - Sign in from the browser console with `supabase.auth.signInWithPassword`, since the site only has a Discord button.
-- Next: show real pilots in pilot_registry and pending_paperwork, and a GM approve action, so the whole loop works.
+- **The new-pilot loop works locally:** register, fill in the sheet, GM sends back or approves, pilot appears in pilot_registry. Checked as both test accounts, including a player trying to approve themselves from the console (the database refuses).
+- Next: pending changes for approved pilots (`pending_changes` and `approve_change`), then image uploads, mark dead / those_who_passed, and LCP import.
