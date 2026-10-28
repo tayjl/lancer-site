@@ -1,0 +1,175 @@
+/* HOR_OS: the in-universe COMP/CON terminal look. Every colour and font lives in these variables. */
+:root {
+  --void: #18181c; /* page background: dark grey */
+  --panel: #232328; /* raised surfaces */
+  --rule: #403f48; /* borders and dividers */
+  --text: #f5f4f7; /* general text: white */
+  --text-dim: #b1afba;
+  --lilac: #c9b3ff; /* main accent: titles, links, buttons, focus */
+  --rose: #ff9eb0; /* second accent: warnings, and the glitch's other colour */
+  --sky: #a6d8ea; /* third accent: usernames in chat */
+
+  /* Cascadia Mono has every block and shade character, so the ASCII art lines up. */
+  --mono: 'Cascadia Mono Variable', ui-monospace, Consolas, monospace; /* the terminal's voice */
+  --read: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; /* anything people read at length */
+
+  --cut: 10px; /* size of the cut corner on panels */
+
+  color-scheme: dark;
+  background: var(--void);
+  color: var(--text);
+}
+
+/* Set on body, not :root, so 1rem stays 16px and font sizes land on whole pixels (sharper text). */
+body {
+  font: 400 1.0625rem/1.55 var(--read);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 0.6em;
+  font-family: var(--mono);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--lilac);
+}
+
+h1 {
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.1875rem;
+}
+
+p {
+  max-width: 70ch;
+  margin: 0 0 1em;
+}
+
+a {
+  color: var(--lilac);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--rose);
+}
+
+::selection {
+  background: var(--rose);
+  color: var(--void);
+}
+
+:focus-visible {
+  outline: 2px solid var(--lilac);
+  outline-offset: 3px;
+}
+
+/* Terminal-style buttons: a bracketed option, [ like this ]. When hovered or selected, the brackets turn into
+   arrows, > like this <, the way a terminal menu points at the chosen option. */
+button {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--lilac);
+  font: 600 1rem/1.5 var(--mono);
+  cursor: pointer;
+}
+
+/* The "/ ''" part stops screen readers announcing the brackets. */
+button::before {
+  content: '[ ' / '';
+}
+
+button::after {
+  content: ' ]' / '';
+}
+
+/* :focus rather than :focus-visible, so a button that's selected for you (like Uplink) looks selected. */
+button:hover,
+button:focus {
+  color: var(--rose);
+}
+
+button:hover::before,
+button:focus::before {
+  content: '> ' / '';
+}
+
+button:hover::after,
+button:focus::after {
+  content: ' <' / '';
+}
+
+/* The arrows already show which option is selected, so the usual focus box isn't needed. */
+button:not(.quiet):focus-visible {
+  outline: none;
+}
+
+/* A low-key text button with no brackets, e.g. Disconnect. */
+button.quiet {
+  padding: 0.5rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+button.quiet::before,
+button.quiet::after {
+  content: none;
+}
+
+button.quiet:hover,
+button.quiet:focus {
+  color: var(--rose);
+}
+
+/* The standard page column. */
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+}
+
+.panel {
+  padding: 1.25rem 1.5rem;
+  background: var(--panel);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+
+.panel > :last-child {
+  margin-bottom: 0;
+}
+
+/* Hidden on screen but still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .page {
+    padding: 1.5rem 1rem;
+  }
+}

@@ -9,6 +9,12 @@ Built with Vue, Vite and TypeScript, using Supabase for the database and logins,
 2. Copy `.env.example` to `.env.local` and fill in the Supabase project URL and publishable key.
 3. Start the dev server: `npm run dev`, then open http://localhost:5173
 
+## Credits
+
+LANCER is by Massif Press. The login screen's boot text and h0r_os ASCII art come from COMP/CON's HORUS start-up log
+([massif-press/compcon](https://github.com/massif-press/compcon), GPL-3.0).
+Game data comes from Massif Press's `lancer-data` and expansion packages (GPL-3.0-or-later).
+
 ## Database
 
 The `supabase/` folder holds the Supabase config and, later, the database migrations.

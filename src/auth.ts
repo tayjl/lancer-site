@@ -1,8 +1,9 @@
 import { ref, watch } from 'vue'
 import type { Session } from '@supabase/supabase-js'
+import type { Tables } from './lib/database.types'
 import { supabase } from './lib/supabaseClient'
 
-type Profile = { display_name: string; role: 'player' | 'gm' | 'owner' }
+type Profile = Pick<Tables<'profiles'>, 'display_name' | 'role'>
 
 export const session = ref<Session | null>(null)
 export const profile = ref<Profile | null>(null)

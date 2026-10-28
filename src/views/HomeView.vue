@@ -1,20 +1,12 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { profile } from '../auth'
-import { supabase } from '../lib/supabaseClient'
-
-const router = useRouter()
-
-async function logOut() {
-  await supabase.auth.signOut()
-  await router.push({ name: 'login' })
-}
+import GlitchText from '../components/GlitchText.vue'
 </script>
 
 <template>
-  <main>
-    <h1>LANCER Campaign</h1>
-    <p v-if="profile">Logged in as {{ profile.display_name }} ({{ profile.role }})</p>
-    <button type="button" @click="logOut">Log out</button>
+  <main class="page">
+    <h1><GlitchText text="pilot_registry" /></h1>
+    <section class="panel">
+      <p>The registry is empty. Pilot records will appear here once registration is built.</p>
+    </section>
   </main>
 </template>

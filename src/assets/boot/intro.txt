@@ -1,0 +1,5 @@
+COMPANION/CONCIERGE UNIT INITIALIZING
+GMS COMP/CON Unit Mk XI Rev 11.4.1c
+5017.3.12 General Massive Systems // Please Operate Responsibly
+loading syscrack_hor_os_final_FINAL_COMMIT.omnif
+working . . . done
