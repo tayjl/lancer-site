@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Session } from '@supabase/supabase-js'
 import type { Tables } from './lib/database.types'
 import { supabase } from './lib/supabaseClient'
@@ -7,6 +7,8 @@ type Profile = Pick<Tables<'profiles'>, 'display_name' | 'role'>
 
 export const session = ref<Session | null>(null)
 export const profile = ref<Profile | null>(null)
+// For showing or hiding GM things on the page. The database enforces the real rules.
+export const isGm = computed(() => profile.value?.role === 'gm' || profile.value?.role === 'owner')
 
 // If a login fails (e.g. Discord was cancelled), Supabase sends the reason back in the URL.
 const urlParams = new URLSearchParams(window.location.hash.slice(1) || window.location.search)

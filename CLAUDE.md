@@ -149,8 +149,36 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **Decided base look:** a glitch terminal with a dark grey background, white general text, and pastel purple and red accents. It should be easy on the eyes, stylised but readable, especially on character pages.
   - **Colours** are variables in `src/style.css`: dark grey background `--void`, `--panel`, `--rule`, white text `--text` / `--text-dim`, and the accents `--lilac` (main), `--rose` (second, for warnings) and `--sky` (third, for chat usernames). Use the variables, not new hex values.
   - **Fonts** are bundled with the site (no Google Fonts, for privacy): Cascadia Mono (`--mono`) for headings, labels, buttons and the boot scrawl, and Atkinson Hyperlegible Next (`--read`) for anything read at length. Cascadia Mono is used because it has every block and shade character (`░▒▓█▄▀`), so the ASCII art lines up.
-  - **Cut corners** on panels (`.panel`).
-  - **Buttons are terminal options:** `[ like this ]` in lilac. When hovered or selected the brackets become arrows, `> like this <`, in rose, like a terminal menu pointing at the chosen option. `button.quiet` is the low-key text button with no brackets.
+  - **Logged-in pages read like a terminal**, matching the login screen:
+    - **Layout** (`src/App.vue`, from the developer's sketch):
+      - **Sidebar** on the left: the HORUS logo in lilac, centred at the top (12-line ASCII art in `src/assets/logo.txt`, 6px with 7px lines, linking home), the menu in four groups with space between them (pilot_management / registry, pending, those_who_passed / archive_viewer / pilot_gear, mech_gear), and a `[ gm view ]` toggle at the bottom for GMs and owners only. The top bar matches the logo's height on wide screens.
+      - **Top bar:** the current path (`~/pilot_registry`) on the left, and `uuid: <name> [role]  [ disconnect ]` on the right.
+      - **Content** on the right.
+      - **Net chat:** a fake live chat from `src/assets/net-chat.txt`, in the same format as the login chat.
+        - On wide screens it's pinned to the bottom of the window under the page, 8 lines tall, with a thin line above it.
+        - On phones a `[ chat ]` toggle (left of the logo, mirroring `[ menu ]`) pops it up over the bottom of the screen.
+        - Both chats share `src/chat.ts` (parsing, hiding cut-off messages) and `src/components/ChatLine.vue` (colouring). `src/components/ChatFeed.vue` is the panel.
+      - **Phones** (under 48rem wide):
+        - The header collapses to the logo and a `[ menu ]` toggle. Opening it shows the menu, gm view and the top bar, all centred.
+        - Each menu group is a centred row, and the current page reads `> like this <`.
+        - The menu closes when you pick a page, or once you've scrolled past the header.
+      - **Divider lines are allowed here:** a thin `--rule` line down the sidebar and under the top bar. The brand area and top bar share a height (`--bar-height`), so the line runs straight across. Visual clarity matters more on pages with real information. The login screen stays line-free.
+    - **Menu and pages** (each route's `meta.title` and `meta.summary` in `src/router.ts`):
+      - `pilot_management` `/pilot`: your own pilot
+      - `pilot_registry` `/`: approved pilots' public cards
+      - `pending_paperwork` `/pending`: pilots and changes waiting on a GM
+      - `those_who_passed` `/memorial`: dead pilots
+      - `archive_viewer` `/archive`: server lore, as separate articles (e.g. one per faction or place) that every logged-in user can read. It'll need its own table. GMs and owners write and edit them.
+      - `pilot_gear` `/gear/pilot`
+      - `mech_gear` `/gear/mech`
+      - `gm_view` `/gm`, GMs and owners only
+    - **Unbuilt pages** use `src/views/ModuleOffline.vue`, which shows the page's title and summary.
+    - **Menu marker:** the current page gets a `> ` marker like a terminal menu.
+    - **This replaces** the Pending, Approved and Dead tabs planned earlier.
+    - **Page titles** are prompts: `<h1><span class="prompt" aria-hidden="true">&gt; </span><GlitchText text="page_name" /></h1>`. They're terminal-sized, not huge.
+    - **Page text** (`.page`) is Cascadia Mono, like terminal output. Use `.prose` for anything read at length, like backstories, and `.dim` for secondary text.
+    - **No filled boxes.** Spacing and colour separate things, plus thin `--rule` lines where they help clarity, like the layout's dividers.
+  - **Buttons are terminal options:** `[ like this ]` in lilac. When hovered or selected the brackets become arrows, `> like this <`, in rose, like a terminal menu pointing at the chosen option.
   - **Sharp text matters** (it was blurry on a 2560px monitor once):
     - Font sizes should land on whole pixels. 1rem stays 16px (the body font is set on `body`, not `:root`), and the ASCII art's size is rounded with `round()`.
     - Don't animate `transform` on text, and don't use `mask-image` on it. Both make the browser draw the text as a separate image, which blurs it.

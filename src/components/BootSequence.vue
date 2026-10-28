@@ -2,11 +2,12 @@
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 // The boot text and art come from COMP/CON's HORUS start-up log, by Massif Press (GPL-3.0).
 import art from '../assets/boot/art.txt?raw'
-// The chat is our own. Lines starting "[ MOD ]" or "[ ADMIN ]" get a coloured tag, the "username:"
-// is sky blue, ban notices wrapped in "// ... //" are all rose, and messages are plain white.
+// The chat is our own. src/chat.ts explains its format.
 import chat from '../assets/boot/chat.txt?raw'
 import connect from '../assets/boot/connect.txt?raw'
 import intro from '../assets/boot/intro.txt?raw'
+import { hideCutLines, parseChat } from '../chat'
+import ChatLine from './ChatLine.vue'
 
 // The HOR_OS boot scrawl: the art (top) and the terminal log (middle). The login page
 // lays them out with the Uplink bar underneath. Any key or a click skips to the end, and it's
@@ -19,7 +20,7 @@ const connectLines = toLines(connect)
 
 // Splits each art line so the shading, the arrows and the tagged words can each have their own colour.
 // The first group lists the phrases shown in rose: update it if you change those words in art.txt.
-const ART_PARTS = /(phoubia distro|GREETINGS FROM KOS ! !|THE RODMIN COLLECTIVE)|(v3\.6c)|([░▒▓]+)|([<>]+)/g
+const ART_PARTS = /(kostutet distro|GREETINGS FROM KOS ! !|THE RODMIN COLLECTIVE)|(v3\.6c)|([░▒▓]+)|([<>]+)/g
 function artParts(line: string) {
   const parts: { text: string; tone?: string }[] = []
   let end = 0
@@ -38,13 +39,7 @@ const artLines = toLines(art).map(artParts)
 const bannerStart = toLines(art).findIndex((line) => line.includes('>>>>'))
 const smallArtLines = bannerStart === -1 ? artLines : artLines.slice(0, bannerStart)
 
-type ChatLine = { text: string; tone?: string; tag?: string; tagTone?: string; user?: string }
-const chatLines = toLines(chat).map((line): ChatLine => {
-  if (/^\/\/.*\/\/$/.test(line)) return { text: line, tone: 'rose' }
-  // The tag and username keep their trailing spaces, because Vue would trim a space typed into the template.
-  const [, tag = '', rank = '', user = '', text] = line.match(/^(\[ (MOD|ADMIN) \] ?)?([^\s:]+: ?)?(.*)$/)!
-  return { tag, tagTone: rank === 'MOD' ? 'lilac' : 'rose', user, text }
-})
+const chatLines = parseChat(chat)
 
 function logTone(line: string) {
   if (line.includes('INC OVERRIDE')) return 'rose'
@@ -94,15 +89,8 @@ function step() {
   timer = window.setTimeout(step, delays[shown.value])
 }
 
-// A long message that wraps can have its first line drop off the top of the log, leaving a fragment.
-// This hides any message that's partly off the top, so the log always starts on a whole message.
-function hideCutMessages() {
-  const box = log.value?.getBoundingClientRect()
-  if (!box) return
-  for (const line of log.value!.querySelectorAll('p')) {
-    line.style.visibility = line.getBoundingClientRect().top < box.top - 1 ? 'hidden' : ''
-  }
-}
+// So the log always starts on a whole message (see hideCutLines in src/chat.ts).
+const hideCutMessages = () => hideCutLines(log.value)
 
 // "post" runs it after Vue has added the new lines to the page.
 watch([shown, chatShown], hideCutMessages, { flush: 'post' })
@@ -155,7 +143,7 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
         class="chat-line"
         :class="[line.tone, { gap: i === 0 }]"
       >
-        <span v-if="line.tag" :class="line.tagTone">{{ line.tag }}</span><span v-if="line.user" class="user">{{ line.user }}</span>{{ line.text }}
+        <ChatLine :line="line" />
       </p>
     </div>
   </div>
@@ -255,18 +243,6 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
 
 .shade {
   color: color-mix(in srgb, var(--lilac) 40%, var(--void));
-}
-
-.lilac {
-  color: var(--lilac);
-}
-
-.rose {
-  color: var(--rose);
-}
-
-.user {
-  color: var(--sky);
 }
 
 .tag {
