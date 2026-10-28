@@ -158,5 +158,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 ## Current status and next step
 - Vite + Vue + TypeScript scaffold, tidied down to a placeholder page. No tables or app features yet.
 - Supabase is set up in the repo: the client is in `src/lib/supabaseClient.ts`, the CLI config is in `supabase/`, and real keys go in `.env.local` (see `.env.example`). The hosted project is linked through Supabase's GitHub integration (working directory `.`).
-- The table sketch is drafted in `docs/database-sketch.md` and waiting for review. It lists who can see or edit what for each role, plus "Choices to check".
-- Next: review the sketch, then turn it into SQL migrations.
+- **The database is built** in `supabase/migrations/20261028052810_initial_schema.sql`, following `docs/database-sketch.md`. It hasn't been pushed to the hosted project yet.
+- `supabase test db` runs `supabase/tests/security.test.sql`. It tries to break every rule as a player, GM, owner and logged-out visitor. All 51 checks pass locally.
+- **Local Supabase uses ports 553xx**, not the default 543xx, because another local Supabase project on this machine already uses the defaults. Studio is at http://127.0.0.1:55323.
+- Next: generate TypeScript types from the database, then build Discord login and the character pages.

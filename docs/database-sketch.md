@@ -1,6 +1,6 @@
 # Database sketch
 
-**Status: draft for review.** Nothing here is built yet. Once it's agreed, it gets turned into SQL migrations in `supabase/migrations/`.
+**Status: agreed and built.** The SQL is in `supabase/migrations/20261028052810_initial_schema.sql`. `supabase/tests/security.test.sql` checks every rule (run it with `supabase test db`).
 
 ## The big picture
 
@@ -256,9 +256,10 @@ These are the two all-or-nothing actions:
    2. Changes the character from approved to dead and sets `died_at`. It refuses if the character is already dead.
    3. Deletes any pending change for that character.
 
-There are also two small helpers:
+There are also three small helpers:
 
 - **`is_gm()`** answers "is the current user a GM or owner?". Every GM rule uses it.
+- **`is_owner()`** answers "is the current user an owner?". The content rules use it.
 - **A sign-up trigger** runs automatically at someone's first login and creates their profile as a player.
 
 `updated_at` is kept current by `moddatetime`, a Postgres extension that Supabase already includes, so no code is needed for it.

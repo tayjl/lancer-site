@@ -13,4 +13,8 @@ Built with Vue, Vite and TypeScript, using Supabase for the database and logins,
 
 The `supabase/` folder holds the Supabase config and, later, the database migrations.
 It's linked to the hosted project through Supabase's GitHub integration.
-You need the [Supabase CLI](https://supabase.com/docs/guides/local-development) to work with it.
+You need the [Supabase CLI](https://supabase.com/docs/guides/local-development) and Docker to work with it.
+
+- `supabase start` runs a local copy of Supabase, with Studio at http://127.0.0.1:55323.
+- `supabase test db` checks the security rules by trying to break them as each kind of user.
+- `supabase db reset` rebuilds the local database from the migrations.
