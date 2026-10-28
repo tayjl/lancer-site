@@ -161,4 +161,9 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **The database is built** in `supabase/migrations/20261028052810_initial_schema.sql`, following `docs/database-sketch.md`. It hasn't been pushed to the hosted project yet.
 - `supabase test db` runs `supabase/tests/security.test.sql`. It tries to break every rule as a player, GM, owner and logged-out visitor. All 51 checks pass locally.
 - **Local Supabase uses ports 553xx**, not the default 543xx, because another local Supabase project on this machine already uses the defaults. Studio is at http://127.0.0.1:55323.
-- Next: generate TypeScript types from the database, then build Discord login and the character pages.
+- **Discord login is built.**
+  - `src/auth.ts` holds the session and the logged-in user's profile.
+  - `src/router.ts` sends anyone who isn't logged in to `/login`.
+  - The pages are in `src/views/`, and `vercel.json` has the rewrite for clean URLs.
+  - Checked up to Discord's login page. A real login hasn't been tested yet.
+- Next: log in once and set your role to owner in the dashboard, then generate TypeScript types, then the HOR_OS styling.
