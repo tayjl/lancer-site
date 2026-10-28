@@ -3,12 +3,12 @@ Connecting to 1489.2551.1461.1880.4851.03
 rt//CC/LOCALNET 0ns
 ssc/subscribers-primary-015/vm/226 18ns,
 INC OVERRIDE>>> welcome 2 kostutet net. good luck messaging your ma ¯\_(ツ)_/¯
-un_omni-95846.ural.elbrus.node:8 101ns,
-un_omni-88273.cascade.rainier.node:7 315ns,
-un_omni-47361.atlas.mgoun.node:5 398ns,
-un_omni-17354.krunlun.karakoram.node:11 64ns,
+un_omni-88273.cascade.rainier.node:7 9999ns ERR.404,
+un_omni-47361.atlas.mgoun.node:5 9999ns ERR.404,
+un_omni-17354.krunlun.karakoram.node:11 9999ns ERR.404,
+un_omni-1.alborz.kostutet.node:3 0ns,
 rt//INC OVERRIDE>>>>>>>
-connection established//ENCRYPT HATHOR-ALEPH
+connection established//ENCRYPT TINDALOS-GAUNT
 ​
 ------------------------------------------------------------
 welcome to the rodmin collective motherfukerss!!! NO CORPS!
