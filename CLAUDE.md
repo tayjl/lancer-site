@@ -1,10 +1,11 @@
 # LANCER Campaign Site
 
 ## What this is
-A small website for a LANCER (tabletop RPG) campaign.
-- **Players** create and manage their LANCER characters.
+A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Discord server with a few GMs and many players. It tracks characters. It is not a VTT (no game board).
+- **Players** create and manage their LANCER character.
 - Player edits don't go live straight away. They become **pending changes**.
-- **GMs** see a list of characters and pending changes, can edit characters, and approve or reject changes.
+- **GMs** see characters and pending changes, can edit characters, and approve or reject changes. GMs can also have characters of their own.
+- The campaign uses a **homebrew** version of LANCER: official content plus custom content the GMs add.
 
 ## How to work with me (the developer)
 - I'm a junior developer. Act as a senior developer mentoring me.
@@ -12,7 +13,7 @@ A small website for a LANCER (tabletop RPG) campaign.
 - Explain things in plain English. Avoid jargon, or explain any term I'm unlikely to have met before.
 
 ## Tech stack (decided)
-- **Frontend:** Vue + Vite (I already know Vue). JavaScript. TypeScript was suggested as an option but hasn't been decided.
+- **Frontend:** Vue + Vite (I already know Vue), with **TypeScript**.
 - **Database, logins and security rules:** Supabase (free tier).
 - **Hosting:** Vercel (free Hobby plan).
 - **No custom backend API.** The Vue app talks straight to Supabase using `supabase-js`. Keep it simple.
@@ -22,16 +23,44 @@ A small website for a LANCER (tabletop RPG) campaign.
 - Security is enforced **in the database** with Row Level Security (RLS), never only in the frontend code, because anyone can tamper with code running in their browser.
 - The one exception to "no backend": small **database functions inside Supabase** (written in SQL) for actions that must happen all-or-nothing, such as approving a change. Vue calls them with `supabase.rpc()`. They're not a server, and there should only be one or two.
 
+## Users and roles (decided)
+- **No campaigns table.** Everything belongs to the one campaign.
+- Anyone can sign up, using **"Log in with Discord"** through Supabase Auth.
+- A **profiles** table holds one row per user: Discord name and role. New users are players. GMs and owners are set by hand in the Supabase dashboard.
+- **Three roles:**
+  - **Player:** manages their own character through pending changes.
+  - **GM:** everything except managing LCP content. Edits any character, approves or rejects changes, and can have their own characters, which they edit directly without approval.
+  - **Owner:** everything a GM can do, plus managing LCP content (importing, updating and removing packs).
+- Players have **one living character** at a time. When it dies, they can make a new one. GMs and owners can have several. Enforce this in the database, not just the page.
+
+## Characters (decided unless marked)
+- Three tabs: **Pending**, **Approved** and **Dead**.
+- **New character:** the player fills in a template and submits it, and it shows as pending. When a GM approves it, it moves to Approved.
+  - Suggested, not decided: store a new character as a pending change with no existing character to apply to. Then there's one approval path and one approval function instead of two.
+- **Every logged-in user can see every character (pending, approved and dead), but only the public parts:**
+  - Pilot: name, callsign, appearance and image, personality, traits.
+  - Mech: name, appearance, image.
+  - Everything else (stats, loadouts and so on) is for the character's player and GMs only. It must be **really secret** (enforced by the database, not just hidden on the page), but it isn't critical, so keep the solution simple.
+- **Death:** everyone can see the Dead tab. Dead characters can't come back. A flash clone counts as a new character, which the player submits for approval as usual.
+- **Images:** store uploads in Supabase Storage (1 GB on the free tier). Discord attachment links expire after about a day, so pasted Discord links won't work. Pending characters are visible to everyone, so an uploaded image is public before a GM has reviewed it.
+- **COMP/CON import:** wanted, if it's not too hard. It only pre-fills the new-character form, and the result still goes through normal approval. Build it after the core features work.
+
 ## Pending approval workflow (decided: option 2)
 - The approved character stays **untouched** while a change is pending.
 - Proposed changes are stored **separately** (a pending-changes table) until a GM approves or rejects them.
 - Players keep a usable sheet while they wait, and the GM can see exactly what changed.
-- Approving means (1) applying the change to the character and (2) marking the pending change as approved or removing it. Both must happen in **one database function** (all-or-nothing), so a failed request can't leave half-applied data.
+- **One pending change per character at a time.** The player can **edit or withdraw** it until a GM reviews it.
+- GMs approve or reject a **whole** change, with no partial approval. Rejecting needs a **reason**, and the player then submits a new change.
+- Approving means (1) applying the change to the character and (2) marking the pending change as approved. Both must happen in **one database function** (all-or-nothing), so a failed request can't leave half-applied data.
+- **History** is wanted, kept simple. Suggested: don't delete reviewed changes. Keep each one with its status (approved or rejected), who reviewed it, when, and the reason. Those rows are the history.
 
 ## Security rules (critical)
 - **Players must NOT be able to update the characters table directly.** They can only add pending changes for their own characters. Otherwise anyone could skip GM approval using browser developer tools.
 - Only GMs (or the approval function) can change approved characters.
-- Players can only see and edit their own things. GMs can see everything in their campaign.
+- **Players must NOT be able to change their own role** in the profiles table, or anyone could make themselves a GM.
+- **Only owners can add, change or remove LCP content.**
+- Players can see and edit their own things, and can see only the public parts of other characters. GMs and owners can see everything.
+- **RLS works on whole rows, not fields.** If a player can read a character's row, they can read every field in it with developer tools, even the ones the page doesn't show. The private parts must be secret, so the public parts have to be stored apart from them (for example, in their own table).
 - Test the rules by trying to break them while logged in as a player.
 - Supabase has two keys. The **public** one ("anon" or "publishable") is safe in the browser. The **secret** one ("service_role" or "secret") bypasses every rule. It must never go in the frontend or be committed to git.
 
@@ -42,27 +71,48 @@ A small website for a LANCER (tabletop RPG) campaign.
 - **Vercel Hobby is for non-commercial use only.** Don't charge players or add ads.
 
 ## LANCER game data
-- Don't hand-type frames, weapons and talents. I want to use **Massif Press's own GitHub repositories** (https://github.com/massif-press):
-  - **Core data:** `lancer-data` (https://github.com/massif-press/lancer-data), also on npm as `@massif/lancer-data`. Its wiki documents the JSON format.
-  - **Expansion data**, such as Long Rim. The exact repo names are on the Massif Press GitHub page.
-  - **LCP editors:** `cc-lcp-editor` (a tool for making LCPs) and `vscode-comp-con-content-authoring` (a VS Code extension that checks LCP data is formatted correctly).
-- Check each repo's licence before using its data.
-- **Decided: characters store item IDs, not copies of items.** A character saves the ID of each frame, weapon, talent and so on (the IDs used in `lancer-data` and LCPs), and the site looks up names and stats from the game data when showing the sheet. Don't copy names or stats into the character. This keeps LCP import possible later and means rules fixes in the data show up automatically.
+- Don't hand-type frames, weapons and talents. Use **Massif Press's own data** (https://github.com/massif-press).
+- **Official content to enable** (each is a GitHub repo and an npm package):
+
+  | Content | npm package |
+  |---|---|
+  | Core | `@massif/lancer-data` (its wiki documents the JSON format) |
+  | Karrakin Trade Baronies | `@massif/ktb-data` |
+  | Long Rim | `@massif/long-rim-data` |
+  | Wallflower | `@massif/wallflower-data` |
+  | Dustgrave | `@massif/dustgrave-data` |
+  | Operation Solstice Rain | `@massif/osr-data` |
+  | Operation Winter Scar | `@massif/ows-data` |
+  | Shadow of the Wolf | `@massif/sotw-data` |
+  | Siren's Song, A Mountain's Remorse | `@massif/ssmr-data` |
+
+- **Licence:** every package above is **GPL-3.0-or-later** (checked in each repo's `package.json` on 2026-10-28). You can use the data freely, but software built on it that you share must also be shared as source under the same licence. This repo is public, and the simplest way to comply is to license it as GPL-3.0 too (see open questions).
+- **LCP tools:** `cc-lcp-editor` (a tool for making LCPs) and `vscode-comp-con-content-authoring` (a VS Code extension that checks LCP data is formatted correctly).
+- **Decided: characters store item IDs, not copies of items.** A character saves the ID of each frame, weapon, talent and so on (the IDs used in `lancer-data` and LCPs), and the site looks up names and stats from the game data when showing the sheet. Don't copy names or stats into the character. This makes homebrew and LCP import work, and means rules fixes in the data show up automatically.
 - Character sheets are deeply nested (pilot, then mechs, then loadouts, then mounts). Consider storing the sheet as a JSON column (`jsonb`) rather than splitting it across many tables. Not decided yet.
 - COMP/CON (the official LANCER companion app) is built with Vue, so it's a useful reference for how to structure characters. It's GPL licensed, though: read it for ideas, but don't copy code wholesale.
 
-## .LCP file import (wanted eventually, not yet)
-- I want the option to import `.lcp` files (Lancer Content Packages) eventually, so the campaign can use expansions and homebrew content.
-- An `.lcp` file is just a renamed `.zip` of JSON files, in the same format as `lancer-data`. It must contain an `lcp_manifest.json` at the top level, and subfolders are ignored.
+## Homebrew and .LCP import
+- **Decided:** owners add custom content by writing it in `cc-lcp-editor` and importing the `.lcp`. There's no item editor in the site. Homebrew is **new content only** (frames, weapons, talents and so on), not rule changes, so the sheet can use standard LANCER maths. Because content is added while the site is running, it has to be **stored in Supabase**, not only in the app's code.
+- An `.lcp` file (Lancer Content Package) is just a renamed `.zip` of JSON files, in the same format as `lancer-data`. It must contain an `lcp_manifest.json` at the top level, and subfolders are ignored.
 - Things to plan for:
-  - COMP/CON-style data refers to items by **ID**. If an LCP's data goes missing, any character using its items breaks. So imported LCP data needs to be **kept** (e.g. stored in Supabase), not just read once.
+  - Characters refer to items by **ID**. If an item goes missing, every character using it breaks. So imported data must be **kept**, and deleting items that characters use must be blocked.
   - Unzipping can happen in the browser, so this still doesn't need a backend.
-  - Still to decide: who can import LCPs (GMs only? per campaign?).
-- This is why characters store item IDs (see "LANCER game data" above).
+- Suggested, not decided: import the official packs through the same LCP import as homebrew. One feature then covers official content, homebrew and future expansions.
 
-## Ideas (not decided)
-- "Log in with Discord" via Supabase Auth, since most LANCER groups already use Discord.
+## Look and feel
+- The site is styled as an **in-universe COMP/CON terminal operated by HORUS on HOR_OS**, similar to LANCER's existing in-universe material. I'll suggest styling ideas as they come.
+- Don't copy COMP/CON's styling code or Massif's logos. Massif has a third-party licence for fan projects that asks for a notice on the site. Read it before launch.
+
+## Priorities
+- No deadline. Getting the style right and making it work matter more than speed.
+
+## Open questions
+1. Is it OK to license the repo as **GPL-3.0**? It's public, and the Massif data it will use is GPL.
+2. Who marks a character dead? (Assumed: GMs and owners.)
+3. Store the character sheet as one JSON (`jsonb`) column, or split it across tables? (See "LANCER game data".)
 
 ## Current status and next step
-- No app code yet.
-- Next: sketch the tables (e.g. users, campaigns, characters, pending changes) and write down who can see or edit what for each role (player, GM). Review that sketch before building anything.
+- Vite + Vue scaffold committed (TypeScript template). No app code yet.
+- To tidy: `.gitignore` doesn't cover `.env` yet (only `*.local`). There's an empty, untracked `lancer-site/` folder left over from scaffolding that can be deleted.
+- Next: sketch the tables (profiles, characters, public character info, pending changes, game content) and write down who can see or edit what for each role (player, GM). Review that sketch before building anything.
