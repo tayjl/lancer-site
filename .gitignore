@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# Environment variables: put real values in .env.local, never commit them
+.env
+.env.*
+!.env.example
+
+# Local tool output
+graphify-out/
+.vercel
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

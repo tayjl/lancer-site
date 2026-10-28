@@ -1,5 +1,16 @@
-# Vue 3 + TypeScript + Vite
+# LANCER Campaign Site
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+A character tracker for a LANCER campaign: players submit characters and changes, GMs approve them.
+Built with Vue, Vite and TypeScript, using Supabase for the database and logins, and hosted on Vercel.
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Running it locally
+
+1. Install dependencies: `npm install`
+2. Copy `.env.example` to `.env.local` and fill in the Supabase project URL and publishable key.
+3. Start the dev server: `npm run dev`, then open http://localhost:5173
+
+## Database
+
+The `supabase/` folder holds the Supabase config and, later, the database migrations.
+It's linked to the hosted project through Supabase's GitHub integration.
+You need the [Supabase CLI](https://supabase.com/docs/guides/local-development) to work with it.
