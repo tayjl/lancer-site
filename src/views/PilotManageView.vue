@@ -233,6 +233,7 @@ async function createMech() {
       <div class="wide">
         <StatRow
           title="personal stats"
+          tag="private"
           :stats="personalStats"
           :editable="editable"
           :min="STAT_MIN"
@@ -241,6 +242,7 @@ async function createMech() {
         />
         <StatRow
           title="piloting stats"
+          tag="private"
           :stats="pilotingStats"
           :editable="editable"
           :min="STAT_MIN"
@@ -256,7 +258,7 @@ async function createMech() {
           :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
           :save="saveBionics"
         />
-        <LoadoutBox title="gear loadout" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+        <LoadoutBox title="gear loadout" tag="private" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
 
         <section class="hangar">
           <header class="hangar-head">

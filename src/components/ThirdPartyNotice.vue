@@ -6,8 +6,10 @@ const NAME = 'HOR_OS'
 
 <template>
   <p class="notice">
-    {{ NAME }} is not an official Lancer product; it is a third party project, and is not affiliated with Massif Press.
-    Lancer is copyright Massif Press.
+    {{ NAME }} is not an official Lancer product or service; it is a third party work, and is not affiliated with Massif Press.
+    {{ NAME }} is published via the
+    <a href="https://massifpress.com/legal" target="_blank" rel="noopener">Lancer Third Party License</a>. Lancer is
+    copyright Massif Press.
   </p>
 </template>
 

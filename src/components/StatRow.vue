@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// A horizontal row of stats: each one's name and number, with - and + to change it when editable.
+// A row of stats: each one's name and number, with - and + to change it when editable. One line when there's
+// room; in a narrow space (phones) each stat gets its own line instead, so they stay lined up.
 // "bonus" (e.g. from bionics) is shown next to the number, but isn't part of what you set.
 defineProps<{
   title: string
+  tag?: string
   stats: { id: string; name: string; value: number; bonus?: number }[]
   editable: boolean
   min: number
@@ -13,7 +15,7 @@ const emit = defineEmits<{ set: [id: string, value: number] }>()
 
 <template>
   <section class="stat-row">
-    <h2 class="sheet-label">{{ title }}</h2>
+    <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span></h2>
     <ul>
       <li v-for="stat in stats" :key="stat.id">
         <span class="name">{{ stat.name }}</span>
@@ -44,9 +46,14 @@ const emit = defineEmits<{ set: [id: string, value: number] }>()
 </template>
 
 <style scoped>
+.stat-row {
+  container-type: inline-size;
+}
+
 ul {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   margin: 0;
   padding: 0;
   border: 1px solid var(--rule);
@@ -119,14 +126,32 @@ li + li {
   cursor: default;
 }
 
-/* Phones: wrap into a grid, and drop the dividers between cells. */
-@media (max-width: 30rem) {
+/* Too narrow for one line: a list, one stat per line, with the numbers and buttons lined up on the right. */
+@container (max-width: 40rem) {
   ul {
-    grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+    grid-auto-flow: row;
+  }
+
+  li {
+    flex-direction: row;
+    gap: 1rem;
+    padding: 0.4rem 0.75rem;
   }
 
   li + li {
+    border-top: 1px solid var(--rule);
     border-left: 0;
+  }
+
+  .name {
+    flex: 1;
+    font-size: 0.875rem;
+  }
+
+  .value {
+    min-width: 4rem;
+    font-size: 1.375rem;
+    text-align: right;
   }
 }
 </style>
