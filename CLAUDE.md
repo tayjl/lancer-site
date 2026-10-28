@@ -155,7 +155,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
       - **Top bar:** the current path (`~/pilot_registry`) on the left, and `uuid: <name> [role]  [ disconnect ]` on the right.
       - **Content** on the right.
       - **Net chat:** a fake live chat from `src/assets/net-chat.txt`, in the same format as the login chat.
-        - On wide screens it's pinned to the bottom of the window under the page, 8 lines tall, with a thin line above it.
+        - On wide screens it's pinned to the bottom of the window under the page, 8 lines tall, with a thin line above it. The 5-line MOTD block at the top comes out quickly (0.3s a line), then a new message arrives every 1.8 seconds (`delay` and `quick-lines` on `ChatFeed` in `App.vue`).
         - On phones a `[ chat ]` toggle (left of the logo, mirroring `[ menu ]`) pops it up over the bottom of the screen.
         - Both chats share `src/chat.ts` (parsing, hiding cut-off messages) and `src/components/ChatLine.vue` (colouring). `src/components/ChatFeed.vue` is the panel.
       - **Phones** (under 48rem wide):
@@ -173,6 +173,12 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
       - `mech_gear` `/gear/mech`
       - `gm_view` `/gm`, GMs and owners only
     - **Unbuilt pages** use `src/views/ModuleOffline.vue`, which shows the page's title and summary.
+    - **pilot_registry** (`/registry`, `src/views/RegistryView.vue`; `/` redirects here) is a grid of small cards for easy browsing.
+      - **The card** (`src/components/PilotCard.vue`) shows only the portrait, callsign, pilot name and mech name. The same card is meant for pending_paperwork and those_who_passed.
+      - **Clicking a card** opens the pilot record (`/registry/:id`, `src/views/PilotRecordView.vue`): portrait, every public identity fact, appearance and personality (in `.prose`), traits, and each mech with its image, manufacturer ID and appearance. Private sheet data and the backstory are never shown there.
+      - **Example data:** one hard-coded pilot in `src/pilots.ts`, which also defines the public pilot shape. To be replaced with the characters table.
+      - **Images:** `src/components/Portrait.vue` is the 3:4 image frame, an empty dashed frame when there's no image.
+      - **Menu highlight:** the menu marks an item "current" for its own page, or a page whose route `meta.section` names it (so the record page keeps pilot_registry highlighted).
     - **Menu marker:** the current page gets a `> ` marker like a terminal menu.
     - **This replaces** the Pending, Approved and Dead tabs planned earlier.
     - **Page titles** are prompts: `<h1><span class="prompt" aria-hidden="true">&gt; </span><GlitchText text="page_name" /></h1>`. They're terminal-sized, not huge.
@@ -192,7 +198,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
       3. A fake HORUS chat keeps arriving in the log under the MOTD, in slightly smaller text, one message every 1.1s.
     - **The log doesn't scroll.** It works like `tail`: its height snaps to a whole number of lines, new lines appear at the bottom, and old ones drop off the top. Every line is the same height (the chat's line height matches the log's), so no line is ever cut in half. A wrapped message that's partly off the top is hidden.
   - **Where to edit it:** the text lives in `src/assets/boot/` (`intro.txt`, `art.txt`, `connect.txt`, `chat.txt`).
-    - `chat.txt` is ours to edit freely. Lines are `username: message`, optionally starting with `[ MOD ]` (purple tag) or `[ ADMIN ]` (red tag). The `username:` is sky blue and the message white. Ban notices wrapped in `// ... //` are entirely red.
+    - `chat.txt` is ours to edit freely. Lines are `username: message`, optionally starting with `[ MOD ]` (purple tag) or `[ ADMIN ]` (red tag). The `username:` is sky blue and the message white. Inside a message, `@mentions` are sky blue and `<SYSTEM MESSAGES>` in angle brackets are purple. Ban notices wrapped in `// ... //` are entirely red. The same rules apply to `src/assets/net-chat.txt` (all in `src/chat.ts`).
     - **Small phones** (a column under 28rem) show `art.txt` without the arrow banner at the bottom: everything from the first `>>>>` line on is dropped, worked out in code, so there's only one file to edit. Bigger screens show all 27 lines. The art's size on phones is limited by its 80-column width (about 7px on a 375px phone), so dropping lines frees vertical space rather than enlarging it.
     - An empty line in any of the text files shows as a blank line.
     - The phrases highlighted in rose inside the art are listed in `ART_PARTS` in `BootSequence.vue`. Update that list if those words change in `art.txt`.

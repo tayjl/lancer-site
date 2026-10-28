@@ -5,7 +5,10 @@ import ChatLine from './ChatLine.vue'
 
 // A fake live chat, like the one on the login screen: messages arrive one at a time and the newest
 // sits at the bottom. Old messages drop off the top as whole lines ("tail" style, see src/chat.ts).
-const props = defineProps<{ text: string; delay?: number }>()
+// "delay" is the gap between messages in milliseconds. The first "quickLines" lines (e.g. a MOTD
+// block) come out much faster, so the chat gets going straight away.
+const props = defineProps<{ text: string; delay?: number; quickLines?: number }>()
+const QUICK_DELAY = 300
 
 const lines = parseChat(props.text)
 const shown = ref(0)
@@ -21,14 +24,16 @@ onMounted(() => {
     shown.value = lines.length
     return
   }
-  timer = window.setInterval(() => {
+  const next = () => (shown.value < (props.quickLines ?? 0) ? QUICK_DELAY : (props.delay ?? 1100))
+  const step = () => {
     shown.value++
-    if (shown.value === lines.length) window.clearInterval(timer)
-  }, props.delay ?? 1100)
+    if (shown.value < lines.length) timer = window.setTimeout(step, next())
+  }
+  timer = window.setTimeout(step, next())
 })
 
 onUnmounted(() => {
-  window.clearInterval(timer)
+  window.clearTimeout(timer)
   window.removeEventListener('resize', hideCut)
 })
 </script>

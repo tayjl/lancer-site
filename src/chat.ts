@@ -1,8 +1,22 @@
 // Shared by the login screen's log and the in-app chat panel, so both chats look the same.
 // A chat line is "username: message", optionally starting with "[ MOD ]" or "[ ADMIN ]".
-// Ban notices are wrapped in "// ... //". ChatLine.vue draws a parsed line.
+// Ban notices are wrapped in "// ... //". Inside a message, @mentions are sky blue (like usernames)
+// and <SYSTEM MESSAGES> in angle brackets are lilac. ChatLine.vue draws a parsed line.
 
-export type ChatLine = { text: string; tone?: string; tag?: string; tagTone?: string; user?: string }
+export type ChatPart = { text: string; tone?: string }
+export type ChatLine = { tone?: string; tag?: string; tagTone?: string; user?: string; parts: ChatPart[] }
+
+// The capturing group makes split() keep the mentions and system messages as their own pieces.
+function messageParts(text: string): ChatPart[] {
+  return text
+    .split(/(@[^\s.,!?:;]+|<[^<>]+>)/)
+    .filter(Boolean)
+    .map((part) => {
+      if (part.startsWith('@')) return { text: part, tone: 'user' }
+      if (part.startsWith('<')) return { text: part, tone: 'lilac' }
+      return { text: part }
+    })
+}
 
 export function parseChat(file: string): ChatLine[] {
   return file
@@ -10,10 +24,10 @@ export function parseChat(file: string): ChatLine[] {
     .trimEnd()
     .split('\n')
     .map((line) => {
-      if (/^\/\/.*\/\/$/.test(line)) return { text: line, tone: 'rose' }
+      if (/^\/\/.*\/\/$/.test(line)) return { tone: 'rose', parts: [{ text: line }] }
       // The tag and username keep their trailing spaces, because Vue would trim a space typed into the template.
       const [, tag = '', rank = '', user = '', text = ''] = line.match(/^(\[ (MOD|ADMIN) \] ?)?([^\s:]+: ?)?(.*)$/)!
-      return { tag, tagTone: rank === 'MOD' ? 'lilac' : 'rose', user, text }
+      return { tag, tagTone: rank === 'MOD' ? 'lilac' : 'rose', user, parts: messageParts(text) }
     })
 }
 

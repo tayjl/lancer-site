@@ -2,18 +2,28 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import LoginView from './views/LoginView.vue'
 import ModuleOffline from './views/ModuleOffline.vue'
+import PilotRecordView from './views/PilotRecordView.vue'
+import RegistryView from './views/RegistryView.vue'
 
 // Each page's meta: "title" is its name in the menu and the header path (e.g. ~/pilot_registry),
 // and "summary" says what it's for. "gm" pages are for GMs and owners only.
-// Every page uses the ModuleOffline placeholder until it's built.
+// Pages that aren't built yet use the ModuleOffline placeholder.
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: '/', redirect: '/registry' },
     {
-      path: '/',
+      path: '/registry',
       name: 'registry',
-      component: ModuleOffline,
+      component: RegistryView,
       meta: { title: 'pilot_registry', summary: 'every approved pilot on the net. public records only.' },
+    },
+    // "section" keeps pilot_registry highlighted in the menu while a record is open.
+    {
+      path: '/registry/:id',
+      name: 'pilot-record',
+      component: PilotRecordView,
+      meta: { title: 'pilot_registry/record', section: 'registry' },
     },
     {
       path: '/pilot',
@@ -58,7 +68,7 @@ export const router = createRouter({
       meta: { title: 'gm_view', summary: 'review queue, reputation and owner tools.', gm: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    { path: '/:pathMatch(.*)*', redirect: '/registry' },
   ],
 })
 

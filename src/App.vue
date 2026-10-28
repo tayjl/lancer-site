@@ -88,7 +88,13 @@ async function disconnect() {
       <nav id="main-menu" aria-label="Main" class="menu">
         <ul v-for="(group, i) in menu" :key="i">
           <li v-for="item in group" :key="item.name">
-            <RouterLink :to="{ name: item.name }">{{ item.label }}</RouterLink>
+            <!-- "current": this page, or a page in its section (like a pilot record under the registry). -->
+            <RouterLink
+              :to="{ name: item.name }"
+              :class="{ current: route.name === item.name || route.meta.section === item.name }"
+            >
+              {{ item.label }}
+            </RouterLink>
           </li>
         </ul>
       </nav>
@@ -112,7 +118,9 @@ async function disconnect() {
 
     <!-- The net chat (src/assets/net-chat.txt), pinned to the bottom of the window. -->
     <section id="net-chat" class="chat-panel" aria-label="Net chat">
-      <ChatFeed :text="netChat" />
+      <!-- The 5-line MOTD block comes out quickly, then a message every 1.8 seconds: slower than the
+           login chat, so it's readable while browsing. -->
+      <ChatFeed :text="netChat" :delay="1800" :quick-lines="5" />
     </section>
   </div>
 </template>
@@ -199,12 +207,12 @@ async function disconnect() {
 }
 
 .menu a:hover,
-.menu a.router-link-exact-active {
+.menu a.current {
   color: var(--lilac);
 }
 
 .menu a:hover::before,
-.menu a.router-link-exact-active::before {
+.menu a.current::before {
   content: '> ' / '';
 }
 
@@ -347,7 +355,7 @@ async function disconnect() {
   }
 
   .menu a:hover::after,
-  .menu a.router-link-exact-active::after {
+  .menu a.current::after {
     content: ' <' / '';
   }
 
