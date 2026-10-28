@@ -36,10 +36,10 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 ## Characters (decided unless marked)
 - Three tabs: **Pending**, **Approved** and **Dead**.
 - **New character:** the player fills in a template and submits it, and it shows as pending. When a GM approves it, it moves to Approved.
-  - Suggested, not decided: store a new character as a pending change with no existing character to apply to. Then there's one approval path and one approval function instead of two.
+  - Suggested in `docs/database-sketch.md`: a new character is a normal character with status pending, which the player edits directly until a GM approves it. Pending changes are only for approved characters.
 - **Every logged-in user can see every character (pending, approved and dead), but only the public parts:**
-  - Pilot: name, callsign, appearance and image, personality, traits.
-  - Mech: name, appearance, image.
+  - Pilot: name, callsign, age, gender, sexuality, height, weight, eye colour, hair colour, appearance description and image, personality, and traits (narrative: what the character is good at).
+  - Mech: name, appearance, image, manufacturer ID.
   - Everything else (stats, loadouts and so on) is for the character's player and GMs only. It must be **really secret** (enforced by the database, not just hidden on the page), but it isn't critical, so keep the solution simple.
 - **Death:** GMs, owners, or the character's own player can mark a character dead. Everyone can see the Dead tab. Dead characters can't come back.
   - A player marking their own character dead needs **no GM approval**, just a "are you sure?" confirmation on the page.
@@ -47,10 +47,17 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **Images:** store uploads in Supabase Storage (1 GB on the free tier). Discord attachment links expire after about a day, so pasted Discord links won't work. Pending characters are visible to everyone, so an uploaded image is public before a GM has reviewed it.
 - **COMP/CON import:** wanted, if it's not too hard. It only pre-fills the new-character form, and the result still goes through normal approval. Build it after the core features work.
 
-## Character sheet contents (first list, more to come)
+## Character sheet contents
+- **The full field list** (from the developer, 2026-10-28):
+  - Profile: name, callsign, age, gender, eye colour, height, weight, sexuality, hair colour, personality, appearance description, appearance image, and traits.
+  - Pilot stats: physicality, dexterity, perception, acuity, tech-fluency.
+  - Mech skills: hull, systems, agility, engineering.
+  - Also: licences, weapons and equipment (pilot gear only), bionics/bodymods, backstory.
+  - Mechs (added in a follow-up answer): several per pilot, each with a name, appearance description, image, weapons on the frame's mounts, a manufacturer ID, and systems with system points.
+  - Confirmed as staying, though not on the list: talents, core bonuses, licence level, pilot HP, manna and mod points.
 - **It's a general character manager, not a combat tracker.** It doesn't track current HP, structure, stress or heat.
 - **Mech stats:** standard LANCER, minus **grit, save target, evasion, e-defense, tech attack and sensors**. It's a Discord roleplay with little or no dice rolling, so stats that only matter for rolls don't apply. Grit is removed everywhere it normally appears (pilot HP, mech HP, attack bonus). Assumed: pilot evasion and e-defense go too. Calculate them from the character's choices and the game data (frame, licence levels, talents, core bonuses and so on). Don't store them, for the same reason item names and stats aren't stored.
-- **Pilot stats are custom.** LANCER's skill triggers ("narrative triggers") are replaced by homebrew stats such as physical and tech knowledge. The full list isn't settled yet.
+- **Pilot stats are custom.** LANCER's skill triggers ("narrative triggers") are replaced by five homebrew stats: **physicality, dexterity, perception, acuity and tech-fluency**.
   - They're set when the character is made and **don't grow** with level. Bionics are the only way to raise them.
   - They're **private**: players see only their own.
 - **Mech skills** (Hull, Agility, Systems, Engineering) and **pilot HP** work as in normal LANCER, including going up on level-up.
@@ -62,12 +69,17 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
   - Characters store bionic IDs, like any other item. Only owners can add or change bionics or stats. One that's in use can't be deleted.
   - To start, owners can add them in the Supabase dashboard's table editor. Anyone with dashboard access can change *everything*, so only trusted people get it. An owner-only form in the site can come later.
   - Why not LCP: `cc-lcp-editor` has no bonus that targets a specific stat, reusing an existing bonus ID would clash with official items, and a custom ID would have to be typed into the JSON by hand.
-- **Mech information:** frame, name, appearance and image (public), and loadout: weapons, systems and mods.
+- **Mechs:** a pilot can have **several**. Each mech has:
+  - a frame
+  - a name, appearance description and image (all public)
+  - a **manufacturer ID** the player makes up, in the format `XXXX-XXXX-XXXX` (assumed: letters and digits). It's **public**, and should be unique. Uniqueness isn't critical, so the site checks for duplicates and warns, rather than the database enforcing it.
+  - weapons on the **mounts its frame provides** (for example, Blackbeard has Flex, Main and Heavy)
+  - systems, shown as system points used against the total. System points are calculated, not stored.
 - **Licence levels:** the pilot's licence level, plus their licence ranks in each frame.
 - **Talents and core bonuses:** included.
-- **Equipment / inventory:** only LANCER items from the game data (pilot gear and reserves). No free-text items.
+- **Pilot equipment:** only LANCER pilot gear (armour, weapons, kit) from the game data. No free-text items.
 - **Background:** a private backstory the player writes as free text. LANCER's ready-made backgrounds aren't used.
-- **Not used:** skill triggers (replaced by custom pilot stats), grit, save target, evasion, e-defense, tech attack, sensors, LANCER backgrounds, and bonds.
+- **Not used:** skill triggers (replaced by custom pilot stats), grit, save target, evasion, e-defense, tech attack, sensors, LANCER backgrounds, bonds, and (not on the field list) reserves and weapon mods.
 - **Manna:** the in-universe currency. It isn't in LANCER's data, so it's a plain number on the character. Players can only change it through a pending change, never directly. It's private: other players can't see it.
 - **GM-only: reputation.** Each character has a reputation level with each organisation. Even the character's own player can't see it, and players can read their own sheet, so reputation can't live in the sheet. It needs its own table, plus a list of organisations. Owners manage the organisations. GMs and owners set the levels. Levels are names, not numbers (the list of names isn't settled yet).
 
@@ -140,10 +152,11 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - No deadline. Getting the style right and making it work matter more than speed.
 
 ## Open questions
-1. **Custom pilot stats and mod points:** the full stat list, starting values, and starting mod points. (To be worked out later.)
+1. **Starting values** for pilot stats, and starting mod points. (To be worked out later.)
 2. **Reputation level names.** (To be worked out later.)
 
 ## Current status and next step
 - Vite + Vue + TypeScript scaffold, tidied down to a placeholder page. No tables or app features yet.
 - Supabase is set up in the repo: the client is in `src/lib/supabaseClient.ts`, the CLI config is in `supabase/`, and real keys go in `.env.local` (see `.env.example`). The hosted project is linked through Supabase's GitHub integration (working directory `.`).
-- Next: sketch the tables (profiles, characters, public character info, pending changes, game content, pilot stats, bionics, organisations and reputation) and write down who can see or edit what for each role (player, GM). Review that sketch before building anything.
+- The table sketch is drafted in `docs/database-sketch.md` and waiting for review. It lists who can see or edit what for each role, plus "Choices to check".
+- Next: review the sketch, then turn it into SQL migrations.
