@@ -14,10 +14,17 @@ import type { PublicMech } from '../pilots'
 // Everything is edited in place and saves itself. The name, manufacturer id, appearance and image are
 // public (on the pilot's card); history and the stats are private. Frames and loadouts arrive with the
 // LANCER content packs. Quirks are off the page for now, like the pilot's traits (still in the sheet).
+// Opened from someone else's record (route param "id"), it's the same page read-only, with the private
+// sections only for their player, GMs and owners.
 
 const route = useRoute()
 const router = useRouter()
-const { character, sheet, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot()
+const pilotId = route.params.id ? Number(route.params.id) : undefined
+const own = !pilotId
+const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId)
+const back = own
+  ? { to: { name: 'pilot' }, label: 'pilot_management' }
+  : { to: { name: 'pilot-record', params: { id: pilotId } }, label: 'pilot_record' }
 
 const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
@@ -79,11 +86,11 @@ async function scrap() {
 
 <template>
   <main class="page mech-page">
-    <RouterLink :to="{ name: 'pilot' }" class="back">&lt; pilot_management</RouterLink>
+    <RouterLink :to="back.to" class="back">&lt; {{ back.label }}</RouterLink>
 
     <p v-if="loading" class="dim">loading mech record...</p>
     <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
-    <p v-else-if="!mech" class="rose">no mech with that id in your hangar.</p>
+    <p v-else-if="!mech" class="rose">no mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
 
     <div v-else class="sheet">
       <!-- At a glance: name, manufacturer id, pilot, frame. -->
@@ -124,33 +131,35 @@ async function scrap() {
           <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
           <span v-else class="dim">{{ status }}</span>
         </p>
-        <p v-if="!editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
+        <p v-if="own && !editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
       </header>
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
       <aside class="side">
         <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
-        <p class="dim small">image upload: module offline</p>
+        <p v-if="own" class="dim small">image upload: module offline</p>
       </aside>
 
       <div class="writing">
         <SheetField title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-        <SheetField title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+        <SheetField v-if="canSeePrivate" title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
       </div>
 
       <div class="wide">
-        <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
-        <p class="dim small stats-note">worked out from the frame and your piloting stats once the LANCER content packs are imported.</p>
+        <template v-if="canSeePrivate">
+          <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <p class="dim small stats-note">worked out from the frame and piloting stats once the LANCER content packs are imported.</p>
 
-        <section>
-          <h2 class="sheet-label">loadout<span class="tag"> [private]</span></h2>
-          <ul class="modules">
-            <li v-for="name in OFFLINE_MODULES" :key="name">
-              <span>{{ name }}</span>
-              <span class="dim">module offline</span>
-            </li>
-          </ul>
-        </section>
+          <section>
+            <h2 class="sheet-label">loadout<span class="tag"> [private]</span></h2>
+            <ul class="modules">
+              <li v-for="name in OFFLINE_MODULES" :key="name">
+                <span>{{ name }}</span>
+                <span class="dim">module offline</span>
+              </li>
+            </ul>
+          </section>
+        </template>
 
         <section v-if="editable" class="decommission">
           <h2 class="sheet-label">decommission</h2>

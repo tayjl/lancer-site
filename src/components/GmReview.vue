@@ -1,22 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
-import { bionicItems, sheetStats, useGameData } from '../gameData'
+import { computed, ref } from 'vue'
 import { supabase } from '../lib/supabaseClient'
-import type { Sheet } from '../myPilot'
-import type { PublicPilot } from '../pilots'
-import LoadoutBox from './LoadoutBox.vue'
-import SheetField from './SheetField.vue'
-import StatRow from './StatRow.vue'
+import type { Character } from '../myPilot'
 
-// GMs and owners only: a pilot's private sheet under their public record, and, while the pilot is pending,
-// the decision. Approving sets the mod limit, clears any note and moves the pilot to the registry.
+// GMs and owners only, on the review page (opened from gm_view's queue): the decision on a pending pilot,
+// under its sheet. Approving sets the mod limit, clears any note and moves the pilot to the registry.
 // Sending back leaves it pending with a note the player sees on their sheet.
 // The database enforces who can do this; the page only hides it from players.
-const props = defineProps<{ pilot: PublicPilot }>()
+const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name'> }>()
 const emit = defineEmits<{ reviewed: [] }>()
 
-const { gear, bionics, pilotStats } = useGameData()
-const sheet = shallowRef<Sheet>({})
 const modPoints = ref(6)
 const note = ref('')
 const loading = ref(true)
@@ -24,18 +17,15 @@ const error = ref('')
 const message = ref('')
 const busy = ref(false)
 
-const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value))
 const name = computed(() => props.pilot.callsign ?? props.pilot.pilot_name)
-const readOnly = async () => null
 
 async function load() {
   const { data, error: loadError } = await supabase
     .from('character_sheets')
-    .select('sheet, mod_points, review_note')
+    .select('mod_points, review_note')
     .eq('character_id', props.pilot.id)
     .maybeSingle()
   error.value = loadError?.message ?? ''
-  sheet.value = (data?.sheet ?? {}) as unknown as Sheet
   modPoints.value = data?.mod_points ?? 6
   note.value = data?.review_note ?? ''
   loading.value = false
@@ -81,68 +71,29 @@ async function sendBack() {
 </script>
 
 <template>
-  <section class="review">
-    <h2 class="sheet-label">gm review<span class="tag"> [gm only]</span></h2>
-    <p class="dim small">the private sheet. only gms, owners and this pilot's player can see it.</p>
-
-    <p v-if="loading" class="dim">loading sheet...</p>
-    <template v-else>
-      <StatRow title="personal stats" tag="private" :stats="stats.personal" :editable="false" :min="0" :max="6" />
-      <StatRow title="piloting stats" tag="private" :stats="stats.piloting" :editable="false" :min="0" :max="6" />
-      <LoadoutBox
-        title="bionics"
-        tag="private"
-        :items="bionicItems(bionics)"
-        :chosen="sheet.bionics ?? []"
-        :editable="false"
-        :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
-        :save="readOnly"
-      />
-      <LoadoutBox title="gear loadout" tag="private" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="false" :save="readOnly" />
-      <SheetField title="backstory" tag="private" :doc="sheet.backstory ?? null" :editable="false" :save="readOnly" />
-
-      <form v-if="pilot.status === 'pending'" class="decision" @submit.prevent>
-        <h3 class="sheet-label">decision</h3>
-        <div class="decision-body">
-          <label class="mod-limit">
-            <span class="dim">mod limit</span>
-            <input v-model.number="modPoints" type="number" min="0" step="1" />
-          </label>
-          <label>
-            <span class="dim">note to the player (needed to send back)</span>
-            <textarea v-model="note" rows="3"></textarea>
-          </label>
-          <p v-if="error" class="rose" role="alert">{{ error }}</p>
-          <p v-else-if="message" class="dim" role="status">{{ message }}</p>
-          <div class="actions">
-            <button type="button" :disabled="busy" @click="approve">approve pilot</button>
-            <button type="button" :disabled="busy" @click="sendBack">send back with note</button>
-          </div>
-        </div>
-      </form>
-      <p v-else-if="error" class="rose" role="alert">{{ error }}</p>
-    </template>
+  <section v-if="pilot.status === 'pending'" class="decision">
+    <h2 class="sheet-label">decision<span class="tag"> [gm only]</span></h2>
+    <p v-if="loading" class="dim">loading...</p>
+    <form v-else class="decision-body" @submit.prevent>
+      <label class="mod-limit">
+        <span class="dim">mod limit</span>
+        <input v-model.number="modPoints" type="number" min="0" step="1" />
+      </label>
+      <label>
+        <span class="dim">note to the player (needed to send back)</span>
+        <textarea v-model="note" rows="3"></textarea>
+      </label>
+      <p v-if="error" class="rose" role="alert">{{ error }}</p>
+      <p v-else-if="message" class="dim" role="status">{{ message }}</p>
+      <div class="actions">
+        <button type="button" :disabled="busy" @click="approve">approve pilot</button>
+        <button type="button" :disabled="busy" @click="sendBack">send back with note</button>
+      </div>
+    </form>
   </section>
 </template>
 
 <style scoped>
-.review {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--rule);
-}
-
-.review > p {
-  margin: -1rem 0 0;
-}
-
-.small {
-  font-size: 0.8125rem;
-}
-
 .decision-body {
   display: flex;
   flex-direction: column;

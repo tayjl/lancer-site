@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import StatIcon from './StatIcon.vue'
+
 // A row of stats: each one's name and number, with - and + to change it when editable. One line when there's
 // room; in a narrow space (phones) each stat gets its own line instead, so they stay lined up.
 // "bonus" (e.g. from bionics) is shown next to the number, but isn't part of what you set. A null value
@@ -12,9 +14,6 @@ defineProps<{
   max: number
 }>()
 const emit = defineEmits<{ set: [id: string, value: number] }>()
-
-// Quoted, because Vite inlines small SVGs as data urls with spaces in them.
-const iconStyle = (url: string) => ({ maskImage: `url(${JSON.stringify(url)})` })
 </script>
 
 <template>
@@ -23,7 +22,7 @@ const iconStyle = (url: string) => ({ maskImage: `url(${JSON.stringify(url)})` }
     <ul>
       <li v-for="stat in stats" :key="stat.id">
         <span class="name">
-          <span v-if="stat.icon" class="icon" :style="iconStyle(stat.icon)" aria-hidden="true"></span>
+          <StatIcon v-if="stat.icon" :src="stat.icon" class="icon" />
           {{ stat.name }}
         </span>
         <span class="value">
@@ -88,13 +87,9 @@ li + li {
   white-space: nowrap;
 }
 
-/* The symbol is a mask over a block of colour, so it takes the accent colour like text would. */
 .icon {
-  flex: none;
-  width: 1.125rem;
-  height: 1.125rem;
-  background: var(--lilac);
-  mask: center / contain no-repeat;
+  color: var(--lilac);
+  font-size: 1.125rem;
 }
 
 .value {

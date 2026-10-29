@@ -78,6 +78,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **Licence levels:** the pilot's licence level, plus their licence ranks in each frame.
 - **Talents and core bonuses:** included.
 - **Pilot equipment:** only LANCER pilot gear (armour, weapons, kit) from the game data. No free-text items.
+  - **Slots** (decided by the developer, 2026-10-29): **1 armour, 2 weapons and 3 gear**, laid out like COMP/CON's loadout.
 - **The pilot page is modular.** Each category (mechs, equipment, talents, licences, core bonuses, mech gear and so on) is a section with a `[ + ]` box to add an item.
   - For game items, `[ + ]` opens a searchable picker of pre-made items from the imported LCPs. This is how most players add things, and the sheet stores only the item's ID.
   - Mechs are added with a small form (name, manufacturer ID, appearance, image).
@@ -174,21 +175,25 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
     - **Menu and pages** (each route's `meta.title` and `meta.summary` in `src/router.ts`):
       - `pilot_management` `/pilot`: your own pilot
       - `pilot_registry` `/`: approved pilots' public cards
-      - `pending_paperwork` `/pending`: pilots and changes waiting on a GM
+      - `pending_paperwork` `/pending`: pending submissions, **only for players to look at and discuss**. GMs don't review from here (decided by the developer, 2026-10-29).
       - `those_who_passed` `/memorial`: dead pilots
       - `archive_viewer` `/archive`: server lore, as separate articles (e.g. one per faction or place) that every logged-in user can read. It'll need its own table. GMs and owners write and edit them.
       - `pilot_gear` `/gear/pilot`
       - `mech_gear` `/gear/mech`
-      - `gm_view` `/gm`, GMs and owners only
+      - `gm_view` `/gm`, GMs and owners only: the **review queue**, where GMs review pending submissions
     - **Unbuilt pages** use `src/views/ModuleOffline.vue`, which shows the page's title and summary.
     - **pilot_registry** (`/registry`, `src/views/RegistryView.vue`; `/` redirects here) is a grid of small cards for easy browsing.
       - **The card** (`src/components/PilotCard.vue`) shows only the portrait, callsign, pilot name and mech name. The same card is meant for pending_paperwork and those_who_passed.
-      - **Clicking a card** opens the pilot record (`/registry/:id`, `src/views/PilotRecordView.vue`): portrait, every public identity fact, appearance and personality (in `.prose`), traits, and each mech with its image, manufacturer ID and appearance. Private sheet data and the backstory are never shown there, except to GMs (see "GM review" below).
+      - **Clicking a card** opens the pilot record (`/registry/:id`). For visual congruity (the developer's request, 2026-10-29) **it's the pilot_management page itself, read-only** (`PilotManageView.vue` with a route `id`), so a record always looks exactly like your own sheet. Its mech cards open the mech page read-only too (`/registry/:id/mechs/:mechId`, `MechView.vue`).
+        - `useMyPilot(id)` in `src/myPilot.ts` loads that pilot instead of yours, never editable. Its `canSeePrivate` says whether the database handed over the private sheet (the pilot's own player, GMs and owners), and the private sections (backstory, stats, bionics, gear, mech history, mech stats, loadout) only show when it did. Other players see only the public parts.
+        - On a pending pilot, GMs get a `review in gm_view` link. The decision itself is never on the record.
+        - `App.vue` keys the `RouterView` by path, so going from one record to another loads the new pilot.
       - **Real data:** `src/pilots.ts` loads pilots from the `characters` table (`fetchPilots`, `fetchPilot`), with the player's display name from `profiles`. It also defines the public pilot shape.
-      - **pending_paperwork** uses the same grid (`RegistryView.vue`), listing pending pilots instead. Each route's `meta.status` picks which pilots, and `meta.empty` is the text when there are none (typed in `src/router.ts`). Changes to approved pilots will join this list once pending changes are built.
-      - **GM review** (`src/components/GmReview.vue`): GMs and owners see the pilot's private sheet under the record (stats, bionics, gear, backstory, read-only). While the pilot is pending they also get a decision box:
+      - **pending_paperwork** uses the same grid (`RegistryView.vue`), listing pending pilots instead, for everyone to read and discuss (no decision box). Each route's `meta.status` picks which pilots, and `meta.empty` is the text when there are none (typed in `src/router.ts`). Changes to approved pilots will join this list once pending changes are built.
+      - **Review queue** (`/gm`, `src/views/GmView.vue`): every pending pilot, **oldest first**, so whoever has waited longest is reviewed first, with how long each has waited. Pilots a GM sent back sit in a separate "sent back" list (waiting on the player) until the player presses `[ resubmit for review ]` on their sheet, which clears the note and puts them back in the queue (in their original place, by `created_at`). Changes to approved pilots will join the queue once pending changes are built.
+      - **GM review** (`/gm/pilots/:id`, the same read-only page plus `src/components/GmReview.vue` at the bottom): opened from the queue. While the pilot is pending this page alone adds the decision box:
         - **Approve pilot** (after an "are you sure?"): sets the mod limit, clears any note, sets the status to approved and `approved_at`. The pilot moves to the registry and the player's sheet turns read-only.
-        - **Send back with note** (a note is required): saves it to `character_sheets.review_note`. The pilot stays pending, and the player sees the note at the top of their sheet until the pilot is approved.
+        - **Send back with note** (a note is required): saves it to `character_sheets.review_note`. The pilot stays pending and moves to the queue's "sent back" list, and the player sees the note at the top of their sheet until they resubmit.
       - **Images:** `src/components/Portrait.vue` is the 3:4 image frame, an empty dashed frame when there's no image.
       - **Menu highlight:** the menu marks an item "current" for its own page, or a page whose route `meta.section` names it (so the record page keeps pilot_registry highlighted).
     - **Menu marker:** the current page gets a `> ` marker like a terminal menu.
@@ -251,16 +256,18 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **pilot_management is built** as a full-width, COMP/CON-style sheet (`src/views/PilotManageView.vue`):
   - **Top strip:** big callsign, name, player and status badge (rose while pending, sky once approved), plus a save status. Centred on phones.
   - **Wide screens:** the long writing on the left, and the portrait with the identity table (age, gender, sexuality, height, weight, eyes, hair) on the right. The right column scrolls with the page (it doesn't follow you down). On phones the portrait and table sit between the top strip and appearance.
-  - **Always editable, no edit buttons** (while pending): appearance, personality and backstory [private] are open editors that save themselves 0.8s after you stop typing (`src/components/SheetField.vue`). Callsign, name and the table are inline inputs that save when you leave them. Traits are off the sheet for now (the `traits` column and `EntryList.vue` are kept, and the registry record still shows them).
+  - **Always editable, no edit buttons** (while pending): appearance, personality and backstory [private] are open editors that save themselves 0.8s after you stop typing (`src/components/SheetField.vue`). Callsign, name and the table are inline inputs that save when you leave them. Traits are off the sheet for now (the `traits` column and `EntryList.vue` are kept, but nothing shows them now, the registry record included).
   - **Below, full width:**
     - **Personal stats** (from the `pilot_stats` table) and **piloting stats** (HASE): one line with - and + under each stat (`src/components/StatRow.vue`); where the row is too narrow (phones, narrow windows) each stat gets its own line instead. Both are tagged [private]. Everything starts at 1; 0 to 6 for now. Bionic bonuses show beside the number in sky. Stored in `sheet.pilot_stats` and `sheet.mech_skills`.
-    - **Bionics [private]**, then **gear loadout [private]**: cards with a small `[ edit ]` that opens a picker of existing items only (`src/components/LoadoutBox.vue`). Bionics count their mod-point cost against the **mod limit** (`character_sheets.mod_points`, default 6 since migration `20261028183456_mod_limit_default.sql`), and the picker won't add one that goes over. Stored as ids in `sheet.bionics` and `sheet.pilot_gear`.
+    - **Bionics [private]**, then **loadout [private]**: cards with a small `[ edit ]` that opens a picker of existing items only (`src/components/LoadoutBox.vue`). Bionics count their mod-point cost against the **mod limit** (`character_sheets.mod_points`, default 6 since migration `20261028183456_mod_limit_default.sql`), and the picker won't add one that goes over. Stored as ids in `sheet.bionics` and `sheet.pilot_gear`.
+    - **The loadout** (`src/components/PilotLoadout.vue`) is six slot cards like COMP/CON's: pilot armour, two pilot weapons, three pilot gear (three to a row on wide screens, one on phones). Each card shows the item's name, its stats with LANCER's symbols (armour: hp, armour, evasion, e-defense, speed; weapons: range and damage), its rules text (gear without any shows its description) and its tags. Empty slots read `// empty //`. While editable, each slot has `[ equip ]` / `[ swap ]` and `[ remove ]`; the picker only offers items of that slot's type. Still stored as a flat list of ids in `sheet.pilot_gear` (the same item can be there twice); `loadoutSlots()` in `src/gameData.ts` sorts it into slots by the item's `type` (tested in `src/gameData.test.ts`). Ids from packs that aren't loaded are kept; extras from before the slots are listed and dropped at the next change.
+    - **Symbols:** `src/components/StatIcon.vue` draws any SVG in `src/assets/icons/` in the text colour.
     - **Mech hangar** at the bottom: mech cards centred, a `[ + ] new mech` box when there are none, otherwise `[ new mech ]` in its header.
   - **Approved pilots** get the same sheet read-only, with a note that changes go through pending paperwork.
   - **Mechs are separate objects** with their own page at `/pilot/mechs/:mechId` (`src/views/MechView.vue`), laid out like pilot_management: name and manufacturer id edited in place across the top (with pilot and frame), appearance and history [private] on the left, the image on the right, then mech stats [private], an offline loadout, and "scrap mech". Public mech fields live in `characters.mechs`; history (and quirks, off the page for now like traits) in `sheet.mechs[mechId]`.
     - **Mech stats** are a `StatRow` with LANCER's symbols (`mechStats()` in `src/gameData.ts`, SVGs in `src/assets/icons/`, credited in the README). Every value shows "-" until frames are imported, then they're calculated from the frame and HASE.
   - **Shared pieces:**
-    - `src/myPilot.ts` loads and saves your own pilot. Saves queue up and run in order, so autosaves can't overtake each other.
+    - `src/myPilot.ts` loads and saves your own pilot (or, given an id, loads anyone's read-only for their record). Saves queue up and run in order, so autosaves can't overtake each other.
     - `src/gameData.ts` loads the catalogues (pilot gear from `content_items`, bionics with their bonuses, pilot stats).
     - `.sheet-label` (in `src/style.css`) is the section tag: a filled block with a lilac edge.
     - `src/components/EditableRichText.vue`, `EntryList.vue` and `Panel.vue` (the older panel style, unused since the mech page moved to the sheet layout), `AddBox.vue`, `RichTextEditor.vue` and `RichText.vue`.

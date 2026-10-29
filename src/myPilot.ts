@@ -5,8 +5,10 @@ import type { Json, Tables, TablesUpdate } from './lib/database.types'
 import { supabase } from './lib/supabaseClient'
 import type { PublicMech } from './pilots'
 
-// Your own pilot, for pilot_management and the mech pages: the public card (characters table) and the
-// private sheet (character_sheets). Every save returns an error message, or null if it worked.
+// A pilot for pilot_management and the mech pages: the public card (characters table) and the private sheet
+// (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
+// it's that pilot, read-only; the database only hands over the private sheet to its player, GMs and owners,
+// and "canSeePrivate" says whether it did. Every save returns an error message, or null if it worked.
 // Saves run one at a time, in order, so quick autosaves can't overtake each other and undo a newer change.
 
 export type Character = Tables<'characters'>
@@ -32,7 +34,7 @@ export function mechProblem(name: string, manufacturerId: string) {
   return null
 }
 
-export function useMyPilot() {
+export function useMyPilot(pilotId?: number) {
   // Shallow: these are replaced as a whole on every reload, so Vue doesn't need to track inside them.
   const character = shallowRef<Character | null>(null)
   const sheet = shallowRef<Sheet>({})
@@ -40,10 +42,12 @@ export function useMyPilot() {
   const modPoints = ref(6)
   // A GM's note when they send a pending pilot back. Cleared when the pilot is approved.
   const reviewNote = ref('')
+  const playerName = ref('')
+  const canSeePrivate = ref(false)
   const loading = ref(true)
   const loadError = ref('')
 
-  const editable = computed(() => !character.value || character.value.status === 'pending')
+  const editable = computed(() => !pilotId && (!character.value || character.value.status === 'pending'))
   // The mechs column is plain JSON to the database; we always save it in the PublicMech shape.
   const mechs = computed(() => {
     const list = character.value?.mechs
@@ -52,25 +56,26 @@ export function useMyPilot() {
   const traits = computed(() => parseEntries(character.value?.traits))
 
   async function load() {
-    const { data, error } = await supabase
-      .from('characters')
-      .select('*')
-      .eq('player_id', session.value!.user.id)
-      .in('status', ['pending', 'approved'])
-      .order('created_at')
-      .limit(1)
-      .maybeSingle()
+    const query = supabase.from('characters').select('*, player:profiles(display_name)')
+    const { data, error } = await (pilotId
+      ? query.eq('id', pilotId)
+      : query.eq('player_id', session.value!.user.id).in('status', ['pending', 'approved']).order('created_at').limit(1)
+    ).maybeSingle()
     loadError.value = error?.message ?? ''
-    character.value = data
+    const { player, ...row } = data ?? { player: null }
+    character.value = data ? (row as Character) : null
+    playerName.value = player?.display_name ?? ''
     if (data) {
-      const { data: row } = await supabase
+      const { data: privateRow } = await supabase
         .from('character_sheets')
         .select('sheet, mod_points, review_note')
         .eq('character_id', data.id)
         .maybeSingle()
-      sheet.value = (row?.sheet ?? {}) as unknown as Sheet
-      modPoints.value = row?.mod_points ?? 6
-      reviewNote.value = row?.review_note ?? ''
+      sheet.value = (privateRow?.sheet ?? {}) as unknown as Sheet
+      modPoints.value = privateRow?.mod_points ?? 6
+      reviewNote.value = privateRow?.review_note ?? ''
+      // Your own sheet may not exist yet (the first save creates it), but it's still yours to fill in.
+      canSeePrivate.value = !pilotId || !!privateRow
     }
     loading.value = false
   }
@@ -119,7 +124,15 @@ export function useMyPilot() {
     })
   }
 
+  // After a GM sends the pilot back: clearing their note puts it back in the GM review queue.
+  const resubmit = () =>
+    queued(async () => {
+      const { error } = await supabase.from('character_sheets').update({ review_note: null }).eq('character_id', character.value!.id)
+      if (!error) reviewNote.value = ''
+      return error?.message ?? null
+    })
+
   load()
 
-  return { character, sheet, modPoints, reviewNote, loading, loadError, editable, mechs, traits, load, create, updateCharacter, updateSheet }
+  return { character, sheet, modPoints, reviewNote, playerName, canSeePrivate, loading, loadError, editable, mechs, traits, load, create, updateCharacter, updateSheet, resubmit }
 }

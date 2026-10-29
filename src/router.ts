@@ -1,11 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import type { Tables } from './lib/database.types'
+import GmView from './views/GmView.vue'
 import LoginView from './views/LoginView.vue'
 import MechView from './views/MechView.vue'
 import ModuleOffline from './views/ModuleOffline.vue'
 import PilotManageView from './views/PilotManageView.vue'
-import PilotRecordView from './views/PilotRecordView.vue'
 import RegistryView from './views/RegistryView.vue'
 
 // Each page's meta: "title" is its name in the menu and the header path (e.g. ~/pilot_registry),
@@ -39,12 +39,19 @@ export const router = createRouter({
         empty: 'no approved pilots on the net yet.',
       },
     },
+    // A pilot's record: the pilot_management page, read-only (and its mechs' pages).
     // "section" keeps pilot_registry highlighted in the menu while a record is open.
     {
       path: '/registry/:id',
       name: 'pilot-record',
-      component: PilotRecordView,
+      component: PilotManageView,
       meta: { title: 'pilot_registry/record', section: 'registry' },
+    },
+    {
+      path: '/registry/:id/mechs/:mechId',
+      name: 'record-mech',
+      component: MechView,
+      meta: { title: 'pilot_registry/record/mech', section: 'registry' },
     },
     {
       path: '/pilot',
@@ -63,10 +70,11 @@ export const router = createRouter({
       path: '/pending',
       name: 'pending',
       component: RegistryView,
+      // For everyone to read and discuss. GMs review from the queue in gm_view, not here.
       // shortcut: only new pilots for now. Changes to approved pilots join this list once pending changes are built.
       meta: {
         title: 'pending_paperwork',
-        summary: 'new pilots waiting on a gm. gms open a card to review it.',
+        summary: 'pilots waiting on a gm. open a card to read the public record.',
         status: 'pending',
         empty: 'nothing waiting on a gm.',
       },
@@ -98,8 +106,15 @@ export const router = createRouter({
     {
       path: '/gm',
       name: 'gm',
-      component: ModuleOffline,
-      meta: { title: 'gm_view', summary: 'review queue, reputation and owner tools.', gm: true },
+      component: GmView,
+      meta: { title: 'gm_view', gm: true },
+    },
+    // A pilot's record with, while pending, the decision. Opened from the review queue.
+    {
+      path: '/gm/pilots/:id',
+      name: 'gm-review',
+      component: PilotManageView,
+      meta: { title: 'gm_view/review', gm: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
     { path: '/:pathMatch(.*)*', redirect: '/registry' },

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { profile } from '../auth'
+import { useRoute, useRouter } from 'vue-router'
+import { isGm } from '../auth'
 import AddBox from '../components/AddBox.vue'
+import GmReview from '../components/GmReview.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
+import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
@@ -17,9 +19,44 @@ import type { PublicMech } from '../pilots'
 // then stats, bionics, gear and the mech hangar. Everything is edited in place and saves itself.
 // While a pilot is pending you can edit it directly; once it's approved, changes go through pending
 // paperwork (not built yet), so the sheet turns read-only.
+// The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
+// just like your own sheet. Private sections show only when the database hands over the sheet (the pilot's
+// player, GMs and owners). On the gm-review route (from gm_view's queue) GMs also get the decision.
 
+const route = useRoute()
 const router = useRouter()
-const { character, sheet, modPoints, reviewNote, loading, loadError, editable, mechs, create, updateCharacter, updateSheet } = useMyPilot()
+const pilotId = route.params.id ? Number(route.params.id) : undefined
+const own = !pilotId
+const reviewing = route.name === 'gm-review'
+const {
+  character,
+  sheet,
+  modPoints,
+  reviewNote,
+  playerName,
+  canSeePrivate,
+  loading,
+  loadError,
+  editable,
+  mechs,
+  load,
+  create,
+  updateCharacter,
+  updateSheet,
+  resubmit,
+} = useMyPilot(pilotId)
+
+// Records lead back to the queue, or to the list the pilot is in.
+const back = computed(() =>
+  reviewing
+    ? { name: 'gm', label: 'gm_view' }
+    : character.value?.status === 'pending'
+      ? { name: 'pending', label: 'pending_paperwork' }
+      : { name: 'registry', label: 'pilot_registry' },
+)
+// Your own mechs open for editing; anyone else's open read-only under their record.
+const mechLink = (mechId: string) =>
+  own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId } }
 const { gear, bionics, pilotStats } = useGameData()
 
 // The identity table under the portrait. [column, label]
@@ -88,9 +125,9 @@ function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value:
   track(updateSheet({ [key]: { ...values, [id]: value } }))
 }
 
-// --- Bionics and gear: picked from the catalogues, stored as ids ---
+// --- Bionics and the loadout (1 armour, 2 weapons, 3 gear): picked from the catalogues, stored as ids ---
 const saveBionics = (ids: (string | number)[]) => updateSheet({ bionics: ids as number[] })
-const saveGear = (ids: (string | number)[]) => updateSheet({ pilot_gear: ids as string[] })
+const saveGear = (ids: string[]) => updateSheet({ pilot_gear: ids })
 
 // --- Hangar: a new mech starts with just a name and manufacturer id, then opens its own page ---
 const addingMech = ref(false)
@@ -117,8 +154,16 @@ async function createMech() {
 
 <template>
   <main class="page manage">
+    <nav v-if="!own" class="links">
+      <RouterLink :to="{ name: back.name }">&lt; {{ back.label }}</RouterLink>
+      <RouterLink v-if="isGm && !reviewing && character?.status === 'pending'" :to="{ name: 'gm-review', params: { id: pilotId } }">
+        review in gm_view
+      </RouterLink>
+    </nav>
+
     <p v-if="loading" class="dim">loading pilot record...</p>
     <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
+    <p v-else-if="!character && !own" class="rose">no pilot record with that id.</p>
 
     <!-- No pilot yet: a name registers one, then the full sheet opens. -->
     <section v-else-if="!character" class="register">
@@ -166,7 +211,7 @@ async function createMech() {
         <dl class="glance-facts">
           <div>
             <dt>player</dt>
-            <dd>{{ profile?.display_name ?? 'you' }}</dd>
+            <dd>{{ playerName || '-' }}</dd>
           </div>
           <div>
             <dt>status</dt>
@@ -177,17 +222,18 @@ async function createMech() {
           <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
           <span v-else class="dim">{{ status }}</span>
         </p>
-        <p v-if="!editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
-        <div v-else-if="reviewNote" class="gm-note" role="note">
-          <p class="rose">sent back by a gm. change what they asked, and it stays in pending_paperwork for review.</p>
+        <p v-if="own && !editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
+        <div v-else-if="own && reviewNote" class="gm-note" role="note">
+          <p class="rose">sent back by a gm. change what they asked, then resubmit to rejoin the review queue.</p>
           <p>{{ reviewNote }}</p>
+          <button type="button" @click="track(resubmit())">resubmit for review</button>
         </div>
       </header>
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
       <aside class="side">
         <Portrait :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
-        <p class="dim small">image upload: module offline</p>
+        <p v-if="own" class="dim small">image upload: module offline</p>
         <table class="identity">
           <tbody>
             <tr v-for="[column, label] in IDENTITY" :key="column">
@@ -211,38 +257,47 @@ async function createMech() {
       <div class="writing">
         <SheetField title="appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
         <SheetField title="personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
-        <SheetField title="backstory" tag="private" :doc="sheet.backstory ?? null" :editable="editable" :save="saveBackstory" />
+        <SheetField
+          v-if="canSeePrivate"
+          title="backstory"
+          tag="private"
+          :doc="sheet.backstory ?? null"
+          :editable="editable"
+          :save="saveBackstory"
+        />
       </div>
 
       <div class="wide">
-        <StatRow
-          title="personal stats"
-          tag="private"
-          :stats="stats.personal"
-          :editable="editable"
-          :min="STAT_MIN"
-          :max="STAT_MAX"
-          @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
-        />
-        <StatRow
-          title="piloting stats"
-          tag="private"
-          :stats="stats.piloting"
-          :editable="editable"
-          :min="STAT_MIN"
-          :max="STAT_MAX"
-          @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
-        />
-        <LoadoutBox
-          title="bionics"
-          tag="private"
-          :items="bionicItems(bionics)"
-          :chosen="sheet.bionics ?? []"
-          :editable="editable"
-          :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
-          :save="saveBionics"
-        />
-        <LoadoutBox title="gear loadout" tag="private" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+        <template v-if="canSeePrivate">
+          <StatRow
+            title="personal stats"
+            tag="private"
+            :stats="stats.personal"
+            :editable="editable"
+            :min="STAT_MIN"
+            :max="STAT_MAX"
+            @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
+          />
+          <StatRow
+            title="piloting stats"
+            tag="private"
+            :stats="stats.piloting"
+            :editable="editable"
+            :min="STAT_MIN"
+            :max="STAT_MAX"
+            @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+          />
+          <LoadoutBox
+            title="bionics"
+            tag="private"
+            :items="bionicItems(bionics)"
+            :chosen="sheet.bionics ?? []"
+            :editable="editable"
+            :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
+            :save="saveBionics"
+          />
+          <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+        </template>
 
         <section class="hangar">
           <header class="hangar-head">
@@ -252,7 +307,7 @@ async function createMech() {
           <div class="hangar-body">
             <ul v-if="mechs.length" class="mechs">
               <li v-for="mech in mechs" :key="mech.id">
-                <RouterLink :to="{ name: 'mech', params: { mechId: mech.id } }" class="mech-card">
+                <RouterLink :to="mechLink(mech.id)" class="mech-card">
                   <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
                   <span class="mech-name">{{ mech.name }}</span>
                   <span class="dim">{{ mech.manufacturer_id }}</span>
@@ -279,6 +334,9 @@ async function createMech() {
             <p v-else-if="!mechs.length" class="dim">no mechs on file.</p>
           </div>
         </section>
+
+        <!-- :key resets the decision box after a decision, so it shows the new status. -->
+        <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" @reviewed="load" />
       </div>
     </div>
   </main>
@@ -288,6 +346,25 @@ async function createMech() {
 /* Full width: the sheet uses the whole content area, not a centred column. */
 .manage {
   max-width: none;
+}
+
+/* On a record: back to the list, and (for GMs, on a pending pilot) on to the review. */
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.links a {
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.links a:hover {
+  color: var(--lilac);
 }
 
 .small {
@@ -322,6 +399,12 @@ async function createMech() {
 .gm-note p {
   margin: 0;
   white-space: pre-wrap;
+}
+
+.gm-note button {
+  margin-top: 0.5rem;
+  padding-inline: 0;
+  font-size: 0.8125rem;
 }
 
 .note {
@@ -432,11 +515,12 @@ input.name {
 
 /* --- Portrait and identity table --- */
 .side p {
-  margin: 0.35rem 0 1rem;
+  margin: 0.35rem 0 0;
 }
 
 .identity {
   width: 100%;
+  margin-top: 1rem;
   border-collapse: collapse;
 }
 

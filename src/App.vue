@@ -134,7 +134,8 @@ async function disconnect() {
       </div>
     </header>
 
-    <RouterView />
+    <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. -->
+    <RouterView :key="route.path" />
 
     <!-- The net chat (src/assets/net-chat.txt), pinned to the bottom of the window. -->
     <section id="net-chat" class="chat-panel" :class="{ minimised: chatMinimised }" aria-label="Net chat">

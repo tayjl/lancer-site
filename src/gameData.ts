@@ -13,7 +13,20 @@ import type { Sheet } from './myPilot'
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
 // bionics, and the custom pilot stats. Characters only store ids; names and details come from here.
 
-export type GearItem = { id: string; name: string; type: string; description: string }
+// Pilot gear as lancer-data has it: "type" is Armor, Weapon or Gear; armour has bonuses, weapons range and
+// damage. "effect" is the rules text (it can hold simple HTML), "description" the flavour.
+type Value = number | string
+export type GearItem = {
+  id: string
+  name: string
+  type: string
+  description: string
+  effect: string
+  bonuses: { id: string; val: Value; replace?: boolean }[]
+  range: { type: string; val: Value }[]
+  damage: { type: string; val: Value }[]
+  tags: { id: string; val?: Value }[]
+}
 export type Bionic = {
   id: number
   name: string
@@ -24,6 +37,32 @@ export type Bionic = {
   bonuses: { stat_id: string; amount: number }[]
 }
 export type PilotStat = { id: string; name: string }
+
+// A pilot's loadout slots: one armour, two weapons, three gear.
+const LOADOUT = [
+  { type: 'Armor', label: 'pilot armour', count: 1 },
+  { type: 'Weapon', label: 'pilot weapon', count: 2 },
+  { type: 'Gear', label: 'pilot gear', count: 3 },
+] as const
+export type Slot = { type: string; label: string; index: number; id: string | null }
+
+// Sorts a loadout's ids (sheet.pilot_gear) into its slots by item type, in the order they were added.
+// Ids whose type isn't known (e.g. their pack was removed) are kept aside in "unknown", so saves keep them.
+// More items of a type than it has slots only happens with sheets from before the slots: those are "overflow".
+export function loadoutSlots(ids: string[], typeOf: (id: string) => string | undefined) {
+  const byType = new Map<string, string[]>(LOADOUT.map((slot) => [slot.type, []]))
+  const unknown: string[] = []
+  for (const id of ids) {
+    const list = byType.get(typeOf(id) ?? '')
+    if (list) list.push(id)
+    else unknown.push(id)
+  }
+  const slots: Slot[] = LOADOUT.flatMap(({ type, label, count }) =>
+    Array.from({ length: count }, (_, index) => ({ type, label, index, id: byType.get(type)![index] ?? null })),
+  )
+  const overflow = LOADOUT.flatMap(({ type, count }) => byType.get(type)!.slice(count))
+  return { slots, unknown, overflow }
+}
 
 // LANCER's mech skills (HASE). Fixed by the game, so they aren't a table.
 export const MECH_SKILLS: PilotStat[] = [
@@ -89,7 +128,18 @@ export function useGameData() {
     gear.value = (gearRows.data ?? [])
       .map(({ id, data }) => {
         const item = (data ?? {}) as Record<string, unknown>
-        return { id, name: String(item.name ?? id), type: String(item.type ?? 'Gear'), description: String(item.description ?? '') }
+        const list = <T>(value: unknown) => (Array.isArray(value) ? value : []) as T[]
+        return {
+          id,
+          name: String(item.name ?? id),
+          type: String(item.type ?? 'Gear'),
+          description: String(item.description ?? ''),
+          effect: String(item.effect ?? ''),
+          bonuses: list<GearItem['bonuses'][number]>(item.bonuses),
+          range: list<GearItem['range'][number]>(item.range),
+          damage: list<GearItem['damage'][number]>(item.damage),
+          tags: list<GearItem['tags'][number]>(item.tags),
+        }
       })
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
     bionics.value = bionicRows.data ?? []
