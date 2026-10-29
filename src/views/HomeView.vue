@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isGm, isOwner } from '../auth'
 import BootSequence from '../components/BootSequence.vue'
+import ThirdPartyNotice from '../components/ThirdPartyNotice.vue'
 
 // Home (/, and the logo in the top bar): the login screen's boot scrawl again, inside the logged-in layout,
 // with buttons to every tab where the login screen has [ uplink with discord ].
 const router = useRouter()
 const booted = ref(false)
-const nav = useTemplateRef('nav')
 
 const pages = computed(() => [
   [
@@ -28,11 +28,8 @@ const pages = computed(() => [
     : []),
 ])
 
-async function onBooted() {
+function onBooted() {
   booted.value = true
-  await nextTick()
-  // Ready for Enter straight away, like the login screen.
-  nav.value?.querySelector('button')?.focus()
 }
 </script>
 
@@ -41,13 +38,14 @@ async function onBooted() {
     <h1 class="sr-only">HOR_OS</h1>
     <BootSequence @done="onBooted" />
 
-    <!-- Hidden (but still taking up its space) until the log finishes, so nothing jumps when it appears. -->
-    <nav ref="nav" class="links" :class="{ waiting: !booted }" aria-label="Pages">
-      <div v-for="(group, i) in pages" :key="i" class="row">
+    <nav class="links" aria-label="Pages">
+      <!-- Only the buttons wait for the log; the disclaimer is visible immediately. -->
+      <div v-for="(group, i) in pages" :key="i" class="row" :class="{ waiting: !booted }">
         <button v-for="page in group" :key="page.name" type="button" @click="router.push({ name: page.name })">
           {{ page.label }}
         </button>
       </div>
+      <ThirdPartyNotice />
     </nav>
   </main>
 </template>
@@ -73,6 +71,7 @@ async function onBooted() {
   align-items: center;
   gap: 0.35rem;
   padding: 1rem 0 1.25rem;
+  text-align: center;
 }
 
 .row {

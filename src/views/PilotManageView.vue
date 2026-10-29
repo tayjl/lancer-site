@@ -21,7 +21,7 @@ import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotP
 
 // my pilot: your pilot as one sheet, laid out like COMP/CON. The important bits across the top,
 // long writing on the left, the portrait and identity table on the right (above the writing on phones),
-// then stats, bionics, gear and the mech hangar. Everything is edited in place and saves itself.
+// then stats, bionics, gear, the mech hangar, licences, core bonuses and talents. Everything is edited in place and saves itself.
 // While a pilot is pending you can edit it directly; once it's approved, changes go through pending
 // paperwork (not built yet), so the sheet turns read-only.
 // The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
@@ -403,39 +403,6 @@ async function createMech() {
             :budget="{ label: 'hase points', total: skillPoints(gm.level) }"
             @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
           />
-          <RankPanel
-            title="licences"
-            noun="licence"
-            :options="licenceOptions"
-            :held="sheet.licences ?? {}"
-            :details="licenceDetails"
-            :price="PRICES.licenceRank"
-            :balance="balance"
-            :editable="editable"
-            :save="saveLicences"
-          >
-            <template #summary>
-              <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
-            </template>
-          </RankPanel>
-          <CoreBonusPanel
-            :options="coreBonuses"
-            :taken="sheet.core_bonuses ?? []"
-            :picks="coreBonusPicks(sheet)"
-            :editable="editable"
-            :save="saveCoreBonuses"
-          />
-          <RankPanel
-            title="talents"
-            noun="talent"
-            :options="talentOptions"
-            :held="sheet.talents ?? {}"
-            :details="talentDetails"
-            :price="PRICES.talentRank"
-            :balance="balance"
-            :editable="editable"
-            :save="saveTalents"
-          />
           <LoadoutBox
             title="bionics"
             tag="private"
@@ -484,6 +451,42 @@ async function createMech() {
             <p v-else-if="!mechs.length" class="dim">no mechs on file.</p>
           </div>
         </section>
+
+        <template v-if="canSeePrivate">
+          <RankPanel
+            title="licences"
+            noun="licence"
+            :options="licenceOptions"
+            :held="sheet.licences ?? {}"
+            :details="licenceDetails"
+            :price="PRICES.licenceRank"
+            :balance="balance"
+            :editable="editable"
+            :save="saveLicences"
+          >
+            <template #summary>
+              <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
+            </template>
+          </RankPanel>
+          <CoreBonusPanel
+            :options="coreBonuses"
+            :taken="sheet.core_bonuses ?? []"
+            :picks="coreBonusPicks(sheet)"
+            :editable="editable"
+            :save="saveCoreBonuses"
+          />
+          <RankPanel
+            title="talents"
+            noun="talent"
+            :options="talentOptions"
+            :held="sheet.talents ?? {}"
+            :details="talentDetails"
+            :price="PRICES.talentRank"
+            :balance="balance"
+            :editable="editable"
+            :save="saveTalents"
+          />
+        </template>
 
         <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
         <section v-if="approvedOwn" class="death">

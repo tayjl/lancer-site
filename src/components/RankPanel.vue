@@ -104,6 +104,10 @@ async function buy(id: string) {
   container-type: inline-size;
 }
 
+.slot-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .head {
   display: flex;
   flex-wrap: wrap;
@@ -126,11 +130,6 @@ async function buy(id: string) {
 }
 
 .detail {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
   margin: 0;
   color: var(--text-dim);
   font: 400 0.875rem/1.45 var(--read);

@@ -84,6 +84,10 @@ async function choose(id: string) {
   container-type: inline-size;
 }
 
+.slot-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .head {
   display: flex;
   flex-wrap: wrap;
@@ -99,11 +103,6 @@ async function choose(id: string) {
 }
 
 .effect {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
   margin: 0;
   color: var(--text-dim);
   font: 400 0.875rem/1.45 var(--read);
