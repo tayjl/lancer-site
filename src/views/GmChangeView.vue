@@ -2,18 +2,17 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm, profile, session } from '../auth'
-import { changeDiff, PUBLIC_COLUMNS, type PublicCard } from '../changeDiff'
+import { changeDiff, PUBLIC_COLUMNS, type PublicCard, type DiffLine } from '../changeDiff'
 import PageHeader from '../components/PageHeader.vue'
 import RuleCheck from '../components/RuleCheck.vue'
+import RichText from '../components/RichText.vue'
 import { useGameData } from '../gameData'
-import type { Character, PendingChange, Sheet, PilotSnapshot } from '../myPilot'
+import type { Character, PendingChange, Sheet } from '../myPilot'
 import { useMechData } from '../mechData'
-import { licenceName, mannaSpent, pilotProblems } from '../rules'
+import { licenceName, mannaSpent, pilotProblems, personalStatProblems } from '../rules'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
 import { since } from '../time'
-import PilotManageView from './PilotManageView.vue'
-import MechView from './MechView.vue'
 
 // One pending change (opened from gm: changes): what it changes, in plain words, against the approved
 // pilot; what it costs in manna; the rule check on the proposed sheet; then approve or reject. GMs approve
@@ -53,36 +52,18 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
 
 const proposedSheet = computed(() => (change.value?.proposed_sheet ?? {}) as unknown as Sheet)
 const proposedCard = computed(() => (change.value?.proposed_public ?? {}) as PublicCard)
-const approvedSnapshot = computed<PilotSnapshot | undefined>(() => pilot.value && approved.value ? {
-  character: pilot.value, sheet: approved.value.sheet,
-  gm: { level: approved.value.level, manna: approved.value.manna },
-  playerName: pilot.value.player?.display_name ?? '-',
-} : undefined)
-const proposedSnapshot = computed<PilotSnapshot | undefined>(() => {
-  if (!approvedSnapshot.value) return undefined
-  // Only public sheet fields come from a proposal; ids, ownership and status stay with the live record.
-  const fields = Object.fromEntries(PUBLIC_COLUMNS.filter(key => Object.hasOwn(proposedCard.value, key)).map(key => [key, proposedCard.value[key]]))
-  return {
-    ...approvedSnapshot.value,
-    character: { ...approvedSnapshot.value.character, ...fields } as Character,
-    sheet: proposedSheet.value,
-  }
-})
-const proposedMechs = computed(() => Array.isArray(proposedSnapshot.value?.character.mechs) ? proposedSnapshot.value.character.mechs as unknown as PublicMech[] : [])
-const approvedMechs = computed(() => Array.isArray(approvedSnapshot.value?.character.mechs) ? approvedSnapshot.value.character.mechs as unknown as PublicMech[] : [])
-const showApproved = ref(false)
-const comparison = computed(() => change.value?.status === 'pending' ? approvedSnapshot.value : undefined)
+const pending = computed(() => change.value?.status === 'pending')
 const name = computed(() => pilot.value?.callsign ?? pilot.value?.pilot_name ?? 'a pilot')
 const waiting = computed(() => change.value?.status === 'pending' && !!change.value.submitted_at)
 
 // --- What changes, grouped by section in the order changeDiff gives ---
-const sections = computed(() => {
+const lines = computed(() => {
   if (!change.value || !pilot.value || !approved.value) return []
   const find = <T extends { id: string | number; name: string }>(list: T[], id: string | number) => list.find((x) => x.id === id)?.name ?? String(id)
   const card = Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, pilot.value![column]])) as PublicCard
-  const lines = changeDiff(
+  return changeDiff(
     { card, sheet: approved.value.sheet },
-    { card: proposedSnapshot.value?.character as unknown as PublicCard ?? proposedCard.value, sheet: proposedSheet.value },
+    { card: { ...card, ...proposedCard.value }, sheet: proposedSheet.value },
     {
       stat: (id) => find(pilotStats.value, id).toLowerCase(),
       licence: (id) => licenceName(frames.value, id),
@@ -95,14 +76,31 @@ const sections = computed(() => {
       system: (id) => find(systems.value, id),
     },
   )
-  const groups = new Map<string, string[]>()
-  for (const line of lines) groups.set(line.section, [...(groups.get(line.section) ?? []), line.text])
-  return [...groups]
 })
+
+function grouped(items: DiffLine[]) {
+  const groups = new Map<string, DiffLine[]>()
+  for (const line of items) groups.set(line.section, [...(groups.get(line.section) ?? []), line])
+  return [...groups]
+}
+const sections = computed(() => {
+  const priority = ['personal stats', 'piloting stats', 'licences', 'bionics', 'loadout', 'core bonuses', 'talents']
+  const order = (section: string) => {
+    const index = priority.indexOf(section)
+    return index >= 0 ? index : section.startsWith('mech') ? priority.length : priority.length + 1
+  }
+  return grouped(lines.value).sort(([a], [b]) => order(a) - order(b))
+})
+const changeKinds = [
+  { kind: 'addition', label: 'added / increased', symbol: '+' },
+  { kind: 'removal', label: 'removed / reduced', symbol: '−' },
+  { kind: 'edit', label: 'updated', symbol: '~' },
+] as const
 
 // --- Manna: what the change costs, and what's left after it ---
 const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}))
 const spentAfter = computed(() => mannaSpent(proposedSheet.value))
+const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
 
 // --- The rule check on the proposed sheet, and whether the pilot changed since the change was started ---
@@ -122,7 +120,7 @@ const problems = computed(() =>
           (Array.isArray(proposedCard.value.mechs) ? (proposedCard.value.mechs as unknown as PublicMech[]) : []).map((m) => [m.id, m.name]),
         ),
       )
-    : [],
+    : personalStatProblems(proposedSheet.value.pilot_stats),
 )
 const stale = computed(() => {
   if (!change.value || !pilot.value) return false
@@ -178,64 +176,62 @@ async function reject() {
         <RouterLink v-if="pilot" :to="{ name: 'gm-review', params: { id: pilot.id } }">approved record and gm controls</RouterLink>
       </p>
 
-      <section class="manna-summary">
-        <h2>manna</h2>
-        <p v-if="comparison">
-          this change costs <strong class="lilac">{{ spentAfter - spentBefore }}</strong> manna.
-          <span :class="{ rose: left < 0 }">{{ left }} left after it</span>
-          <span class="dim"> ({{ approved?.manna ?? 0 }} received, {{ spentBefore }} spent before, {{ spentAfter }} spent after; level {{ approved?.level ?? 0 }}).</span>
-        </p>
-        <p v-else>this proposal spends <strong class="lilac">{{ spentAfter }}</strong> manna in total. The original cost of this reviewed change is not stored.</p>
+      <section class="manna-summary" aria-label="Manna summary">
+        <h2 class="sheet-label">manna</h2>
+        <dl class="manna-figures">
+          <div v-if="pending">
+            <dt>balance before</dt>
+            <dd>{{ approved.manna - spentBefore }}</dd>
+          </div>
+          <div>
+            <dt>{{ !pending ? 'proposal spending' : cost < 0 ? 'manna refunded' : 'cost of change' }}</dt>
+            <dd :class="{ spending: (pending ? cost : spentAfter) > 0, gain: pending && cost < 0 }">{{ pending ? Math.abs(cost) : spentAfter }}</dd>
+          </div>
+          <div>
+            <dt>{{ pending ? 'balance after' : 'manna left' }}</dt>
+            <dd :class="left < 0 ? 'spending' : 'balance'">{{ left }}</dd>
+          </div>
+        </dl>
+        <p class="dim">{{ approved.manna }} received · <span class="spending">{{ spentAfter }}</span> total spent on the proposed sheet</p>
       </section>
 
-      <template v-if="proposedSnapshot">
-        <h2>full proposed character</h2>
-        <p v-if="comparison" class="legend">
-          <span class="sky">underlined blue text is added</span>;
-          <span class="rose">struck-through red text is removed</span>.
-          A blue edge marks changed sections. Expand the current approved character below to compare equipment and stats.
-        </p>
-        <p v-else class="dim">this is the reviewed proposal. the current record may include later edits; the original pre-review version is not stored.</p>
-        <details v-if="comparison" class="change-summary">
-          <summary>changes at a glance</summary>
-          <p v-if="!sections.length" class="dim">nothing: the proposed pilot matches the current one.</p>
-          <div v-else class="changes">
-            <div v-for="[section, lines] in sections" :key="section" class="group">
-              <h3>{{ section }}</h3>
-              <ul><li v-for="line in lines" :key="line">{{ line }}</li></ul>
-            </div>
-          </div>
-        </details>
-        <p v-if="stale && comparison" class="rose">this proposal is compared with the current record, which has changed since submission. approval is blocked.</p>
-        <PilotManageView :key="`proposed-${change.id}`" :snapshot="proposedSnapshot" :before="comparison" />
-        <section v-for="mech in proposedMechs" :id="`review-mech-${mech.id}`" :key="mech.id" class="mech-review">
-          <h2>mech: {{ mech.name }}</h2>
-          <p v-if="comparison && !approvedMechs.some(old => old.id === mech.id)" class="sky">new mech</p>
-          <MechView :snapshot="proposedSnapshot" :before="comparison" :preview-mech-id="mech.id" />
-        </section>
-        <p v-for="mech in approvedMechs.filter(old => !proposedMechs.some(next => next.id === old.id))" :key="`removed-${mech.id}`" class="rose">
-          removed mech: {{ mech.name }}. Its previous sheet is in the current approved character below.
-        </p>
-        <details v-if="approvedSnapshot" class="approved-record" @toggle="showApproved = ($event.target as HTMLDetailsElement).open">
-          <summary>view current approved character</summary>
-          <template v-if="showApproved">
-            <PilotManageView :snapshot="approvedSnapshot" mech-anchor-prefix="approved-mech" />
-            <section v-for="mech in approvedMechs" :id="`approved-mech-${mech.id}`" :key="mech.id" class="mech-review">
-              <h2>mech: {{ mech.name }}</h2>
-              <MechView :snapshot="approvedSnapshot" :preview-mech-id="mech.id" />
-            </section>
-          </template>
-        </details>
-      </template>
+      <p v-if="stale && pending" class="warning rose" role="alert">
+        this pilot changed after submission. approval is blocked so the player's proposal cannot overwrite newer edits.
+      </p>
+      <RuleCheck v-if="pending" :problems="problems" />
+
+      <section v-if="pending" class="changes" aria-label="Proposed changes">
+        <div class="change-key" aria-label="Change summary">
+          <span v-for="kind in changeKinds" :key="kind.kind" :class="kind.kind">
+            {{ kind.symbol }} {{ lines.filter(line => line.kind === kind.kind).length }} {{ kind.label }}
+          </span>
+        </div>
+        <p v-if="!lines.length" class="empty dim">no changes to the approved record.</p>
+        <div v-else class="change-groups">
+          <section v-for="[section, items] in sections" :key="section" class="change-group">
+            <h2 class="sheet-label">{{ section }}</h2>
+            <ul>
+              <li v-for="(line, i) in items" :key="i" :class="line.kind">
+                <span class="change-kind">
+                  {{ changeKinds.find(kind => kind.kind === line.kind)!.symbol }}
+                  {{ changeKinds.find(kind => kind.kind === line.kind)!.label }}
+                </span>
+                <div class="change-content">
+                  <p class="item-name">{{ line.text }}</p>
+                  <details v-if="line.doc" class="writing-preview">
+                    <summary>view proposed text</summary>
+                    <RichText :doc="line.doc" class="new-writing" />
+                  </details>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </section>
+      <p v-if="!pending" class="dim history-note">this change has been reviewed. its original comparison and cost were not stored; the figures above use the proposal and the current manna received.</p>
 
       <section v-if="waiting" class="decision">
-        <h2>decision <span class="dim">[gm only]</span></h2>
         <div class="decision-body">
-          <p v-if="stale" class="rose">
-            this pilot changed after the change was started, so approving would overwrite that. reject it so the player can
-            start again.
-          </p>
-          <RuleCheck :problems="problems" />
           <label>
             <span class="dim">reason (needed to reject)</span>
             <textarea v-model="reason" rows="3"></textarea>
@@ -256,116 +252,92 @@ async function reject() {
 </template>
 
 <style scoped>
-.change-page { min-width: 0; max-width: none; }
-h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
-.manna-summary { padding: 1.25rem; border: 1px solid var(--rule); }
-.manna-summary p, .legend { max-width: none; margin: 0; }
-.legend { margin-bottom: 1.25rem; }
-.change-summary { margin: 1.25rem 0; }
-summary { cursor: pointer; color: var(--lilac); font: 600 1.125rem/1.5 var(--mono); }
-.approved-record { margin: 2rem 0; padding: 1.25rem; border: 1px solid var(--rule); }
-.approved-record > summary { margin-bottom: 1.25rem; }
-.mech-review { margin-top: 2rem; scroll-margin-top: 5rem; }
+.change-page {
+  min-width: 0;
+  max-width: none;
+}
 
 .back {
   display: inline-block;
   margin-bottom: 1rem;
   color: var(--text-dim);
-  font-size: 0.875rem;
   text-decoration: none;
 }
 
-.back:hover {
-  color: var(--lilac);
-}
-
-.meta {
+.meta, .history-note {
   max-width: none;
-  margin: -0.5rem 0 1.5rem;
-  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
 }
 
-.meta a {
-  margin-left: 0.5rem;
-}
+.meta a { margin-left: 0.5rem; }
 
-section {
-  margin-bottom: 1.75rem;
-}
-
-.note {
-  margin: 0.6rem 0 0;
-  font-size: 0.875rem;
-}
-
-/* Each section of the change as a small list, side by side on wide screens. */
-.changes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.6rem;
-}
-
-.group {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid var(--rule);
-}
-
-.group h3 {
-  margin: 0 0 0.35rem;
-  color: var(--lilac);
-  font-size: 0.875rem;
-}
-
-.group ul {
-  margin: 0;
-  padding-left: 1.1rem;
-  font-size: 0.875rem;
-}
-
-.decision-body {
+.manna-summary {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.6rem;
-  padding: 1rem;
-  border: 1px solid var(--lilac);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
 }
 
-.decision-body p {
-  margin: 0;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.8125rem;
-}
-
-/* Matches the site's text inputs (style.css). */
-textarea {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--rule);
-  background: none;
-  color: var(--text);
-  font: 400 0.9375rem/1.4 var(--mono);
-  resize: vertical;
-}
-
-textarea:focus {
-  border-color: var(--lilac);
-  outline: none;
-}
-
-.actions {
+.manna-figures {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
+  margin: 0;
 }
 
-.actions button {
-  padding-inline: 0;
+.manna-figures > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
+
+.manna-figures dt { color: var(--text-dim); }
+.manna-figures dd {
+  margin: 0;
+  color: var(--lilac);
+  font: 600 1.5rem/1.4 var(--mono);
+}
+.gain, .manna-figures dd.gain { color: var(--mint); }
+.spending, .manna-figures dd.spending { color: var(--rose); }
+.balance, .manna-figures dd.balance { color: var(--sky); }
+.manna-summary p { max-width: none; margin: 0; font-size: 0.8125rem; }
+
+.manna-summary > h2 { margin: 0; }
+.manna-figures { gap: 1rem 3rem; }
+.manna-figures dt { font-size: 0.8125rem; }
+.changes { margin: 2rem 0; }
+.change-key { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin-bottom: 1.5rem; font-size: 0.8125rem; }
+.addition { color: var(--mint); }
+.removal { color: var(--rose); }
+.edit { color: var(--sky); }
+.change-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.75rem 2rem; align-items: start; }
+.change-group { min-width: 0; }
+.change-group h2 { font-size: 0.875rem; margin: 0; }
+.change-group ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.change-group li { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--rule); }
+.change-kind { font-size: 0.75rem; padding-top: 0.125rem; }
+.change-content { min-width: 0; }
+.item-name { color: var(--text); max-width: none; margin: 0; overflow-wrap: anywhere; }
+.writing-preview { margin-top: 0.5rem; color: var(--text-dim); }
+.writing-preview summary { cursor: pointer; font-size: 0.8125rem; }
+.new-writing { margin-top: 0.75rem; color: var(--text); }
+.empty { max-width: none; padding: 1rem 0; }
+@media (max-width: 70rem) {
+  .change-groups { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 35rem) {
+  .change-group li { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+  .manna-figures { gap: 1rem 1.5rem; }
+}
+.warning { max-width: none; padding: 1rem; border: 1px solid var(--rose); }
+.decision { margin-top: 2rem; }
+.decision-body { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem 0; }
+.decision-body p { margin: 0; }
+label { display: flex; flex-direction: column; gap: 0.5rem; }
+textarea { width: 100%; padding: 0.65rem; border: 1px solid var(--rule); background: none; color: var(--text); font: inherit; resize: vertical; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; }
+.actions button { padding-inline: 0; }
 </style>

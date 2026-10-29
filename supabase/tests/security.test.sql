@@ -26,6 +26,7 @@ insert into public.characters (id, player_id, status, pilot_name, callsign)
   overriding system value
   values (100, '22222222-2222-2222-2222-222222222222', 'approved', 'Two', 'Deuce');
 insert into public.character_sheets (character_id, sheet, level) values (100, '{"manna": 50}', 2);
+update public.character_sheets set review_note = 'Approval note' where character_id = 100;
 insert into public.organisations (id, name) overriding system value values (1, 'Harrison Armory');
 insert into public.reputation_levels (id, name) overriding system value values (1, 'Neutral');
 insert into public.reputation (character_id, organisation_id, level_id) values (100, 1, 1);
@@ -109,12 +110,33 @@ select throws_ok(
 select throws_ok(
   $$ select public.approve_change(1) $$,
   'P0001', null, 'players cannot run approve_change');
+select throws_ok(
+  $$ select public.dismiss_approval_note(100, 'Approval note') $$,
+  'P0001', null, 'players cannot dismiss another player''s approval note');
+select throws_ok(
+  $$ select public.dismiss_approval_note((select id from public.characters where pilot_name = 'One'), 'Approval note') $$,
+  'P0001', null, 'pending review notes cannot be dismissed through the approval action');
+select ok(not has_function_privilege('anon', 'public.dismiss_approval_note(bigint,text)', 'EXECUTE'),
+  'logged-out users cannot call dismiss_approval_note');
 
 
 -- ---------------------------------------------------------------------
 -- Player Two: owns approved character 100
 -- ---------------------------------------------------------------------
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+
+select throws_ok(
+  $$ select public.dismiss_approval_note(100, 'An older note') $$,
+  'P0001', null, 'a stale dismissal cannot clear a newer approval note');
+select lives_ok(
+  $$ select public.dismiss_approval_note(100, 'Approval note') $$,
+  'players can dismiss their own approval note');
+select is((select review_note from public.character_sheets where character_id = 100), null,
+  'the approval note is cleared');
+select is((select sheet from public.character_sheets where character_id = 100), '{"manna": 50}'::jsonb,
+  'dismissing a note does not edit the character sheet');
+select is((select level from public.character_sheets where character_id = 100), 2,
+  'dismissing a note does not edit the level');
 
 with attempt as (
   update public.characters set callsign = 'Hacked' where id = 100 returning 1

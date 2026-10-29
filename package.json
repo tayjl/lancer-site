@@ -13,11 +13,13 @@
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "5.3.0",
     "@fontsource-variable/cascadia-mono": "5.3.0",
+    "@massif/lancer-data": "3.1.7",
     "@supabase/supabase-js": "2.118.0",
     "@tiptap/extension-text-style": "3.32.0",
     "@tiptap/pm": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
     "@tiptap/vue-3": "3.32.0",
+    "fflate": "0.8.3",
     "vue": "^3.5.44",
     "vue-router": "5.4.0"
   },

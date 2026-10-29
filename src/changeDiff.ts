@@ -37,7 +37,14 @@ export type Names = {
   system: (id: string) => string
 }
 
-export type DiffLine = { section: string; text: string }
+export type DiffLine = {
+  section: string
+  text: string
+  kind: 'addition' | 'removal' | 'edit'
+  display?: string
+  increase?: number
+  doc?: Json | null
+}
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const shown = (value: unknown) => (value === null || value === undefined || value === '' ? '-' : String(value))
@@ -60,66 +67,78 @@ export function changeDiff(
   names: Names,
 ): DiffLine[] {
   const lines: DiffLine[] = []
-  const add = (section: string, text: string) => lines.push({ section, text })
+  const add = (section: string, text: string, kind: DiffLine['kind'] = 'edit', extra: Pick<DiffLine, 'display' | 'doc' | 'increase'> = {}) =>
+    lines.push({ section, text, kind, ...extra })
   const listChanges = <T>(section: string, from: T[] | undefined, to: T[] | undefined, name: (item: T) => string) => {
     const { added, removed } = listDiff(from, to)
-    added.forEach((item) => add(section, `added ${name(item)}`))
-    removed.forEach((item) => add(section, `removed ${name(item)}`))
+    added.forEach((item) => add(section, `added ${name(item)}`, 'addition'))
+    removed.forEach((item) => add(section, `removed ${name(item)}`, 'removal'))
   }
   const ranks = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, name: (id: string) => string) => {
     for (const id of new Set([...Object.keys(from), ...Object.keys(to)])) {
       const [a, b] = [from[id] ?? 0, to[id] ?? 0]
-      if (a !== b) add(section, a === 0 ? `${name(id)}: new at rank ${rankName(b)}` : b === 0 ? `${name(id)}: dropped` : `${name(id)}: rank ${rankName(a)} → ${rankName(b)}`)
+      if (a !== b) add(section, a === 0 ? `${name(id)}: new at rank ${rankName(b)}` : b === 0 ? `${name(id)}: dropped` : `${name(id)}: rank ${rankName(a)} → ${rankName(b)}`,
+        b > a ? 'addition' : 'removal', { display: b > a ? `${name(id)}: rank ${rankName(b)}` : undefined, increase: b > a ? b - a : undefined })
     }
   }
   const stats = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, start: number) => {
     for (const id of new Set([...Object.keys(from), ...Object.keys(to)])) {
       const [a, b] = [from[id] ?? start, to[id] ?? start]
-      if (a !== b) add(section, `${names.stat(id)} ${a} → ${b}`)
+      if (a !== b) add(section, `${names.stat(id)} ${a} → ${b}`, b > a ? 'addition' : 'removal',
+        { display: b > a ? `${names.stat(id)}: ${b}` : undefined, increase: b > a ? b - a : undefined })
     }
   }
 
   // Public card.
   for (const column of ['pilot_name', 'callsign', 'age', 'gender', 'sexuality', 'height', 'weight', 'eye_colour', 'hair_colour'] as const)
     if (!same(before.card[column], after.card[column]))
-      add('identity', `${column.replace('_', ' ')}: ${shown(before.card[column])} → ${shown(after.card[column])}`)
-  if (!same(before.card.pilot_image, after.card.pilot_image)) add('identity', 'portrait changed')
+      add('identity', `${column.replace('_', ' ')}: ${shown(before.card[column])} → ${shown(after.card[column])}`,
+        shown(before.card[column]) === '-' ? 'addition' : shown(after.card[column]) === '-' ? 'removal' : 'edit',
+        { display: `${column.replace('_', ' ')}: ${shown(after.card[column])}` })
+  if (!same(before.card.pilot_image, after.card.pilot_image))
+    add('identity', 'portrait changed', before.card.pilot_image ? 'edit' : 'addition')
   for (const column of ['appearance', 'personality', 'traits'] as const)
-    if (!same(before.card[column], after.card[column])) add('writing', `${column} rewritten`)
-  if (!same(before.sheet.backstory, after.sheet.backstory)) add('writing', 'backstory rewritten')
+    if (!same(before.card[column], after.card[column])) add(column, `${column} updated`, before.card[column] ? 'edit' : 'addition', { doc: after.card[column] })
+  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'backstory updated', before.sheet.backstory ? 'edit' : 'addition', { doc: after.sheet.backstory })
 
   // Stats and what manna buys.
-  stats('stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 1)
-  stats('stats', before.sheet.mech_skills, after.sheet.mech_skills, 0)
-  ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)
-  ranks('talents', before.sheet.talents, after.sheet.talents, names.talent)
-  listChanges('core bonuses', before.sheet.core_bonuses, after.sheet.core_bonuses, names.coreBonus)
+  stats('personal stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 2)
+  stats('piloting stats', before.sheet.mech_skills, after.sheet.mech_skills, 0)
   listChanges('bionics', before.sheet.bionics, after.sheet.bionics, names.bionic)
-  listChanges('pilot loadout', before.sheet.pilot_gear, after.sheet.pilot_gear, names.gear)
+  listChanges('loadout', before.sheet.pilot_gear, after.sheet.pilot_gear, names.gear)
 
   // Mechs: the public list and each mech's private details, by mech id.
   const mechsOf = (card: PublicCard) => (Array.isArray(card.mechs) ? (card.mechs as unknown as PublicMech[]) : [])
   const fromMechs = new Map(mechsOf(before.card).map((m) => [m.id, m]))
   const toMechs = new Map(mechsOf(after.card).map((m) => [m.id, m]))
-  for (const [id, mech] of fromMechs) if (!toMechs.has(id)) add('mechs', `scrapped ${mech.name}`)
+  for (const [id, mech] of fromMechs) if (!toMechs.has(id)) add('mech hangar', `scrapped ${mech.name}`, 'removal')
   for (const [id, mech] of toMechs) {
     const old = fromMechs.get(id)
     const section = `mech: ${mech.name}`
-    if (!old) add('mechs', `new mech ${mech.name} (${mech.manufacturer_id})`)
+    if (!old) {
+      add('mech hangar', `new mech ${mech.name} (${mech.manufacturer_id})`, 'addition')
+      if (mech.appearance) add(`${section} / appearance`, 'appearance', 'addition', { doc: mech.appearance })
+    }
     else {
-      if (old.name !== mech.name) add(section, `renamed from ${old.name}`)
-      if (old.manufacturer_id !== mech.manufacturer_id) add(section, `manufacturer id: ${old.manufacturer_id} → ${mech.manufacturer_id}`)
-      if (!same(old.appearance, mech.appearance)) add(section, 'appearance rewritten')
-      if (!same(old.image, mech.image)) add(section, 'image changed')
+      if (old.name !== mech.name) add(`${section} / identity`, `renamed from ${old.name}`)
+      if (old.manufacturer_id !== mech.manufacturer_id) add(`${section} / identity`, `manufacturer id: ${old.manufacturer_id} → ${mech.manufacturer_id}`)
+      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'appearance updated', 'edit', { doc: mech.appearance })
+      if (!same(old.image, mech.image)) add(`${section} / appearance`, 'image changed')
     }
     const a: MechPrivate = before.sheet.mechs?.[id] ?? {}
     const b: MechPrivate = after.sheet.mechs?.[id] ?? {}
     if ((a.frame ?? null) !== (b.frame ?? null))
-      add(section, `frame: ${a.frame ? names.frame(a.frame) : '-'} → ${b.frame ? names.frame(b.frame) : '-'}`)
+      add(`${section} / frame`, `frame: ${a.frame ? names.frame(a.frame) : '-'} → ${b.frame ? names.frame(b.frame) : '-'}`, a.frame ? 'edit' : 'addition', { display: `frame: ${b.frame ? names.frame(b.frame) : '-'}` })
     const weapons = (m: MechPrivate) => (m.mounts ?? []).flat().filter((x): x is string => !!x)
-    listChanges(section, weapons(a), weapons(b), names.weapon)
-    listChanges(section, a.systems, b.systems, names.system)
-    if (!same(a.history, b.history)) add(section, 'history rewritten')
+    listChanges(`${section} / weapon mounts`, weapons(a), weapons(b), names.weapon)
+    const mountChanges = listDiff(weapons(a), weapons(b))
+    if (!same(a.mounts ?? [], b.mounts ?? []) && !mountChanges.added.length && !mountChanges.removed.length)
+      add(`${section} / weapon mounts`, 'weapon mounts rearranged')
+    listChanges(`${section} / systems`, a.systems, b.systems, names.system)
+    if (!same(a.history, b.history)) add(`${section} / history`, 'history updated', a.history ? 'edit' : 'addition', { doc: b.history })
   }
+  ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)
+  listChanges('core bonuses', before.sheet.core_bonuses, after.sheet.core_bonuses, names.coreBonus)
+  ranks('talents', before.sheet.talents, after.sheet.talents, names.talent)
   return lines
 }

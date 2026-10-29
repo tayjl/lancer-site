@@ -8,6 +8,7 @@
   --lilac: #c9b3ff; /* main accent: titles, links, buttons, focus */
   --rose: #ff9eb0; /* second accent: warnings, and the glitch's other colour */
   --sky: #a6d8ea; /* third accent: usernames in chat */
+  --mint: #a9dfb5; /* gains, additions and refunds */
 
   /* Cascadia Mono has every block and shade character, so the ASCII art lines up. */
   --mono: 'Cascadia Mono Variable', ui-monospace, Consolas, monospace; /* the terminal's voice */
@@ -202,13 +203,6 @@ input[type='text']:focus {
 
 .rose {
   color: var(--rose);
-}
-
-/* Read-only change reviews mark affected sections without changing the regular sheets. */
-.review-changed {
-  border-left: 3px solid var(--sky);
-  padding-left: 0.75rem;
-  background: color-mix(in srgb, var(--sky) 4%, transparent);
 }
 
 .user {

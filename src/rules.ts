@@ -13,6 +13,23 @@ import type { MechPrivate, Sheet } from './myPilot'
 export const MAX_LICENCE_RANK = 3
 export const MAX_TALENT_RANK = 3
 export const MAX_SKILL = 6
+export const PERSONAL_STAT_MIN = 2
+export const PERSONAL_STAT_MAX = 4
+export const PERSONAL_STAT_POINTS = 4
+
+// Only increases above the base cost points; biomods are applied separately.
+export const personalPoints = (values: Record<string, number> = {}) =>
+  Object.values(values).reduce((total, value) => total + (Number.isFinite(value) ? Math.max(0, value - PERSONAL_STAT_MIN) : 0), 0)
+
+export function personalStatProblems(values: Record<string, number> = {}): string[] {
+  const problems: string[] = []
+  for (const [id, value] of Object.entries(values))
+    if (!Number.isInteger(value) || value < PERSONAL_STAT_MIN || value > PERSONAL_STAT_MAX)
+      problems.push(`${id.replaceAll('_', '-')}: base personal stats must be whole numbers from ${PERSONAL_STAT_MIN} to ${PERSONAL_STAT_MAX}.`)
+  const used = personalPoints(values)
+  if (used > PERSONAL_STAT_POINTS) problems.push(`${used} personal stat points allocated, but only ${PERSONAL_STAT_POINTS} are available.`)
+  return problems
+}
 
 // Manna prices.
 export const PRICES = { licenceRank: 600, bionic: 500, talentRank: 300 }
@@ -129,7 +146,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 // Everything wrong with a pilot's sheet: manna, level-based limits, licences, talents, core bonuses, then
 // each mech by name.
 export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>): string[] {
-  const problems: string[] = []
+  const problems = personalStatProblems(sheet.pilot_stats)
   const spent = mannaSpent(sheet)
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 

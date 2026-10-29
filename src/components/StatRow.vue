@@ -4,7 +4,7 @@ import StatIcon from './StatIcon.vue'
 
 // A row of stats: each one's name and number, with - and + to change it when editable. One line when there's
 // room; in a narrow space (phones) each stat gets its own line instead, so they stay lined up.
-// "bonus" (e.g. from bionics) is shown next to the number, but isn't part of what you set. A null value
+// "bonus" (e.g. from bionics) changes the displayed total, with the base and modifier beside it. A null value
 // (not worked out yet) shows as "-". "icon" is an SVG's url, drawn in the text colour.
 // With "budget", the values share a pool of points (e.g. HASE: 2 + licence level): the header shows
 // used/total, and + stops once it's spent.
@@ -19,7 +19,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ set: [id: string, value: number] }>()
 
-const used = computed(() => props.stats.reduce((sum, stat) => sum + (stat.value ?? 0), 0))
+const used = computed(() => props.stats.reduce((sum, stat) => sum + Math.max(0, (stat.value ?? props.min) - props.min), 0))
 const spent = computed(() => !!props.budget && used.value >= props.budget.total)
 </script>
 
@@ -36,22 +36,22 @@ const spent = computed(() => !!props.budget && used.value >= props.budget.total)
           {{ stat.name }}
         </span>
         <span class="value">
-          {{ stat.value ?? '-' }}<span v-if="stat.bonus" class="bonus"> +{{ stat.bonus }}</span>
+          {{ stat.value === null ? '-' : stat.value + (stat.bonus ?? 0) }}<span v-if="stat.bonus" class="bonus"> ({{ stat.value }} base {{ stat.bonus > 0 ? '+' : '' }}{{ stat.bonus }})</span>
         </span>
         <span v-if="editable" class="steps">
           <button
             type="button"
             :aria-label="`lower ${stat.name}`"
             :disabled="stat.value === null || stat.value <= min"
-            @click="emit('set', stat.id, stat.value! - 1)"
+            @click="emit('set', stat.id, Math.min(max, stat.value! - 1))"
           >
             -
           </button>
           <button
             type="button"
             :aria-label="`raise ${stat.name}`"
-            :disabled="stat.value === null || stat.value >= max || spent"
-            @click="emit('set', stat.id, stat.value! + 1)"
+            :disabled="stat.value === null || stat.value >= max || (spent && stat.value >= min)"
+            @click="emit('set', stat.id, Math.max(min, stat.value! + 1))"
           >
             +
           </button>

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, coreBonusPicks, isLicensed, mannaSpent, mechProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
+import { bracingMount, coreBonusPicks, isLicensed, mannaSpent, mechProblems, personalPoints, personalStatProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -43,6 +43,27 @@ const catalogue: Catalogue = {
     [2, 3],
   ]),
 }
+
+describe('personal stat allocation', () => {
+  it('allows four extra points on top of base 2', () => {
+    expect(personalPoints({ physicality: 4, dexterity: 3, perception: 3, acuity: 2, tech_fluency: 2 })).toBe(4)
+    expect(personalStatProblems({ physicality: 4, dexterity: 3, perception: 3, acuity: 2, tech_fluency: 2 })).toEqual([])
+    expect(personalStatProblems()).toEqual([])
+  })
+
+  it('rejects low, high and fractional bases and does not let a low value refund points', () => {
+    const values = { physicality: 1, dexterity: 5, acuity: 2.5, perception: 4 }
+    expect(personalPoints(values)).toBe(5.5)
+    expect(personalStatProblems(values)).toHaveLength(4)
+  })
+
+  it('checks personal allocations independently of level, spending and biomods', () => {
+    const sheet = { pilot_stats: { physicality: 4, dexterity: 4, acuity: 3 } }
+    expect(pilotProblems(sheet, { level: 20, manna: 1000 }, catalogue, {})).toEqual([
+      '5 personal stat points allocated, but only 4 are available.',
+    ])
+  })
+})
 
 describe('licences', () => {
   it('lets anyone use free items, and licensed ones from the right rank', () => {

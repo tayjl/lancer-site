@@ -5,13 +5,11 @@ import ItemPicker from '../components/ItemPicker.vue'
 import MechLoadout from '../components/MechLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RuleCheck from '../components/RuleCheck.vue'
-import ReviewText from '../components/ReviewText.vue'
-import { sameContent } from '../textDiff'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { mechStats, useMechData } from '../mechData'
-import { mechProblem, useMyPilot, type MechPrivate, type PilotSnapshot } from '../myPilot'
+import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { isLicensed, mechProblems } from '../rules'
 
@@ -24,23 +22,18 @@ import { isLicensed, mechProblems } from '../rules'
 // Opened from someone else's record (route param "id"), it's the same page read-only, with the private
 // sections only for their player, GMs and owners.
 
-const props = defineProps<{ snapshot?: PilotSnapshot; before?: PilotSnapshot; previewMechId?: string }>()
 const route = useRoute()
 const router = useRouter()
-const pilotId = props.snapshot?.character.id ?? (route.params.id ? Number(route.params.id) : undefined)
-const own = !props.snapshot && !pilotId
-const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId, props.snapshot)
+const pilotId = route.params.id ? Number(route.params.id) : undefined
+const own = !pilotId
+const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId)
 const back = own
   ? { to: { name: 'pilot' }, label: 'my pilot' }
   : { to: { name: 'pilot-record', params: { id: pilotId } }, label: 'pilot record' }
 
-const mechId = computed(() => String(props.previewMechId ?? route.params.mechId))
+const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
-
-const beforeMech = computed(() => (props.before?.character.mechs as unknown as PublicMech[] | undefined)?.find(m => m.id === mechId.value))
-const beforeDetails = computed(() => props.before?.sheet.mechs?.[mechId.value] ?? {})
-const changed = (a: unknown, b: unknown) => !!props.before && !sameContent(a, b)
 
 const { frames, weapons, systems, integrated } = useMechData()
 const frame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
@@ -140,8 +133,8 @@ async function scrap() {
 </script>
 
 <template>
-  <component :is="props.snapshot ? 'section' : 'main'" class="page mech-page" :class="{ preview: props.snapshot }">
-    <RouterLink v-if="!props.snapshot" :to="back.to" class="back">&lt; {{ back.label }}</RouterLink>
+  <main class="page mech-page">
+    <RouterLink :to="back.to" class="back">&lt; {{ back.label }}</RouterLink>
 
     <p v-if="loading" class="dim">loading mech record...</p>
     <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
@@ -160,7 +153,7 @@ async function scrap() {
             :value="mech.name"
             @change="saveText('name', $event)"
           />
-          <h1 v-else class="mech-name"><ReviewText v-if="props.before" :before="beforeMech?.name" :after="mech.name" /><template v-else>{{ mech.name }}</template></h1>
+          <h1 v-else class="mech-name">{{ mech.name }}</h1>
           <input
             v-if="editable"
             class="inline maker-id"
@@ -170,7 +163,7 @@ async function scrap() {
             :value="mech.manufacturer_id"
             @change="saveText('manufacturer_id', $event)"
           />
-          <p v-else class="maker-id"><ReviewText v-if="props.before" :before="beforeMech?.manufacturer_id" :after="mech.manufacturer_id" /><template v-else>{{ mech.manufacturer_id }}</template></p>
+          <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
         </div>
         <div class="glance-side">
           <dl class="glance-facts">
@@ -178,7 +171,7 @@ async function scrap() {
               <dt>pilot</dt>
               <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
             </div>
-            <div v-if="canSeePrivate" :class="{ 'review-changed': changed(beforeDetails.frame, details.frame) }">
+            <div v-if="canSeePrivate">
               <dt>frame</dt>
               <dd>
                 <button v-if="editable" type="button" class="frame-button" @click="framePicker?.open()">
@@ -198,18 +191,18 @@ async function scrap() {
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
       <aside class="side">
-        <Portrait :class="{ 'review-changed': changed(beforeMech?.image, mech.image) }" :src="mech.image" :alt="`Image of ${mech.name}`" />
+        <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
         <p v-if="own" class="dim small">image upload: module offline</p>
       </aside>
 
       <div class="writing">
-        <SheetField :comparison="props.before ? { doc: beforeMech?.appearance } : undefined" title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-        <SheetField v-if="canSeePrivate" title="history" :comparison="props.before ? { doc: beforeDetails.history } : undefined" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+        <SheetField title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
+        <SheetField v-if="canSeePrivate" title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
       </div>
 
       <div class="wide">
         <template v-if="canSeePrivate">
-          <StatRow :class="{ 'review-changed': changed(props.before?.sheet.mech_skills, sheet.mech_skills) || changed(beforeDetails.frame, details.frame) }" title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
           <p class="dim small stats-note">
             {{
               frame
@@ -219,7 +212,6 @@ async function scrap() {
           </p>
 
           <MechLoadout
-            :class="{ 'review-changed': changed(beforeDetails.mounts, details.mounts) || changed(beforeDetails.systems, details.systems) || changed(beforeDetails.frame, details.frame) }"
             :frame="frame"
             :frames="frames"
             :licences="licences"
@@ -252,13 +244,11 @@ async function scrap() {
         @choose="chooseFrame"
       />
     </div>
-  </component>
+  </main>
 </template>
 
 <style scoped>
 /* Full width, like the pilot sheet. */
-.preview { padding: 0; }
-
 .mech-page {
   max-width: none;
 }
@@ -423,16 +413,6 @@ input.maker-id {
 
 /* --- Narrow screens: one column, with the image between the top strip and appearance --- */
 @media (max-width: 56rem) {
-  .glance-side {
-    max-width: 100%;
-  }
-
-  .glance-facts {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem 1.5rem;
-  }
-
   .sheet {
     grid-template-areas: 'glance' 'side' 'writing' 'wide';
     grid-template-columns: minmax(0, 1fr);

@@ -49,7 +49,8 @@ Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything alread
 | **Pilot HP** is 6 + grit + armour bonuses. Grit is removed (house rule), so it's 6 + armour bonuses. | Not built (not shown yet) |
 | Pilot evasion, e-defense, speed come from armour. | Shown on the armour card |
 | Skill triggers, backgrounds, bonds, reserves. | Not used (house rules) |
-| Personal stats (physicality and so on) and bionics. | House rules: see CLAUDE.md. Bionics use the mod limit and the biomod price above. |
+| **Personal stats**: base 2 in each, with 4 shared extra points; base values stay within 2–4. No extra points from level. | Enforced by the controls and checked in `personalStatProblems()`; existing invalid allocations are flagged, not rewritten. |
+| **Biomods** modify personal totals after allocation. They can take totals below 2 or above 4; their modifiers do not consume allocation points. | Applied separately by `sheetStats()`; totals and base/modifier breakdown are displayed. Mod limit and manna cost apply as above. |
 
 ## Talents and core bonuses
 

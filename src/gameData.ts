@@ -54,6 +54,8 @@ export function toItem(id: string, data: unknown): Item {
 // Tag names by id (lancer-data's tags, e.g. "Limited {VAL}"), shared by every page. Loaded once.
 export const tagNames = shallowRef(new Map<string, string>())
 let tagsLoading: Promise<void> | undefined
+// New packs may add tags; the next character sheet should fetch their names again.
+export const invalidateTagNames = () => { tagsLoading = undefined }
 export function loadTagNames() {
   tagsLoading ??= (async () => {
     const { data } = await supabase.from('content_items').select('id, data').eq('kind', 'tags')
@@ -111,14 +113,14 @@ export const MECH_SKILLS: PilotStat[] = [
 ]
 
 // A sheet's stats, ready for StatRow, with bionic bonuses on the personal stats. Personal stats (house
-// rule) start at 1 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
+// rule) start at 2 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
 export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[]) {
   const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses)
   const bonusFor = (statId: string) => installed.reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
   const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[], start: number) =>
     stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet[key]?.[stat.id] ?? start }))
   return {
-    personal: values('pilot_stats', pilotStats, 1).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
+    personal: values('pilot_stats', pilotStats, 2).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
     piloting: values('mech_skills', MECH_SKILLS, 0),
   }
 }
@@ -129,7 +131,7 @@ export const bionicItems = (catalogue: Bionic[], price: number) =>
   catalogue.map((b) => ({
     id: b.id,
     name: b.name,
-    type: [...b.bonuses.map((bonus) => `+${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${price} manna`].join(', '),
+    type: [...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${price} manna`].join(', '),
     description: b.description,
     cost: b.mod_point_cost,
     retired: b.retired,
