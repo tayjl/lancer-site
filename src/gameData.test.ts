@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadoutSlots, sheetStats, type Bionic } from './gameData'
+import { loadoutSlots, pilotVitals, sheetStats, toItem, type Bionic } from './gameData'
 
 // gameData also loads the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -7,6 +7,28 @@ vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
 const TYPES: Record<string, string> = { suit: 'Armor', vest: 'Armor', whip: 'Weapon', pistol: 'Weapon', rifle: 'Weapon', drone: 'Gear' }
 const typeOf = (id: string) => TYPES[id]
 const ids = (layout: ReturnType<typeof loadoutSlots>) => layout.slots.map((slot) => slot.id)
+
+describe('pilot vitals', () => {
+  const suit = toItem('suit', { type: 'Armor', bonuses: [
+    { id: 'pilot_hp', val: 3 }, { id: 'pilot_armor', val: 2 },
+    { id: 'pilot_speed', val: 3, replace: true }, { id: 'pilot_evasion', val: 6, replace: true },
+  ] })
+  const kit = toItem('kit', { type: 'Gear', bonuses: [{ id: 'pilot_speed', val: 1 }] })
+  const values = (chosen: string[]) => pilotVitals({ pilot_gear: chosen }, [suit, kit]).map(stat => stat.value)
+
+  it('uses unarmoured defaults, equipped bonuses and replacement speed', () => {
+    expect(values([])).toEqual([6, 0, 4, 10])
+    expect(values(['suit'])).toEqual([9, 2, 3, 10])
+    expect(values(['kit', 'suit'])).toEqual([9, 2, 4, 10])
+    expect(values(['suit', 'suit'])).toEqual([9, 2, 3, 10])
+    expect(values(['missing'])).toEqual([null, null, null, null])
+  })
+
+  it('ignores pilot evasion bonuses while retaining mech evasion and pilot e-defence', () => {
+    expect(suit.bonuses.map(bonus => bonus.id)).toEqual(['pilot_hp', 'pilot_armor', 'pilot_speed'])
+    expect(toItem('test', { bonuses: [{ id: 'pilot_evasion', val: 2 }, { id: 'evasion', val: 2 }, { id: 'pilot_edef', val: 2 }] }).bonuses.map(bonus => bonus.id)).toEqual(['evasion', 'pilot_edef'])
+  })
+})
 
 describe('personal stats', () => {
   const stats = [{ id: 'physicality', name: 'Physicality' }, { id: 'acuity', name: 'Acuity' }]

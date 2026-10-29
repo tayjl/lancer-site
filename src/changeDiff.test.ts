@@ -114,4 +114,16 @@ describe('changeDiff', () => {
     )
     expect(lines).toEqual([{ section: 'mech: Mech / weapon mounts', text: 'weapon mounts rearranged', kind: 'edit' }])
   })
+
+  it('shows core target and per-weapon configuration changes in readable terms', () => {
+    const mech = { id: 'm1', name: 'Mech', manufacturer_id: 'AAAA-AAAA-AAAA', appearance: null, image: null }
+    const lines = changeDiff(
+      { card: { mechs: [mech] }, sheet: { mechs: { m1: { mounts: [['rifle']] } } } },
+      { card: { mechs: [mech] }, sheet: { mechs: { m1: { mounts: [['rifle']], core_mounts: { cb_overpower_caliber: 0 }, weapon_options: { '0:0': { profile: 1, type: 'Melee' } } } } } }, names,
+    )
+    expect(lines.map(line => line.text)).toEqual([
+      'CB:cb_overpower_caliber target: unassigned → mount 1, W:rifle',
+      'mount 1, weapon 1 configuration: defaults → profile 2, Melee',
+    ])
+  })
 })

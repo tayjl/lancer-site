@@ -1,6 +1,12 @@
 import { shallowRef } from 'vue'
 import { supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
+import hpIcon from './assets/icons/hp.svg'
+import armourIcon from './assets/icons/armour.svg'
+import speedIcon from './assets/icons/speed.svg'
+import eDefIcon from './assets/icons/e_def.svg'
+import { averageDamageText } from './damage'
+import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
 
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
 // bionics, and the custom pilot stats. Characters only store ids; names and details come from here.
@@ -13,6 +19,15 @@ import type { Sheet } from './myPilot'
 // rules text (it can hold simple HTML), "description" the flavour. "licenceId" is the frame whose licence
 // unlocks it and "licenceLevel" the rank needed (0: free, e.g. GMS); see docs/lancer-rules.md.
 type Value = number | string
+export type Bonus = {
+  id: string
+  val: Value
+  replace?: boolean
+  overwrite?: boolean
+  condition?: string
+  detail?: string
+  [key: string]: unknown
+}
 export type Item = {
   id: string
   name: string
@@ -23,10 +38,13 @@ export type Item = {
   licenceLevel: number
   description: string
   effect: string
-  bonuses: { id: string; val: Value; replace?: boolean }[]
+  bonuses: Bonus[]
   range: { type: string; val: Value }[]
   damage: { type: string; val: Value }[]
   tags: { id: string; val?: Value }[]
+  profiles?: Record<string, unknown>[]
+  raw?: Record<string, unknown>
+  sources?: string[]
 }
 
 // Pack data is plain JSON to the database; this picks out the fields the site shows.
@@ -44,10 +62,12 @@ export function toItem(id: string, data: unknown): Item {
     licenceLevel: Number(item.license_level ?? 0) || 0,
     description: String(item.description ?? ''),
     effect: String(item.effect ?? ''),
-    bonuses: list<Item['bonuses'][number]>(item.bonuses),
+    bonuses: list<Item['bonuses'][number]>(item.bonuses).filter(bonus => bonus && typeof bonus === 'object' && typeof bonus.id === 'string' && bonus.id !== 'pilot_evasion'),
     range: list<Item['range'][number]>(item.range ?? profile?.range),
     damage: list<Item['damage'][number]>(item.damage ?? profile?.damage),
     tags: list<Item['tags'][number]>(item.tags),
+    profiles: list<Record<string, unknown>>(item.profiles),
+    raw: item,
   }
 }
 
@@ -75,8 +95,9 @@ export type Bionic = {
 export type PilotStat = { id: string; name: string }
 // A talent: three ranks, each with a name and rules text (simple HTML). A core bonus: its manufacturer and
 // rules text. Both from the imported LANCER packs.
-export type Talent = { id: string; name: string; terse: string; ranks: { name: string; description: string }[] }
-export type CoreBonus = { id: string; name: string; source: string; effect: string }
+export type TalentRank = { name: string; description: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; exclusive?: boolean; [key: string]: unknown }
+export type Talent = { id: string; name: string; terse: string; ranks: TalentRank[] }
+export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; [key: string]: unknown }
 
 // A pilot's loadout slots: one armour, two weapons, three gear.
 const LOADOUT = [
@@ -114,15 +135,56 @@ export const MECH_SKILLS: PilotStat[] = [
 
 // A sheet's stats, ready for StatRow, with bionic bonuses on the personal stats. Personal stats (house
 // rule) start at 2 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
-export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[]) {
+export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[], extraBonuses: NamedBonus[] = []) {
   const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses)
   const bonusFor = (statId: string) => installed.reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
   const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[], start: number) =>
     stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet[key]?.[stat.id] ?? start }))
   return {
-    personal: values('pilot_stats', pilotStats, 2).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
+    personal: values('pilot_stats', pilotStats, 2).map((stat) => {
+      const entries = extraBonuses.filter(entry => entry.bonus.id === stat.id && permanentBonus(entry.bonus)).flatMap(entry => {
+        const value = bonusValue(entry.bonus.val)
+        return value === null ? [] : [{ source: entry.source, value, replace: entry.bonus.replace, overwrite: entry.bonus.overwrite }]
+      })
+      return { ...stat, bonus: bonusFor(stat.id) + resolveBonuses(stat.value, entries).value - stat.value }
+    }),
     piloting: values('mech_skills', MECH_SKILLS, 0),
   }
+}
+
+// Only equipped slots count; an old overflowing loadout must not stack several suits of armour.
+export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = []): NamedBonus[] {
+  const byId = new Map(gear.map(item => [item.id, item]))
+  const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
+  const sources = layout.slots.flatMap(slot => slot.id && byId.has(slot.id) ? [byId.get(slot.id)!] : [])
+  const result = sources.flatMap(item => item.bonuses.map(bonus => ({ source: item.name, bonus })))
+  for (const talent of talents) talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).forEach((rank, index) =>
+    result.push(...(rank.bonuses ?? []).map(bonus => ({ source: `${talent.name} ${index + 1}`, bonus }))))
+  for (const core of coreBonuses) if (sheet.core_bonuses?.includes(core.id)) result.push(...(core.bonuses ?? []).map(bonus => ({ source: core.name, bonus })))
+  return result
+}
+
+export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = []) {
+  const byId = new Map(gear.map(item => [item.id, item]))
+  const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
+  const bonuses = pilotBonuses(sheet, gear, talents, coreBonuses)
+  const stats = [
+    { id: 'pilot_hp', name: 'hp', value: 6, icon: hpIcon },
+    { id: 'pilot_armor', name: 'armour', value: 0, icon: armourIcon },
+    { id: 'pilot_speed', name: 'speed', value: 4, icon: speedIcon },
+    { id: 'pilot_edef', name: 'e-defence', value: 10, icon: eDefIcon },
+  ]
+  return stats.map(stat => {
+    const matching = bonuses.filter(entry => entry.bonus.id === stat.id && permanentBonus(entry.bonus)).flatMap(({ bonus, source }) => {
+      const value = bonusValue(bonus.val, { ll: Object.values(sheet.licences ?? {}).reduce((sum, rank) => sum + rank, 0) })
+      return value === null ? [] : [{ source, value, replace: bonus.replace, overwrite: bonus.overwrite }]
+    })
+    const result = resolveBonuses(stat.value, matching)
+    return { ...stat, value: layout.unknown.length ? null : Math.max(0, result.value), contributors: layout.unknown.length ? [] : [
+      ...(result.usesBase ? [`pilot base: ${stat.value}`] : []),
+      ...result.used.map(entry => `${entry.source}: ${entry.replace ? 'sets base to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
+    ] }
+  })
 }
 
 // Bionics as LoadoutBox items: the bonuses and manna price as the subtitle, the mod-point cost as the cost.
@@ -160,15 +222,15 @@ export function useGameData() {
     pilotStats.value = statRows.data ?? []
     talents.value = of('talents')
       .map(({ id, data }) => {
-        const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: { name?: string; description?: string }[] }
-        const ranks = (talent.ranks ?? []).map((rank) => ({ name: String(rank.name ?? ''), description: String(rank.description ?? '') }))
+        const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: TalentRank[] }
+        const ranks = (talent.ranks ?? []).map((rank) => ({ ...rank, name: String(rank.name ?? ''), description: averageDamageText(String(rank.description ?? '')), bonuses: Array.isArray(rank.bonuses) ? rank.bonuses : [] }))
         return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks }
       })
       .sort((a, b) => a.name.localeCompare(b.name))
     coreBonuses.value = of('core_bonuses')
       .map(({ id, data }) => {
-        const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string }
-        return { id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: String(bonus.effect ?? '') }
+        const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string; bonuses?: Bonus[] }
+        return { ...((data ?? {}) as object), id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: averageDamageText(String(bonus.effect ?? '')), bonuses: Array.isArray(bonus.bonuses) ? bonus.bonuses : [] }
       })
       .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))
   }

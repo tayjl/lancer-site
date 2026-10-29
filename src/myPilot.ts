@@ -23,6 +23,8 @@ export type MechPrivate = {
   frame?: string
   mounts?: (string | null)[][]
   systems?: string[]
+  core_mounts?: Record<string, number>
+  weapon_options?: Record<string, { profile?: number; type?: string; damageType?: string; accuracy?: boolean; smart?: boolean }>
 }
 // The private sheet so far (docs/database-sketch.md has the full shape). Licences, talents and the rest arrive
 // with the game data. Stats are keyed by id; gear holds content_items ids and bionics holds bionics ids.

@@ -72,8 +72,8 @@ const lines = computed(() => {
       bionic: (id) => find(bionics.value, id),
       gear: (id) => find(gear.value, id),
       frame: (id) => licenceName(frames.value, id),
-      weapon: (id) => find(weapons.value, id),
-      system: (id) => find(systems.value, id),
+      weapon: (id) => find([...weapons.value, ...integrated.value.values()], id),
+      system: (id) => find([...systems.value, ...integrated.value.values()], id),
     },
   )
 })
@@ -115,6 +115,9 @@ const problems = computed(() =>
           systems: new Map(systems.value.map((s) => [s.id, s])),
           integrated: integrated.value,
           bionicCosts: new Map(bionics.value.map((b) => [b.id, b.mod_point_cost])),
+          coreBonuses: coreBonuses.value,
+          talents: talents.value,
+          gear: gear.value,
         },
         Object.fromEntries(
           (Array.isArray(proposedCard.value.mechs) ? (proposedCard.value.mechs as unknown as PublicMech[]) : []).map((m) => [m.id, m.name]),

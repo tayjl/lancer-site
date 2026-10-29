@@ -1,0 +1,7 @@
+- main [ref=f20e3]:
+  - heading "HOR_OS" [level=1] [ref=f20e4]
+  - paragraph [ref=f20e9]:
+    - text: HOR_OS is not an official Lancer product or service; it is a third party work, and is not affiliated with Massif Press. HOR_OS is published via the
+    - link "Lancer Third Party License" [ref=f20e10] [cursor=pointer]:
+      - /url: https://massifpress.com/legal
+    - text: . Lancer is copyright Massif Press.

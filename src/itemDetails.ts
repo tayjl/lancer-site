@@ -5,7 +5,6 @@ import burstIcon from './assets/icons/burst.svg'
 import coneIcon from './assets/icons/cone.svg'
 import eDefIcon from './assets/icons/e_def.svg'
 import energyIcon from './assets/icons/energy.svg'
-import evasionIcon from './assets/icons/evasion.svg'
 import explosiveIcon from './assets/icons/explosive.svg'
 import heatIcon from './assets/icons/heat.svg'
 import hpIcon from './assets/icons/hp.svg'
@@ -13,20 +12,21 @@ import kineticIcon from './assets/icons/kinetic.svg'
 import lineIcon from './assets/icons/line.svg'
 import rangeIcon from './assets/icons/range.svg'
 import systemPointIcon from './assets/icons/system_point.svg'
+import speedIcon from './assets/icons/speed.svg'
 import threatIcon from './assets/icons/threat.svg'
 import variableIcon from './assets/icons/variable.svg'
 import type { Item } from './gameData'
+import { averageDamage, averageDamageText } from './damage'
 
 // What an item card shows (ItemDetails.vue, and the pickers' one-line summaries): its stats with LANCER's
 // symbols, its rules text and its tags.
 
-// Armour bonuses: [label, icon]. Speed has no LANCER symbol.
+// Armour bonuses: [label, icon].
 const BONUSES: Record<string, [string, string | null]> = {
   pilot_armor: ['armour', armourIcon],
   pilot_hp: ['hp', hpIcon],
-  pilot_evasion: ['evasion', evasionIcon],
   pilot_edef: ['e-defense', eDefIcon],
-  pilot_speed: ['speed', null],
+  pilot_speed: ['speed', speedIcon],
 }
 // Weapon range and damage types, lower case.
 const ICONS: Record<string, string> = {
@@ -52,14 +52,19 @@ const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' 
 // "tagNames" is lancer-data's tag list (e.g. "Limited {VAL}"); without it the id stands in ("limited").
 export function itemDetails(item: Item, tagNames: Map<string, string>) {
   const stats = [
-    ...item.bonuses.map((bonus) => {
+    ...item.bonuses.filter(bonus => bonus.id !== 'pilot_evasion').map((bonus) => {
       const [label, icon] = BONUSES[bonus.id] ?? [bonus.id.replace('pilot_', ''), null]
       return { label, icon, value: bonus.id === 'pilot_hp' && !bonus.replace ? `+${bonus.val}` : String(bonus.val) }
     }),
-    ...[...item.range, ...item.damage].map((entry) => ({
+    ...item.range.map((entry) => ({
       label: entry.type.toLowerCase(),
       icon: ICONS[entry.type.toLowerCase()] ?? null,
       value: String(entry.val),
+    })),
+    ...item.damage.map(entry => ({
+      label: `${entry.type.toLowerCase()} (average)`,
+      icon: ICONS[entry.type.toLowerCase()] ?? null,
+      value: String(averageDamage(entry.val)),
     })),
     ...(item.sp ? [{ label: 'sp', icon: systemPointIcon, value: String(item.sp) }] : []),
   ]
@@ -72,10 +77,10 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
         .toLowerCase()
     })
   // Pilot gear often has no rules text, only flavour, so it falls back to the description.
-  const text = plain(item.effect) || (item.type === 'Gear' ? item.description : '')
+  const text = averageDamageText(plain(item.effect) || (item.type === 'Gear' ? plain(item.description) : ''))
   return { stats, tags, text }
 }
 
-// One line for a picker: "range 10, kinetic 1d6, sp 1".
+// One line for a picker: "range 10, kinetic (average) 4, sp 1".
 export const statLine = (details: ReturnType<typeof itemDetails>) =>
   details.stats.map((stat) => `${stat.label} ${stat.value}`).join(', ')

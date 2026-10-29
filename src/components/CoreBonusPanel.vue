@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import type { CoreBonus } from '../gameData'
+import type { Frame } from '../mechData'
+import { coreBonusProblems } from '../rules'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 
@@ -10,6 +12,8 @@ const props = defineProps<{
   options: CoreBonus[]
   taken: string[]
   picks: number
+  licences: Record<string, number>
+  frames: Frame[]
   editable: boolean
   save: (ids: string[]) => Promise<string | null>
 }>()
@@ -34,10 +38,13 @@ function remove(id: string) {
 }
 
 const picker = useTemplateRef('picker')
+const blocked = (id: string) => coreBonusProblems(
+  { licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options,
+)[0] ?? ''
 const offered = computed(() =>
   props.options
     .filter((bonus) => !props.taken.includes(bonus.id))
-    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plain(bonus.effect), blocked: left.value > 0 ? '' : 'no picks left' })),
+    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plain(bonus.effect), blocked: blocked(bonus.id) })),
 )
 
 function open() {
@@ -46,6 +53,9 @@ function open() {
 }
 
 async function choose(id: string) {
+  if (!props.editable || saving.value) return
+  error.value = blocked(id)
+  if (error.value) return
   if (await store([...props.taken, id])) picker.value?.close()
 }
 </script>
@@ -56,6 +66,7 @@ async function choose(id: string) {
       <h2 class="sheet-label">core bonuses<span class="tag"> [private]</span></h2>
       <span class="dim" :class="{ rose: left < 0 }">{{ taken.length }}/{{ picks }} taken, one free per 3 licence ranks</span>
     </header>
+    <p v-if="editable" class="dim note">each non-GMS bonus needs another 3 licence ranks from its manufacturer.</p>
 
     <ul v-if="taken.length || (editable && left > 0)" class="slot-grid">
       <SlotCard v-for="id in taken" :key="id" :title="byId.get(id)?.source.toLowerCase() || 'core bonus'">

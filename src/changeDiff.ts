@@ -135,6 +135,27 @@ export function changeDiff(
     if (!same(a.mounts ?? [], b.mounts ?? []) && !mountChanges.added.length && !mountChanges.removed.length)
       add(`${section} / weapon mounts`, 'weapon mounts rearranged')
     listChanges(`${section} / systems`, a.systems, b.systems, names.system)
+    const targetName = (m: MechPrivate, key: string) => {
+      const target = m.core_mounts?.[key]
+      if (target === undefined) return 'unassigned'
+      if (key !== 'cb_overpower_caliber') return `mount ${target + 1}`
+      const weapon = m.mounts?.[Math.floor(target / 2)]?.[target % 2]
+      return `mount ${Math.floor(target / 2) + 1}, ${weapon ? names.weapon(weapon) : 'empty weapon slot'}`
+    }
+    for (const key of new Set([...Object.keys(a.core_mounts ?? {}), ...Object.keys(b.core_mounts ?? {})]))
+      if (!same(a.core_mounts?.[key], b.core_mounts?.[key]))
+        add(`${section} / weapon mounts`, `${names.coreBonus(key)} target: ${targetName(a, key)} → ${targetName(b, key)}`)
+    const configuration = (options: NonNullable<MechPrivate['weapon_options']>[string] = {}) => [
+      ...(options.profile !== undefined ? [`profile ${options.profile + 1}`] : []), options.type, options.damageType,
+      ...(options.accuracy !== undefined ? [options.accuracy ? 'optics' : 'reactor shielding'] : []),
+      ...(options.smart !== undefined ? [options.smart ? 'computer' : 'reactor shielding'] : []),
+    ].filter(Boolean).join(', ') || 'defaults'
+    for (const key of new Set([...Object.keys(a.weapon_options ?? {}), ...Object.keys(b.weapon_options ?? {})]))
+      if (!same(a.weapon_options?.[key], b.weapon_options?.[key])) {
+        const [mount, place] = key.split(':').map(Number)
+        const label = key.startsWith('integrated:') ? names.weapon(key.slice('integrated:'.length)) : `mount ${mount + 1}, weapon ${place + 1}`
+        add(`${section} / weapon mounts`, `${label} configuration: ${configuration(a.weapon_options?.[key])} → ${configuration(b.weapon_options?.[key])}`)
+      }
     if (!same(a.history, b.history)) add(`${section} / history`, 'history updated', a.history ? 'edit' : 'addition', { doc: b.history })
   }
   ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)

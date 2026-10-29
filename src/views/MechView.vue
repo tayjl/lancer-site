@@ -8,7 +8,8 @@ import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
-import { mechStats, useMechData } from '../mechData'
+import { useGameData } from '../gameData'
+import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { isLicensed, mechProblems } from '../rules'
@@ -36,20 +37,39 @@ const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
 
 const { frames, weapons, systems, integrated } = useMechData()
-const frame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
+const { gear, talents, coreBonuses } = useGameData()
+const catalogue = computed(() => ({
+  frames: frames.value,
+  weapons: new Map(weapons.value.map(item => [item.id, item])),
+  systems: new Map(systems.value.map(item => [item.id, item])),
+  integrated: integrated.value,
+  talents: talents.value,
+  coreBonuses: coreBonuses.value,
+  gear: gear.value,
+}))
+const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
+const grants = computed(() => talentGrants(sheet.value, talents.value))
+const optional = computed(() => grants.value.optional.map(id => integrated.value.get(id)).filter(item => !!item))
+const availableWeapons = computed(() => [...weapons.value, ...optional.value.filter(item => !!item.mount)])
+const availableSystems = computed(() => [...systems.value, ...optional.value.filter(item => !item.mount)])
 const licences = computed(() => sheet.value.licences ?? {})
 // This mech's rule check (src/rules.ts), once the catalogues have loaded.
 const problems = computed(() =>
   frames.value.length
-    ? mechProblems(details.value, sheet.value, {
-        frames: frames.value,
-        weapons: new Map(weapons.value.map((w) => [w.id, w])),
-        systems: new Map(systems.value.map((s) => [s.id, s])),
-        integrated: integrated.value,
-      })
+    ? mechProblems(details.value, sheet.value, catalogue.value)
     : [],
 )
-const stats = computed(() => mechStats(frame.value, sheet.value.mech_skills))
+const effects = computed(() => mechEffects(details.value, sheet.value, catalogue.value))
+const frame = computed(() => buildFrame(baseFrame.value, details.value, sheet.value, talents.value, effects.value.bonuses))
+const stats = computed(() => mechStats(frame.value, sheet.value.mech_skills, effects.value.modifiers))
+const resources = computed(() => mechResources(sheet.value, effects.value))
+function capacityFor(changes: Partial<MechPrivate>) {
+  const proposed = { ...details.value, ...changes }
+  const bonuses = mechEffects(proposed, sheet.value, catalogue.value)
+  const stats = mechStats(baseFrame.value, sheet.value.mech_skills, bonuses.modifiers)
+  return { sp: stats.find(stat => stat.id === 'system_points')?.value ?? 0, ai: mechResources(sheet.value, bonuses).aiCap }
+}
+const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 const spTotal = computed(() => stats.value.find((stat) => stat.id === 'system_points')!.value)
 
 // --- The save status shown in the top strip, for the one-line fields ---
@@ -72,7 +92,7 @@ const savePrivate = (changes: MechPrivate) =>
 
 const saveAppearance = (doc: Json | null) => savePublic({ appearance: doc })
 const saveHistory = (doc: Json | null) => savePrivate({ history: doc })
-const saveLoadout = (changes: Pick<MechPrivate, 'mounts' | 'systems'>) => savePrivate(changes)
+const saveLoadout = (changes: Partial<MechPrivate>) => savePrivate(changes)
 
 // --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
 // A licensed frame needs rank II in its own licence; GMS frames need none.
@@ -98,7 +118,7 @@ const frameOptions = computed(() =>
 async function chooseFrame(id: string) {
   const armed = (details.value.mounts ?? []).flat().some(Boolean)
   if (armed && !window.confirm("a new frame has different mounts, so this mech's weapons come off. go ahead?")) return
-  await track(savePrivate({ frame: id, mounts: [] }))
+  await track(savePrivate({ frame: id, mounts: [], core_mounts: {}, weapon_options: {} }))
   if (!saveError.value) framePicker.value?.close()
 }
 
@@ -203,21 +223,43 @@ async function scrap() {
       <div class="wide">
         <template v-if="canSeePrivate">
           <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <div v-if="frame" class="build-resources">
+            <span>AI capacity {{ resources.aiCap }}</span>
+            <span>Limited uses +{{ resources.limited }}</span>
+            <span>structure repair cost {{ resources.structureRepairs }}</span>
+            <span>overcharge heat {{ resources.overcharge }}</span>
+            <p v-for="(check, index) in resources.checks" :key="index">{{ check.source }}: {{ check.text }}</p>
+          </div>
           <p class="dim small stats-note">
             {{
               frame
-                ? 'worked out from the frame and piloting stats. talents and core bonuses are not counted yet.'
+                ? 'includes unconditional stat bonuses from equipment, talents and core bonuses. open sources under a stat to check the calculation.'
                 : 'choose a frame (top right) to work these out.'
             }}
           </p>
+          <details v-if="frame && effects.reminders.length" class="effect-reminders">
+            <summary>other effects and conditions · rules reference</summary>
+            <p class="dim small">Only modifiers listed under stat sources are included automatically. Conditional effects, unsupported bonuses and other rules below need player or GM interpretation.</p>
+            <ul>
+              <li v-for="(reminder, index) in effects.reminders" :key="index">
+                <strong>{{ reminder.source }}</strong>
+                <p>{{ plain(reminder.text) }}</p>
+              </li>
+            </ul>
+          </details>
 
           <MechLoadout
             :frame="frame"
             :frames="frames"
             :licences="licences"
             :integrated="integrated"
-            :weapons="weapons"
-            :systems="systems"
+            :weapons="availableWeapons"
+            :systems="availableSystems"
+            :sheet="sheet"
+            :details="details"
+            :bonuses="effects.bonuses"
+            :superheavy-mounting="resources.superheavyMounting"
+            :capacity-for="capacityFor"
             :mounts="details.mounts ?? []"
             :installed="details.systems ?? []"
             :sp-total="spTotal"
@@ -390,6 +432,18 @@ input.maker-id {
 }
 
 /* --- Stats, loadout, decommission --- */
+.effect-reminders {
+  margin: 0.75rem 0 1.5rem;
+  font-size: 0.875rem;
+}
+.build-resources { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0; font-size: 0.8125rem; color: var(--text-dim); }
+.build-resources p { flex-basis: 100%; margin: 0; color: var(--sky); }
+.effect-reminders summary { cursor: pointer; color: var(--sky); }
+.effect-reminders ul { list-style: none; padding: 0; }
+.effect-reminders li { padding: 0.75rem 0; border-top: 1px solid var(--rule); }
+.effect-reminders strong { color: var(--lilac); }
+.effect-reminders li p { margin: 0.25rem 0 0; font-family: var(--read); }
+
 .stats-note {
   margin: -1.25rem 0 0;
 }

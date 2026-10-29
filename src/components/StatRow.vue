@@ -11,7 +11,7 @@ import StatIcon from './StatIcon.vue'
 const props = defineProps<{
   title: string
   tag?: string
-  stats: { id: string; name: string; value: number | null; bonus?: number; icon?: string }[]
+  stats: { id: string; name: string; value: number | null; bonus?: number; icon?: string; contributors?: string[] }[]
   editable: boolean
   min: number
   max: number
@@ -38,6 +38,10 @@ const spent = computed(() => !!props.budget && used.value >= props.budget.total)
         <span class="value">
           {{ stat.value === null ? '-' : stat.value + (stat.bonus ?? 0) }}<span v-if="stat.bonus" class="bonus"> ({{ stat.value }} base {{ stat.bonus > 0 ? '+' : '' }}{{ stat.bonus }})</span>
         </span>
+        <details v-if="stat.contributors?.length" class="sources">
+          <summary>sources<span class="sr-only"> for {{ stat.name }}</span></summary>
+          <p v-for="(source, index) in stat.contributors" :key="index">{{ source }}</p>
+        </details>
         <span v-if="editable" class="steps">
           <button
             type="button"
@@ -80,8 +84,7 @@ const spent = computed(() => !!props.budget && used.value >= props.budget.total)
 
 ul {
   display: grid;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
   margin: 0;
   padding: 0;
   border: 1px solid var(--rule);
@@ -132,6 +135,16 @@ li + li {
   gap: 0.35rem;
 }
 
+.sources {
+  max-width: 100%;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.sources summary { cursor: pointer; }
+.sources p { margin: 0.25rem 0; }
+
 /* Small square steppers instead of the usual [ bracketed ] buttons. */
 .steps button {
   width: 1.75rem;
@@ -166,11 +179,13 @@ li + li {
 /* Too narrow for one line: a list, one stat per line, with the numbers and buttons lined up on the right. */
 @container (max-width: 40rem) {
   ul {
+    grid-template-columns: minmax(0, 1fr);
     grid-auto-flow: row;
   }
 
   li {
     flex-direction: row;
+    flex-wrap: wrap;
     gap: 1rem;
     padding: 0.4rem 0.75rem;
   }
@@ -189,6 +204,11 @@ li + li {
     min-width: 4rem;
     font-size: 1.375rem;
     text-align: right;
+  }
+
+  .sources {
+    flex-basis: 100%;
+    order: 1;
   }
 }
 </style>

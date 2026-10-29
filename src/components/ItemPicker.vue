@@ -125,6 +125,7 @@ defineExpose({ open, close: () => dialog.value?.close() })
 
 .options button {
   flex-shrink: 0;
+  max-width: 45%;
   padding: 0;
   font-size: 0.8125rem;
 }

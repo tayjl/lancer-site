@@ -12,7 +12,7 @@ import RankPanel from '../components/RankPanel.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
-import { bionicItems, sheetStats, useGameData } from '../gameData'
+import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { useMechData } from '../mechData'
 import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
@@ -146,7 +146,8 @@ const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) 
 const saveBackstory = (doc: Json | null) => updateSheet({ backstory: doc })
 
 // --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
-const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value))
+const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
+const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
 
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, integrated } = useMechData()
@@ -185,6 +186,9 @@ const problems = computed(() =>
           systems: new Map(systems.value.map((s) => [s.id, s])),
           integrated: integrated.value,
           bionicCosts: new Map(bionics.value.map((b) => [b.id, b.mod_point_cost])),
+          coreBonuses: coreBonuses.value,
+          talents: talents.value,
+          gear: gear.value,
         },
         Object.fromEntries(mechs.value.map((m) => [m.id, m.name])),
       )
@@ -387,6 +391,8 @@ async function createMech() {
 
       <div class="wide">
         <template v-if="canSeePrivate">
+          <StatRow title="pilot stats" tag="private" :stats="vitals" :editable="false" :min="0" :max="0" />
+          <p class="dim small">includes equipped armour and gear. no grit. unavailable gear shows totals as −.</p>
           <StatRow
             title="personal stats"
             tag="private"
@@ -475,6 +481,8 @@ async function createMech() {
           </RankPanel>
           <CoreBonusPanel
             :options="coreBonuses"
+            :licences="sheet.licences ?? {}"
+            :frames="frames"
             :taken="sheet.core_bonuses ?? []"
             :picks="coreBonusPicks(sheet)"
             :editable="editable"
