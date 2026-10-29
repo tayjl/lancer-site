@@ -53,11 +53,11 @@ async function onBooted() {
 </template>
 
 <style scoped>
-/* As the login screen (LoginView.vue), but fitting under the top bar and above the net chat: the art
-   pinned at the top, the log in the middle, the buttons at the bottom. --chrome is the height the bar and
-   chat take; the art shrinks with the height left, and the column narrows with it (not below 34rem). */
+/* As the login screen (LoginView.vue), but fitting under the top bar: the art pinned at the top, the log in
+   the middle, the buttons at the bottom. --chrome is the height the bar takes; the art shrinks with the
+   height left, and the column narrows with it (not below 34rem). */
 .home {
-  --chrome: 17rem;
+  --chrome: 4rem;
   container-type: inline-size;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -90,15 +90,8 @@ async function onBooted() {
   visibility: hidden;
 }
 
-/* Phones: the chat is hidden behind its toggle, so only the bar takes room. */
-@media (max-width: 48rem) {
-  .home {
-    --chrome: 3.5rem;
-  }
-}
-
 /* Too short to pin anything (e.g. a phone held sideways): the page just scrolls normally. */
-@media (max-height: 40rem) {
+@media (max-height: 30rem) {
   .home {
     display: block;
     height: auto;

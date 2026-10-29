@@ -2,9 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
-import netChat from './assets/net-chat.txt?raw'
 import { isGm, isOwner, profile } from './auth'
-import ChatFeed from './components/ChatFeed.vue'
 import { supabase } from './lib/supabaseClient'
 
 const route = useRoute()
@@ -28,33 +26,10 @@ const gmTabs = computed(() => [
 ])
 const isCurrent = (name: string) => route.name === name || route.meta.section === name
 
-// On phones the bar collapses to the name and [ menu ] / [ chat ] toggles (see the CSS at the bottom).
+// On phones the bar collapses to the logo and a [ menu ] toggle (see the CSS at the bottom).
 // The menu closes when you pick a page, or once you've scrolled past it.
 const menuOpen = ref(false)
 const bar = useTemplateRef('bar')
-// The chat panel is always shown on wide screens; on phones, a [ chat ] toggle shows it.
-const chatOpen = ref(false)
-// Wide screens can minimise it to one line. Remembered in this browser (storage can be blocked, hence the try).
-const CHAT_KEY = 'hor_os.chat-minimised'
-const chatMinimised = ref(readFlag())
-
-function readFlag() {
-  try {
-    return localStorage.getItem(CHAT_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-function toggleChat() {
-  chatMinimised.value = !chatMinimised.value
-  try {
-    localStorage.setItem(CHAT_KEY, chatMinimised.value ? '1' : '0')
-  } catch {
-    // Not remembered; it still works for this visit.
-  }
-}
-
 watch(() => route.fullPath, () => (menuOpen.value = false))
 
 function closeMenuOnScroll() {
@@ -73,8 +48,8 @@ async function disconnect() {
 <template>
   <RouterView v-if="route.meta.public" />
 
-  <!-- The logged-in layout: a bar across the top, the page under it, the net chat at the bottom. -->
-  <div v-else class="shell" :class="{ 'menu-open': menuOpen, 'chat-open': chatOpen }">
+  <!-- The logged-in layout: a bar across the top, the page under it. -->
+  <div v-else class="shell" :class="{ 'menu-open': menuOpen }">
     <header ref="bar" class="topbar">
       <div class="brand-row">
         <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
@@ -82,9 +57,6 @@ async function disconnect() {
           <pre class="logo" aria-hidden="true">{{ logoArt }}</pre>
         </RouterLink>
         <!-- Phones only. -->
-        <button type="button" class="chat-toggle" aria-controls="net-chat" :aria-expanded="chatOpen" @click="chatOpen = !chatOpen">
-          chat
-        </button>
         <button type="button" class="menu-toggle" aria-controls="main-menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
           {{ menuOpen ? 'close' : 'menu' }}
         </button>
@@ -110,23 +82,13 @@ async function disconnect() {
 
     <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. -->
     <RouterView :key="route.path" />
-
-    <!-- The net chat (src/assets/net-chat.txt), pinned to the bottom of the window. -->
-    <section id="net-chat" class="chat-panel" :class="{ minimised: chatMinimised }" aria-label="Net chat">
-      <button type="button" class="chat-minimise" :aria-expanded="!chatMinimised" @click="toggleChat">
-        {{ chatMinimised ? 'show chat' : 'minimise' }}
-      </button>
-      <!-- The 5-line MOTD block comes out quickly, then a message every 1.8 seconds: slower than the
-           login chat, so it's readable while browsing. -->
-      <ChatFeed :text="netChat" :delay="1800" :quick-lines="5" />
-    </section>
   </div>
 </template>
 
 <style scoped>
 .shell {
   display: grid;
-  grid-template-rows: auto 1fr auto; /* top bar, page, chat */
+  grid-template-rows: auto 1fr; /* top bar, page */
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -230,46 +192,7 @@ async function disconnect() {
   margin: 0;
 }
 
-/* --- Net chat: at the bottom of the window, over the page as it scrolls. 8 chat lines tall, plus padding and the 1px line. --- */
-.chat-panel {
-  position: sticky;
-  bottom: 0;
-  height: calc(8 * 1.5rem + 1.5rem + 1px);
-  padding: 0.75rem 1.5rem;
-  border-top: 1px solid var(--rule);
-  background: var(--void);
-}
-
-/* Wide screens only: a small option in the chat's top-right corner. */
-.chat-minimise {
-  position: absolute;
-  top: 0.5rem;
-  right: 1.5rem;
-  z-index: 1;
-  padding: 0;
-  font-size: 0.75rem;
-}
-
-/* Minimised: just the option, on one line. The feed keeps running underneath, so it doesn't restart. */
-@media (min-width: 48.0625rem) {
-  .chat-panel.minimised {
-    height: auto;
-    padding-block: 0.35rem;
-  }
-
-  .minimised .chat-minimise {
-    position: static;
-    display: block;
-    margin-left: auto;
-  }
-
-  .minimised :deep(.feed) {
-    display: none;
-  }
-}
-
-.menu-toggle,
-.chat-toggle {
+.menu-toggle {
   display: none;
 }
 
@@ -288,17 +211,13 @@ async function disconnect() {
     position: relative;
   }
 
-  .menu-toggle,
-  .chat-toggle {
+  .menu-toggle {
     position: absolute;
     display: block;
     padding-inline: 0;
     font-size: 0.875rem;
   }
 
-  .chat-toggle {
-    left: 0;
-  }
 
   .menu-toggle {
     right: 0;
@@ -335,22 +254,5 @@ async function disconnect() {
     border-top: 1px solid var(--rule);
   }
 
-  /* Phones open and close the chat with [ chat ] instead. */
-  .chat-minimise {
-    display: none;
-  }
-
-  .shell:not(.chat-open) .chat-panel {
-    display: none;
-  }
-
-  /* On phones the chat pops up over the bottom of the screen. */
-  .chat-panel {
-    position: fixed;
-    right: 0;
-    left: 0;
-    height: calc(8 * 1.25rem + 1.5rem + 1px);
-    padding: 0.75rem 1rem;
-  }
 }
 </style>
