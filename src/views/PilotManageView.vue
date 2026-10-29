@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import AddBox from '../components/AddBox.vue'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
@@ -10,12 +10,14 @@ import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RankPanel from '../components/RankPanel.vue'
 import RuleCheck from '../components/RuleCheck.vue'
+import ReviewText from '../components/ReviewText.vue'
+import { sameContent } from '../textDiff'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import { bionicItems, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { useMechData } from '../mechData'
-import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
+import { mechProblem, useMyPilot, type Sheet, type PilotSnapshot } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, PRICES, rankName, skillPoints } from '../rules'
 
@@ -31,10 +33,12 @@ import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotP
 // Homebrew (src/rules.ts): level (set by GMs) gives HASE points and the mod limit; manna (received from GMs)
 // buys licence ranks, biomods and talent ranks; every 3 licence ranks give a free core bonus.
 
+const props = defineProps<{ snapshot?: PilotSnapshot; before?: PilotSnapshot; mechAnchorPrefix?: string }>()
+const sectionChanged = (key: keyof Sheet) => !!props.before && !sameContent(props.before.sheet[key], sheet.value[key])
 const route = useRoute()
 const router = useRouter()
-const pilotId = route.params.id ? Number(route.params.id) : undefined
-const own = !pilotId
+const pilotId = props.snapshot?.character.id ?? (route.params.id ? Number(route.params.id) : undefined)
+const own = !props.snapshot && !pilotId
 const reviewing = route.name === 'gm-review'
 const {
   character,
@@ -59,7 +63,7 @@ const {
   reopenChange,
   withdrawChange,
   markDead,
-} = useMyPilot(pilotId)
+} = useMyPilot(pilotId, props.snapshot)
 
 // Your approved pilot: changes are proposed, then a GM approves them (src/myPilot.ts).
 const approvedOwn = computed(() => own && character.value?.status === 'approved')
@@ -224,8 +228,8 @@ async function createMech() {
 </script>
 
 <template>
-  <main class="page manage">
-    <nav v-if="!own" class="links">
+  <component :is="props.snapshot ? 'section' : 'main'" class="page manage" :class="{ preview: props.snapshot }">
+    <nav v-if="!own && !props.snapshot" class="links">
       <RouterLink :to="{ name: back.name }">&lt; {{ back.label }}</RouterLink>
       <RouterLink v-if="isGm && !reviewing && character" :to="{ name: 'gm-review', params: { id: pilotId } }">
         {{ character.status === 'pending' ? 'gm review' : 'gm controls: level and manna' }}
@@ -267,7 +271,7 @@ async function createMech() {
             :value="character.callsign ?? ''"
             @change="saveText('callsign', $event)"
           />
-          <h1 v-else class="callsign">{{ character.callsign ?? character.pilot_name }}</h1>
+          <h1 v-else class="callsign"><ReviewText v-if="props.before" :before="props.before.character.callsign ?? props.before.character.pilot_name" :after="character.callsign ?? character.pilot_name" /><template v-else>{{ character.callsign ?? character.pilot_name }}</template></h1>
           <input
             v-if="editable"
             class="inline name"
@@ -277,7 +281,7 @@ async function createMech() {
             :value="character.pilot_name"
             @change="saveText('pilot_name', $event)"
           />
-          <p v-else class="name">{{ character.pilot_name }}</p>
+          <p v-else class="name"><ReviewText v-if="props.before" :before="props.before.character.pilot_name" :after="character.pilot_name" /><template v-else>{{ character.pilot_name }}</template></p>
         </div>
         <div class="glance-side">
           <dl class="glance-facts">
@@ -306,9 +310,10 @@ async function createMech() {
           </p>
         </div>
         <div v-if="own && reviewNote" class="gm-note" role="note">
-          <p class="rose">sent back by a gm. change what they asked, then resubmit to rejoin the review queue.</p>
+          <p v-if="character.status === 'pending'" class="rose">sent back by a gm. change what they asked, then resubmit to rejoin the review queue.</p>
+          <p v-else class="lilac">note from the gm</p>
           <p>{{ reviewNote }}</p>
-          <button type="button" @click="track(resubmit())">resubmit for review</button>
+          <button v-if="character.status === 'pending'" type="button" @click="track(resubmit())">resubmit for review</button>
         </div>
 
         <!-- Your approved pilot: propose a change, write it, submit it, wait for a GM. -->
@@ -347,7 +352,7 @@ async function createMech() {
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
       <aside class="side">
-        <Portrait :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
+        <Portrait :class="{ 'review-changed': props.before && props.before.character.pilot_image !== character.pilot_image }" :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
         <p v-if="own" class="dim small">image upload: module offline</p>
         <table class="identity">
           <tbody>
@@ -362,6 +367,7 @@ async function createMech() {
                   :value="character[column] ?? ''"
                   @change="saveText(column, $event)"
                 />
+                <ReviewText v-else-if="props.before" :before="props.before.character[column]" :after="character[column]" />
                 <template v-else>{{ character[column] ?? '-' }}</template>
               </td>
             </tr>
@@ -370,11 +376,12 @@ async function createMech() {
       </aside>
 
       <div class="writing">
-        <SheetField title="appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
-        <SheetField title="personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
+        <SheetField :comparison="props.before ? { doc: props.before.character.appearance } : undefined" title="appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
+        <SheetField :comparison="props.before ? { doc: props.before.character.personality } : undefined" title="personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
         <SheetField
           v-if="canSeePrivate"
           title="backstory"
+          :comparison="props.before ? { doc: props.before.sheet.backstory } : undefined"
           tag="private"
           :doc="sheet.backstory ?? null"
           :editable="editable"
@@ -386,6 +393,7 @@ async function createMech() {
         <template v-if="canSeePrivate">
           <StatRow
             title="personal stats"
+            :class="{ 'review-changed': sectionChanged('pilot_stats') || sectionChanged('bionics') }"
             tag="private"
             :stats="stats.personal"
             :editable="editable"
@@ -395,6 +403,7 @@ async function createMech() {
           />
           <StatRow
             title="piloting stats"
+            :class="{ 'review-changed': sectionChanged('mech_skills') }"
             tag="private"
             :stats="stats.piloting"
             :editable="editable"
@@ -405,6 +414,7 @@ async function createMech() {
           />
           <LoadoutBox
             title="bionics"
+            :class="{ 'review-changed': sectionChanged('bionics') }"
             tag="private"
             :items="bionicItems(bionics, PRICES.bionic)"
             :chosen="sheet.bionics ?? []"
@@ -413,10 +423,10 @@ async function createMech() {
             :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
             :save="saveBionics"
           />
-          <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+          <PilotLoadout :class="{ 'review-changed': sectionChanged('pilot_gear') }" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
         </template>
 
-        <section class="hangar">
+        <section class="hangar" :class="{ 'review-changed': props.before && !sameContent(props.before.character.mechs, character.mechs) }">
           <header class="hangar-head">
             <h2 class="sheet-label">mech hangar</h2>
             <button v-if="editable && mechs.length && !addingMech" type="button" @click="openNewMech">new mech</button>
@@ -424,11 +434,11 @@ async function createMech() {
           <div class="hangar-body">
             <ul v-if="mechs.length" class="mechs">
               <li v-for="mech in mechs" :key="mech.id">
-                <RouterLink :to="mechLink(mech.id)" class="mech-card">
+                <component :is="props.snapshot ? 'a' : RouterLink" :to="props.snapshot ? undefined : mechLink(mech.id)" :href="props.snapshot ? `#${props.mechAnchorPrefix ?? 'review-mech'}-${mech.id}` : undefined" class="mech-card">
                   <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
                   <span class="mech-name">{{ mech.name }}</span>
                   <span class="dim">{{ mech.manufacturer_id }}</span>
-                </RouterLink>
+                </component>
               </li>
             </ul>
 
@@ -455,6 +465,7 @@ async function createMech() {
         <template v-if="canSeePrivate">
           <RankPanel
             title="licences"
+            :class="{ 'review-changed': sectionChanged('licences') }"
             noun="licence"
             :options="licenceOptions"
             :held="sheet.licences ?? {}"
@@ -469,6 +480,7 @@ async function createMech() {
             </template>
           </RankPanel>
           <CoreBonusPanel
+            :class="{ 'review-changed': sectionChanged('core_bonuses') }"
             :options="coreBonuses"
             :taken="sheet.core_bonuses ?? []"
             :picks="coreBonusPicks(sheet)"
@@ -477,6 +489,7 @@ async function createMech() {
           />
           <RankPanel
             title="talents"
+            :class="{ 'review-changed': sectionChanged('talents') }"
             noun="talent"
             :options="talentOptions"
             :held="sheet.talents ?? {}"
@@ -501,11 +514,15 @@ async function createMech() {
         <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :problems="problems" @reviewed="load" />
       </div>
     </div>
-  </main>
+  </component>
 </template>
 
 <style scoped>
 /* Full width: the sheet uses the whole content area, not a centred column. */
+.preview {
+  padding: 0;
+}
+
 .manage {
   max-width: none;
 }
@@ -883,6 +900,16 @@ input.name {
 
 /* --- Narrow screens: one column, with the portrait between the top strip and appearance --- */
 @media (max-width: 56rem) {
+  .glance-side {
+    max-width: 100%;
+  }
+
+  .glance-facts {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem 1.5rem;
+  }
+
   .sheet {
     grid-template-areas: 'glance' 'side' 'writing' 'wide';
     grid-template-columns: minmax(0, 1fr);

@@ -6,12 +6,14 @@ import { changeDiff, PUBLIC_COLUMNS, type PublicCard } from '../changeDiff'
 import PageHeader from '../components/PageHeader.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import { useGameData } from '../gameData'
-import type { Character, PendingChange, Sheet } from '../myPilot'
+import type { Character, PendingChange, Sheet, PilotSnapshot } from '../myPilot'
 import { useMechData } from '../mechData'
 import { licenceName, mannaSpent, pilotProblems } from '../rules'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
 import { since } from '../time'
+import PilotManageView from './PilotManageView.vue'
+import MechView from './MechView.vue'
 
 // One pending change (opened from gm: changes): what it changes, in plain words, against the approved
 // pilot; what it costs in manna; the rule check on the proposed sheet; then approve or reject. GMs approve
@@ -41,7 +43,8 @@ async function load() {
     pilot.value = card.data
     approved.value = sheetRow.data
       ? { ...sheetRow.data, sheet: sheetRow.data.sheet as unknown as Sheet }
-      : { sheet: {}, level: 0, manna: 0, updated_at: '' }
+      : null
+    error.value = card.error?.message ?? sheetRow.error?.message ?? (!card.data || !sheetRow.data ? 'could not load the complete pilot record. reload before reviewing.' : '')
   }
   loading.value = false
 }
@@ -50,6 +53,25 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
 
 const proposedSheet = computed(() => (change.value?.proposed_sheet ?? {}) as unknown as Sheet)
 const proposedCard = computed(() => (change.value?.proposed_public ?? {}) as PublicCard)
+const approvedSnapshot = computed<PilotSnapshot | undefined>(() => pilot.value && approved.value ? {
+  character: pilot.value, sheet: approved.value.sheet,
+  gm: { level: approved.value.level, manna: approved.value.manna },
+  playerName: pilot.value.player?.display_name ?? '-',
+} : undefined)
+const proposedSnapshot = computed<PilotSnapshot | undefined>(() => {
+  if (!approvedSnapshot.value) return undefined
+  // Only public sheet fields come from a proposal; ids, ownership and status stay with the live record.
+  const fields = Object.fromEntries(PUBLIC_COLUMNS.filter(key => Object.hasOwn(proposedCard.value, key)).map(key => [key, proposedCard.value[key]]))
+  return {
+    ...approvedSnapshot.value,
+    character: { ...approvedSnapshot.value.character, ...fields } as Character,
+    sheet: proposedSheet.value,
+  }
+})
+const proposedMechs = computed(() => Array.isArray(proposedSnapshot.value?.character.mechs) ? proposedSnapshot.value.character.mechs as unknown as PublicMech[] : [])
+const approvedMechs = computed(() => Array.isArray(approvedSnapshot.value?.character.mechs) ? approvedSnapshot.value.character.mechs as unknown as PublicMech[] : [])
+const showApproved = ref(false)
+const comparison = computed(() => change.value?.status === 'pending' ? approvedSnapshot.value : undefined)
 const name = computed(() => pilot.value?.callsign ?? pilot.value?.pilot_name ?? 'a pilot')
 const waiting = computed(() => change.value?.status === 'pending' && !!change.value.submitted_at)
 
@@ -60,7 +82,7 @@ const sections = computed(() => {
   const card = Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, pilot.value![column]])) as PublicCard
   const lines = changeDiff(
     { card, sheet: approved.value.sheet },
-    { card: proposedCard.value, sheet: proposedSheet.value },
+    { card: proposedSnapshot.value?.character as unknown as PublicCard ?? proposedCard.value, sheet: proposedSheet.value },
     {
       stat: (id) => find(pilotStats.value, id).toLowerCase(),
       licence: (id) => licenceName(frames.value, id),
@@ -139,13 +161,14 @@ async function reject() {
 </script>
 
 <template>
-  <main class="page">
+  <main class="page change-page">
     <RouterLink :to="{ name: 'gm-changes' }" class="back">&lt; gm: changes</RouterLink>
     <PageHeader :title="`change: ${name}`" />
 
-    <p v-if="!profile || loading" class="dim">loading change...</p>
+    <p v-if="!profile" class="dim">loading change...</p>
     <p v-else-if="!isGm" class="rose">access denied. gm clearance required.</p>
-    <p v-else-if="!change" class="rose" role="alert">{{ error }}</p>
+    <p v-else-if="loading" class="dim">loading change...</p>
+    <p v-else-if="!change || !pilot || !approved" class="rose" role="alert">{{ error }}</p>
     <template v-else>
       <p class="meta dim">
         {{ pilot?.pilot_name }}, played by {{ pilot?.player?.display_name ?? '-' }}.
@@ -155,31 +178,58 @@ async function reject() {
         <RouterLink v-if="pilot" :to="{ name: 'gm-review', params: { id: pilot.id } }">approved record and gm controls</RouterLink>
       </p>
 
-      <section>
-        <h2 class="sheet-label">what changes</h2>
-        <p v-if="!sections.length" class="dim note">nothing: the proposed pilot matches the approved one.</p>
-        <div v-else class="changes">
-          <div v-for="[section, lines] in sections" :key="section" class="group">
-            <h3>{{ section }}</h3>
-            <ul>
-              <li v-for="line in lines" :key="line">{{ line }}</li>
-            </ul>
-          </div>
-        </div>
+      <section class="manna-summary">
+        <h2>manna</h2>
+        <p v-if="comparison">
+          this change costs <strong class="lilac">{{ spentAfter - spentBefore }}</strong> manna.
+          <span :class="{ rose: left < 0 }">{{ left }} left after it</span>
+          <span class="dim"> ({{ approved?.manna ?? 0 }} received, {{ spentBefore }} spent before, {{ spentAfter }} spent after; level {{ approved?.level ?? 0 }}).</span>
+        </p>
+        <p v-else>this proposal spends <strong class="lilac">{{ spentAfter }}</strong> manna in total. The original cost of this reviewed change is not stored.</p>
       </section>
 
-      <section>
-        <h2 class="sheet-label">manna</h2>
-        <p class="note">
-          this change costs <strong class="lilac">{{ spentAfter - spentBefore }}</strong> manna.
-          <span :class="{ rose: left < 0 }">{{ left }} left after it</span>{{ ' ' }}<span class="dim"
-            >({{ approved?.manna ?? 0 }} received, level {{ approved?.level ?? 0 }}).</span
-          >
+      <template v-if="proposedSnapshot">
+        <h2>full proposed character</h2>
+        <p v-if="comparison" class="legend">
+          <span class="sky">underlined blue text is added</span>;
+          <span class="rose">struck-through red text is removed</span>.
+          A blue edge marks changed sections. Expand the current approved character below to compare equipment and stats.
         </p>
-      </section>
+        <p v-else class="dim">this is the reviewed proposal. the current record may include later edits; the original pre-review version is not stored.</p>
+        <details v-if="comparison" class="change-summary">
+          <summary>changes at a glance</summary>
+          <p v-if="!sections.length" class="dim">nothing: the proposed pilot matches the current one.</p>
+          <div v-else class="changes">
+            <div v-for="[section, lines] in sections" :key="section" class="group">
+              <h3>{{ section }}</h3>
+              <ul><li v-for="line in lines" :key="line">{{ line }}</li></ul>
+            </div>
+          </div>
+        </details>
+        <p v-if="stale && comparison" class="rose">this proposal is compared with the current record, which has changed since submission. approval is blocked.</p>
+        <PilotManageView :key="`proposed-${change.id}`" :snapshot="proposedSnapshot" :before="comparison" />
+        <section v-for="mech in proposedMechs" :id="`review-mech-${mech.id}`" :key="mech.id" class="mech-review">
+          <h2>mech: {{ mech.name }}</h2>
+          <p v-if="comparison && !approvedMechs.some(old => old.id === mech.id)" class="sky">new mech</p>
+          <MechView :snapshot="proposedSnapshot" :before="comparison" :preview-mech-id="mech.id" />
+        </section>
+        <p v-for="mech in approvedMechs.filter(old => !proposedMechs.some(next => next.id === old.id))" :key="`removed-${mech.id}`" class="rose">
+          removed mech: {{ mech.name }}. Its previous sheet is in the current approved character below.
+        </p>
+        <details v-if="approvedSnapshot" class="approved-record" @toggle="showApproved = ($event.target as HTMLDetailsElement).open">
+          <summary>view current approved character</summary>
+          <template v-if="showApproved">
+            <PilotManageView :snapshot="approvedSnapshot" mech-anchor-prefix="approved-mech" />
+            <section v-for="mech in approvedMechs" :id="`approved-mech-${mech.id}`" :key="mech.id" class="mech-review">
+              <h2>mech: {{ mech.name }}</h2>
+              <MechView :snapshot="approvedSnapshot" :preview-mech-id="mech.id" />
+            </section>
+          </template>
+        </details>
+      </template>
 
       <section v-if="waiting" class="decision">
-        <h2 class="sheet-label">decision<span class="tag"> [gm only]</span></h2>
+        <h2>decision <span class="dim">[gm only]</span></h2>
         <div class="decision-body">
           <p v-if="stale" class="rose">
             this pilot changed after the change was started, so approving would overwrite that. reject it so the player can
@@ -198,7 +248,7 @@ async function reject() {
         </div>
       </section>
       <section v-else-if="change.status === 'rejected'">
-        <h2 class="sheet-label">rejected</h2>
+        <h2>rejected</h2>
         <p class="note">{{ change.review_reason }}</p>
       </section>
     </template>
@@ -206,6 +256,17 @@ async function reject() {
 </template>
 
 <style scoped>
+.change-page { min-width: 0; max-width: none; }
+h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
+.manna-summary { padding: 1.25rem; border: 1px solid var(--rule); }
+.manna-summary p, .legend { max-width: none; margin: 0; }
+.legend { margin-bottom: 1.25rem; }
+.change-summary { margin: 1.25rem 0; }
+summary { cursor: pointer; color: var(--lilac); font: 600 1.125rem/1.5 var(--mono); }
+.approved-record { margin: 2rem 0; padding: 1.25rem; border: 1px solid var(--rule); }
+.approved-record > summary { margin-bottom: 1.25rem; }
+.mech-review { margin-top: 2rem; scroll-margin-top: 5rem; }
+
 .back {
   display: inline-block;
   margin-bottom: 1rem;
@@ -219,6 +280,7 @@ async function reject() {
 }
 
 .meta {
+  max-width: none;
   margin: -0.5rem 0 1.5rem;
   font-size: 0.875rem;
 }

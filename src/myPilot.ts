@@ -14,6 +14,8 @@ import type { GmFields } from './rules'
 // Saves run one at a time, in order, so quick autosaves can't overtake each other and undo a newer change.
 
 export type Character = Tables<'characters'>
+// A read-only copy already loaded by the GM's change review.
+export type PilotSnapshot = { character: Character; sheet: Sheet; gm: GmFields; playerName: string }
 // A mech's private details, kept in the sheet under its id. "frame" is a frame id; "mounts" holds the weapon
 // ids on each of the frame's mounts, in the frame's order (one or two places each, null where empty);
 // "systems" holds system ids.
@@ -55,7 +57,7 @@ export type PendingChange = Tables<'pending_changes'>
 // whole proposed card and sheet). While it's a draft (not submitted), the page shows it and every save goes
 // into it instead of the pilot, so pilot_management and the mech pages edit it unchanged. Submitting puts it
 // in the GM queue (pending_changes); until a GM reviews it you can take it back to a draft or withdraw it.
-export function useMyPilot(pilotId?: number) {
+export function useMyPilot(pilotId?: number, snapshot?: PilotSnapshot) {
   // Shallow: these are replaced as a whole on every reload, so Vue doesn't need to track inside them.
   const character = shallowRef<Character | null>(null)
   const sheet = shallowRef<Sheet>({})
@@ -75,7 +77,7 @@ export function useMyPilot(pilotId?: number) {
   const draft = computed(() => (change.value?.status === 'pending' ? change.value : null))
 
   const editable = computed(
-    () => !pilotId && (!character.value || character.value.status === 'pending' || (!!draft.value && !draft.value.submitted_at)),
+    () => !snapshot && !pilotId && (!character.value || character.value.status === 'pending' || (!!draft.value && !draft.value.submitted_at)),
   )
   // The mechs column is plain JSON to the database; we always save it in the PublicMech shape.
   const mechs = computed(() => {
@@ -85,6 +87,15 @@ export function useMyPilot(pilotId?: number) {
   const traits = computed(() => parseEntries(character.value?.traits))
 
   async function load() {
+    if (snapshot) {
+      character.value = snapshot.character
+      sheet.value = snapshot.sheet
+      gm.value = snapshot.gm
+      playerName.value = snapshot.playerName
+      canSeePrivate.value = true
+      loading.value = false
+      return
+    }
     const query = supabase.from('characters').select('*, player:profiles(display_name)')
     const { data, error } = await (pilotId
       ? query.eq('id', pilotId)

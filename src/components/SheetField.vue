@@ -3,6 +3,8 @@ import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { Json } from '../lib/database.types'
 import RichText from './RichText.vue'
 import RichTextEditor from './RichTextEditor.vue'
+import ReviewText from './ReviewText.vue'
+import { sameContent } from '../textDiff'
 
 // One long piece of the pilot sheet (appearance, backstory...): a tag with its name, then a box you write
 // straight into. It saves itself a moment after you stop typing. Read-only when the sheet can't be edited.
@@ -12,6 +14,7 @@ const props = defineProps<{
   editable: boolean
   tag?: string
   save: (doc: Json | null) => Promise<string | null>
+  comparison?: { doc: unknown }
 }>()
 
 // Only taken from "doc" once: the box keeps what you typed, even when the page reloads the pilot.
@@ -42,13 +45,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="field">
+  <section class="field" :class="{ 'review-changed': comparison && !sameContent(comparison.doc, doc) }">
     <h2 class="sheet-label">
       {{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span>
       <span class="status" role="status">{{ status }}</span>
       <span v-if="error" class="status rose" role="alert">not saved: {{ error }}</span>
     </h2>
-    <RichTextEditor v-if="editable" v-model="draft" :label="title" />
+    <div v-if="comparison" class="readonly"><ReviewText :before="comparison.doc" :after="doc" rich /></div>
+    <RichTextEditor v-else-if="editable" v-model="draft" :label="title" />
     <RichText v-else-if="doc" :doc="doc" class="readonly" />
     <p v-else class="dim readonly">nothing on file.</p>
   </section>

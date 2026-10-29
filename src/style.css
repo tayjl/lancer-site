@@ -204,6 +204,13 @@ input[type='text']:focus {
   color: var(--rose);
 }
 
+/* Read-only change reviews mark affected sections without changing the regular sheets. */
+.review-changed {
+  border-left: 3px solid var(--sky);
+  padding-left: 0.75rem;
+  background: color-mix(in srgb, var(--sky) 4%, transparent);
+}
+
 .user {
   color: var(--sky);
 }

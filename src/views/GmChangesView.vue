@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { isGm, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
+import ReviewQueue from '../components/ReviewQueue.vue'
 import { supabase } from '../lib/supabaseClient'
 import { since } from '../time'
 
@@ -9,12 +10,18 @@ import { since } from '../time'
 // so whoever has waited longest is reviewed first. Drafts players are still writing don't show. Below, the
 // latest reviewed changes, which are kept as history (who reviewed them, when, and why if rejected).
 
-type Pilot = { id: number; callsign: string | null; pilot_name: string; player?: { display_name: string } | null } | null
+type Pilot = { id: number; callsign: string | null; pilot_name: string; pilot_image?: string | null; player?: { display_name: string } | null } | null
 type Waiting = { id: number; submitted_at: string; character: Pilot }
 type Reviewed = { id: number; status: string; review_reason: string | null; reviewed_at: string | null; character: Pilot; reviewer: { display_name: string } | null }
 
 const waiting = shallowRef<Waiting[]>([])
 const reviewed = shallowRef<Reviewed[]>([])
+const queueCards = computed(() => waiting.value.map(item => ({
+  id: item.id, callsign: item.character?.callsign ?? null,
+  name: item.character?.pilot_name ?? 'a deleted pilot', image: item.character?.pilot_image ?? null,
+  player: item.character?.player?.display_name ?? '-', submittedAt: item.submitted_at,
+  to: { name: 'gm-change', params: { id: item.id } },
+})))
 const loading = ref(true)
 const error = ref('')
 
@@ -22,7 +29,7 @@ async function load() {
   const [queue, history] = await Promise.all([
     supabase
       .from('pending_changes')
-      .select('id, submitted_at, character:characters(id, callsign, pilot_name, player:profiles(display_name))')
+      .select('id, submitted_at, character:characters(id, callsign, pilot_name, pilot_image, player:profiles(display_name))')
       .eq('status', 'pending')
       .not('submitted_at', 'is', null)
       .order('submitted_at'),
@@ -46,36 +53,18 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'a dele
 </script>
 
 <template>
-  <main class="page">
+  <main class="page changes-page">
     <PageHeader title="gm: changes" summary="changes players want to make to their approved pilots." />
 
     <p v-if="!profile" class="dim">loading...</p>
     <p v-else-if="!isGm" class="rose">access denied. gm clearance required.</p>
     <template v-else>
-      <section>
-        <h2 class="sheet-label">review queue</h2>
-        <p class="dim small">changes to approved pilots, oldest submission first. take the top one.</p>
-
-        <p v-if="loading" class="dim">loading queue...</p>
-        <p v-else-if="error" class="rose" role="alert">{{ error }}</p>
-        <p v-else-if="!waiting.length" class="dim">nothing waiting on a gm.</p>
-        <ol v-else class="queue">
-          <li v-for="item in waiting" :key="item.id">
-            <RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="row">
-              <span class="who">
-                <span class="callsign">{{ nameOf(item.character) }}</span>
-                <span class="dim">{{ item.character?.callsign ? item.character.pilot_name : '' }}</span>
-              </span>
-              <span class="dim">{{ item.character?.player?.display_name }}</span>
-              <span class="dim">change</span>
-              <span class="age">waiting {{ since(item.submitted_at) }}</span>
-            </RouterLink>
-          </li>
-        </ol>
-      </section>
+      <p v-if="loading" class="dim">loading queue...</p>
+      <p v-else-if="error" class="rose" role="alert">{{ error }}</p>
+      <ReviewQueue v-else :items="queueCards" description="changes to approved pilots, oldest submission first. open a pilot to review the full change." />
 
       <section v-if="reviewed.length">
-        <h2 class="sheet-label">history</h2>
+        <h2>history</h2>
         <p class="dim small">the latest reviewed changes.</p>
         <ul class="queue">
           <li v-for="item in reviewed" :key="item.id">
@@ -94,9 +83,9 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'a dele
 </template>
 
 <style scoped>
-section {
-  margin-bottom: 2rem;
-}
+.changes-page { min-width: 0; max-width: none; }
+section { margin-bottom: 2rem; }
+h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
 
 .small {
   margin: 0.5rem 0 0.75rem;

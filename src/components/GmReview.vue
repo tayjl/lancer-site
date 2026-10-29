@@ -5,8 +5,8 @@ import type { Character } from '../myPilot'
 import RuleCheck from './RuleCheck.vue'
 
 // GMs and owners only, on the review page (opened from the gm: pilots tab or any record): a pilot's level and manna received
-// (homebrew; src/rules.ts), which only GMs set, for any pilot. While the pilot is pending, also the decision.
-// Level and manna save on their own; approving clears any note and moves the pilot to the registry. Sending back leaves it pending with a note
+// (homebrew; src/rules.ts), which only GMs set, after review. Pending pilots only get the decision and note.
+// Approving moves the pilot to the registry; refusing leaves it pending. Either decision saves the note
 // the player sees on their sheet. "problems" is the rule check, shown above the buttons; approving with
 // problems asks first. The database enforces who can do this; the page only hides it from players.
 const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name'>; problems: string[] }>()
@@ -74,7 +74,7 @@ async function approve() {
   const warning = props.problems.length ? ` the rule check lists ${props.problems.length} problem(s).` : ''
   if (!window.confirm(`approve ${name.value}? they'll appear in the pilot registry.${warning}`)) return
   busy.value = true
-  const sheetError = await saveSheet({ review_note: null })
+  const sheetError = await saveSheet({ review_note: note.value.trim() || null })
   const { error: statusError } = sheetError
     ? { error: sheetError }
     : await supabase
@@ -101,7 +101,7 @@ async function sendBack() {
     <h2 class="sheet-label">{{ pending ? 'decision' : 'gm controls' }}<span class="tag"> [gm only]</span></h2>
     <p v-if="loading" class="dim">loading...</p>
     <form v-else class="decision-body" @submit.prevent>
-      <div class="numbers">
+      <div v-if="!pending" class="numbers">
         <label>
           <span class="dim">level (gained narratively)</span>
           <input v-model.number="level" type="number" min="0" step="1" />
@@ -114,7 +114,7 @@ async function sendBack() {
       </div>
       <template v-if="pending">
         <label>
-          <span class="dim">note to the player (needed to send back)</span>
+          <span class="dim">note to the player (sent with either decision; required to refuse)</span>
           <textarea v-model="note" rows="3"></textarea>
         </label>
         <RuleCheck :problems="problems" />
@@ -123,7 +123,7 @@ async function sendBack() {
       <p v-else-if="message" class="dim" role="status">{{ message }}</p>
       <div v-if="pending" class="actions">
         <button type="button" :disabled="busy" @click="approve">approve pilot</button>
-        <button type="button" :disabled="busy" @click="sendBack">send back with note</button>
+        <button type="button" :disabled="busy" @click="sendBack">refuse pilot</button>
       </div>
       <div v-else-if="pilot.status === 'approved'" class="actions">
         <button type="button" class="rose" :disabled="busy" @click="markDead">mark pilot dead</button>
