@@ -25,7 +25,7 @@ update public.profiles set role = 'owner' where id = '44444444-4444-4444-4444-44
 insert into public.characters (id, player_id, status, pilot_name, callsign)
   overriding system value
   values (100, '22222222-2222-2222-2222-222222222222', 'approved', 'Two', 'Deuce');
-insert into public.character_sheets (character_id, sheet, mod_points) values (100, '{"manna": 50}', 2);
+insert into public.character_sheets (character_id, sheet, level) values (100, '{"manna": 50}', 2);
 insert into public.organisations (id, name) overriding system value values (1, 'Harrison Armory');
 insert into public.reputation_levels (id, name) overriding system value values (1, 'Neutral');
 insert into public.reputation (character_id, organisation_id, level_id) values (100, 1, 1);
@@ -77,6 +77,19 @@ select lives_ok(
      where pilot_name = 'One' $$,
   'players can save formatted text on their pending character');
 select throws_ok(
+  $$ update public.character_sheets set level = 5
+     where character_id = (select id from public.characters where pilot_name = 'One') $$,
+  'P0001', null, 'players cannot raise their own level, even while pending');
+select throws_ok(
+  $$ update public.character_sheets set manna = 9999
+     where character_id = (select id from public.characters where pilot_name = 'One') $$,
+  'P0001', null, 'players cannot give themselves manna, even while pending');
+select throws_ok(
+  $$ insert into public.character_sheets (character_id, sheet, manna)
+     values ((select id from public.characters where pilot_name = 'One'), '{}', 500)
+     on conflict (character_id) do update set manna = excluded.manna $$,
+  'P0001', null, 'players cannot give themselves manna by re-inserting their sheet');
+select throws_ok(
   $$ update public.characters set status = 'approved' where pilot_name = 'One' $$,
   '42501', null, 'players cannot approve their own character');
 
@@ -109,7 +122,7 @@ with attempt as (
 select is((select count(*)::int from attempt), 0, 'players cannot edit their approved character directly');
 
 with attempt as (
-  update public.character_sheets set mod_points = 99 where character_id = 100 returning 1
+  update public.character_sheets set sheet = '{"manna": 99}' where character_id = 100 returning 1
 )
 select is((select count(*)::int from attempt), 0, 'players cannot edit their approved sheet directly');
 
@@ -126,6 +139,18 @@ select lives_ok(
   $$ update public.pending_changes set proposed_sheet = '{"manna": 30}'
      where character_id = 100 and status = 'pending' $$,
   'players can edit their pending change');
+
+-- Until it's submitted, a change is a draft no one can approve.
+set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+select throws_ok(
+  $$ select public.approve_change(
+       (select id from public.pending_changes where character_id = 100 and status = 'pending')) $$,
+  'P0001', null, 'GMs cannot approve a draft change');
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+select lives_ok(
+  $$ update public.pending_changes set submitted_at = now()
+     where character_id = 100 and status = 'pending' $$,
+  'players can submit their change for review');
 select throws_ok(
   $$ update public.pending_changes set status = 'approved'
      where character_id = 100 and status = 'pending' $$,
@@ -143,6 +168,10 @@ select is((select count(*)::int from public.pending_changes), 0, 'players cannot
 -- GM
 -- ---------------------------------------------------------------------
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+select lives_ok(
+  $$ update public.character_sheets set level = 3, manna = 1200 where character_id = 100 $$,
+  'GMs can set a level and manna');
+update public.character_sheets set level = 2, manna = 0 where character_id = 100;
 
 select is((select count(*)::int from public.character_sheets where character_id = 100), 1, 'GMs can see every sheet');
 select is((select count(*)::int from public.reputation), 1, 'GMs can see reputation');
@@ -160,8 +189,8 @@ select lives_ok(
 select is((select callsign from public.characters where id = 100), 'Deuce Prime', 'approving updates the public card');
 select is((select sheet ->> 'manna' from public.character_sheets where character_id = 100), '30',
   'approving updates the sheet');
-select is((select mod_points from public.character_sheets where character_id = 100), 2,
-  'approving leaves mod points alone');
+select is((select level from public.character_sheets where character_id = 100), 2,
+  'approving leaves the level alone');
 select is((select status::text from public.pending_changes where character_id = 100), 'approved',
   'the approved change is kept as history');
 
@@ -172,6 +201,7 @@ select lives_ok(
      values (100, '22222222-2222-2222-2222-222222222222',
              '{"pilot_name": "Two", "callsign": "Stale", "mechs": []}', '{"manna": 0}', now() - interval '1 hour') $$,
   'players can propose another change once the last one is reviewed');
+update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending';
 
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select throws_ok(

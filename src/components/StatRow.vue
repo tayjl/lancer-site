@@ -1,24 +1,34 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import StatIcon from './StatIcon.vue'
 
 // A row of stats: each one's name and number, with - and + to change it when editable. One line when there's
 // room; in a narrow space (phones) each stat gets its own line instead, so they stay lined up.
 // "bonus" (e.g. from bionics) is shown next to the number, but isn't part of what you set. A null value
 // (not worked out yet) shows as "-". "icon" is an SVG's url, drawn in the text colour.
-defineProps<{
+// With "budget", the values share a pool of points (e.g. HASE: 2 + licence level): the header shows
+// used/total, and + stops once it's spent.
+const props = defineProps<{
   title: string
   tag?: string
   stats: { id: string; name: string; value: number | null; bonus?: number; icon?: string }[]
   editable: boolean
   min: number
   max: number
+  budget?: { label: string; total: number }
 }>()
 const emit = defineEmits<{ set: [id: string, value: number] }>()
+
+const used = computed(() => props.stats.reduce((sum, stat) => sum + (stat.value ?? 0), 0))
+const spent = computed(() => !!props.budget && used.value >= props.budget.total)
 </script>
 
 <template>
   <section class="stat-row">
-    <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span></h2>
+    <header class="head">
+      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span></h2>
+      <span v-if="budget" class="budget" :class="{ rose: used > budget.total }">{{ budget.label }} {{ used }}/{{ budget.total }}</span>
+    </header>
     <ul>
       <li v-for="stat in stats" :key="stat.id">
         <span class="name">
@@ -40,7 +50,7 @@ const emit = defineEmits<{ set: [id: string, value: number] }>()
           <button
             type="button"
             :aria-label="`raise ${stat.name}`"
-            :disabled="stat.value === null || stat.value >= max"
+            :disabled="stat.value === null || stat.value >= max || spent"
             @click="emit('set', stat.id, stat.value! + 1)"
           >
             +
@@ -54,6 +64,18 @@ const emit = defineEmits<{ set: [id: string, value: number] }>()
 <style scoped>
 .stat-row {
   container-type: inline-size;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+}
+
+.budget {
+  color: var(--text-dim);
+  font-size: 0.8125rem;
 }
 
 ul {

@@ -3,25 +3,33 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import AddBox from '../components/AddBox.vue'
+import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import GmReview from '../components/GmReview.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
+import RankPanel from '../components/RankPanel.vue'
+import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import { bionicItems, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
+import { useMechData } from '../mechData'
 import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
+import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, PRICES, rankName, skillPoints } from '../rules'
 
-// pilot_management: your pilot as one sheet, laid out like COMP/CON. The important bits across the top,
+// my pilot: your pilot as one sheet, laid out like COMP/CON. The important bits across the top,
 // long writing on the left, the portrait and identity table on the right (above the writing on phones),
 // then stats, bionics, gear and the mech hangar. Everything is edited in place and saves itself.
 // While a pilot is pending you can edit it directly; once it's approved, changes go through pending
 // paperwork (not built yet), so the sheet turns read-only.
 // The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
 // just like your own sheet. Private sections show only when the database hands over the sheet (the pilot's
-// player, GMs and owners). On the gm-review route (from gm_view's queue) GMs also get the decision.
+// player, GMs and owners). On the gm-review route (from the gm: pilots tab) GMs also get their controls: level,
+// manna and, while pending, the decision.
+// Homebrew (src/rules.ts): level (set by GMs) gives HASE points and the mod limit; manna (received from GMs)
+// buys licence ranks, biomods and talent ranks; every 3 licence ranks give a free core bonus.
 
 const route = useRoute()
 const router = useRouter()
@@ -31,7 +39,7 @@ const reviewing = route.name === 'gm-review'
 const {
   character,
   sheet,
-  modPoints,
+  gm,
   reviewNote,
   playerName,
   canSeePrivate,
@@ -44,20 +52,41 @@ const {
   updateCharacter,
   updateSheet,
   resubmit,
+  change,
+  draft,
+  proposeChange,
+  submitChange,
+  reopenChange,
+  withdrawChange,
+  markDead,
 } = useMyPilot(pilotId)
+
+// Your approved pilot: changes are proposed, then a GM approves them (src/myPilot.ts).
+const approvedOwn = computed(() => own && character.value?.status === 'approved')
+function confirmDeath() {
+  const name = character.value!.callsign ?? character.value!.pilot_name
+  if (window.confirm(`mark ${name} dead? this can't be undone. they move to the memorial, and you can register a new pilot.`))
+    track(markDead())
+}
+
+function withdraw() {
+  if (window.confirm('withdraw this change? everything in it is thrown away; your approved pilot stays as it is.')) track(withdrawChange())
+}
 
 // Records lead back to the queue, or to the list the pilot is in.
 const back = computed(() =>
   reviewing
-    ? { name: 'gm', label: 'gm_view' }
+    ? { name: 'gm-pilots', label: 'gm: pilots' }
     : character.value?.status === 'pending'
-      ? { name: 'pending', label: 'pending_paperwork' }
-      : { name: 'registry', label: 'pilot_registry' },
+      ? { name: 'pending', label: 'pending pilots' }
+      : character.value?.status === 'dead'
+        ? { name: 'memorial', label: 'memorial' }
+        : { name: 'registry', label: 'pilot registry' },
 )
 // Your own mechs open for editing; anyone else's open read-only under their record.
 const mechLink = (mechId: string) =>
   own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId } }
-const { gear, bionics, pilotStats } = useGameData()
+const { gear, bionics, pilotStats, talents, coreBonuses } = useGameData()
 
 // The identity table under the portrait. [column, label]
 const IDENTITY = [
@@ -71,8 +100,7 @@ const IDENTITY = [
 ] as const
 type TextColumn = (typeof IDENTITY)[number][0] | 'callsign' | 'pilot_name'
 
-// Stats start at 1. shortcut: 0 to 6 for every stat (LANCER's range for mech skills); revisit once the
-// custom pilot stats' rules are decided.
+// 0 to 6 for every stat. Mech skills (HASE) start at 0 and share 2 + level points; personal stats start at 1. shortcut: personal stats use HASE's range until their rules are decided.
 const STAT_MIN = 0
 const STAT_MAX = 6
 
@@ -119,6 +147,49 @@ const saveBackstory = (doc: Json | null) => updateSheet({ backstory: doc })
 // --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value))
 
+// --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
+const { frames, weapons, systems, integrated } = useMechData()
+const balance = computed(() => gm.value.manna - mannaSpent(sheet.value))
+// Rules text without its HTML (shown as plain text).
+const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+
+// Licences: one per licensed frame. Rank II unlocks the frame; each rank unlocks its gear of that level.
+const licenceOptions = computed(() =>
+  frames.value
+    .filter((frame) => frame.licenceLevel > 0)
+    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/').toLowerCase() })),
+)
+const licenceDetails = (_id: string, rank: number) => [
+  `${rank >= 2 ? 'frame unlocked' : 'frame unlocks at rank II'}; gear up to rank ${rankName(rank)} is free to print.`,
+]
+const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
+
+// Talents: each rank's name and rules, up to the rank held.
+const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse })))
+const talentDetails = (id: string, rank: number) =>
+  (talents.value.find((t) => t.id === id)?.ranks ?? []).slice(0, rank).map((r, i) => `${rankName(i + 1)} ${r.name}: ${plain(r.description)}`)
+const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({ talents: talentRanks }))
+
+const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids }))
+
+// Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
+const problems = computed(() =>
+  frames.value.length
+    ? pilotProblems(
+        sheet.value,
+        gm.value,
+        {
+          frames: frames.value,
+          weapons: new Map(weapons.value.map((w) => [w.id, w])),
+          systems: new Map(systems.value.map((s) => [s.id, s])),
+          integrated: integrated.value,
+          bionicCosts: new Map(bionics.value.map((b) => [b.id, b.mod_point_cost])),
+        },
+        Object.fromEntries(mechs.value.map((m) => [m.id, m.name])),
+      )
+    : [],
+)
+
 // Saves every stat in the row, so the sheet records the defaults too, not just the one that changed.
 function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value: number }[], id: string, value: number) {
   const values: Sheet['pilot_stats'] = Object.fromEntries(stats.map((stat) => [stat.id, stat.value]))
@@ -156,8 +227,8 @@ async function createMech() {
   <main class="page manage">
     <nav v-if="!own" class="links">
       <RouterLink :to="{ name: back.name }">&lt; {{ back.label }}</RouterLink>
-      <RouterLink v-if="isGm && !reviewing && character?.status === 'pending'" :to="{ name: 'gm-review', params: { id: pilotId } }">
-        review in gm_view
+      <RouterLink v-if="isGm && !reviewing && character" :to="{ name: 'gm-review', params: { id: pilotId } }">
+        {{ character.status === 'pending' ? 'gm review' : 'gm controls: level and manna' }}
       </RouterLink>
     </nav>
 
@@ -208,26 +279,70 @@ async function createMech() {
           />
           <p v-else class="name">{{ character.pilot_name }}</p>
         </div>
-        <dl class="glance-facts">
-          <div>
-            <dt>player</dt>
-            <dd>{{ playerName || '-' }}</dd>
-          </div>
-          <div>
-            <dt>status</dt>
-            <dd class="badge" :class="character.status">{{ character.status }}</dd>
-          </div>
-        </dl>
-        <p class="save-status" role="status">
-          <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-          <span v-else class="dim">{{ status }}</span>
-        </p>
-        <p v-if="own && !editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
-        <div v-else-if="own && reviewNote" class="gm-note" role="note">
+        <div class="glance-side">
+          <dl class="glance-facts">
+            <div>
+              <dt>player</dt>
+              <dd>{{ playerName || '-' }}</dd>
+            </div>
+            <div>
+              <dt>status</dt>
+              <dd class="badge" :class="character.status">{{ character.status }}</dd>
+            </div>
+            <template v-if="canSeePrivate">
+              <div>
+                <dt>level</dt>
+                <dd>{{ gm.level }}</dd>
+              </div>
+              <div :title="`${gm.manna} received, ${mannaSpent(sheet)} spent`">
+                <dt>manna</dt>
+                <dd :class="{ rose: balance < 0 }">{{ balance }}</dd>
+              </div>
+            </template>
+          </dl>
+          <p v-if="own" class="save-status" role="status">
+            <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+            <span v-else class="dim">{{ status }}</span>
+          </p>
+        </div>
+        <div v-if="own && reviewNote" class="gm-note" role="note">
           <p class="rose">sent back by a gm. change what they asked, then resubmit to rejoin the review queue.</p>
           <p>{{ reviewNote }}</p>
           <button type="button" @click="track(resubmit())">resubmit for review</button>
         </div>
+
+        <!-- Your approved pilot: propose a change, write it, submit it, wait for a GM. -->
+        <div
+          v-if="approvedOwn"
+          class="change-note"
+          :class="{ rejected: !draft && change?.status === 'rejected', plain: !draft && change?.status !== 'rejected' }"
+          role="note"
+        >
+          <template v-if="!draft">
+            <template v-if="change?.status === 'rejected'">
+              <p class="rose">a gm rejected your last change.</p>
+              <p>{{ change.review_reason }}</p>
+            </template>
+            <div class="actions">
+              <button type="button" @click="track(proposeChange())">propose changes</button>
+            </div>
+          </template>
+          <template v-else-if="!draft.submitted_at">
+            <p>proposing changes. edit the sheet as normal, then submit it. your approved pilot stays as it is until a gm approves.</p>
+            <div class="actions">
+              <button type="button" @click="track(submitChange())">submit for review</button>
+              <button type="button" @click="withdraw">withdraw</button>
+            </div>
+          </template>
+          <template v-else>
+            <p>change submitted, waiting on a gm. the sheet shows what you submitted.</p>
+            <div class="actions">
+              <button type="button" @click="track(reopenChange())">edit change</button>
+              <button type="button" @click="withdraw">withdraw</button>
+            </div>
+          </template>
+        </div>
+        <RuleCheck v-if="canSeePrivate" class="full" :problems="problems" />
       </header>
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
@@ -285,15 +400,50 @@ async function createMech() {
             :editable="editable"
             :min="STAT_MIN"
             :max="STAT_MAX"
+            :budget="{ label: 'hase points', total: skillPoints(gm.level) }"
             @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+          />
+          <RankPanel
+            title="licences"
+            noun="licence"
+            :options="licenceOptions"
+            :held="sheet.licences ?? {}"
+            :details="licenceDetails"
+            :price="PRICES.licenceRank"
+            :balance="balance"
+            :editable="editable"
+            :save="saveLicences"
+          >
+            <template #summary>
+              <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
+            </template>
+          </RankPanel>
+          <CoreBonusPanel
+            :options="coreBonuses"
+            :taken="sheet.core_bonuses ?? []"
+            :picks="coreBonusPicks(sheet)"
+            :editable="editable"
+            :save="saveCoreBonuses"
+          />
+          <RankPanel
+            title="talents"
+            noun="talent"
+            :options="talentOptions"
+            :held="sheet.talents ?? {}"
+            :details="talentDetails"
+            :price="PRICES.talentRank"
+            :balance="balance"
+            :editable="editable"
+            :save="saveTalents"
           />
           <LoadoutBox
             title="bionics"
             tag="private"
-            :items="bionicItems(bionics)"
+            :items="bionicItems(bionics, PRICES.bionic)"
             :chosen="sheet.bionics ?? []"
             :editable="editable"
-            :limit="{ label: 'mod limit', unit: 'mod points', max: modPoints }"
+            :limit="{ label: 'mod limit', unit: 'mod points', max: modLimit(gm.level) }"
+            :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
             :save="saveBionics"
           />
           <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
@@ -335,8 +485,17 @@ async function createMech() {
           </div>
         </section>
 
+        <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
+        <section v-if="approvedOwn" class="death">
+          <h2 class="sheet-label">death</h2>
+          <div class="death-body">
+            <p class="dim">if your pilot dies in the story, mark them dead. this can't be undone.</p>
+            <button type="button" @click="confirmDeath">mark pilot dead</button>
+          </div>
+        </section>
+
         <!-- :key resets the decision box after a decision, so it shows the new status. -->
-        <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" @reviewed="load" />
+        <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :problems="problems" @reviewed="load" />
       </div>
     </div>
   </main>
@@ -387,8 +546,51 @@ async function createMech() {
   grid-area: glance;
 }
 
-.gm-note {
+.gm-note,
+.full {
   flex-basis: 100%;
+}
+
+/* Your approved pilot's change: lilac while you write or wait, rose once rejected. */
+.change-note {
+  flex-basis: 100%;
+  padding: 0.6rem 0.9rem;
+  border-left: 3px solid var(--lilac);
+  background: var(--panel);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.change-note.rejected {
+  border-left-color: var(--rose);
+}
+
+/* Nothing to say yet: just the button. */
+.change-note.plain {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.change-note.plain .actions {
+  margin-top: 0;
+}
+
+.change-note p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.change-note .actions {
+  margin-top: 0.5rem;
+}
+
+.change-note button {
+  padding-inline: 0;
+  font-size: 0.8125rem;
+}
+
+.gm-note {
   padding: 0.6rem 0.9rem;
   border-left: 3px solid var(--rose);
   background: var(--panel);
@@ -404,12 +606,6 @@ async function createMech() {
 .gm-note button {
   margin-top: 0.5rem;
   padding-inline: 0;
-  font-size: 0.8125rem;
-}
-
-.note {
-  flex-basis: 100%;
-  margin: 0;
   font-size: 0.8125rem;
 }
 
@@ -446,7 +642,7 @@ async function createMech() {
 .glance {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 1rem 2.5rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--rule);
@@ -476,19 +672,26 @@ input.name {
   margin-left: -0.35rem;
 }
 
+/* Player and status (or pilot and frame) on the right, centred against the callsign and name. The save
+   status hangs just below without taking up room, so it doesn't pull them off centre. */
+.glance-side {
+  position: relative;
+}
+
 .glance-facts {
   display: flex;
-  gap: 2rem;
+  gap: 2.5rem;
   margin: 0;
 }
 
 .glance-facts dt {
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .glance-facts dd {
   margin: 0;
+  font-size: 1.125rem;
 }
 
 /* The status as a small outlined badge: rose while pending, sky once approved. */
@@ -506,11 +709,36 @@ input.name {
   color: var(--sky);
 }
 
+.badge.dead {
+  color: var(--text-dim);
+}
+
+.death-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+}
+
+.death-body p {
+  margin: 0;
+}
+
+.death-body button {
+  padding-inline: 0;
+  color: var(--rose);
+}
+
 .save-status {
-  min-width: 8rem;
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  right: 0;
   margin: 0;
   font-size: 0.8125rem;
-  text-align: right;
+  white-space: nowrap;
 }
 
 /* --- Portrait and identity table --- */
@@ -694,8 +922,11 @@ input.name {
   }
 
   .save-status {
-    min-width: 0;
+    position: static;
+    min-height: 1.25rem;
+    margin-top: 0.35rem;
     text-align: center;
+    white-space: normal;
   }
 }
 </style>

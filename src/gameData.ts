@@ -1,31 +1,65 @@
 import { shallowRef } from 'vue'
-import armourIcon from './assets/icons/armour.svg'
-import evasionIcon from './assets/icons/evasion.svg'
-import heatIcon from './assets/icons/heat.svg'
-import hpIcon from './assets/icons/hp.svg'
-import stressIcon from './assets/icons/reactor.svg'
-import repairIcon from './assets/icons/repair.svg'
-import structureIcon from './assets/icons/structure.svg'
-import systemPointIcon from './assets/icons/system_point.svg'
 import { supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
 
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
 // bionics, and the custom pilot stats. Characters only store ids; names and details come from here.
+// The mech page's catalogues (frames, mech weapons, systems) are in src/mechData.ts.
 
-// Pilot gear as lancer-data has it: "type" is Armor, Weapon or Gear; armour has bonuses, weapons range and
-// damage. "effect" is the rules text (it can hold simple HTML), "description" the flavour.
+// A LANCER item (pilot gear, mech weapon or system) as lancer-data has it, cut down to what the site shows.
+// "type" is pilot gear's Armor/Weapon/Gear, a weapon's type (Rifle...) or a system's (AI...). "mount" is a
+// mech weapon's size (Auxiliary, Main, Heavy, Superheavy); "sp" what it costs in system points. Armour has
+// bonuses, weapons range and damage (or several "profiles", of which the first is shown). "effect" is the
+// rules text (it can hold simple HTML), "description" the flavour. "licenceId" is the frame whose licence
+// unlocks it and "licenceLevel" the rank needed (0: free, e.g. GMS); see docs/lancer-rules.md.
 type Value = number | string
-export type GearItem = {
+export type Item = {
   id: string
   name: string
   type: string
+  mount: string
+  sp: number
+  licenceId: string
+  licenceLevel: number
   description: string
   effect: string
   bonuses: { id: string; val: Value; replace?: boolean }[]
   range: { type: string; val: Value }[]
   damage: { type: string; val: Value }[]
   tags: { id: string; val?: Value }[]
+}
+
+// Pack data is plain JSON to the database; this picks out the fields the site shows.
+export function toItem(id: string, data: unknown): Item {
+  const item = (data ?? {}) as Record<string, unknown>
+  const profile = (Array.isArray(item.profiles) ? item.profiles[0] : undefined) as Record<string, unknown> | undefined
+  const list = <T>(value: unknown) => (Array.isArray(value) ? value : []) as T[]
+  return {
+    id,
+    name: String(item.name ?? id),
+    type: String(item.type ?? ''),
+    mount: String(item.mount ?? ''),
+    sp: Number(item.sp ?? 0) || 0,
+    licenceId: String(item.license_id ?? ''),
+    licenceLevel: Number(item.license_level ?? 0) || 0,
+    description: String(item.description ?? ''),
+    effect: String(item.effect ?? ''),
+    bonuses: list<Item['bonuses'][number]>(item.bonuses),
+    range: list<Item['range'][number]>(item.range ?? profile?.range),
+    damage: list<Item['damage'][number]>(item.damage ?? profile?.damage),
+    tags: list<Item['tags'][number]>(item.tags),
+  }
+}
+
+// Tag names by id (lancer-data's tags, e.g. "Limited {VAL}"), shared by every page. Loaded once.
+export const tagNames = shallowRef(new Map<string, string>())
+let tagsLoading: Promise<void> | undefined
+export function loadTagNames() {
+  tagsLoading ??= (async () => {
+    const { data } = await supabase.from('content_items').select('id, data').eq('kind', 'tags')
+    tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
+  })()
+  return tagsLoading
 }
 export type Bionic = {
   id: number
@@ -37,6 +71,10 @@ export type Bionic = {
   bonuses: { stat_id: string; amount: number }[]
 }
 export type PilotStat = { id: string; name: string }
+// A talent: three ranks, each with a name and rules text (simple HTML). A core bonus: its manufacturer and
+// rules text. Both from the imported LANCER packs.
+export type Talent = { id: string; name: string; terse: string; ranks: { name: string; description: string }[] }
+export type CoreBonus = { id: string; name: string; source: string; effect: string }
 
 // A pilot's loadout slots: one armour, two weapons, three gear.
 const LOADOUT = [
@@ -72,81 +110,68 @@ export const MECH_SKILLS: PilotStat[] = [
   { id: 'engineering', name: 'engineering' },
 ]
 
-// A mech's stats, in COMP/CON's order, with LANCER's symbols (src/assets/icons: COMP/CON's, plus Material
-// Design's heart and shield, as COMP/CON uses for hp and armour). They come from the frame and the pilot's
-// choices, so they're worked out, never stored.
-// shortcut: every value is null ("-") until frames are imported; then calculate them from the frame and HASE.
-const MECH_STATS = [
-  ['structure', 'structure', structureIcon],
-  ['stress', 'stress', stressIcon],
-  ['hp', 'hp', hpIcon],
-  ['heat', 'heat cap', heatIcon],
-  ['armour', 'armour', armourIcon],
-  ['evasion', 'evasion', evasionIcon],
-  ['repair', 'repair cap', repairIcon],
-  ['system_points', 'system points', systemPointIcon],
-] as const
-
-export const mechStats = () => MECH_STATS.map(([id, name, icon]) => ({ id, name, icon, value: null }))
-
-// A sheet's stats, ready for StatRow: every stat (1 if it was never set), with bionic bonuses on the
-// personal stats. Used by your own sheet and by the GM review.
+// A sheet's stats, ready for StatRow, with bionic bonuses on the personal stats. Personal stats (house
+// rule) start at 1 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
 export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[]) {
   const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses)
   const bonusFor = (statId: string) => installed.reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
-  const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[]) =>
-    stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet[key]?.[stat.id] ?? 1 }))
+  const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[], start: number) =>
+    stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet[key]?.[stat.id] ?? start }))
   return {
-    personal: values('pilot_stats', pilotStats).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
-    piloting: values('mech_skills', MECH_SKILLS),
+    personal: values('pilot_stats', pilotStats, 1).map((stat) => ({ ...stat, bonus: bonusFor(stat.id) })),
+    piloting: values('mech_skills', MECH_SKILLS, 0),
   }
 }
 
-// Bionics as LoadoutBox items: the bonuses and manna cost as the subtitle, the mod-point cost as the cost.
-export const bionicItems = (catalogue: Bionic[]) =>
+// Bionics as LoadoutBox items: the bonuses and manna price as the subtitle, the mod-point cost as the cost.
+// Every biomod costs the same (homebrew; PRICES in src/rules.ts), so the bionics table's own manna_cost is unused.
+export const bionicItems = (catalogue: Bionic[], price: number) =>
   catalogue.map((b) => ({
     id: b.id,
     name: b.name,
-    type: [...b.bonuses.map((bonus) => `+${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${b.manna_cost} manna`].join(', '),
+    type: [...b.bonuses.map((bonus) => `+${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${price} manna`].join(', '),
     description: b.description,
     cost: b.mod_point_cost,
     retired: b.retired,
   }))
 
 export function useGameData() {
-  const gear = shallowRef<GearItem[]>([])
+  const gear = shallowRef<Item[]>([])
   const bionics = shallowRef<Bionic[]>([])
   const pilotStats = shallowRef<PilotStat[]>([])
+  const talents = shallowRef<Talent[]>([])
+  const coreBonuses = shallowRef<CoreBonus[]>([])
 
   async function load() {
-    const [gearRows, bionicRows, statRows] = await Promise.all([
-      supabase.from('content_items').select('id, data').eq('kind', 'pilot_gear'),
+    loadTagNames()
+    const [contentRows, bionicRows, statRows] = await Promise.all([
+      supabase.from('content_items').select('id, kind, data').in('kind', ['pilot_gear', 'talents', 'core_bonuses']),
       supabase.from('bionics').select('*, bonuses:bionic_bonuses(stat_id, amount)').order('name'),
       supabase.from('pilot_stats').select('id, name').order('sort_order'),
     ])
-    // Pack data is plain JSON to the database; pick out the fields the sheet shows.
-    gear.value = (gearRows.data ?? [])
-      .map(({ id, data }) => {
-        const item = (data ?? {}) as Record<string, unknown>
-        const list = <T>(value: unknown) => (Array.isArray(value) ? value : []) as T[]
-        return {
-          id,
-          name: String(item.name ?? id),
-          type: String(item.type ?? 'Gear'),
-          description: String(item.description ?? ''),
-          effect: String(item.effect ?? ''),
-          bonuses: list<GearItem['bonuses'][number]>(item.bonuses),
-          range: list<GearItem['range'][number]>(item.range),
-          damage: list<GearItem['damage'][number]>(item.damage),
-          tags: list<GearItem['tags'][number]>(item.tags),
-        }
-      })
+    const rows = contentRows.data ?? []
+    const of = (kind: string) => rows.filter((row) => row.kind === kind)
+    gear.value = of('pilot_gear')
+      .map(({ id, data }) => toItem(id, data))
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
     bionics.value = bionicRows.data ?? []
     pilotStats.value = statRows.data ?? []
+    talents.value = of('talents')
+      .map(({ id, data }) => {
+        const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: { name?: string; description?: string }[] }
+        const ranks = (talent.ranks ?? []).map((rank) => ({ name: String(rank.name ?? ''), description: String(rank.description ?? '') }))
+        return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+    coreBonuses.value = of('core_bonuses')
+      .map(({ id, data }) => {
+        const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string }
+        return { id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: String(bonus.effect ?? '') }
+      })
+      .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))
   }
 
   load()
 
-  return { gear, bionics, pilotStats }
+  return { gear, bionics, pilotStats, talents, coreBonuses }
 }

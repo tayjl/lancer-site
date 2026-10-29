@@ -3,7 +3,8 @@ import { computed, ref, useTemplateRef } from 'vue'
 
 // A loadout section (gear, bionics): the chosen items as cards, and a small edit button that opens a picker.
 // Only items from the catalogue can be added. With "limit", each item's cost counts against a cap
-// (e.g. bionics against the mod limit), and the picker won't add anything that goes over it.
+// (e.g. bionics against the mod limit), and the picker won't add anything that goes over it. "addBlocked"
+// stops all adding and says why (e.g. "not enough manna").
 type Id = string | number
 type Item = { id: Id; name: string; type?: string; description?: string | null; cost?: number; retired?: boolean }
 
@@ -14,6 +15,7 @@ const props = defineProps<{
   editable: boolean
   tag?: string
   limit?: { label: string; unit: string; max: number }
+  addBlocked?: string
   save: (ids: Id[]) => Promise<string | null>
 }>()
 
@@ -94,8 +96,8 @@ function open() {
             <span v-if="item.description" class="description">{{ item.description }}</span>
           </div>
           <button v-if="chosen.includes(item.id)" type="button" :disabled="saving" @click="toggle(item)">remove</button>
-          <button v-else type="button" :disabled="saving || tooCostly(item)" @click="toggle(item)">
-            {{ tooCostly(item) ? 'over limit' : 'add' }}
+          <button v-else type="button" :disabled="saving || tooCostly(item) || !!addBlocked" @click="toggle(item)">
+            {{ tooCostly(item) ? 'over limit' : addBlocked || 'add' }}
           </button>
         </li>
       </ul>

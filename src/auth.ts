@@ -9,6 +9,8 @@ export const session = ref<Session | null>(null)
 export const profile = ref<Profile | null>(null)
 // For showing or hiding GM things on the page. The database enforces the real rules.
 export const isGm = computed(() => profile.value?.role === 'gm' || profile.value?.role === 'owner')
+// Owners also manage game content (the editors and the LCP importer).
+export const isOwner = computed(() => profile.value?.role === 'owner')
 
 // If a login fails (e.g. Discord was cancelled), Supabase sends the reason back in the URL.
 const urlParams = new URLSearchParams(window.location.hash.slice(1) || window.location.search)

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import GlitchText from '../components/GlitchText.vue'
+import PageHeader from '../components/PageHeader.vue'
 import PilotCard from '../components/PilotCard.vue'
 import { fetchPilots, type PublicPilot } from '../pilots'
 
-// A grid of pilot cards with one status: pilot_registry shows approved pilots, pending_paperwork shows
-// pilots waiting on a GM (route meta.status). Cards hold public info only, so every logged-in user sees them.
+// A grid of pilot cards with one status (route meta.status): the registry shows approved pilots, pending the
+// new pilots waiting on a GM, the memorial dead pilots. Cards hold public info only, so every logged-in user
+// sees them.
 const route = useRoute()
 const pilots = shallowRef<PublicPilot[]>([])
 const loading = ref(true)
@@ -25,8 +26,9 @@ watch(
 
 <template>
   <main class="page">
-    <h1 :key="route.path"><span class="prompt" aria-hidden="true">&gt; </span><GlitchText :text="String(route.meta.title)" /></h1>
-    <p class="dim summary">{{ route.meta.summary }}</p>
+    <PageHeader :title="String(route.meta.title)" :summary="route.meta.summary">
+      <span v-if="!loading && !error && pilots.length" class="dim">{{ pilots.length }} {{ pilots.length === 1 ? 'pilot' : 'pilots' }}</span>
+    </PageHeader>
 
     <p v-if="loading" class="dim">loading records...</p>
     <p v-else-if="error" class="rose" role="alert">{{ error }}</p>
@@ -38,11 +40,6 @@ watch(
 </template>
 
 <style scoped>
-.summary {
-  margin: -0.5rem 0 1.5rem;
-  font-size: 0.875rem;
-}
-
 /* Small cards, as many to a row as fit, so the registry is easy to browse. */
 .grid {
   display: grid;

@@ -63,13 +63,13 @@ isOneToOne: false
                   ]
                 },"character_sheets": {
                   Row: {
-                    "character_id": number,"mod_points": number,"review_note": string | null,"sheet": NonNullable<Json>,"updated_at": string
+                    "character_id": number,"level": number,"manna": number,"review_note": string | null,"sheet": NonNullable<Json>,"updated_at": string
                   }
                   Insert: {
-                    "character_id": number,"mod_points"?: number,"review_note"?: string | null,"sheet"?: NonNullable<Json>,"updated_at"?: string
+                    "character_id": number,"level"?: number,"manna"?: number,"review_note"?: string | null,"sheet"?: NonNullable<Json>,"updated_at"?: string
                   }
                   Update: {
-                    "character_id"?: number,"mod_points"?: number,"review_note"?: string | null,"sheet"?: NonNullable<Json>,"updated_at"?: string
+                    "character_id"?: number,"level"?: number,"manna"?: number,"review_note"?: string | null,"sheet"?: NonNullable<Json>,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -152,13 +152,13 @@ isOneToOne: false
                   ]
                 },"pending_changes": {
                   Row: {
-                    "based_on": string,"character_id": number,"created_at": string,"id": number,"proposed_public": NonNullable<Json>,"proposed_sheet": NonNullable<Json>,"review_reason": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": Database["public"]['Enums']["change_status"],"submitted_by": string
+                    "based_on": string,"character_id": number,"created_at": string,"id": number,"proposed_public": NonNullable<Json>,"proposed_sheet": NonNullable<Json>,"review_reason": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"status": Database["public"]['Enums']["change_status"],"submitted_at": string | null,"submitted_by": string
                   }
                   Insert: {
-                    "based_on": string,"character_id": number,"created_at"?: string,"id"?: never,"proposed_public": NonNullable<Json>,"proposed_sheet": NonNullable<Json>,"review_reason"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["change_status"],"submitted_by": string
+                    "based_on": string,"character_id": number,"created_at"?: string,"id"?: never,"proposed_public": NonNullable<Json>,"proposed_sheet": NonNullable<Json>,"review_reason"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["change_status"],"submitted_at"?: string | null,"submitted_by": string
                   }
                   Update: {
-                    "based_on"?: string,"character_id"?: number,"created_at"?: string,"id"?: never,"proposed_public"?: NonNullable<Json>,"proposed_sheet"?: NonNullable<Json>,"review_reason"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["change_status"],"submitted_by"?: string
+                    "based_on"?: string,"character_id"?: number,"created_at"?: string,"id"?: never,"proposed_public"?: NonNullable<Json>,"proposed_sheet"?: NonNullable<Json>,"review_reason"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"status"?: Database["public"]['Enums']["change_status"],"submitted_at"?: string | null,"submitted_by"?: string
                   }
                   Relationships: [
                     {

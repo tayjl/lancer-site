@@ -1,7 +1,7 @@
 /* HOR_OS: the in-universe COMP/CON terminal look. Every colour and font lives in these variables. */
 :root {
-  --void: #18181c; /* page background: dark grey */
-  --panel: #232328; /* raised surfaces */
+  --void: #111113; /* page background: near-black grey */
+  --panel: #1c1c21; /* raised surfaces */
   --rule: #403f48; /* borders and dividers */
   --text: #f5f4f7; /* general text: white */
   --text-dim: #b1afba;
@@ -139,7 +139,7 @@ input[type='text']:focus {
 
 /* The standard page column. Pages read like terminal output, so their text is monospace by default. */
 .page {
-  max-width: 72rem;
+  max-width: none;
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
   font: 400 0.9375rem/1.6 var(--mono);
@@ -162,16 +162,35 @@ input[type='text']:focus {
   font-weight: 400;
 }
 
+/* Loadout cards (SlotCard.vue), COMP/CON style: three to a row on a wide sheet, two, then one when narrow.
+   Put it on a list inside an element with "container-type: inline-size". */
+.slot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@container (min-width: 36rem) {
+  .slot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 54rem) {
+  .slot-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* For anything read at length, like a backstory: the readable font instead of monospace. */
 .prose {
   font: 400 1.0625rem/1.55 var(--read);
 }
 
 /* The ">" before a page title, like a command typed at a prompt. */
-.prompt {
-  color: var(--rose);
-}
-
 /* Colour helpers, used by the chats and terminal text. */
 .dim {
   color: var(--text-dim);

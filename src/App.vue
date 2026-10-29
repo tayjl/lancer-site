@@ -1,35 +1,37 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
 import netChat from './assets/net-chat.txt?raw'
-import { isGm, profile } from './auth'
+import { isGm, isOwner, profile } from './auth'
 import ChatFeed from './components/ChatFeed.vue'
 import { supabase } from './lib/supabaseClient'
 
 const route = useRoute()
 const router = useRouter()
+// The logo art without Windows line endings or trailing blank lines.
+const logoArt = logo.replace(/\r/g, '').trimEnd()
 
-// The sidebar menu, in groups of related pages, with space between groups.
-// Labels match each route's meta.title in router.ts.
-const menu = [
-  [{ name: 'pilot', label: 'pilot_management' }],
-  [
-    { name: 'registry', label: 'pilot_registry' },
-    { name: 'pending', label: 'pending_paperwork' },
-    { name: 'memorial', label: 'those_who_passed' },
-  ],
-  [{ name: 'archive', label: 'archive_viewer' }],
-  [
-    { name: 'pilot-gear', label: 'pilot_gear' },
-    { name: 'mech-gear', label: 'mech_gear' },
-  ],
+// The tabs across the top bar. Everyone gets the pilot tabs; GMs and owners also get the GM tabs, and owners
+// the content tab. Each is "current" on its own page, or on a page whose route meta.section names it (like a
+// pilot record under the registry).
+const tabs = [
+  { name: 'pilot', label: 'my pilot' },
+  { name: 'registry', label: 'registry' },
+  { name: 'pending', label: 'pending' },
+  { name: 'memorial', label: 'memorial' },
 ]
+const gmTabs = computed(() => [
+  { name: 'gm-pilots', label: 'pilots' },
+  { name: 'gm-changes', label: 'changes' },
+  ...(isOwner.value ? [{ name: 'gm-content', label: 'content' }] : []),
+])
+const isCurrent = (name: string) => route.name === name || route.meta.section === name
 
-// On phones the header collapses to just the logo and a [ menu ] toggle (see the CSS at the bottom).
-// It closes again when you pick a page, or once you've scrolled past it.
+// On phones the bar collapses to the name and [ menu ] / [ chat ] toggles (see the CSS at the bottom).
+// The menu closes when you pick a page, or once you've scrolled past it.
 const menuOpen = ref(false)
-const sidebar = useTemplateRef('sidebar')
+const bar = useTemplateRef('bar')
 // The chat panel is always shown on wide screens; on phones, a [ chat ] toggle shows it.
 const chatOpen = ref(false)
 // Wide screens can minimise it to one line. Remembered in this browser (storage can be blocked, hence the try).
@@ -56,15 +58,11 @@ function toggleChat() {
 watch(() => route.fullPath, () => (menuOpen.value = false))
 
 function closeMenuOnScroll() {
-  if (menuOpen.value && window.scrollY > (sidebar.value?.offsetHeight ?? 0)) menuOpen.value = false
+  if (menuOpen.value && window.scrollY > (bar.value?.offsetHeight ?? 0)) menuOpen.value = false
 }
 
 onMounted(() => window.addEventListener('scroll', closeMenuOnScroll, { passive: true }))
 onUnmounted(() => window.removeEventListener('scroll', closeMenuOnScroll))
-
-function toggleGmView() {
-  router.push({ name: route.meta.gm ? 'registry' : 'gm' })
-}
 
 async function disconnect() {
   await supabase.auth.signOut()
@@ -75,61 +73,37 @@ async function disconnect() {
 <template>
   <RouterView v-if="route.meta.public" />
 
-  <!-- The logged-in layout: a sidebar on the left, a top bar and the page on the right. -->
+  <!-- The logged-in layout: a bar across the top, the page under it, the net chat at the bottom. -->
   <div v-else class="shell" :class="{ 'menu-open': menuOpen, 'chat-open': chatOpen }">
-    <aside ref="sidebar" class="sidebar">
-      <div class="brand-bar">
-        <!-- Phones only, mirroring the menu toggle on the right. -->
-        <button
-          type="button"
-          class="chat-toggle"
-          aria-controls="net-chat"
-          :aria-expanded="chatOpen"
-          @click="chatOpen = !chatOpen"
-        >
-          chat
-        </button>
-        <!-- The HORUS logo (src/assets/logo.txt). Screen readers get the link's label instead of the art. -->
-        <RouterLink :to="{ name: 'registry' }" class="brand" aria-label="h0r_os: pilot registry">
-          <pre class="logo" aria-hidden="true">{{ logo.replace(/\r/g, '').trimEnd() }}</pre>
+    <header ref="bar" class="topbar">
+      <div class="brand-row">
+        <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
+        <RouterLink :to="{ name: 'home' }" class="brand" aria-label="HOR_OS: home">
+          <pre class="logo" aria-hidden="true">{{ logoArt }}</pre>
         </RouterLink>
         <!-- Phones only. -->
-        <button
-          type="button"
-          class="menu-toggle"
-          aria-controls="main-menu"
-          :aria-expanded="menuOpen"
-          @click="menuOpen = !menuOpen"
-        >
+        <button type="button" class="chat-toggle" aria-controls="net-chat" :aria-expanded="chatOpen" @click="chatOpen = !chatOpen">
+          chat
+        </button>
+        <button type="button" class="menu-toggle" aria-controls="main-menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
           {{ menuOpen ? 'close' : 'menu' }}
         </button>
       </div>
 
-      <nav id="main-menu" aria-label="Main" class="menu">
-        <ul v-for="(group, i) in menu" :key="i">
-          <li v-for="item in group" :key="item.name">
-            <!-- "current": this page, or a page in its section (like a pilot record under the registry). -->
-            <RouterLink
-              :to="{ name: item.name }"
-              :class="{ current: route.name === item.name || route.meta.section === item.name }"
-            >
-              {{ item.label }}
-            </RouterLink>
-          </li>
-        </ul>
+      <nav id="main-menu" aria-label="Main" class="tabs">
+        <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
+          {{ tab.label }}
+        </RouterLink>
+        <template v-if="isGm">
+          <span class="group" aria-hidden="true">gm:</span>
+          <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
+            {{ tab.label }}
+          </RouterLink>
+        </template>
       </nav>
-    </aside>
 
-    <!-- Three slots: where you are (left), the gm view toggle (centre), who you are (right). -->
-    <header class="topbar">
-      <p class="dim">~/{{ route.meta.title }}</p>
-      <button v-if="isGm" type="button" class="gm-toggle" @click="toggleGmView">
-        {{ route.meta.gm ? 'exit gm view' : 'gm view' }}
-      </button>
       <div class="operator">
-        <p v-if="profile">
-          <span class="dim">uuid:</span> {{ profile.display_name }} <span class="role">[{{ profile.role }}]</span>
-        </p>
+        <p v-if="profile">{{ profile.display_name }} <span class="role">[{{ profile.role }}]</span></p>
         <button type="button" @click="disconnect">disconnect</button>
       </div>
     </header>
@@ -151,123 +125,95 @@ async function disconnect() {
 
 <style scoped>
 .shell {
-  /* The brand area and top bar share this height, so their bottom lines meet.
-     It fits the logo: 12 lines at 7px each, plus padding. */
-  --bar-height: calc(12 * 7px + 1.5rem);
   display: grid;
-  grid-template-columns: 16rem minmax(0, 1fr);
   grid-template-rows: auto 1fr auto; /* top bar, page, chat */
   min-height: 100vh;
   min-height: 100dvh;
 }
 
-/* The sidebar stays put while the page scrolls. */
-.sidebar {
+/* --- Top bar: the name, the tabs, who you are --- */
+.topbar {
   position: sticky;
   top: 0;
-  grid-row: 1 / -1;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-  overflow-y: auto;
-  border-right: 1px solid var(--rule);
-  font-family: var(--mono);
-}
-
-.brand-bar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  height: var(--bar-height);
+  align-items: stretch;
+  gap: 0 2rem;
   padding: 0 1.5rem;
   border-bottom: 1px solid var(--rule);
-  font-size: 0.9375rem;
+  background: var(--void);
+  font: 400 0.9375rem/1.6 var(--mono);
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
 }
 
 .brand {
+  padding: 0.4rem 0;
   color: var(--lilac);
   text-decoration: none;
+}
+
+/* Whole-pixel sizes keep the block characters sharp. */
+.logo {
+  margin: 0;
+  font: 400 4px / 4px var(--mono);
 }
 
 .brand:hover {
   color: var(--rose);
 }
 
-/* Whole-pixel sizes keep the block characters sharp. */
-.logo {
-  margin: 0;
-  font: 400 6px / 7px var(--mono);
-}
-
-.menu {
+.tabs {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem; /* the space between groups */
-  padding: 1.5rem 1.5rem 0;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0 1.5rem;
 }
 
-.menu ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Menu items have a two-character gutter that turns into "> " for the current page or on hover,
-   like a terminal menu pointing at an option. */
-.menu a {
-  display: block;
-  padding: 0.6rem 0;
+/* A tab is plain text; the current one is lilac with a line under it. */
+.tabs a {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 0 calc(0.85rem - 2px);
+  border-bottom: 2px solid transparent;
   color: var(--text-dim);
-  font-size: 1rem;
   text-decoration: none;
 }
 
-.menu a::before {
-  content: '  ' / '';
-  white-space: pre;
-  color: var(--rose);
+.tabs a:hover {
+  color: var(--text);
 }
 
-.menu a:hover,
-.menu a.current {
+.tabs a.current {
+  border-bottom-color: var(--lilac);
   color: var(--lilac);
 }
 
-.menu a:hover::before,
-.menu a.current::before {
-  content: '> ' / '';
-}
-
-.gm-toggle {
-  justify-self: center;
-  padding-inline: 0;
-  font-size: 0.875rem;
-}
-
-/* Equal outer columns keep the gm view toggle in the exact centre, whatever's either side. */
-.topbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+/* "gm:" starts the GM tabs, after a thin divider. */
+.group {
+  display: flex;
   align-items: center;
-  gap: 0.25rem 1.5rem;
-  min-height: var(--bar-height);
-  padding: 0 1.5rem;
-  border-bottom: 1px solid var(--rule);
-  font: 400 0.875rem/1.6 var(--mono);
-}
-
-.topbar p {
-  margin: 0;
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--rule);
+  margin-block: 0.75rem;
+  color: var(--rose);
+  font-size: 0.8125rem;
 }
 
 .operator {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-self: end;
   gap: 0 1.25rem;
+  margin-left: auto;
+  font-size: 0.875rem;
+}
+
+.operator p {
+  margin: 0;
 }
 
 .role {
@@ -279,16 +225,12 @@ async function disconnect() {
   font-size: 0.875rem;
 }
 
-/* Pages sit next to the sidebar rather than centred in the space, unless they ask to be centred. */
+/* Pages use the full width under the bar. */
 .shell :deep(.page) {
   margin: 0;
 }
 
-.shell :deep(.page.centered) {
-  margin-inline: auto;
-}
-
-/* Sits at the bottom of the window, over the page as it scrolls. 8 chat lines tall, plus padding and the 1px line. */
+/* --- Net chat: at the bottom of the window, over the page as it scrolls. 8 chat lines tall, plus padding and the 1px line. --- */
 .chat-panel {
   position: sticky;
   bottom: 0;
@@ -331,24 +273,19 @@ async function disconnect() {
   display: none;
 }
 
-/* Phones and narrow windows: the sidebar stacks on top and the menu wraps across the screen. */
+/* --- Phones and narrow windows: the bar shows the name and two toggles; [ menu ] opens the tabs --- */
 @media (max-width: 48rem) {
-  .shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-    align-content: start;
-  }
-
-  .sidebar {
+  .topbar {
     position: static;
-    grid-row: auto;
-    height: auto;
-    border-right: 0;
+    flex-direction: column;
+    padding: 0 1rem;
   }
 
-  .brand-bar {
+  .brand-row {
+    justify-content: center;
+    gap: 0;
+    min-height: 3rem;
     position: relative;
-    padding: 0 1rem;
   }
 
   .menu-toggle,
@@ -359,17 +296,48 @@ async function disconnect() {
     font-size: 0.875rem;
   }
 
+  .chat-toggle {
+    left: 0;
+  }
+
   .menu-toggle {
-    right: 1rem;
+    right: 0;
+  }
+
+  .shell:not(.menu-open) .tabs,
+  .shell:not(.menu-open) .operator {
+    display: none;
+  }
+
+  .tabs {
+    justify-content: center;
+    gap: 0 1.25rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .tabs a {
+    padding: 0.5rem 0 calc(0.5rem - 2px);
+  }
+
+  .group {
+    flex-basis: 100%;
+    justify-content: center;
+    padding: 0.5rem 0 0;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
+    margin: 0.25rem 0 0;
+  }
+
+  .operator {
+    justify-content: center;
+    margin: 0;
+    padding: 0.5rem 0 0.75rem;
+    border-top: 1px solid var(--rule);
   }
 
   /* Phones open and close the chat with [ chat ] instead. */
   .chat-minimise {
     display: none;
-  }
-
-  .chat-toggle {
-    left: 1rem;
   }
 
   .shell:not(.chat-open) .chat-panel {
@@ -383,55 +351,6 @@ async function disconnect() {
     left: 0;
     height: calc(8 * 1.25rem + 1.5rem + 1px);
     padding: 0.75rem 1rem;
-  }
-
-  /* Collapsed: only the logo and the toggle show. */
-  .shell:not(.menu-open) .menu,
-  .shell:not(.menu-open) .topbar {
-    display: none;
-  }
-
-  .menu {
-    gap: 0.5rem;
-    padding: 0.75rem 1rem 0;
-  }
-
-  /* Each group is a centred row. */
-  .menu ul {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0 1.25rem;
-  }
-
-  .menu a {
-    padding: 0.4rem 0;
-  }
-
-  /* Centred items get a gutter on both sides, so the current page reads "> like this <". */
-  .menu a::after {
-    content: '  ' / '';
-    white-space: pre;
-    color: var(--rose);
-  }
-
-  .menu a:hover::after,
-  .menu a.current::after {
-    content: ' <' / '';
-  }
-
-  /* Stacked, the top bar doesn't sit beside the logo, so it doesn't need to match its height. */
-  .topbar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    min-height: 0;
-    padding: 0.75rem 1rem;
-    text-align: center;
-  }
-
-  .operator {
-    justify-content: center;
   }
 }
 </style>

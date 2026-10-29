@@ -1,22 +1,28 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import type { Tables } from './lib/database.types'
-import GmView from './views/GmView.vue'
+import ContentView from './views/ContentView.vue'
+import GmChangesView from './views/GmChangesView.vue'
+import GmChangeView from './views/GmChangeView.vue'
+import GmPilotsView from './views/GmPilotsView.vue'
+import HomeView from './views/HomeView.vue'
 import LoginView from './views/LoginView.vue'
 import MechView from './views/MechView.vue'
-import ModuleOffline from './views/ModuleOffline.vue'
 import PilotManageView from './views/PilotManageView.vue'
 import RegistryView from './views/RegistryView.vue'
 
-// Each page's meta: "title" is its name in the menu and the header path (e.g. ~/pilot_registry),
-// and "summary" says what it's for. "gm" pages are for GMs and owners only.
-// Pages that aren't built yet use the ModuleOffline placeholder.
+// The site is character management only: your pilot, the pilot lists, and the GM side of approving and
+// levelling them, plus the game content they're built from. The top bar's tabs are in App.vue.
+// Each page's meta: "title" and "summary" head the page (PageHeader.vue). "section" names the tab to mark as
+// current on a page under it (a pilot record under the registry). "gm" pages are for GMs and owners only;
+// "owner" pages for owners only. The database enforces who can do what; these only decide what's shown.
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
     summary?: string
     section?: string
     gm?: boolean
+    owner?: boolean
     public?: boolean
     // Card grids (RegistryView): which pilots to list, and what to say when there are none.
     status?: Tables<'characters'>['status']
@@ -27,54 +33,49 @@ declare module 'vue-router' {
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/registry' },
+    // Home: the login screen's boot scrawl, with buttons to every tab. The logo in the top bar links here.
+    { path: '/', name: 'home', component: HomeView, meta: { title: 'home' } },
+    {
+      path: '/pilot',
+      name: 'pilot',
+      component: PilotManageView,
+      meta: { title: 'my pilot' },
+    },
+    // One of your mechs.
+    {
+      path: '/pilot/mechs/:mechId',
+      name: 'mech',
+      component: MechView,
+      meta: { title: 'mech', section: 'pilot' },
+    },
     {
       path: '/registry',
       name: 'registry',
       component: RegistryView,
-      meta: {
-        title: 'pilot_registry',
-        summary: 'every approved pilot on the net. public records only.',
-        status: 'approved',
-        empty: 'no approved pilots on the net yet.',
-      },
+      meta: { title: 'pilot registry', summary: 'every approved pilot.', status: 'approved', empty: 'no approved pilots yet.' },
     },
-    // A pilot's record: the pilot_management page, read-only (and its mechs' pages).
-    // "section" keeps pilot_registry highlighted in the menu while a record is open.
+    // A pilot's record: the pilot sheet, read-only (and its mechs' pages).
     {
       path: '/registry/:id',
       name: 'pilot-record',
       component: PilotManageView,
-      meta: { title: 'pilot_registry/record', section: 'registry' },
+      meta: { title: 'pilot record', section: 'registry' },
     },
     {
       path: '/registry/:id/mechs/:mechId',
       name: 'record-mech',
       component: MechView,
-      meta: { title: 'pilot_registry/record/mech', section: 'registry' },
+      meta: { title: 'mech', section: 'registry' },
     },
-    {
-      path: '/pilot',
-      name: 'pilot',
-      component: PilotManageView,
-      meta: { title: 'pilot_management', summary: 'your pilot: register it, view it, file changes.' },
-    },
-    // One of your mechs. "section" keeps pilot_management highlighted in the menu.
-    {
-      path: '/pilot/mechs/:mechId',
-      name: 'mech',
-      component: MechView,
-      meta: { title: 'pilot_management/mech', section: 'pilot' },
-    },
+    // New pilots waiting on a GM, for everyone to read. GMs review them from the gm pilots tab. Changes to
+    // approved pilots hold private data, so they're only in the gm changes tab.
     {
       path: '/pending',
       name: 'pending',
       component: RegistryView,
-      // For everyone to read and discuss. GMs review from the queue in gm_view, not here.
-      // shortcut: only new pilots for now. Changes to approved pilots join this list once pending changes are built.
       meta: {
-        title: 'pending_paperwork',
-        summary: 'pilots waiting on a gm. open a card to read the public record.',
+        title: 'pending pilots',
+        summary: 'new pilots waiting on a gm.',
         status: 'pending',
         empty: 'nothing waiting on a gm.',
       },
@@ -82,42 +83,45 @@ export const router = createRouter({
     {
       path: '/memorial',
       name: 'memorial',
-      component: ModuleOffline,
-      meta: { title: 'those_who_passed', summary: 'pilots marked dead. records kept, never reopened.' },
+      component: RegistryView,
+      meta: { title: 'memorial', summary: 'pilots who died. their records are kept.', status: 'dead', empty: 'no one has died yet.' },
     },
+    // GM tabs. /gm opens the first one.
+    { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },
     {
-      path: '/archive',
-      name: 'archive',
-      component: ModuleOffline,
-      meta: { title: 'archive_viewer', summary: 'server lore: the setting, its factions and its history.' },
+      path: '/gm/pilots',
+      name: 'gm-pilots',
+      component: GmPilotsView,
+      meta: { title: 'gm: pilots', summary: 'review new pilots, and level up or pay any pilot.', gm: true },
     },
-    {
-      path: '/gear/pilot',
-      name: 'pilot-gear',
-      component: ModuleOffline,
-      meta: { title: 'pilot_gear', summary: 'armour, weapons and kit from the loaded content packs.' },
-    },
-    {
-      path: '/gear/mech',
-      name: 'mech-gear',
-      component: ModuleOffline,
-      meta: { title: 'mech_gear', summary: 'frames, weapons, systems and mods from the loaded content packs.' },
-    },
-    {
-      path: '/gm',
-      name: 'gm',
-      component: GmView,
-      meta: { title: 'gm_view', gm: true },
-    },
-    // A pilot's record with, while pending, the decision. Opened from the review queue.
+    // A pilot's record with the GM controls and, while pending, the decision. Opened from gm: pilots.
     {
       path: '/gm/pilots/:id',
       name: 'gm-review',
       component: PilotManageView,
-      meta: { title: 'gm_view/review', gm: true },
+      meta: { title: 'gm review', gm: true, section: 'gm-pilots' },
+    },
+    {
+      path: '/gm/changes',
+      name: 'gm-changes',
+      component: GmChangesView,
+      meta: { title: 'gm: changes', summary: 'changes players want to make to their approved pilots.', gm: true },
+    },
+    // One change: what it changes, then approve or reject.
+    {
+      path: '/gm/changes/:id',
+      name: 'gm-change',
+      component: GmChangeView,
+      meta: { title: 'gm: change', gm: true, section: 'gm-changes' },
+    },
+    {
+      path: '/gm/content',
+      name: 'gm-content',
+      component: ContentView,
+      meta: { title: 'gm: content', summary: 'the game content pilots are built from.', gm: true, owner: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
-    { path: '/:pathMatch(.*)*', redirect: '/registry' },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 
@@ -127,5 +131,5 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   await authReady
   if (!to.meta.public && !session.value) return { name: 'login' }
-  if (to.name === 'login' && session.value) return { name: 'registry' }
+  if (to.name === 'login' && session.value) return { name: 'home' }
 })

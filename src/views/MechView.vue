@@ -1,19 +1,24 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ItemPicker from '../components/ItemPicker.vue'
+import MechLoadout from '../components/MechLoadout.vue'
 import Portrait from '../components/Portrait.vue'
+import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
-import { mechStats } from '../gameData'
 import type { Json } from '../lib/database.types'
+import { mechStats, useMechData } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
+import { isLicensed, mechProblems } from '../rules'
 
-// One of your mechs, opened from the hangar on pilot_management, laid out like the pilot sheet: the name
+// One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the name
 // and manufacturer id across the top, writing on the left, the image on the right, then stats and loadout.
 // Everything is edited in place and saves itself. The name, manufacturer id, appearance and image are
-// public (on the pilot's card); history and the stats are private. Frames and loadouts arrive with the
-// LANCER content packs. Quirks are off the page for now, like the pilot's traits (still in the sheet).
+// public (on the pilot's card); history, the frame, the stats and the loadout are private. The frame is
+// chosen at the top right; its mounts and system points shape the loadout, and the stats are worked out
+// from it. Quirks are off the page for now, like the pilot's traits (still in the sheet).
 // Opened from someone else's record (route param "id"), it's the same page read-only, with the private
 // sections only for their player, GMs and owners.
 
@@ -23,15 +28,29 @@ const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
 const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId)
 const back = own
-  ? { to: { name: 'pilot' }, label: 'pilot_management' }
-  : { to: { name: 'pilot-record', params: { id: pilotId } }, label: 'pilot_record' }
+  ? { to: { name: 'pilot' }, label: 'my pilot' }
+  : { to: { name: 'pilot-record', params: { id: pilotId } }, label: 'pilot record' }
 
 const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
-const stats = mechStats()
 
-const OFFLINE_MODULES = ['frame', 'mounts and weapons', 'systems', 'mods']
+const { frames, weapons, systems, integrated } = useMechData()
+const frame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
+const licences = computed(() => sheet.value.licences ?? {})
+// This mech's rule check (src/rules.ts), once the catalogues have loaded.
+const problems = computed(() =>
+  frames.value.length
+    ? mechProblems(details.value, sheet.value, {
+        frames: frames.value,
+        weapons: new Map(weapons.value.map((w) => [w.id, w])),
+        systems: new Map(systems.value.map((s) => [s.id, s])),
+        integrated: integrated.value,
+      })
+    : [],
+)
+const stats = computed(() => mechStats(frame.value, sheet.value.mech_skills))
+const spTotal = computed(() => stats.value.find((stat) => stat.id === 'system_points')!.value)
 
 // --- The save status shown in the top strip, for the one-line fields ---
 const status = ref('')
@@ -53,6 +72,35 @@ const savePrivate = (changes: MechPrivate) =>
 
 const saveAppearance = (doc: Json | null) => savePublic({ appearance: doc })
 const saveHistory = (doc: Json | null) => savePrivate({ history: doc })
+const saveLoadout = (changes: Pick<MechPrivate, 'mounts' | 'systems'>) => savePrivate(changes)
+
+// --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
+// A licensed frame needs rank II in its own licence; GMS frames need none.
+const framePicker = useTemplateRef('framePicker')
+const frameOptions = computed(() =>
+  frames.value
+    .map((f) => {
+      const licensed = isLicensed({ licenceId: f.id, licenceLevel: f.licenceLevel }, licences.value)
+      return {
+        id: f.id,
+        name: `${f.source} ${f.name}`,
+        meta: [f.mechtype.join('/'), `mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? 'licence rank II' : 'gms']
+          .filter(Boolean)
+          .join(', ')
+          .toLowerCase(),
+        blocked: licensed ? '' : 'needs licence II',
+        licensed,
+      }
+    })
+    .sort((a, b) => Number(b.licensed) - Number(a.licensed)),
+)
+
+async function chooseFrame(id: string) {
+  const armed = (details.value.mounts ?? []).flat().some(Boolean)
+  if (armed && !window.confirm("a new frame has different mounts, so this mech's weapons come off. go ahead?")) return
+  await track(savePrivate({ frame: id, mounts: [] }))
+  if (!saveError.value) framePicker.value?.close()
+}
 
 // The name and manufacturer id save when you leave them (or press enter). A bad one is put back.
 function saveText(field: 'name' | 'manufacturer_id', event: Event) {
@@ -117,21 +165,28 @@ async function scrap() {
           />
           <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
         </div>
-        <dl class="glance-facts">
-          <div>
-            <dt>pilot</dt>
-            <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
-          </div>
-          <div>
-            <dt>frame</dt>
-            <dd class="dim">module offline</dd>
-          </div>
-        </dl>
-        <p class="save-status" role="status">
-          <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-          <span v-else class="dim">{{ status }}</span>
-        </p>
-        <p v-if="own && !editable" class="dim note">this pilot is approved. changes go through pending paperwork (module offline).</p>
+        <div class="glance-side">
+          <dl class="glance-facts">
+            <div>
+              <dt>pilot</dt>
+              <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
+            </div>
+            <div v-if="canSeePrivate">
+              <dt>frame</dt>
+              <dd>
+                <button v-if="editable" type="button" class="frame-button" @click="framePicker?.open()">
+                  {{ frame ? `${frame.source} ${frame.name}` : 'choose frame' }}
+                </button>
+                <template v-else>{{ frame ? `${frame.source} ${frame.name}` : 'none' }}</template>
+              </dd>
+            </div>
+          </dl>
+          <p v-if="own" class="save-status" role="status">
+            <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+            <span v-else class="dim">{{ status }}</span>
+          </p>
+        </div>
+        <RuleCheck v-if="canSeePrivate" class="full" :problems="problems" />
       </header>
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
@@ -148,17 +203,27 @@ async function scrap() {
       <div class="wide">
         <template v-if="canSeePrivate">
           <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
-          <p class="dim small stats-note">worked out from the frame and piloting stats once the LANCER content packs are imported.</p>
+          <p class="dim small stats-note">
+            {{
+              frame
+                ? 'worked out from the frame and piloting stats. talents and core bonuses are not counted yet.'
+                : 'choose a frame (top right) to work these out.'
+            }}
+          </p>
 
-          <section>
-            <h2 class="sheet-label">loadout<span class="tag"> [private]</span></h2>
-            <ul class="modules">
-              <li v-for="name in OFFLINE_MODULES" :key="name">
-                <span>{{ name }}</span>
-                <span class="dim">module offline</span>
-              </li>
-            </ul>
-          </section>
+          <MechLoadout
+            :frame="frame"
+            :frames="frames"
+            :licences="licences"
+            :integrated="integrated"
+            :weapons="weapons"
+            :systems="systems"
+            :mounts="details.mounts ?? []"
+            :installed="details.systems ?? []"
+            :sp-total="spTotal"
+            :editable="editable"
+            :save="saveLoadout"
+          />
         </template>
 
         <section v-if="editable" class="decommission">
@@ -168,6 +233,16 @@ async function scrap() {
           <button type="button" class="scrap" @click="scrap">scrap mech</button>
         </section>
       </div>
+
+      <ItemPicker
+        v-if="editable"
+        ref="framePicker"
+        title="choose a frame"
+        :options="frameOptions"
+        :current="details.frame"
+        :error="saveError"
+        @choose="chooseFrame"
+      />
     </div>
   </main>
 </template>
@@ -194,7 +269,7 @@ async function scrap() {
   font-size: 0.75rem;
 }
 
-/* --- Layout: top strip across, writing left, image right, then full-width sections (as pilot_management) --- */
+/* --- Layout: top strip across, writing left, image right, then full-width sections (as my pilot) --- */
 .sheet {
   display: grid;
   grid-template-areas:
@@ -208,6 +283,11 @@ async function scrap() {
 
 .glance {
   grid-area: glance;
+}
+
+/* The rule check takes the whole width of the top strip. */
+.full {
+  flex-basis: 100%;
 }
 
 .writing {
@@ -243,7 +323,7 @@ async function scrap() {
 .glance {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: 1rem 2.5rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--rule);
@@ -274,32 +354,35 @@ input.maker-id {
   margin-left: -0.35rem;
 }
 
+/* Player and status (or pilot and frame) on the right, centred against the callsign and name. The save
+   status hangs just below without taking up room, so it doesn't pull them off centre. */
+.glance-side {
+  position: relative;
+}
+
 .glance-facts {
   display: flex;
-  gap: 2rem;
+  gap: 2.5rem;
   margin: 0;
 }
 
 .glance-facts dt {
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .glance-facts dd {
   margin: 0;
+  font-size: 1.125rem;
 }
 
 .save-status {
-  min-width: 8rem;
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  right: 0;
   margin: 0;
   font-size: 0.8125rem;
-  text-align: right;
-}
-
-.note {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .side p {
@@ -311,18 +394,10 @@ input.maker-id {
   margin: -1.25rem 0 0;
 }
 
-.modules {
-  margin: 0;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--rule);
-  list-style: none;
-}
-
-.modules li {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.2rem 0;
-  font-size: 0.8125rem;
+/* The frame at the top right: a button while editable, at the size of the other facts. */
+.frame-button {
+  padding: 0;
+  font-size: 1rem;
 }
 
 .decommission p {
@@ -375,8 +450,11 @@ input.maker-id {
   }
 
   .save-status {
-    min-width: 0;
+    position: static;
+    min-height: 1.25rem;
+    margin-top: 0.35rem;
     text-align: center;
+    white-space: normal;
   }
 }
 </style>
