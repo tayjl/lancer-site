@@ -15,6 +15,8 @@ LANCER is by Massif Press. The login screen's boot text and h0r_os ASCII art com
 ([massif-press/compcon](https://github.com/massif-press/compcon), GPL-3.0).
 The stat, range and damage symbols in `src/assets/icons/` are COMP/CON's (same repo and licence), except the hp heart, armour shield and speed arrow,
 which are from [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache-2.0), as COMP/CON uses them.
+The manufacturer logos in `src/assets/logos/` (GMS, HA, HORUS, IPS-N, SSC) are Massif Press's, from COMP/CON's `public/img/logo/`
+(same repo and licence), cleaned down to their shapes.
 Game data comes from Massif Press's `lancer-data` and expansion packages (GPL-3.0-or-later).
 
 ## Database

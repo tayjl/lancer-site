@@ -1,31 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { tagNames, type Item } from '../gameData'
-import { itemDetails } from '../itemDetails'
+import { itemDetails, itemRules } from '../itemDetails'
+import { itemInfo } from '../info'
+import InfoButton from './InfoButton.vue'
 import RulesText from './RulesText.vue'
 import StatIcon from './StatIcon.vue'
-import { averageDamageText } from '../damage'
 
 // One item inside a loadout card: its name, its stats with LANCER's symbols, its rules text and its tags.
 const props = defineProps<{ item: Item }>()
 const details = computed(() => itemDetails(props.item, tagNames.value))
-const rules = computed(() => {
-  const raw = props.item.raw ?? {}
-  const result: { name: string; text: string }[] = []
-  for (const key of ['on_attack', 'on_hit', 'on_crit']) if (raw[key]) result.push({ name: key.replaceAll('_', ' '), text: String(raw[key]) })
-  for (const key of ['actions', 'deployables', 'active_effects']) if (Array.isArray(raw[key])) for (const entry of raw[key] as Record<string, unknown>[])
-    {
-      const stats = ['size', 'hp', 'armor', 'evasion', 'edef', 'speed', 'heatcap'].filter(stat => typeof entry[stat] === 'number').map(stat => `${stat} ${entry[stat]}`).join(' · ')
-      if (entry.detail || entry.description || stats) result.push({ name: String(entry.name ?? key), text: `${stats}${stats ? '. ' : ''}${entry.detail ?? entry.description ?? ''}` })
-      if (Array.isArray(entry.actions)) for (const action of entry.actions as Record<string, unknown>[]) if (action.detail) result.push({ name: String(action.name ?? 'action'), text: String(action.detail) })
-    }
-  return result.map(rule => ({ ...rule, text: averageDamageText(rule.text) }))
-})
+const rules = computed(() => itemRules(props.item.raw ?? {}))
 </script>
 
 <template>
   <div class="item-details">
-    <p class="item-name">{{ item.name }}</p>
+    <p class="item-name"><InfoButton :info="() => itemInfo(item)" :label="item.name" /></p>
     <ul v-if="details.stats.length" class="stats">
       <li v-for="(stat, i) in details.stats" :key="i">
         <span class="stat-value"><StatIcon v-if="stat.icon" :src="stat.icon" />{{ stat.value }}</span>

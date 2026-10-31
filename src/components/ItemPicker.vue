@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import type { Info } from '../info'
+import InfoButton from './InfoButton.vue'
 
 // A picker dialog for one loadout slot (or the frame): a searchable list of options, each with a short
 // summary and a button to choose it. "blocked" on an option disables it and says why (e.g. "over limit").
-// The parent opens it with open(), saves the choice itself, then closes it with close().
-type Option = { id: string; name: string; meta?: string; text?: string; blocked?: string }
+// The parent opens it with open(), saves the choice itself, then closes it with close(). With "info", an option's
+// name opens its full information on top of the picker.
+type Option = { id: string; name: string; meta?: string; text?: string; blocked?: string; info?: () => Info }
 const props = defineProps<{ title: string; options: Option[]; current?: string | null; saving?: boolean; error?: string }>()
 const emit = defineEmits<{ choose: [id: string] }>()
 
@@ -36,7 +39,7 @@ defineExpose({ open, close: () => dialog.value?.close() })
     <ul v-if="shown.length" class="options">
       <li v-for="option in shown" :key="option.id">
         <div>
-          <span class="name">{{ option.name }}</span>
+          <span class="name"><InfoButton v-if="option.info" :info="option.info" :label="option.name" /><template v-else>{{ option.name }}</template></span>
           <span v-if="option.meta" class="dim meta">{{ option.meta }}</span>
           <span v-if="option.text" class="text">{{ option.text }}</span>
         </div>
@@ -123,14 +126,14 @@ defineExpose({ open, close: () => dialog.value?.close() })
   font: 400 0.875rem/1.45 var(--read);
 }
 
-.options button {
+.options > li > button {
   flex-shrink: 0;
   max-width: 45%;
   padding: 0;
   font-size: 0.8125rem;
 }
 
-.options button:disabled {
+.options > li > button:disabled {
   color: var(--text-dim);
   cursor: default;
 }

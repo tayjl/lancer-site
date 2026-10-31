@@ -60,7 +60,7 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
       value: String(entry.val),
     })),
     ...item.damage.map(entry => ({
-      label: `${entry.type.toLowerCase()} (average)`,
+      label: entry.type.toLowerCase(),
       icon: ICONS[entry.type.toLowerCase()] ?? null,
       value: String(averageDamage(entry.val)),
     })),
@@ -80,6 +80,28 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
   return { stats, tags, text }
 }
 
-// One line for a picker: "range 10, kinetic (average) 4, sp 1".
+// One line for a picker: "range 10, kinetic 4, sp 1".
 export const statLine = (details: ReturnType<typeof itemDetails>) =>
   details.stats.map((stat) => `${stat.label} ${stat.value}`).join(', ')
+
+// An item's extra rules (ItemDetails.vue's "modifiers and rules", and the full-information dialog): on attack,
+// hit and crit effects, actions with their activation and trigger, and deployables with their stats and actions.
+// Text stays formatted HTML for RulesText.vue.
+export function itemRules(raw: Record<string, unknown>) {
+  const result: { name: string; text: string }[] = []
+  for (const key of ['on_attack', 'on_hit', 'on_crit']) if (raw[key]) result.push({ name: key.replaceAll('_', ' '), text: String(raw[key]) })
+  const action = (entry: Record<string, unknown>, fallback: string) => {
+    const when = [entry.activation, entry.frequency].filter(Boolean).join(', ').toLowerCase()
+    const name = `${String(entry.name ?? fallback)}${when ? ` (${when})` : ''}`
+    const trigger = entry.trigger ? `<b>Trigger:</b> ${String(entry.trigger)}<br>` : ''
+    return { name, text: `${trigger}${entry.trigger ? '<b>Effect:</b> ' : ''}${String(entry.detail ?? entry.description ?? '')}` }
+  }
+  for (const key of ['actions', 'deployables', 'active_effects']) if (Array.isArray(raw[key])) for (const entry of raw[key] as Record<string, unknown>[]) {
+    if (!entry || typeof entry !== 'object') continue
+    const stats = ['size', 'hp', 'armor', 'evasion', 'edef', 'speed', 'heatcap'].filter(stat => typeof entry[stat] === 'number').map(stat => `${stat} ${entry[stat] === 0.5 ? '½' : entry[stat]}`).join(' · ')
+    if (key === 'actions' && (entry.detail || entry.description)) result.push(action(entry, 'action'))
+    else if (entry.detail || entry.description || stats) result.push({ name: String(entry.name ?? key), text: `${stats}${stats ? '. ' : ''}${entry.detail ?? entry.description ?? ''}` })
+    if (Array.isArray(entry.actions)) for (const inner of entry.actions as Record<string, unknown>[]) if (inner?.detail) result.push(action(inner, 'action'))
+  }
+  return result.map(rule => ({ ...rule, text: averageDamageText(rule.text) }))
+}

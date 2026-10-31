@@ -147,20 +147,43 @@ input[type='text']:focus {
 }
 
 /* A pilot sheet section's tag: a filled block with a lilac edge, sitting on the box below it. */
+/* A section's label (option C, the developer's pick, 2026-10-31): a terminal prompt, "> backstory // private". The
+   dim ">" and "//" are drawn by CSS with empty alt text, so screen readers just hear "backstory private"; the tag
+   stays red, as the developer asked of the earlier labels. Takes the free space in a flex header, so anything beside
+   it (licence level, points, [ edit ]) sits at the right. */
 .sheet-label {
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding: 0.2rem 0.75rem 0.2rem 0.6rem;
-  border-left: 3px solid var(--lilac);
-  background: var(--panel);
-  color: var(--text);
-  font: 600 0.875rem/1.5 var(--mono);
+  flex: 1;
+  min-width: 0;
+  margin: 0 0 0.6rem;
+  color: var(--lilac);
+  font: 600 1.0625rem/1.4 var(--mono);
+}
+
+.sheet-label::before {
+  content: '> ' / '';
+  color: var(--text-dim);
+  font-weight: 400;
 }
 
 .sheet-label .tag {
+  margin-left: 0.4rem;
   color: var(--rose);
+  font-size: 0.8125rem;
   font-weight: 400;
+}
+
+.sheet-label .tag::before {
+  content: '// ' / '';
+}
+
+/* A header row holding a label and more (points, licence level, [ edit ]): the row takes the label's space below,
+   so every section has the same gap between its label and its content. */
+.sheet-head {
+  margin-bottom: 0.6rem;
+}
+
+.sheet-head > .sheet-label {
+  margin-bottom: 0;
 }
 
 /* Loadout cards (SlotCard.vue), COMP/CON style: three to a row on a wide sheet, two, then one when narrow.
@@ -256,5 +279,40 @@ input[type='text']:focus {
 @media (max-width: 40rem) {
   .page {
     padding: 1.5rem 1rem;
+  }
+}
+
+/* A brief colour-split jolt every few seconds (the login art, the HORUS motto in the archives). It moves the
+   text with "left" in whole pixels, not "transform": a transform makes the browser draw it as a separate image,
+   which blurs it. Off for people who prefer reduced motion. */
+.glitch {
+  position: relative;
+  animation: glitch 6s steps(1, end) 2s infinite;
+}
+
+@keyframes glitch {
+  0%,
+  93%,
+  100% {
+    left: 0;
+    text-shadow: none;
+  }
+  94% {
+    left: -2px;
+    text-shadow: 2px 0 var(--rose), -2px 0 var(--lilac);
+  }
+  96% {
+    left: 2px;
+    text-shadow: -2px 0 var(--rose), 2px 0 var(--lilac);
+  }
+  98% {
+    left: -1px;
+    text-shadow: 1px 0 var(--rose);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch {
+    animation: none;
   }
 }

@@ -25,6 +25,6 @@ describe('average damage', () => {
   it('uses averages in shared card and picker details, keeping range unchanged', () => {
     const details = itemDetails(toItem('weapon', { damage: [{ type: 'Kinetic', val: '1d6' }], range: [{ type: 'Range', val: 10 }] }), new Map())
     expect(details.stats.map(stat => stat.value)).toEqual(['10', '4'])
-    expect(details.stats[1]!.label).toBe('kinetic (average)')
+    expect(details.stats[1]!.label).toBe('kinetic')
   })
 })

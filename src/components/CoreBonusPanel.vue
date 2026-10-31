@@ -4,6 +4,8 @@ import type { CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
 import { coreBonusProblems } from '../rules'
 import { plainText } from '../rulesText'
+import { coreBonusInfo } from '../info'
+import InfoButton from './InfoButton.vue'
 import ItemPicker from './ItemPicker.vue'
 import RulesText from './RulesText.vue'
 import SlotCard from './SlotCard.vue'
@@ -44,7 +46,7 @@ const blocked = (id: string) => coreBonusProblems(
 const offered = computed(() =>
   props.options
     .filter((bonus) => !props.taken.includes(bonus.id))
-    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plainText(bonus.effect), blocked: blocked(bonus.id) })),
+    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plainText(bonus.effect), blocked: blocked(bonus.id), info: () => coreBonusInfo(bonus) })),
 )
 
 function open() {
@@ -62,8 +64,8 @@ async function choose(id: string) {
 
 <template>
   <section class="core-bonuses">
-    <header class="head">
-      <h2 class="sheet-label">core bonuses<span class="tag"> [private]</span></h2>
+    <header class="head sheet-head">
+      <h2 class="sheet-label">core bonuses<span class="tag"> private</span></h2>
       <span class="dim" :class="{ rose: left < 0 }">{{ taken.length }}/{{ picks }} taken<template v-if="editable">, one free per 3 licence ranks</template></span>
     </header>
     <p v-if="editable" class="dim note">each non-GMS bonus needs another 3 licence ranks from its manufacturer.</p>
@@ -73,7 +75,7 @@ async function choose(id: string) {
         <template v-if="editable" #tools>
           <button type="button" :disabled="saving" @click="remove(id)">remove</button>
         </template>
-        <p class="name">{{ byId.get(id)?.name ?? id }}</p>
+        <p class="name"><InfoButton v-if="byId.get(id)" :info="() => coreBonusInfo(byId.get(id)!)" :label="byId.get(id)!.name" /><template v-else>{{ id }}</template></p>
         <RulesText :html="byId.get(id)?.effect ?? ''" />
       </SlotCard>
       <SlotCard v-if="editable && left > 0" title="new core bonus" empty>

@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef } from 'vue'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
 import { itemDetails, statLine } from '../itemDetails'
+import { itemInfo } from '../info'
 import { plainText } from '../rulesText'
 import { allowedSizes, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
@@ -135,6 +136,7 @@ const options = computed(() => {
         name: item.name,
         meta: [kind, statLine(details), licence].filter(Boolean).join(': '),
         text: plainText(details.text),
+        info: () => itemInfo(item),
         blocked: blockedBy(item),
         licensed: isLicensed(item, props.licences),
       }
@@ -189,7 +191,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 <template>
   <div class="mech-loadout">
     <section v-if="frame && coreChoices.some(choice => sheet.core_bonuses?.includes(choice.id))">
-      <h2 class="sheet-label">core bonus assignments<span class="tag"> [private]</span></h2>
+      <h2 class="sheet-label">core bonus assignments<span class="tag"> private</span></h2>
       <div v-for="choice in coreChoices.filter(choice => sheet.core_bonuses?.includes(choice.id))" :key="choice.id" class="core-choice">
         <label :for="choice.id">{{ choice.name }}</label>
         <select :id="choice.id" :value="details.core_mounts?.[choice.id] ?? -1" :disabled="!editable || saving" @change="setCore(choice.id, $event)">
@@ -202,7 +204,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       <button v-if="editable" type="button" :disabled="saving" @click="clearOrphans">clear unfitted mounts</button>
     </p>
     <section>
-      <h2 class="sheet-label">weapon mounts<span class="tag"> [private]</span></h2>
+      <h2 class="sheet-label">weapon mounts<span class="tag"> private</span></h2>
       <p v-if="!frame" class="dim note">choose a frame (top right) to fit its mounts.</p>
       <ul v-else class="slot-grid">
         <SlotCard v-for="weapon in builtInWeapons" :key="weapon.id" title="integrated mount">
@@ -230,8 +232,8 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
     </section>
 
     <section>
-      <header class="systems-head">
-        <h2 class="sheet-label">systems<span class="tag"> [private]</span></h2>
+      <header class="systems-head sheet-head">
+        <h2 class="sheet-label">systems<span class="tag"> private</span></h2>
         <span v-if="spTotal != null" class="sp" :class="{ rose: spUsed > spTotal }">system points {{ spUsed }}/{{ spTotal }}</span>
       </header>
       <p v-if="!frame" class="dim note">choose a frame (top right) to see its system points.</p>

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import type { Tables } from './lib/database.types'
+import ArchivesView from './views/ArchivesView.vue'
 import ContentView from './views/ContentView.vue'
 import GmChangesView from './views/GmChangesView.vue'
 import GmChangeView from './views/GmChangeView.vue'
@@ -85,6 +86,13 @@ export const router = createRouter({
       name: 'memorial',
       component: RegistryView,
       meta: { title: 'memorial', summary: 'pilots who died. their records are kept.', status: 'dead', empty: 'no one has died yet.' },
+    },
+    // Every piece of game content, browsable and searchable (ArchivesView.vue).
+    {
+      path: '/archives',
+      name: 'archives',
+      component: ArchivesView,
+      meta: { title: 'archives' },
     },
     // GM tabs. /gm opens the first one.
     { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },

@@ -75,6 +75,8 @@ export function toItem(id: string, data: unknown): Item {
 export const tagNames = shallowRef(new Map<string, string>())
 // Tags the data marks hidden: notes for the app (e.g. "Set Max Uses"), not something a player reads.
 export const hiddenTags = shallowRef(new Set<string>())
+// What each tag means (e.g. "This weapon or system can only be used {VAL} times..."), for the full-information dialog.
+export const tagDescriptions = shallowRef(new Map<string, string>())
 let tagsLoading: Promise<void> | undefined
 // New packs may add tags; the next character sheet should fetch their names again.
 export const invalidateTagNames = () => { tagsLoading = undefined }
@@ -82,6 +84,7 @@ export function loadTagNames() {
   tagsLoading ??= (async () => {
     const { data } = await supabase.from('content_items').select('id, data').eq('kind', 'tags')
     tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
+    tagDescriptions.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { description?: unknown } | null)?.description ?? '')]))
     hiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hidden?: unknown } | null)?.hidden === true).map(({ id }) => id))
   })()
   return tagsLoading

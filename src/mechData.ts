@@ -323,6 +323,9 @@ function integratedIds(value: unknown): string[] {
   )
 }
 
+// Licence names by licence (frame) id, e.g. "IPS-N Drake", shared by every page once the frames have loaded.
+export const licenceNames = shallowRef(new Map<string, string>())
+
 export function useMechData() {
   const frames = shallowRef<Frame[]>([])
   const weapons = shallowRef<Item[]>([])
@@ -366,6 +369,7 @@ export function useMechData() {
         }
       })
       .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))
+    licenceNames.value = new Map(frames.value.map((f) => [f.id, `${f.source} ${f.name}`]))
     weapons.value = pickable('weapons').sort((a, b) => a.name.localeCompare(b.name))
     systems.value = pickable('systems').sort((a, b) => a.name.localeCompare(b.name))
   }

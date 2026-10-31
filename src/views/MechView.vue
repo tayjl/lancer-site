@@ -5,7 +5,9 @@ import ItemPicker from '../components/ItemPicker.vue'
 import MechLoadout from '../components/MechLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RuleCheck from '../components/RuleCheck.vue'
+import InfoButton from '../components/InfoButton.vue'
 import RulesText from '../components/RulesText.vue'
+import { frameInfo } from '../info'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
@@ -109,6 +111,7 @@ const frameOptions = computed(() =>
           .join(', ')
           .toLowerCase(),
         blocked: licensed ? '' : 'needs licence II',
+        info: () => frameInfo(f, frames.value),
         licensed,
       }
     })
@@ -197,7 +200,9 @@ async function scrap() {
                 <button v-if="editable" type="button" class="frame-button" @click="framePicker?.open()">
                   {{ frame ? `${frame.source} ${frame.name}` : 'choose frame' }}
                 </button>
-                <template v-else>{{ frame ? `${frame.source} ${frame.name}` : 'none' }}</template>
+                <InfoButton v-else-if="baseFrame" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`" />
+                <template v-else>none</template>
+                <InfoButton v-if="editable && baseFrame" class="frame-info" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`">frame details</InfoButton>
               </dd>
             </div>
           </dl>
@@ -230,13 +235,6 @@ async function scrap() {
             <span>overcharge heat <strong>{{ resources.overcharge }}</strong></span>
             <p v-for="(check, index) in resources.checks" :key="index"><strong>{{ check.source }}:</strong> {{ check.text }}</p>
           </div>
-          <p class="dim small stats-note">
-            {{
-              frame
-                ? 'includes unconditional stat bonuses from equipment, talents and core bonuses. open sources under a stat to check the calculation.'
-                : 'choose a frame (top right) to work these out.'
-            }}
-          </p>
           <details v-if="frame && effects.reminders.length" class="effect-reminders">
             <summary>other effects and conditions · rules reference</summary>
             <p class="dim small">Only modifiers listed under stat sources are included automatically. Conditional effects, unsupported bonuses and other rules below need player or GM interpretation.</p>
@@ -446,14 +444,16 @@ input.maker-id {
 .effect-reminders strong { color: var(--lilac); }
 .effect-reminders li .rules-text { margin-top: 0.25rem; }
 
-.stats-note {
-  margin: -1.25rem 0 0;
-}
-
 /* The frame at the top right: a button while editable, at the size of the other facts. */
 .frame-button {
   padding: 0;
   font-size: 1rem;
+}
+
+.frame-info {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.75rem;
 }
 
 .decommission p {

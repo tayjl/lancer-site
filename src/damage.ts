@@ -1,4 +1,5 @@
-// Average ordinary dice sums without evaluating imported content as JavaScript.
+// The homebrew has no dice: LANCER's dice damage becomes a flat number, the expression's mean rounded up (1d6 → 4,
+// 2d6+1 → 8). Shown as plain damage, never labelled "average". Parsed by hand, never evaluated as JavaScript.
 export function averageDamage(value: string | number): string | number {
   if (typeof value === 'number') return Math.ceil(value)
   const expression = value.replace(/\s/g, '')

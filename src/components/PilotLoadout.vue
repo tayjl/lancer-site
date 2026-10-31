@@ -2,6 +2,7 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import { loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemDetails, statLine } from '../itemDetails'
+import { itemInfo } from '../info'
 import { plainText } from '../rulesText'
 import ItemDetails from './ItemDetails.vue'
 import ItemPicker from './ItemPicker.vue'
@@ -48,7 +49,7 @@ const options = computed(() =>
     .filter((item) => item.type === target.value?.type)
     .map((item) => {
       const details = itemDetails(item, tagNames.value)
-      return { id: item.id, name: item.name, meta: statLine(details), text: plainText(details.text) }
+      return { id: item.id, name: item.name, meta: statLine(details), text: plainText(details.text), info: () => itemInfo(item) }
     }),
 )
 
@@ -65,7 +66,7 @@ async function equip(id: string) {
 
 <template>
   <section class="pilot-loadout">
-    <h2 class="sheet-label">loadout<span class="tag"> [private]</span></h2>
+    <h2 class="sheet-label">loadout<span class="tag"> private</span></h2>
 
     <ul v-if="shownSlots.length" class="slot-grid">
       <SlotCard

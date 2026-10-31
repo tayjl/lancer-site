@@ -2,12 +2,12 @@
 import { computed } from 'vue'
 import StatIcon from './StatIcon.vue'
 
-// A row of stats: each one's name and number, with - and + to change it when editable. One line when there's
-// room; in a narrow space (phones) each stat gets its own line instead, so they stay lined up.
-// "bonus" (e.g. from bionics) changes the displayed total, with the base and modifier beside it. A null value
-// (not worked out yet) shows as "-". "icon" is an SVG's url, drawn in the text colour.
-// With "budget", the values share a pool of points (e.g. HASE: 2 + licence level): the header shows
-// used/total, and + stops once it's spent.
+// A card of stats (general, personal and piloting stats on my pilot; mech stats): the usual section label (with,
+// for a "budget" of shared points, "[ available points left / total ]" in sky on the right, rose when overspent), then a bordered tile per
+// stat, centred: its symbol and number in lilac, its name in white, and - / + to change it when editable. In a
+// narrow space (phones) each stat gets its own line.
+// "bonus" (e.g. from bionics) changes the displayed total, with the base and modifier under it. A null value
+// (not worked out yet) shows as "-". "icon" is an SVG's url. "contributors" are listed under "sources".
 const props = defineProps<{
   title: string
   tag?: string
@@ -15,33 +15,31 @@ const props = defineProps<{
   editable: boolean
   min: number
   max: number
-  budget?: { label: string; total: number }
+  budget?: number
 }>()
 const emit = defineEmits<{ set: [id: string, value: number] }>()
 
 const used = computed(() => props.stats.reduce((sum, stat) => sum + Math.max(0, (stat.value ?? props.min) - props.min), 0))
-const spent = computed(() => !!props.budget && used.value >= props.budget.total)
+const spent = computed(() => props.budget !== undefined && used.value >= props.budget)
+const overspent = computed(() => props.budget !== undefined && used.value > props.budget)
+const shown = (stat: { value: number | null; bonus?: number }) => {
+  if (stat.value === null) return '-'
+  const total = stat.value + (stat.bonus ?? 0)
+  return total === 0.5 ? '½' : String(total)
+}
 </script>
 
 <template>
   <section class="stat-row">
-    <header class="head">
-      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span></h2>
-      <span v-if="budget" class="budget" :class="{ rose: used > budget.total }">{{ budget.label }} {{ used }}/{{ budget.total }}</span>
+    <header class="head sheet-head" :class="{ over: overspent }">
+      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag">{{ ' ' + tag }}</span></h2>
+      <span v-if="budget !== undefined" class="budget">[ available points {{ budget - used }} / {{ budget }} ]</span>
     </header>
     <ul>
       <li v-for="stat in stats" :key="stat.id">
-        <span class="name">
-          <StatIcon v-if="stat.icon" :src="stat.icon" class="icon" />
-          {{ stat.name }}
-        </span>
-        <span class="value">
-          {{ stat.value === null ? '-' : stat.value + (stat.bonus ?? 0) === 0.5 ? '½' : stat.value + (stat.bonus ?? 0) }}<span v-if="stat.bonus" class="bonus"> ({{ stat.value }} base {{ stat.bonus > 0 ? '+' : '' }}{{ stat.bonus }})</span>
-        </span>
-        <details v-if="stat.contributors?.length" class="sources">
-          <summary>sources<span class="sr-only"> for {{ stat.name }}</span></summary>
-          <p v-for="(source, index) in stat.contributors" :key="index">{{ source }}</p>
-        </details>
+        <span class="value"><StatIcon v-if="stat.icon" :src="stat.icon" />{{ shown(stat) }}</span>
+        <span class="name">{{ stat.name }}</span>
+        <span v-if="stat.bonus" class="bonus">{{ stat.value }} base {{ stat.bonus > 0 ? '+' : '' }}{{ stat.bonus }}</span>
         <span v-if="editable" class="steps">
           <button
             type="button"
@@ -60,6 +58,10 @@ const spent = computed(() => !!props.budget && used.value >= props.budget.total)
             +
           </button>
         </span>
+        <details v-if="stat.contributors?.length" class="sources">
+          <summary>sources<span class="sr-only"> for {{ stat.name }}</span></summary>
+          <p v-for="(source, index) in stat.contributors" :key="index">{{ source }}</p>
+        </details>
       </li>
     </ul>
   </section>
@@ -70,16 +72,21 @@ const spent = computed(() => !!props.budget && used.value >= props.budget.total)
   container-type: inline-size;
 }
 
+/* The section label, with the points count at the end of its rule. Overspent points turn the count rose. */
 .head {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 1rem;
+  gap: 0.6rem;
 }
 
 .budget {
-  color: var(--text-dim);
+  color: var(--sky);
   font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.over .budget {
+  color: var(--rose);
 }
 
 ul {
@@ -91,48 +98,49 @@ ul {
   list-style: none;
 }
 
+/* No stats defined (e.g. personal stats before any exist): no empty box. */
+ul:empty {
+  display: none;
+}
+
 li {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
-  padding: 0.6rem 0.5rem;
+  gap: 0.2rem;
+  padding: 0.75rem 0.5rem;
+  text-align: center;
 }
 
 li + li {
   border-left: 1px solid var(--rule);
 }
 
-.name {
+.value {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--text-dim);
-  font-size: 0.8125rem;
-  white-space: nowrap;
-}
-
-.icon {
   color: var(--lilac);
-  font-size: 1.125rem;
-}
-
-.value {
-  color: var(--lilac);
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.1;
 }
 
+.name {
+  color: var(--text);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
 .bonus {
   color: var(--sky);
-  font-size: 0.875rem;
-  font-weight: 400;
+  font-size: 0.75rem;
 }
 
 .steps {
   display: flex;
   gap: 0.35rem;
+  margin-top: 0.2rem;
 }
 
 .sources {
@@ -176,18 +184,18 @@ li + li {
   cursor: default;
 }
 
-/* Too narrow for one line: a list, one stat per line, with the numbers and buttons lined up on the right. */
+/* Too narrow for tiles side by side: one stat per line, name on the left, number and buttons on the right. */
 @container (max-width: 40rem) {
   ul {
     grid-template-columns: minmax(0, 1fr);
-    grid-auto-flow: row;
   }
 
   li {
     flex-direction: row;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 0.25rem 1rem;
     padding: 0.4rem 0.75rem;
+    text-align: left;
   }
 
   li + li {
@@ -195,20 +203,30 @@ li + li {
     border-left: 0;
   }
 
+  .value {
+    order: 1;
+    min-width: 4rem;
+    justify-content: flex-end;
+    font-size: 1.375rem;
+  }
+
   .name {
     flex: 1;
     font-size: 0.875rem;
   }
 
-  .value {
-    min-width: 4rem;
-    font-size: 1.375rem;
-    text-align: right;
+  .bonus {
+    order: 1;
+  }
+
+  .steps {
+    order: 2;
+    margin-top: 0;
   }
 
   .sources {
     flex-basis: 100%;
-    order: 1;
+    order: 3;
   }
 }
 </style>

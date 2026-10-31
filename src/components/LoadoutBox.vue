@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import type { Info } from '../info'
+import InfoButton from './InfoButton.vue'
 
 // A loadout section (gear, bionics): the chosen items as cards, and a small edit button that opens a picker.
 // Only items from the catalogue can be added. With "limit", each item's cost counts against a cap
 // (e.g. bionics against the mod limit), and the picker won't add anything that goes over it. "addBlocked"
 // stops all adding and says why (e.g. "not enough manna").
 type Id = string | number
-type Item = { id: Id; name: string; type?: string; description?: string | null; cost?: number; retired?: boolean }
+type Item = { id: Id; name: string; type?: string; description?: string | null; cost?: number; retired?: boolean; info?: () => Info }
 
 const props = defineProps<{
   title: string
@@ -58,8 +60,8 @@ function open() {
 
 <template>
   <section class="loadout">
-    <header class="head">
-      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag"> [{{ tag }}]</span></h2>
+    <header class="head sheet-head">
+      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag">{{ ' ' + tag }}</span></h2>
       <span v-if="limit" class="limit" :class="{ rose: used > limit.max }">{{ limit.label }} {{ used }}/{{ limit.max }}</span>
       <button v-if="editable" type="button" class="edit" @click="open">edit</button>
     </header>
@@ -67,7 +69,7 @@ function open() {
     <div class="body">
       <ul v-if="chosenItems.length" class="cards">
         <li v-for="item in chosenItems" :key="item.id">
-          <span class="name">{{ item.name }}</span>
+          <span class="name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
           <span v-if="item.type || item.cost != null" class="dim meta">
             {{ item.type }}<template v-if="item.cost != null">{{ item.type ? ', ' : '' }}{{ item.cost }} {{ limit?.unit }}</template>
           </span>
@@ -89,7 +91,7 @@ function open() {
       <ul v-if="offered.length" class="options">
         <li v-for="item in offered" :key="item.id" :class="{ picked: chosen.includes(item.id) }">
           <div>
-            <span class="name">{{ item.name }}</span>
+            <span class="name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
             <span class="dim meta">
               {{ item.type }}<template v-if="item.cost != null">{{ item.type ? ', ' : '' }}{{ item.cost }} {{ limit?.unit }}</template>
             </span>
@@ -233,13 +235,13 @@ function open() {
   content: '✓ ' / '';
 }
 
-.options button {
+.options > li > button {
   flex-shrink: 0;
   padding: 0;
   font-size: 0.8125rem;
 }
 
-.options button:disabled {
+.options > li > button:disabled {
   color: var(--text-dim);
   cursor: default;
 }

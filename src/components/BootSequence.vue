@@ -168,7 +168,7 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
   font-size: round(down, min(100cqi / 46.9, (100dvh - 20rem) / 31.05, 16px), 1px);
   line-height: 1.15;
   line-height: round(1.15em, 1px);
-  animation: art-glitch 6s steps(1, end) 2s infinite;
+  animation: glitch 6s steps(1, end) 2s infinite; /* style.css */
 }
 
 .art-line {
@@ -248,29 +248,6 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
 .tag {
   background: var(--lilac);
   color: var(--void);
-}
-
-/* A brief colour-split jolt every few seconds. It moves the art with "left" in whole pixels, not
-   "transform": a transform makes the browser draw the art as a separate image, which blurs it. */
-@keyframes art-glitch {
-  0%,
-  93%,
-  100% {
-    left: 0;
-    text-shadow: none;
-  }
-  94% {
-    left: -2px;
-    text-shadow: 2px 0 var(--rose), -2px 0 var(--lilac);
-  }
-  96% {
-    left: 2px;
-    text-shadow: -2px 0 var(--rose), 2px 0 var(--lilac);
-  }
-  98% {
-    left: -1px;
-    text-shadow: 1px 0 var(--rose);
-  }
 }
 
 @media (min-width: 48rem) {

@@ -7,7 +7,7 @@ defineProps<{ title: string; empty?: boolean }>()
 <template>
   <li class="slot">
     <header class="slot-head">
-      <h3>{{ title }}</h3>
+      <h3><slot name="title">{{ title }}</slot></h3>
       <span class="tools"><slot name="tools" /></span>
     </header>
     <p v-if="empty" class="empty">// empty //</p>

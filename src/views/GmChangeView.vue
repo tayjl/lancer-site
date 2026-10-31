@@ -179,7 +179,7 @@ async function reject() {
         <RouterLink v-if="pilot" :to="{ name: 'gm-review', params: { id: pilot.id } }">approved record and gm controls</RouterLink>
       </p>
 
-      <section class="manna-summary" aria-label="Manna summary">
+      <section class="manna-summary sheet-head" aria-label="Manna summary">
         <h2 class="sheet-label">manna</h2>
         <dl class="manna-figures">
           <div v-if="pending">

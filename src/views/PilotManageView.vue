@@ -9,12 +9,15 @@ import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RankPanel, { type RankStep } from '../components/RankPanel.vue'
+import SheetGroup from '../components/SheetGroup.vue'
+import SheetTabs from '../components/SheetTabs.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { useMechData } from '../mechData'
+import { bionicInfo, frameInfo, itemInfo, talentInfo } from '../info'
 import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints } from '../rules'
@@ -146,6 +149,11 @@ const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) 
 const saveBackstory = (doc: Json | null) => updateSheet({ backstory: doc })
 
 // --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
+// Bionics for their box, each opening its full information.
+const bionicOptions = computed(() => {
+  const statNames = new Map(pilotStats.value.map((stat) => [stat.id, stat.name]))
+  return bionicItems(bionics.value, PRICES.bionic).map((item, i) => ({ ...item, info: () => bionicInfo(bionics.value[i], statNames, PRICES.bionic) }))
+})
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
 const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
 
@@ -157,25 +165,29 @@ const balance = computed(() => gm.value.manna - mannaSpent(sheet.value))
 const licenceOptions = computed(() =>
   frames.value
     .filter((frame) => frame.licenceLevel > 0)
-    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/').toLowerCase() })),
+    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/').toLowerCase(), info: () => frameInfo(frame, frames.value) })),
 )
 const licenceDetails = (id: string): RankStep[] =>
   [1, 2, 3].map((level) => ({
     unlocks: [
-      ...frames.value.filter((f) => f.id === id && f.licenceLevel === level).map((f) => ({ kind: 'frame', name: f.name })),
-      ...weapons.value.filter((w) => w.licenceId === id && w.licenceLevel === level).map((w) => ({ kind: 'weapon', name: w.name })),
-      ...systems.value.filter((s) => s.licenceId === id && s.licenceLevel === level).map((s) => ({ kind: 'system', name: s.name })),
+      ...frames.value.filter((f) => f.id === id && f.licenceLevel === level).map((f) => ({ kind: 'frame', name: f.name, info: () => frameInfo(f, frames.value) })),
+      ...weapons.value.filter((w) => w.licenceId === id && w.licenceLevel === level).map((w) => ({ kind: 'weapon', name: w.name, info: () => itemInfo(w) })),
+      ...systems.value.filter((s) => s.licenceId === id && s.licenceLevel === level).map((s) => ({ kind: 'system', name: s.name, info: () => itemInfo(s) })),
     ],
   }))
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
 // Talents: each rank's name and rules.
-const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse })))
+const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse, info: () => talentInfo(t) })))
 const talentDetails = (id: string): RankStep[] =>
   (talents.value.find((t) => t.id === id)?.ranks ?? []).map((r) => ({ name: r.name, html: r.description }))
 const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({ talents: talentRanks }))
 
 const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids }))
+
+// The private groups, one shown at a time (SheetTabs.vue).
+const SHEET_TABS = ['stats', 'equipment', 'licences', 'talents']
+const tab = ref('stats')
 
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
@@ -393,48 +405,94 @@ async function createMech() {
       </div>
 
       <div class="wide">
+        <!-- One group at a time, picked from SheetTabs.vue: stats, equipment, licences with core bonuses, talents.
+             v-show keeps every group mounted, so switching never loses an open picker or an unsaved field. The mech
+             hangar is always shown, below. -->
         <template v-if="canSeePrivate">
-          <StatRow title="pilot stats" tag="private" :stats="vitals" :editable="false" :min="0" :max="0" />
-          <p class="dim small">includes equipped armour and gear. no grit. unavailable gear shows totals as −.</p>
-          <StatRow
-            title="personal stats"
-            tag="private"
-            :stats="stats.personal"
-            :editable="editable"
-            :min="PERSONAL_STAT_MIN"
-            :max="PERSONAL_STAT_MAX"
-            :budget="{ label: 'personal points', total: PERSONAL_STAT_POINTS }"
-            @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
-          />
-          <p class="dim small">personal stats start at 2. allocate 4 points, up to 4 per base stat. biomods change the total separately.</p>
-          <StatRow
-            title="piloting stats"
-            tag="private"
-            :stats="stats.piloting"
-            :editable="editable"
-            :min="STAT_MIN"
-            :max="STAT_MAX"
-            :budget="{ label: 'hase points', total: skillPoints(gm.level) }"
-            @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
-          />
-          <LoadoutBox
-            title="bionics"
-            tag="private"
-            :items="bionicItems(bionics, PRICES.bionic)"
-            :chosen="sheet.bionics ?? []"
-            :editable="editable"
-            :limit="{ label: 'mod limit', unit: 'mod points', max: modLimit(gm.level) }"
-            :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
-            :save="saveBionics"
-          />
-          <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+          <SheetTabs v-model="tab" :tabs="SHEET_TABS" />
+          <div v-show="tab === 'stats'" class="tab-panel">
+            <StatRow title="general stats" tag="private" :stats="vitals" :editable="false" :min="0" :max="0" />
+            <StatRow
+              title="personal stats"
+              tag="private"
+              :stats="stats.personal"
+              :editable="editable"
+              :min="PERSONAL_STAT_MIN"
+              :max="PERSONAL_STAT_MAX"
+              :budget="PERSONAL_STAT_POINTS"
+              @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
+            />
+            <StatRow
+              title="piloting stats"
+              tag="private"
+              :stats="stats.piloting"
+              :editable="editable"
+              :min="STAT_MIN"
+              :max="STAT_MAX"
+              :budget="skillPoints(gm.level)"
+              @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+            />
+          </div>
+          <div v-show="tab === 'equipment'" class="tab-panel">
+            <LoadoutBox
+              title="bionics"
+              tag="private"
+              :items="bionicOptions"
+              :chosen="sheet.bionics ?? []"
+              :editable="editable"
+              :limit="{ label: 'mod limit', unit: 'mod points', max: modLimit(gm.level) }"
+              :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
+              :save="saveBionics"
+            />
+            <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+          </div>
+          <div v-show="tab === 'licences'" class="tab-panel">
+            <RankPanel
+              title="licences"
+              noun="licence"
+              :options="licenceOptions"
+              :held="sheet.licences ?? {}"
+              :details="licenceDetails"
+              columns
+              :price="PRICES.licenceRank"
+              :balance="balance"
+              :editable="editable"
+              :save="saveLicences"
+            >
+              <template #summary>
+                <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
+              </template>
+            </RankPanel>
+            <CoreBonusPanel
+              :options="coreBonuses"
+              :licences="sheet.licences ?? {}"
+              :frames="frames"
+              :taken="sheet.core_bonuses ?? []"
+              :picks="coreBonusPicks(sheet)"
+              :editable="editable"
+              :save="saveCoreBonuses"
+            />
+          </div>
+          <div v-show="tab === 'talents'" class="tab-panel">
+            <RankPanel
+              title="talents"
+              noun="talent"
+              :options="talentOptions"
+              :held="sheet.talents ?? {}"
+              :details="talentDetails"
+              tiers
+              :price="PRICES.talentRank"
+              :balance="balance"
+              :editable="editable"
+              :save="saveTalents"
+            />
+          </div>
         </template>
 
-        <section class="hangar">
-          <header class="hangar-head">
-            <h2 class="sheet-label">mech hangar</h2>
+        <SheetGroup title="mech hangar">
+          <template #tools>
             <button v-if="editable && mechs.length && !addingMech" type="button" @click="openNewMech">new mech</button>
-          </header>
+          </template>
           <div class="hangar-body">
             <ul v-if="mechs.length" class="mechs">
               <li v-for="mech in mechs" :key="mech.id">
@@ -464,45 +522,7 @@ async function createMech() {
             <AddBox v-else-if="editable && !mechs.length" label="new mech" class="add-mech" @click="openNewMech" />
             <p v-else-if="!mechs.length" class="dim">no mechs on file.</p>
           </div>
-        </section>
-
-        <template v-if="canSeePrivate">
-          <RankPanel
-            title="licences"
-            noun="licence"
-            :options="licenceOptions"
-            :held="sheet.licences ?? {}"
-            :details="licenceDetails"
-            :price="PRICES.licenceRank"
-            :balance="balance"
-            :editable="editable"
-            :save="saveLicences"
-          >
-            <template #summary>
-              <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
-            </template>
-          </RankPanel>
-          <CoreBonusPanel
-            :options="coreBonuses"
-            :licences="sheet.licences ?? {}"
-            :frames="frames"
-            :taken="sheet.core_bonuses ?? []"
-            :picks="coreBonusPicks(sheet)"
-            :editable="editable"
-            :save="saveCoreBonuses"
-          />
-          <RankPanel
-            title="talents"
-            noun="talent"
-            :options="talentOptions"
-            :held="sheet.talents ?? {}"
-            :details="talentDetails"
-            :price="PRICES.talentRank"
-            :balance="balance"
-            :editable="editable"
-            :save="saveTalents"
-          />
-        </template>
+        </SheetGroup>
 
         <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
         <section v-if="approvedOwn" class="death">
@@ -641,7 +661,8 @@ async function createMech() {
 }
 
 .writing,
-.wide {
+.wide,
+.tab-panel {
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
@@ -817,17 +838,6 @@ input.name {
 }
 
 /* --- Hangar: mechs centred, so a single mech sits in the middle --- */
-.hangar-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.hangar-head button {
-  padding: 0;
-  font-size: 0.8125rem;
-}
-
 .hangar-body {
   display: flex;
   flex-direction: column;

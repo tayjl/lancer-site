@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vu
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
 import { isGm, isOwner, profile } from './auth'
+import InfoDialog from './components/InfoDialog.vue'
 import { supabase } from './lib/supabaseClient'
 
 const route = useRoute()
@@ -18,6 +19,7 @@ const tabs = [
   { name: 'registry', label: 'registry' },
   { name: 'pending', label: 'pending' },
   { name: 'memorial', label: 'memorial' },
+  { name: 'archives', label: 'archives' },
 ]
 const gmTabs = computed(() => [
   { name: 'gm-pilots', label: 'pilots' },
@@ -83,6 +85,8 @@ async function disconnect() {
     <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. -->
     <RouterView :key="route.path" />
   </div>
+  <!-- The full information on any item (src/info.ts), opened from cards and pickers anywhere. -->
+  <InfoDialog />
 </template>
 
 <style scoped>
