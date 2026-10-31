@@ -117,7 +117,14 @@ describe('mechStats', () => {
       { stat: 'heat', source: 'Conditional', value: 2, replace: false, overwrite: false },
     ])
     expect(effects.reminders).toHaveLength(6)
-    expect(effects.reminders[0].text).toContain('condition: {exposed}')
+    expect(effects.reminders[0].text).toBe('+10 hp, only when exposed: not counted in the stats above.')
+  })
+
+  it('leaves pilot gear and equipped items’ own rules out of the reminders', () => {
+    const gear = toItem('jacket', { name: 'Jacket', type: 'Armor', description: 'A jacket.', bonuses: [{ id: 'pilot_hp', val: 2 }], actions: [{ name: 'Zip', detail: 'Zip up.' }] })
+    const system = toItem('described', { name: 'Described', effect: 'Does a thing.', actions: [{ name: 'Act', detail: 'Act now.' }] })
+    const effects = mechEffects({ systems: ['described'] }, { pilot_gear: ['jacket'] }, { ...catalogue, gear: [gear], systems: new Map([['described', system]]) })
+    expect(effects.reminders).toEqual([])
   })
 
   it('only counts equipped weapons and integrated items once, with missing content made explicit', () => {

@@ -15,8 +15,9 @@ import systemPointIcon from './assets/icons/system_point.svg'
 import speedIcon from './assets/icons/speed.svg'
 import threatIcon from './assets/icons/threat.svg'
 import variableIcon from './assets/icons/variable.svg'
-import type { Item } from './gameData'
+import { hiddenTags, type Item } from './gameData'
 import { averageDamage, averageDamageText } from './damage'
+import { plainText } from './rulesText'
 
 // What an item card shows (ItemDetails.vue, and the pickers' one-line summaries): its stats with LANCER's
 // symbols, its rules text and its tags.
@@ -46,9 +47,6 @@ const ICONS: Record<string, string> = {
 // Tags that only repeat what the slot already says.
 const HIDDEN_TAGS = ['tg_gear', 'tg_pilot_weapon', 'tg_personal_armor']
 
-// Rules text without its HTML (it's shown as plain text, never as HTML).
-const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-
 // "tagNames" is lancer-data's tag list (e.g. "Limited {VAL}"); without it the id stands in ("limited").
 export function itemDetails(item: Item, tagNames: Map<string, string>) {
   const stats = [
@@ -69,7 +67,7 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
     ...(item.sp ? [{ label: 'sp', icon: systemPointIcon, value: String(item.sp) }] : []),
   ]
   const tags = item.tags
-    .filter((tag) => !HIDDEN_TAGS.includes(tag.id))
+    .filter((tag) => !HIDDEN_TAGS.includes(tag.id) && !hiddenTags.value.has(tag.id))
     .map((tag) => {
       const name = tagNames.get(tag.id) ?? tag.id.replace(/^tg_/, '').replaceAll('_', ' ')
       return (name.includes('{VAL}') ? name.replace('{VAL}', String(tag.val ?? '')) : `${name}${tag.val != null ? ` ${tag.val}` : ''}`)
@@ -77,7 +75,8 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
         .toLowerCase()
     })
   // Pilot gear often has no rules text, only flavour, so it falls back to the description.
-  const text = averageDamageText(plain(item.effect) || (item.type === 'Gear' ? plain(item.description) : ''))
+  // Still formatted HTML: RulesText.vue draws it safely, plainText() flattens it for pickers.
+  const text = averageDamageText(plainText(item.effect) ? item.effect : item.type === 'Gear' ? item.description : '')
   return { stats, tags, text }
 }
 

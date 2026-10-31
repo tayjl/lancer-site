@@ -2,6 +2,7 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import { loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemDetails, statLine } from '../itemDetails'
+import { plainText } from '../rulesText'
 import ItemDetails from './ItemDetails.vue'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
@@ -19,6 +20,8 @@ const props = defineProps<{
 const byId = computed(() => new Map(props.items.map((item) => [item.id, item])))
 const layout = computed(() => loadoutSlots(props.chosen, (id) => byId.value.get(id)?.type))
 const nameOf = (id: string) => byId.value.get(id)?.name ?? id
+// Read-only sheets skip empty slots: six "// empty //" cards are a lot of scrolling past nothing.
+const shownSlots = computed(() => layout.value.slots.filter((slot) => props.editable || (slot.id && byId.value.get(slot.id))))
 
 // --- Changing a slot: rebuilds the whole list from the slots ---
 const error = ref('')
@@ -45,7 +48,7 @@ const options = computed(() =>
     .filter((item) => item.type === target.value?.type)
     .map((item) => {
       const details = itemDetails(item, tagNames.value)
-      return { id: item.id, name: item.name, meta: statLine(details), text: details.text }
+      return { id: item.id, name: item.name, meta: statLine(details), text: plainText(details.text) }
     }),
 )
 
@@ -64,9 +67,9 @@ async function equip(id: string) {
   <section class="pilot-loadout">
     <h2 class="sheet-label">loadout<span class="tag"> [private]</span></h2>
 
-    <ul class="slot-grid">
+    <ul v-if="shownSlots.length" class="slot-grid">
       <SlotCard
-        v-for="slot in layout.slots"
+        v-for="slot in shownSlots"
         :key="`${slot.type}-${slot.index}`"
         :title="slot.label"
         :empty="!slot.id || !byId.get(slot.id)"
@@ -78,6 +81,7 @@ async function equip(id: string) {
         <ItemDetails :item="byId.get(slot.id!)!" />
       </SlotCard>
     </ul>
+    <p v-else class="dim note">no gear equipped.</p>
 
     <p v-if="error" class="rose note" role="alert">not saved: {{ error }}</p>
     <p v-if="layout.overflow.length" class="rose note">

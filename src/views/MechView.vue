@@ -5,6 +5,7 @@ import ItemPicker from '../components/ItemPicker.vue'
 import MechLoadout from '../components/MechLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RuleCheck from '../components/RuleCheck.vue'
+import RulesText from '../components/RulesText.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
@@ -69,7 +70,6 @@ function capacityFor(changes: Partial<MechPrivate>) {
   const stats = mechStats(baseFrame.value, sheet.value.mech_skills, bonuses.modifiers)
   return { sp: stats.find(stat => stat.id === 'system_points')?.value ?? 0, ai: mechResources(sheet.value, bonuses).aiCap }
 }
-const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 const spTotal = computed(() => stats.value.find((stat) => stat.id === 'system_points')!.value)
 
 // --- The save status shown in the top strip, for the one-line fields ---
@@ -224,11 +224,11 @@ async function scrap() {
         <template v-if="canSeePrivate">
           <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
           <div v-if="frame" class="build-resources">
-            <span>AI capacity {{ resources.aiCap }}</span>
-            <span>Limited uses +{{ resources.limited }}</span>
-            <span>structure repair cost {{ resources.structureRepairs }}</span>
-            <span>overcharge heat {{ resources.overcharge }}</span>
-            <p v-for="(check, index) in resources.checks" :key="index">{{ check.source }}: {{ check.text }}</p>
+            <span>AI capacity <strong>{{ resources.aiCap }}</strong></span>
+            <span v-if="resources.limited"><strong>{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }}</strong> uses on Limited items</span>
+            <span>repairing structure costs <strong>{{ resources.structureRepairs }}</strong> repairs</span>
+            <span>overcharge heat <strong>{{ resources.overcharge }}</strong></span>
+            <p v-for="(check, index) in resources.checks" :key="index"><strong>{{ check.source }}:</strong> {{ check.text }}</p>
           </div>
           <p class="dim small stats-note">
             {{
@@ -243,7 +243,7 @@ async function scrap() {
             <ul>
               <li v-for="(reminder, index) in effects.reminders" :key="index">
                 <strong>{{ reminder.source }}</strong>
-                <p>{{ plain(reminder.text) }}</p>
+                <RulesText :html="reminder.text" />
               </li>
             </ul>
           </details>
@@ -437,12 +437,14 @@ input.maker-id {
   font-size: 0.875rem;
 }
 .build-resources { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0; font-size: 0.8125rem; color: var(--text-dim); }
-.build-resources p { flex-basis: 100%; margin: 0; color: var(--sky); }
+.build-resources strong { color: var(--lilac); }
+.build-resources p { flex-basis: 100%; margin: 0; color: var(--text); }
+.build-resources p strong { color: var(--sky); font-weight: 400; }
 .effect-reminders summary { cursor: pointer; color: var(--sky); }
 .effect-reminders ul { list-style: none; padding: 0; }
 .effect-reminders li { padding: 0.75rem 0; border-top: 1px solid var(--rule); }
 .effect-reminders strong { color: var(--lilac); }
-.effect-reminders li p { margin: 0.25rem 0 0; font-family: var(--read); }
+.effect-reminders li .rules-text { margin-top: 0.25rem; }
 
 .stats-note {
   margin: -1.25rem 0 0;

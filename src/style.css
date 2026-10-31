@@ -191,6 +191,40 @@ input[type='text']:focus {
   font: 400 1.0625rem/1.55 var(--read);
 }
 
+/* LANCER rules text (RulesText.vue): readable, with its own lists and bold keywords kept. */
+.rules-text {
+  color: var(--text);
+  font: 400 0.9375rem/1.5 var(--read);
+}
+
+.rules-text p,
+.rules-text ul,
+.rules-text ol {
+  margin: 0 0 0.5em;
+}
+
+.rules-text > :last-child {
+  margin-bottom: 0;
+}
+
+.rules-text ul,
+.rules-text ol {
+  padding-left: 1.25em;
+}
+
+.rules-text li + li {
+  margin-top: 0.25em;
+}
+
+.rules-text li::marker {
+  color: var(--lilac);
+}
+
+.rules-text b {
+  color: var(--lilac);
+  font-weight: 700;
+}
+
 /* The ">" before a page title, like a command typed at a prompt. */
 /* Colour helpers, used by the chats and terminal text. */
 .dim {

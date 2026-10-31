@@ -8,7 +8,7 @@ import GmReview from '../components/GmReview.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
-import RankPanel from '../components/RankPanel.vue'
+import RankPanel, { type RankStep } from '../components/RankPanel.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
@@ -17,7 +17,7 @@ import type { Json } from '../lib/database.types'
 import { useMechData } from '../mechData'
 import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
-import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, rankName, skillPoints } from '../rules'
+import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints } from '../rules'
 
 // my pilot: your pilot as one sheet, laid out like COMP/CON. The important bits across the top,
 // long writing on the left, the portrait and identity table on the right (above the writing on phones),
@@ -152,24 +152,27 @@ const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, integrated } = useMechData()
 const balance = computed(() => gm.value.manna - mannaSpent(sheet.value))
-// Rules text without its HTML (shown as plain text).
-const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
-// Licences: one per licensed frame. Rank II unlocks the frame; each rank unlocks its gear of that level.
+// Licences: one per licensed frame. Each rank unlocks the frame and gear of that licence level.
 const licenceOptions = computed(() =>
   frames.value
     .filter((frame) => frame.licenceLevel > 0)
     .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/').toLowerCase() })),
 )
-const licenceDetails = (_id: string, rank: number) => [
-  `${rank >= 2 ? 'frame unlocked' : 'frame unlocks at rank II'}; gear up to rank ${rankName(rank)} is free to print.`,
-]
+const licenceDetails = (id: string): RankStep[] =>
+  [1, 2, 3].map((level) => ({
+    unlocks: [
+      ...frames.value.filter((f) => f.id === id && f.licenceLevel === level).map((f) => ({ kind: 'frame', name: f.name })),
+      ...weapons.value.filter((w) => w.licenceId === id && w.licenceLevel === level).map((w) => ({ kind: 'weapon', name: w.name })),
+      ...systems.value.filter((s) => s.licenceId === id && s.licenceLevel === level).map((s) => ({ kind: 'system', name: s.name })),
+    ],
+  }))
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
-// Talents: each rank's name and rules, up to the rank held.
+// Talents: each rank's name and rules.
 const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse })))
-const talentDetails = (id: string, rank: number) =>
-  (talents.value.find((t) => t.id === id)?.ranks ?? []).slice(0, rank).map((r, i) => `${rankName(i + 1)} ${r.name}: ${plain(r.description)}`)
+const talentDetails = (id: string): RankStep[] =>
+  (talents.value.find((t) => t.id === id)?.ranks ?? []).map((r) => ({ name: r.name, html: r.description }))
 const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({ talents: talentRanks }))
 
 const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids }))

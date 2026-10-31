@@ -19,7 +19,7 @@ describe('average damage', () => {
   it('converts damage prose without changing checks, movement or healing', () => {
     expect(averageDamageText('Roll 1d20, move 1d6 spaces, heal 1d6 HP and deal 1d6+2 AP kinetic damage.'))
       .toBe('Roll 1d20, move 1d6 spaces, heal 1d6 HP and deal 6 AP kinetic damage.')
-    expect(averageDamageText('Deal <b>1d6</b> energy damage and +2d6 bonus damage.')).toContain('4  energy damage and +7 bonus damage.')
+    expect(averageDamageText('Deal <b>1d6</b> energy damage and +2d6 bonus damage.')).toBe('Deal <b>4</b> energy damage and +7 bonus damage.')
   })
 
   it('uses averages in shared card and picker details, keeping range unchanged', () => {

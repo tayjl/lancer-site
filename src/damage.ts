@@ -10,10 +10,10 @@ export function averageDamage(value: string | number): string | number {
 }
 
 // shortcut: only explicit damage phrases are converted; unusual prose needs a content-specific rule.
-// Rules are displayed as plain text. Strip markup before matching, including markup between dice and type.
+// Rules text keeps its formatting (src/rulesText.ts), so markup may sit between the dice and the damage type.
 export function averageDamageText(text: string): string {
-  return text.replace(/<[^>]*>/g, ' ').replace(
-    /\b\d*d\d+(?:\s*[+-]\s*(?:\d+d\d+|\d+))*(?=\s+(?:(?:AP|kinetic|energy|explosive|burn|heat|bonus)\s+)*damage\b|\s+(?:AP\s+)?(?:kinetic|energy|explosive|burn)\b)/gi,
+  return text.replace(
+    /\b\d*d\d+(?:\s*[+-]\s*(?:\d+d\d+|\d+))*(?=(?:\s|<[^>]*>)+(?:(?:AP|kinetic|energy|explosive|burn|heat|bonus)(?:\s|<[^>]*>)+)*damage\b|(?:\s|<[^>]*>)+(?:AP(?:\s|<[^>]*>)+)?(?:kinetic|energy|explosive|burn)\b)/gi,
     dice => String(averageDamage(dice)),
   )
 }

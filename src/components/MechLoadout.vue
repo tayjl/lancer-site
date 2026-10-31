@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef } from 'vue'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
 import { itemDetails, statLine } from '../itemDetails'
+import { plainText } from '../rulesText'
 import { allowedSizes, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { bracingMount, isLicensed, licenceName, rankName, superheavyMount } from '../rules'
@@ -133,7 +134,7 @@ const options = computed(() => {
         id: item.id,
         name: item.name,
         meta: [kind, statLine(details), licence].filter(Boolean).join(': '),
-        text: details.text,
+        text: plainText(details.text),
         blocked: blockedBy(item),
         licensed: isLicensed(item, props.licences),
       }

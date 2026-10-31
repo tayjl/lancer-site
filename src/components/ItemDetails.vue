@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { tagNames, type Item } from '../gameData'
 import { itemDetails } from '../itemDetails'
+import RulesText from './RulesText.vue'
 import StatIcon from './StatIcon.vue'
 import { averageDamageText } from '../damage'
 
@@ -31,11 +32,14 @@ const rules = computed(() => {
         <span class="stat-label">{{ stat.label }}</span>
       </li>
     </ul>
-    <p v-if="details.text" class="text">{{ details.text }}</p>
+    <RulesText v-if="details.text" class="text" :html="details.text" />
     <details v-if="item.sources?.length || rules.length" class="rules">
       <summary>modifiers and rules</summary>
       <p v-for="(source, index) in item.sources" :key="`source-${index}`">{{ source }}</p>
-      <p v-for="(rule, index) in rules" :key="`rule-${index}`"><strong>{{ rule.name }}:</strong> {{ rule.text.replace(/<[^>]*>/g, ' ') }}</p>
+      <div v-for="(rule, index) in rules" :key="`rule-${index}`" class="rule">
+        <strong>{{ rule.name }}</strong>
+        <RulesText :html="rule.text" />
+      </div>
     </details>
     <ul v-if="details.tags.length" class="tags">
       <li v-for="tag in details.tags" :key="tag">{{ tag }}</li>
@@ -90,12 +94,13 @@ const rules = computed(() => {
 }
 
 .text {
-  color: var(--text-dim);
-  font: 400 0.875rem/1.45 var(--read);
+  font-size: 0.875rem;
 }
 .rules { color: var(--text-dim); font: 400 0.8125rem/1.5 var(--read); }
 .rules summary { cursor: pointer; color: var(--sky); }
-.rules p { margin-top: 0.5rem; }
+.rules p, .rule { margin-top: 0.5rem; }
+.rule strong { color: var(--lilac); }
+.rule .rules-text { font-size: 0.8125rem; }
 
 .tags {
   display: flex;

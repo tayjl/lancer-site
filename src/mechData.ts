@@ -135,16 +135,17 @@ export const buildVariables = (sheet: Sheet, frame?: Frame | null) => ({
   size: frame?.stats.size ?? 1,
 })
 
-// Only equipped equipment and purchased talent ranks contribute. Text and unsupported bonuses remain
-// explicit reminders: guessing whether a conditional effect is active would give misleading totals.
+// Only equipped equipment and purchased talent ranks contribute. Actions, active core powers, conditional and
+// unsupported bonuses remain explicit reminders: guessing whether a conditional effect is active would give
+// misleading totals. Equipped items' rules aren't repeated: their own loadout cards already show them.
 export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCatalogue) {
-  const sources: { name: string; text: string; bonuses: Bonus[] }[] = []
+  const sources: { name: string; bonuses: Bonus[] }[] = []
   const reminders: { source: string; text: string }[] = []
   const addItem = (id: string, items: Map<string, Item>, key = id) => {
     const item = items.get(id) ?? catalogue.integrated.get(id)
     if (item) {
       const selected = selectWeaponProfile(item, mech.weapon_options?.[key]?.profile ?? 0)
-      addRaw(selected.name, selected.effect || selected.description, { ...selected.raw, bonuses: selected.bonuses })
+      addRaw(selected.name, '', { ...selected.raw, bonuses: selected.bonuses }, false)
     }
     else reminders.push({ source: id, text: 'Content unavailable; its bonuses are not included.' })
   }
@@ -159,18 +160,24 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   ]
   const mountBonuses = mountSources.flatMap(source => Array.isArray(source.bonuses) ? (source.bonuses as Bonus[]).filter(bonus => bonus?.id === 'add_mount').map(bonus => ({ source: '', bonus })) : [])
   const frame = buildFrame(baseFrame ?? null, mech, sheet, catalogue.talents ?? [], mountBonuses)
-  const addRaw = (name: string, text: unknown, raw: Record<string, unknown>) => {
-    sources.push({ name, text: averageDamageText(String(text ?? '')), bonuses: Array.isArray(raw.bonuses) ? raw.bonuses as Bonus[] : [] })
-    for (const key of ['actions', 'active_actions', 'passive_actions', 'active_effects', 'synergies']) {
+  const addRaw = (name: string, text: unknown, raw: Record<string, unknown>, remind = true) => {
+    sources.push({ name, bonuses: Array.isArray(raw.bonuses) ? raw.bonuses as Bonus[] : [] })
+    if (!remind) return
+    if (text) reminders.push({ source: name, text: averageDamageText(String(text)) })
+    // Not "synergies": COMP/CON's hints that repeat the rules text already listed.
+    for (const key of ['actions', 'active_actions', 'passive_actions', 'active_effects']) {
       if (!Array.isArray(raw[key])) continue
       for (const action of raw[key] as Record<string, unknown>[]) {
-        if (action && typeof action === 'object' && (action.detail || action.description))
-          reminders.push({ source: `${name} · ${action.name ?? key.replaceAll('_', ' ')}`, text: averageDamageText(String(action.detail ?? action.description)) })
+        if (!action || typeof action !== 'object' || !(action.detail || action.description)) continue
+        // "Reactive Code · reaction" rather than "Reactive Code · Reactive Code".
+        const label = action.name && name.endsWith(String(action.name)) ? String(action.activation ?? 'action').toLowerCase() : action.name ?? key.replaceAll('_', ' ')
+        reminders.push({ source: `${name} · ${label}`, text: averageDamageText(String(action.detail ?? action.description)) })
       }
     }
   }
   if (baseFrame?.raw) {
-    addRaw(baseFrame.name, baseFrame.description, baseFrame.raw)
+    // The frame's description is lore, not rules.
+    addRaw(baseFrame.name, '', baseFrame.raw)
     for (const trait of (Array.isArray(baseFrame.raw.traits) ? baseFrame.raw.traits : []) as Record<string, unknown>[])
       addRaw(`${baseFrame.name} · ${trait.name ?? 'trait'}`, trait.description, trait)
     const core = baseFrame.raw.core_system as Record<string, unknown> | undefined
@@ -179,13 +186,14 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
       if (core.active_effect) reminders.push({ source: `${core.active_name ?? core.name} · active core power`, text: averageDamageText(String(core.active_effect)) })
     }
   }
-  if (baseFrame && CORE_CHECK_BONUSES[baseFrame.id]) sources.push({ name: baseFrame.name, text: '', bonuses: CORE_CHECK_BONUSES[baseFrame.id] })
+  if (baseFrame && CORE_CHECK_BONUSES[baseFrame.id]) sources.push({ name: baseFrame.name, bonuses: CORE_CHECK_BONUSES[baseFrame.id] })
+  // Pilot gear only counts for any mech bonuses it has (homebrew); its rules and pilot_* bonuses stay on the pilot.
   if (catalogue.gear) {
     const byId = new Map(catalogue.gear.map(item => [item.id, item]))
     const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
     for (const slot of layout.slots) {
       const item = slot.id ? byId.get(slot.id) : undefined
-      if (item) addRaw(item.name, item.effect || item.description, { ...item.raw, bonuses: item.bonuses })
+      if (item) sources.push({ name: item.name, bonuses: item.bonuses.filter(bonus => !bonus.id.startsWith('pilot_')) })
     }
   }
   const mounts = frame ? (mech.mounts ?? []).slice(0, frame.mounts.length).map((places, index) => places.slice(0, mountSize(frame.mounts[index]))) : mech.mounts ?? []
@@ -207,7 +215,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     const bonus = catalogue.coreBonuses?.find(bonus => bonus.id === id)
     if (bonus) {
       addRaw(bonus.name, bonus.effect, bonus)
-      if (CORE_CHECK_BONUSES[id]) sources.push({ name: bonus.name, text: '', bonuses: CORE_CHECK_BONUSES[id] })
+      if (CORE_CHECK_BONUSES[id]) sources.push({ name: bonus.name, bonuses: CORE_CHECK_BONUSES[id] })
     }
     else reminders.push({ source: id, text: 'Core bonus unavailable; its bonuses are not included.' })
   }
@@ -222,7 +230,6 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   const modifiers: StatModifier[] = []
   const bonuses: NamedBonus[] = []
   for (const source of sources) {
-    if (source.text) reminders.push({ source: source.name, text: source.text })
     for (const bonus of source.bonuses) {
       if (!bonus || typeof bonus !== 'object') continue
       if (bonus.id === 'pilot_evasion') continue
@@ -237,17 +244,24 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
         && (bonus.replace === undefined || typeof bonus.replace === 'boolean')
         && (bonus.overwrite === undefined || typeof bonus.overwrite === 'boolean'))
         modifiers.push({ stat, source: source.name, value, replace: !!bonus.replace, overwrite: !!bonus.overwrite })
-      else if (bonus.condition || bonus.detail || (!['range', 'damage', 'attack', 'threat', 'add_mount', 'overcharge', 'cheap_struct', 'superheavy_mounting', 'drone_hp', 'deployable_hp'].includes(bonus.id) && bonus.accuracy === undefined)) reminders.push({ source: source.name, text: `Not included in totals: ${bonus.id ?? 'unknown bonus'}${numeric ? ` ${value >= 0 ? '+' : ''}${value}` : ''}${bonus.condition ? `; condition: ${bonus.condition}` : ''}${bonus.detail ? `; ${bonus.detail}` : ''}.` })
+      else if (bonus.condition || bonus.detail || (!['range', 'damage', 'attack', 'threat', 'add_mount', 'overcharge', 'cheap_struct', 'superheavy_mounting', 'drone_hp', 'deployable_hp'].includes(bonus.id) && bonus.accuracy === undefined)) reminders.push({ source: source.name, text: bonusReminder(bonus, numeric ? value : null) })
     }
   }
   return { modifiers, bonuses, reminders }
+}
+
+// "+10 hp, only when exposed: not counted in the stats above." Bonus ids and {braces} are data, not wording.
+function bonusReminder(bonus: Bonus, value: number | null) {
+  const what = `${value === null ? '' : `${value >= 0 ? '+' : ''}${value} `}${String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')}`
+  const when = bonus.condition ? `, only when ${String(bonus.condition).replace(/[{}]/g, '')}` : ''
+  return `${what}${when}: not counted in the stats above.${bonus.detail ? ` ${bonus.detail}` : ''}`
 }
 
 export function mechResources(sheet: Sheet, effects: ReturnType<typeof mechEffects>) {
   const count = (id: string, base = 0) => resolveBonuses(base, effects.modifiers.filter(entry => entry.stat === id)).value
   const overcharge = effects.bonuses.find(entry => entry.bonus.id === 'overcharge' && permanentBonus(entry.bonus) && Array.isArray(entry.bonus.val))
   const checks = effects.bonuses.filter(entry => !entry.bonus.condition && !entry.bonus.detail && typeof entry.bonus.accuracy === 'number' && !['attack', 'melee'].includes(entry.bonus.id))
-    .map(entry => ({ source: entry.source, text: `${entry.bonus.id.replaceAll('_', ' ')} checks: ${Number(entry.bonus.accuracy) >= 0 ? '+' : ''}${entry.bonus.accuracy} accuracy` }))
+    .map(entry => ({ source: entry.source, text: `${Number(entry.bonus.accuracy) >= 0 ? '+' : ''}${entry.bonus.accuracy} accuracy on ${entry.bonus.id.replaceAll('_', ' ')} checks` }))
   return {
     aiCap: Math.max(0, count('ai_cap', 1)),
     limited: Math.floor((sheet.mech_skills?.engineering ?? 0) / 2) + count('limited_bonus'),

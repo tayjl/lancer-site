@@ -3,7 +3,9 @@ import { computed, ref, useTemplateRef } from 'vue'
 import type { CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
 import { coreBonusProblems } from '../rules'
+import { plainText } from '../rulesText'
 import ItemPicker from './ItemPicker.vue'
+import RulesText from './RulesText.vue'
 import SlotCard from './SlotCard.vue'
 
 // Core bonuses (homebrew; src/rules.ts): free, one for every 3 licence ranks bought ("picks"). A card per one
@@ -18,8 +20,6 @@ const props = defineProps<{
   save: (ids: string[]) => Promise<string | null>
 }>()
 
-// Rules text without its HTML (shown as plain text).
-const plain = (html: string) => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 const byId = computed(() => new Map(props.options.map((bonus) => [bonus.id, bonus])))
 const left = computed(() => props.picks - props.taken.length)
 
@@ -44,7 +44,7 @@ const blocked = (id: string) => coreBonusProblems(
 const offered = computed(() =>
   props.options
     .filter((bonus) => !props.taken.includes(bonus.id))
-    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plain(bonus.effect), blocked: blocked(bonus.id) })),
+    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plainText(bonus.effect), blocked: blocked(bonus.id) })),
 )
 
 function open() {
@@ -64,7 +64,7 @@ async function choose(id: string) {
   <section class="core-bonuses">
     <header class="head">
       <h2 class="sheet-label">core bonuses<span class="tag"> [private]</span></h2>
-      <span class="dim" :class="{ rose: left < 0 }">{{ taken.length }}/{{ picks }} taken, one free per 3 licence ranks</span>
+      <span class="dim" :class="{ rose: left < 0 }">{{ taken.length }}/{{ picks }} taken<template v-if="editable">, one free per 3 licence ranks</template></span>
     </header>
     <p v-if="editable" class="dim note">each non-GMS bonus needs another 3 licence ranks from its manufacturer.</p>
 
@@ -74,7 +74,7 @@ async function choose(id: string) {
           <button type="button" :disabled="saving" @click="remove(id)">remove</button>
         </template>
         <p class="name">{{ byId.get(id)?.name ?? id }}</p>
-        <p class="effect">{{ plain(byId.get(id)?.effect ?? '') }}</p>
+        <RulesText :html="byId.get(id)?.effect ?? ''" />
       </SlotCard>
       <SlotCard v-if="editable && left > 0" title="new core bonus" empty>
         <template #tools>
@@ -111,12 +111,6 @@ async function choose(id: string) {
   margin: 0;
   color: var(--lilac);
   font-weight: 700;
-}
-
-.effect {
-  margin: 0;
-  color: var(--text-dim);
-  font: 400 0.875rem/1.45 var(--read);
 }
 
 .note {

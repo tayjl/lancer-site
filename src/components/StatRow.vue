@@ -36,7 +36,7 @@ const spent = computed(() => !!props.budget && used.value >= props.budget.total)
           {{ stat.name }}
         </span>
         <span class="value">
-          {{ stat.value === null ? '-' : stat.value + (stat.bonus ?? 0) }}<span v-if="stat.bonus" class="bonus"> ({{ stat.value }} base {{ stat.bonus > 0 ? '+' : '' }}{{ stat.bonus }})</span>
+          {{ stat.value === null ? '-' : stat.value + (stat.bonus ?? 0) === 0.5 ? '½' : stat.value + (stat.bonus ?? 0) }}<span v-if="stat.bonus" class="bonus"> ({{ stat.value }} base {{ stat.bonus > 0 ? '+' : '' }}{{ stat.bonus }})</span>
         </span>
         <details v-if="stat.contributors?.length" class="sources">
           <summary>sources<span class="sr-only"> for {{ stat.name }}</span></summary>

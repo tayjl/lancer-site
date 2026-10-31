@@ -2,24 +2,31 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import { MAX_LICENCE_RANK, rankName, sum } from '../rules'
 import ItemPicker from './ItemPicker.vue'
+import RulesText from './RulesText.vue'
 import SlotCard from './SlotCard.vue'
 
+// What one rank gives: a talent rank's name and rules text, or the gear a licence rank unlocks.
+export type RankStep = { name?: string; html?: string; unlocks?: { kind: string; name: string }[] }
+
 // Things bought by rank with manna (licences and talents; src/rules.ts): a card per one held, with its rank
-// I to III, - and +, and what the rank gives ("details"); and a card to buy a new one from "options".
-// Each rank costs "price"; buying stops when the manna "balance" can't cover it. Lowering a rank refunds it.
+// I to III, - and +, and what each rank gives ("details", one step per rank); and a card to buy a new one from
+// "options". Held ranks are bright; while editable, the ranks still to buy are shown dimmed, so players see what
+// they'd get. Each rank costs "price"; buying stops when the manna "balance" can't cover it. Lowering refunds it.
 const props = defineProps<{
   title: string
   noun: string
   options: { id: string; name: string; meta?: string }[]
   held: Record<string, number>
-  details: (id: string, rank: number) => string[]
+  details: (id: string) => RankStep[]
   price: number
   balance: number
   editable: boolean
   save: (next: Record<string, number>) => Promise<string | null>
 }>()
 
-const nameOf = (id: string) => props.options.find((option) => option.id === id)?.name ?? id
+const optionOf = (id: string) => props.options.find((option) => option.id === id)
+const nameOf = (id: string) => optionOf(id)?.name ?? id
+const shownSteps = (id: string, rank: number) => props.details(id).slice(0, props.editable ? MAX_LICENCE_RANK : rank)
 const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
 const affordable = computed(() => props.balance >= props.price)
 
@@ -63,13 +70,17 @@ async function buy(id: string) {
     <header class="head">
       <h2 class="sheet-label">{{ title }}<span class="tag"> [private]</span></h2>
       <slot name="summary" />
-      <span class="dim">{{ sum(held) }} {{ sum(held) === 1 ? 'rank' : 'ranks' }}, {{ price }} manna each</span>
+      <span class="dim">{{ sum(held) }} {{ sum(held) === 1 ? 'rank' : 'ranks' }}<template v-if="editable">, {{ price }} manna each</template></span>
     </header>
 
     <ul v-if="ranks.length || editable" class="slot-grid">
       <SlotCard v-for="[id, rank] in ranks" :key="id" :title="nameOf(id)">
         <div class="rank">
-          <span class="rank-value">rank {{ rankName(rank) }}</span>
+          <span>
+            <span class="rank-value">rank {{ rankName(rank) }}</span>
+            <span class="dim"> of {{ rankName(MAX_LICENCE_RANK) }}</span>
+            <span v-if="optionOf(id)?.meta" class="meta">{{ optionOf(id)?.meta }}</span>
+          </span>
           <span v-if="editable" class="steps">
             <button type="button" :aria-label="`lower ${nameOf(id)}`" :disabled="saving" @click="setRank(id, rank - 1)">-</button>
             <button
@@ -83,7 +94,23 @@ async function buy(id: string) {
             </button>
           </span>
         </div>
-        <p v-for="(line, i) in details(id, rank)" :key="i" class="detail">{{ line }}</p>
+        <ol class="steps-list">
+          <li v-for="(step, i) in shownSteps(id, rank)" :key="i" class="step" :class="{ locked: i >= rank }">
+            <p class="step-head">
+              <span class="numeral">{{ rankName(i + 1) }}</span>
+              <span v-if="step.name" class="step-name">{{ step.name }}</span>
+              <span v-if="i === rank" class="dim step-note">next: {{ affordable ? `${price} manna` : 'not enough manna' }}</span>
+              <span v-else-if="i > rank" class="dim step-note">locked</span>
+            </p>
+            <RulesText v-if="step.html" :html="step.html" />
+            <ul v-if="step.unlocks?.length" class="unlocks">
+              <li v-for="item in step.unlocks" :key="`${item.kind}:${item.name}`">
+                <span class="kind" :class="item.kind">{{ item.kind }}</span> {{ item.name }}
+              </li>
+            </ul>
+            <p v-else-if="!step.html" class="dim step-empty">nothing new at this rank.</p>
+          </li>
+        </ol>
       </SlotCard>
       <SlotCard v-if="editable" :title="`new ${noun}`" empty>
         <template #tools>
@@ -129,10 +156,90 @@ async function buy(id: string) {
   font-weight: 700;
 }
 
-.detail {
-  margin: 0;
+.meta {
+  display: block;
   color: var(--text-dim);
+  font-size: 0.8125rem;
+}
+
+/* One block per rank: a numeral tag, the rank's name, then what it gives. Ranks not yet bought are dimmed. */
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--lilac);
+}
+
+.step.locked {
+  border-left-color: var(--rule);
+  opacity: 0.55;
+}
+
+.step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.6rem;
+  max-width: none;
+  margin: 0 0 0.35rem;
+}
+
+.numeral {
+  min-width: 2.25rem;
+  padding: 0 0.35rem;
+  border: 1px solid var(--lilac);
+  color: var(--lilac);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.locked .numeral {
+  border-color: var(--rule);
+  color: var(--text-dim);
+}
+
+.step-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.step-note,
+.step-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.unlocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   font: 400 0.875rem/1.45 var(--read);
+}
+
+.unlocks li {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--rule);
+}
+
+/* The frame stands out in lilac; gear in sky, the palette's neutral accent. */
+.kind {
+  color: var(--sky);
+  font: 700 0.6875rem var(--mono);
+}
+
+.kind.frame {
+  color: var(--lilac);
 }
 
 .note {
