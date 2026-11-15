@@ -28,13 +28,14 @@ const summary = computed(() => `stats compared with every frame: ${radar.value.m
 </script>
 
 <template>
-  <dialog ref="dialog" class="info" :aria-label="shownInfo ? `${shownInfo.kind}: ${shownInfo.name}` : 'full information'" @close="closed" @click.self="dialog?.close()">
-    <!-- The padding lives inside, so a click on the dialog itself is a click on the backdrop. -->
-    <div v-if="shownInfo" class="info-body">
-      <button type="button" class="close" autofocus @click="dialog?.close()">close</button>
-
+  <dialog ref="dialog" class="dialog info" :aria-label="shownInfo ? `${shownInfo.kind}: ${shownInfo.name}` : 'full information'" @close="closed" @click.self="dialog?.close()">
+    <!-- The parts fill the dialog, so a click on the dialog itself is a click on the backdrop. -->
+    <header v-if="shownInfo" class="dialog-head">
+      <p class="kind">{{ shownInfo.kind }}</p>
+      <button type="button" class="small" autofocus @click="dialog?.close()">close</button>
+    </header>
+    <div v-if="shownInfo" class="dialog-body info-body">
       <header class="part">
-        <p class="kind">{{ shownInfo.kind }}</p>
         <h3>{{ shownInfo.name }}</h3>
         <p v-if="shownInfo.facts.length" class="facts">
           <template v-for="(fact, i) in shownInfo.facts" :key="i"><span v-if="i"> · </span><span :class="fact.tone && `toned tone-${fact.tone}`">{{ fact.text }}</span></template>
@@ -79,33 +80,14 @@ const summary = computed(() => `stats compared with every frame: ${radar.value.m
 </template>
 
 <style scoped>
+/* The dialog frame is style.css's .dialog, wider here for the radar and cards. */
 .info {
   width: min(60rem, calc(100vw - 2rem));
-  max-height: 88vh;
-  padding: 0;
-  border: 1px solid var(--lilac);
-  background: var(--void);
-  color: var(--text);
-  font: 400 0.9375rem/1.6 var(--mono);
-}
-
-.info::backdrop {
-  background: rgb(0 0 0 / 0.6);
 }
 
 .info-body {
-  position: relative;
-  padding: 0 1.25rem;
+  padding-block: 0;
   text-align: center;
-}
-
-.close {
-  position: absolute;
-  top: 0.75rem;
-  right: 1rem;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
 }
 
 /* Each part is separated from the next by a thin line, as in the sketch. */
@@ -118,14 +100,11 @@ const summary = computed(() => `stats compared with every frame: ${radar.value.m
 }
 
 .kind {
-  max-width: none;
-  margin: 0;
   color: var(--sky);
-  font-size: 0.8125rem;
 }
 
 h3 {
-  margin: 0.15rem 0 0;
+  margin: 0;
   color: var(--lilac);
   font-size: 2rem;
   line-height: 1.2;
@@ -149,7 +128,7 @@ h3 {
   max-width: none;
   margin: 0.6rem 0.5rem 0;
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.45;
   opacity: 0.75;
 }
@@ -192,7 +171,7 @@ h3 {
 
 .stat-label {
   color: var(--lilac);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
 }
 
 /* A frame's stats: the radar, and beside it every number in two columns of six (stacked on narrow screens). */

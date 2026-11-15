@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { confirmAction } from '../confirm'
+import SheetTabs from '../components/SheetTabs.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import MechLoadout from '../components/MechLoadout.vue'
 import Portrait from '../components/Portrait.vue'
@@ -19,12 +21,12 @@ import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { isLicensed, mechProblems } from '../rules'
 
-// One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the name
-// and manufacturer id across the top, writing on the left, the image on the right, then stats and loadout.
-// Everything is edited in place and saves itself. The name, manufacturer id, appearance and image are
-// public (on the pilot's card); history, the frame, the stats and the loadout are private. The frame is
-// chosen at the top right; its mounts and system points shape the loadout, and the stats are worked out
-// from it. Quirks are off the page for now, like the pilot's traits (still in the sheet).
+// One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: a summary strip (the
+// manufacturer's registration plate: name, manufacturer id, pilot, frame), then section tabs (profile, stats,
+// loadout), each a stack of panels. Everything is edited in place and saves itself. The name, manufacturer id,
+// appearance and image are public (on the pilot's card); history, the frame, the stats and the loadout are
+// private. The frame is chosen in the strip; its mounts and system points shape the loadout, and the stats are
+// worked out from it. Quirks are off the page for now, like the pilot's traits (still in the sheet).
 // Opened from someone else's record (route param "id"), it's the same page read-only, with the private
 // sections only for their player, GMs and owners.
 
@@ -33,9 +35,34 @@ const router = useRouter()
 const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
 const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId)
-const back = own
-  ? { to: { name: 'pilot', query: { tab: 'mechs' } }, label: 'my pilot' }
-  : { to: { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs' } }, label: 'pilot record' }
+
+// The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
+const list = computed(() =>
+  character.value?.status === 'pending'
+    ? { name: 'pending', label: 'pending' }
+    : character.value?.status === 'dead'
+      ? { name: 'memorial', label: 'memorial' }
+      : { name: 'registry', label: 'registry' },
+)
+const hangar = own ? { name: 'pilot', query: { tab: 'mechs' } } : { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs' } }
+
+// The sections, one at a time, remembered as ?tab= like the pilot sheet. Without the private sheet there's only
+// the public profile, and no tab row.
+const tabs = computed(() => (canSeePrivate.value ? ['profile', 'stats', 'loadout'] : ['profile']))
+const tab = computed({
+  get: () => (tabs.value.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
+  set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
+})
+
+// The tabs stick just under the summary strip, so they need its height.
+const glance = useTemplateRef<HTMLElement>('glance')
+const glanceHeight = ref(0)
+const glanceObserver = new ResizeObserver(([entry]) => (glanceHeight.value = entry.borderBoxSize[0].blockSize))
+watch(glance, (el, old) => {
+  if (old) glanceObserver.unobserve(old)
+  if (el) glanceObserver.observe(el)
+})
+onBeforeUnmount(() => glanceObserver.disconnect())
 
 const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
@@ -127,7 +154,8 @@ const frameOptions = computed(() =>
 
 async function chooseFrame(id: string) {
   const armed = (details.value.mounts ?? []).flat().some(Boolean)
-  if (armed && !window.confirm("a new frame has different mounts, so this mech's weapons come off. go ahead?")) return
+  if (armed && !(await confirmAction("a new frame has different mounts, so this mech's weapons come off. go ahead?", { confirmLabel: 'change frame', danger: true })))
+    return
   await track(savePrivate({ frame: id, mounts: [], core_mounts: {}, weapon_options: {} }))
   if (!saveError.value) framePicker.value?.close()
 }
@@ -151,7 +179,7 @@ function saveText(field: 'name' | 'manufacturer_id', event: Event) {
 const scrapError = ref('')
 
 async function scrap() {
-  if (!window.confirm(`scrap ${mech.value!.name}? this can't be undone.`)) return
+  if (!(await confirmAction(`scrap ${mech.value!.name}? this can't be undone.`, { confirmLabel: 'scrap mech', danger: true }))) return
   const rest = { ...sheet.value.mechs }
   delete rest[mechId.value]
   scrapError.value =
@@ -162,17 +190,27 @@ async function scrap() {
 }
 </script>
 
+
 <template>
   <main class="page mech-page" :style="{ '--maker': makerColour(maker) }">
-    <RouterLink :to="back.to" class="back">&lt; {{ back.label }}</RouterLink>
+    <nav v-if="character" aria-label="Breadcrumb" class="crumbs">
+      <ol>
+        <li v-if="own"><RouterLink :to="hangar">my pilot</RouterLink></li>
+        <template v-else>
+          <li><RouterLink :to="{ name: list.name }">{{ list.label }}</RouterLink></li>
+          <li><RouterLink :to="hangar">{{ character.callsign ?? character.pilot_name }}</RouterLink></li>
+        </template>
+        <li v-if="mech" aria-current="page">{{ mech.name }}</li>
+      </ol>
+    </nav>
 
     <p v-if="loading" class="dim">loading mech record...</p>
     <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
     <p v-else-if="!mech" class="rose">no mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
 
-    <div v-else class="sheet">
-      <!-- At a glance: name, manufacturer id, pilot, frame. -->
-      <header class="glance">
+    <div v-else class="sheet" :style="{ '--glance-h': `${glanceHeight}px` }">
+      <!-- The summary strip: a registration plate in the manufacturer's colour. Sticks under the top bar on wide screens. -->
+      <header ref="glance" class="glance">
         <StatIcon v-if="logo" :src="logo" class="plate-logo" />
         <span v-else-if="baseFrame?.source" class="plate-code">{{ baseFrame.source }}</span>
         <div class="names">
@@ -196,54 +234,67 @@ async function scrap() {
             @change="saveText('manufacturer_id', $event)"
           />
           <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
-        </div>
-        <div class="glance-side">
-          <dl class="glance-facts">
-            <div>
-              <dt>pilot</dt>
-              <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
-            </div>
-            <div v-if="baseFrame?.mechtype.length">
-              <dt>class</dt>
-              <dd class="class-name">{{ baseFrame.mechtype.join(' / ').toLowerCase() }}</dd>
-            </div>
-            <div v-if="canSeePrivate">
-              <dt>frame</dt>
-              <dd>
-                <button v-if="editable" type="button" class="frame-button" @click="framePicker?.open()">
-                  {{ frame ? `${frame.source} ${frame.name}` : 'choose frame' }}
-                </button>
-                <InfoButton v-else-if="baseFrame" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`" />
-                <template v-else>none</template>
-                <InfoButton v-if="editable && baseFrame" class="frame-info" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`">frame details</InfoButton>
-              </dd>
-            </div>
-          </dl>
           <p v-if="own" class="save-status" role="status">
             <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-            <span v-else class="dim">{{ status }}</span>
+            <span v-else-if="status" class="dim">{{ status }}</span>
           </p>
         </div>
-        <RuleCheck v-if="canSeePrivate" class="full" :problems="problems" />
+        <dl class="glance-facts">
+          <div>
+            <dt>pilot</dt>
+            <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
+          </div>
+          <div v-if="baseFrame?.mechtype.length">
+            <dt>class</dt>
+            <dd class="class-name">{{ baseFrame.mechtype.join(' / ').toLowerCase() }}</dd>
+          </div>
+          <div v-if="canSeePrivate">
+            <dt>frame</dt>
+            <dd>
+              <button v-if="editable" type="button" class="small" @click="framePicker?.open()">
+                {{ frame ? `${frame.source} ${frame.name}` : 'choose frame' }}
+              </button>
+              <InfoButton v-else-if="baseFrame" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`" />
+              <template v-else>none</template>
+              <InfoButton v-if="editable && baseFrame" class="frame-info" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`">frame details</InfoButton>
+            </dd>
+          </div>
+        </dl>
       </header>
 
-      <!-- Right on wide screens; between the top strip and appearance on phones. -->
-      <aside class="side">
-        <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
-          <StatIcon v-if="logo" :src="logo" class="portrait-logo" />
-        </Portrait>
-        <p v-if="own" class="dim small">image upload: module offline</p>
-      </aside>
+      <RuleCheck v-if="canSeePrivate" :problems="problems" />
 
-      <div class="writing">
-        <SheetField title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-        <SheetField v-if="canSeePrivate" title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+      <!-- One section at a time; v-show keeps every panel mounted, so switching never loses an open picker. -->
+      <SheetTabs v-if="tabs.length > 1" v-model="tab" :tabs="tabs" label="mech sections" class="tabs" />
+
+      <div v-show="tab === 'profile'" class="tab-panel profile">
+        <!-- Right on wide screens; first on phones. -->
+        <aside class="side panel">
+          <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
+            <StatIcon v-if="logo" :src="logo" class="portrait-logo" />
+          </Portrait>
+          <p v-if="own" class="dim note">image upload: module offline</p>
+        </aside>
+
+        <div class="writing">
+          <SheetField class="panel" title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
+          <SheetField v-if="canSeePrivate" class="panel" title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+          <section v-if="editable" class="panel danger-zone">
+            <h2 class="sheet-label">danger zone</h2>
+            <div class="danger-body">
+              <p class="dim">removes this mech from your hangar for good.</p>
+              <button type="button" class="danger" @click="scrap">scrap mech</button>
+            </div>
+            <p v-if="scrapError" class="rose" role="alert">{{ scrapError }}</p>
+          </section>
+        </div>
       </div>
 
-      <div class="wide">
-        <template v-if="canSeePrivate">
-          <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
-          <div v-if="frame" class="readout">
+      <template v-if="canSeePrivate">
+        <div v-show="tab === 'stats'" class="tab-panel">
+          <StatRow class="panel" title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <section v-if="frame" class="panel readout">
+            <h2 class="sheet-label">resources<span class="tag"> private</span></h2>
             <dl>
               <div><dt>ai capacity</dt><dd>{{ resources.aiCap }}</dd></div>
               <div v-if="resources.limited"><dt>limited items</dt><dd>{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }} uses</dd></div>
@@ -251,18 +302,21 @@ async function scrap() {
               <div><dt>overcharge heat</dt><dd>{{ resources.overcharge }}</dd></div>
             </dl>
             <p v-for="(check, index) in resources.checks" :key="index"><strong>{{ check.source }}:</strong> {{ check.text }}</p>
-          </div>
-          <details v-if="frame && effects.reminders.length" class="effect-reminders">
-            <summary>other effects and conditions · rules reference</summary>
-            <p class="dim small">Only modifiers listed under stat sources are included automatically. Conditional effects, unsupported bonuses and other rules below need player or GM interpretation.</p>
+          </section>
+          <section v-if="frame && effects.reminders.length" class="panel effect-reminders">
+            <h2 class="sheet-label">other effects and conditions<span class="tag"> private</span></h2>
+            <p class="dim note">Only modifiers listed under stat sources are included automatically. Conditional effects, unsupported bonuses and other rules below need player or GM interpretation.</p>
             <ul>
               <li v-for="(reminder, index) in effects.reminders" :key="index">
                 <strong>{{ reminder.source }}</strong>
                 <RulesText :html="reminder.text" />
               </li>
             </ul>
-          </details>
+          </section>
+          <p v-if="!frame" class="empty">choose a frame to work out this mech's stats.</p>
+        </div>
 
+        <div v-show="tab === 'loadout'" class="tab-panel">
           <MechLoadout
             :frame="frame"
             :frames="frames"
@@ -281,15 +335,8 @@ async function scrap() {
             :editable="editable"
             :save="saveLoadout"
           />
-        </template>
-
-        <section v-if="editable" class="decommission">
-          <h2 class="sheet-label">decommission</h2>
-          <p class="dim small">removes this mech from your hangar for good.</p>
-          <p v-if="scrapError" class="rose" role="alert">{{ scrapError }}</p>
-          <button type="button" class="scrap danger" @click="scrap">scrap mech</button>
-        </section>
-      </div>
+        </div>
+      </template>
 
       <ItemPicker
         v-if="editable"
@@ -305,75 +352,16 @@ async function scrap() {
 </template>
 
 <style scoped>
-/* Full width, like the pilot sheet. */
-.mech-page {
-  max-width: none;
-}
-
-.back {
-  display: inline-block;
-  margin-bottom: 1rem;
-  color: var(--text-dim);
-  font-size: 0.875rem;
-  text-decoration: none;
-}
-
-.back:hover {
-  color: var(--lilac);
-}
-
-.small {
-  font-size: 0.75rem;
-}
-
-/* --- Layout: top strip across, writing left, image right, then full-width sections (as my pilot) --- */
-.sheet {
-  display: grid;
-  grid-template-areas:
-    'glance glance'
-    'writing side'
-    'wide wide';
-  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
-  gap: 1.5rem 2rem;
-  align-items: start;
-}
-
-.glance {
-  grid-area: glance;
-}
-
-/* The rule check takes the whole width of the top strip. */
-.full {
-  flex-basis: 100%;
-}
-
+.sheet,
+.tab-panel,
 .writing {
-  grid-area: writing;
-}
-
-.side {
-  grid-area: side;
-}
-
-.wide {
-  grid-area: wide;
-}
-
-.writing,
-.wide {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: var(--space-m);
 }
 
-/* --- One-line fields: plain text until you point at them --- */
-.inline {
-  padding: 0.15rem 0.35rem;
-  border-color: transparent;
-}
-
-.inline:hover {
-  border-color: var(--rule);
+.note {
+  font-size: 0.8125rem;
 }
 
 /* --- The manufacturer's look: --maker (set on the page) colours the labels and cards below. Tinted, not filled,
@@ -412,22 +400,22 @@ async function scrap() {
   opacity: 0.45;
 }
 
-/* --- Top strip: a registration plate in the manufacturer's colour, with its logo, or its code as a stamp if the
-   pack has no logo for it. --- */
+/* --- Summary strip: a registration plate in the manufacturer's colour, with its logo, or its code as a stamp if
+   the pack has no logo for it. --- */
 .glance {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 2rem;
-  padding: 1.25rem 1.5rem;
+  gap: 0.5rem 2.5rem;
+  padding: 0.9rem 1.25rem;
   border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
   border-top: 4px solid var(--maker);
-  background: color-mix(in srgb, var(--maker) 10%, transparent);
+  background: color-mix(in srgb, var(--maker) 10%, var(--panel));
 }
 
 .plate-logo {
   color: var(--maker);
-  font-size: 4.5rem;
+  font-size: 3.5rem;
 }
 
 .plate-code {
@@ -444,7 +432,7 @@ async function scrap() {
 
 .names {
   display: flex;
-  flex: 1 1 22rem;
+  flex: 1 1 18rem;
   flex-direction: column;
   min-width: 0;
 }
@@ -452,30 +440,34 @@ async function scrap() {
 .mech-name {
   margin: 0;
   color: var(--maker);
-  font: 700 2.5rem/1.1 var(--mono);
+  font: 700 2rem/1.15 var(--mono);
 }
 
 .maker-id {
   margin: 0;
   color: var(--text-dim);
-  font-size: 1.125rem;
+  font-size: 1rem;
   letter-spacing: 0.05em;
 }
 
-input.mech-name,
-input.maker-id {
+/* Name and manufacturer id: plain text with a faint underline that says they can be edited (as my pilot). */
+.inline {
+  min-height: 0;
   margin-left: -0.35rem;
+  padding: 0.1rem 0.35rem;
+  border-color: transparent;
+  border-bottom-color: var(--rule);
+  background: none;
 }
 
-/* Player and status (or pilot and frame) on the right, centred against the callsign and name. The save
-   status hangs just below without taking up room, so it doesn't pull them off centre. */
-.glance-side {
-  position: relative;
+.inline:hover {
+  border-color: var(--rule);
 }
 
 .glance-facts {
   display: flex;
-  gap: 2.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
   margin: 0;
 }
 
@@ -486,28 +478,86 @@ input.maker-id {
 
 .glance-facts dd {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
+}
+
+.frame-info {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.8125rem;
 }
 
 .save-status {
-  position: absolute;
-  top: calc(100% + 0.2rem);
-  right: 0;
+  min-height: 1.25rem;
   margin: 0;
   font-size: 0.8125rem;
-  white-space: nowrap;
+}
+
+.tabs {
+  padding-top: 0.6rem;
+}
+
+/* Sticky only where there's room: wide and tall screens. The tabs stick just under the strip. */
+@media (min-width: 48rem) and (min-height: 40rem) {
+  .glance {
+    position: sticky;
+    top: var(--topbar-h);
+    z-index: 2;
+  }
+
+  .tabs {
+    position: sticky;
+    top: calc(var(--topbar-h) + var(--glance-h));
+    z-index: 2;
+    background: var(--void);
+  }
+}
+
+/* --- Profile: writing on the left, the image on the right --- */
+.profile {
+  display: grid;
+  grid-template-areas: 'writing side';
+  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
+  align-items: start;
+}
+
+.writing {
+  grid-area: writing;
+}
+
+.side {
+  grid-area: side;
 }
 
 .side p {
   margin: 0.35rem 0 0;
 }
 
-/* --- Stats, loadout, decommission --- */
-.effect-reminders {
-  margin: 0.75rem 0 1.5rem;
-  font-size: 0.875rem;
+.danger-zone {
+  border-color: var(--rose);
 }
-/* The numbers that aren't stats, as a row of tiles to match the stats above them. */
+
+.sheet .danger-zone :deep(.sheet-label) {
+  color: var(--rose);
+}
+
+.danger-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.danger-zone p {
+  margin: 0;
+}
+
+.danger-zone [role='alert'] {
+  margin-top: 0.5rem;
+}
+
+/* --- Stats: the numbers that aren't stats, as tiles to match the stats above them; then the reminders --- */
 .readout dl {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
@@ -524,7 +574,7 @@ input.maker-id {
 
 .readout dt {
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .readout dd {
@@ -545,39 +595,18 @@ input.maker-id {
   font-weight: 400;
 }
 
-.effect-reminders summary {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--maker) 35%, var(--rule));
-  background: color-mix(in srgb, var(--maker) 8%, transparent);
-  color: var(--maker);
-  cursor: pointer;
+.effect-reminders {
+  font-size: 0.875rem;
 }
 
-.effect-reminders ul { list-style: none; padding: 0; }
+.effect-reminders > p {
+  max-width: none;
+}
+
+.effect-reminders ul { margin: 0; padding: 0; list-style: none; }
 .effect-reminders li { padding: 0.75rem 0; border-top: 1px solid var(--rule); }
 .effect-reminders strong { color: var(--maker); }
 .effect-reminders li .rules-text { margin-top: 0.25rem; }
-
-/* The frame at the top right: a button while editable, at the size of the other facts. */
-.frame-button {
-  min-height: 2rem;
-  padding: 0.25rem 0.65rem;
-  font-size: 1rem;
-}
-
-.frame-info {
-  display: block;
-  color: var(--text-dim);
-  font-size: 0.75rem;
-}
-
-.decommission p {
-  margin: 0.5rem 0 0;
-}
-
-.scrap {
-  margin-top: 0.5rem;
-}
 
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */
 @media (min-width: 56rem) {
@@ -586,10 +615,10 @@ input.maker-id {
   }
 }
 
-/* --- Narrow screens: one column, with the image between the top strip and appearance --- */
+/* --- Narrow screens: one column, with the image first --- */
 @media (max-width: 56rem) {
-  .sheet {
-    grid-template-areas: 'glance' 'side' 'writing' 'wide';
+  .profile {
+    grid-template-areas: 'side' 'writing';
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -601,21 +630,16 @@ input.maker-id {
   .side p {
     text-align: center;
   }
+}
 
-  .mech-name {
-    font-size: 1.875rem;
-  }
-
-  .glance-facts {
-    flex-wrap: wrap;
+/* --- Phones: the strip stacked and centred --- */
+@media (max-width: 48rem) {
+  .crumbs ol {
     justify-content: center;
-    gap: 0.75rem 1.5rem;
   }
 
-  /* The top strip, centred. */
   .glance {
     flex-direction: column;
-    align-items: center;
     text-align: center;
   }
 
@@ -630,12 +654,12 @@ input.maker-id {
     text-align: center;
   }
 
-  .save-status {
-    position: static;
-    min-height: 1.25rem;
-    margin-top: 0.35rem;
-    text-align: center;
-    white-space: normal;
+  .mech-name {
+    font-size: 1.75rem;
+  }
+
+  .glance-facts {
+    justify-content: center;
   }
 }
 </style>

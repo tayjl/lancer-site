@@ -43,6 +43,8 @@ const offered = computed(() => {
 })
 
 const tooCostly = (item: Item) => !!props.limit && used.value + (item.cost ?? 0) > props.limit.max
+// Why an item can't be added, or '' if it can.
+const blockedBy = (item: Item) => (tooCostly(item) ? 'over limit' : props.addBlocked || '')
 
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]
@@ -79,31 +81,42 @@ function open() {
       <p v-else class="dim empty">none installed.<template v-if="editable"> use edit to add some.</template></p>
     </div>
 
-    <dialog ref="dialog" class="picker" :aria-label="`choose ${title}`">
-      <header class="picker-head">
-        <h3>choose {{ title }}</h3>
-        <span v-if="limit" class="limit">{{ limit.label }} {{ used }}/{{ limit.max }}</span>
-        <button type="button" @click="dialog?.close()">done</button>
+    <dialog ref="dialog" class="dialog" :aria-label="`choose ${title}`">
+      <header class="dialog-head">
+        <h2>choose {{ title }}</h2>
+        <span v-if="limit" class="limit" :class="{ rose: used > limit.max }">{{ limit.label }} {{ used }}/{{ limit.max }}</span>
+        <button type="button" class="small" @click="dialog?.close()">done</button>
       </header>
-      <input v-model="filter" type="text" :aria-label="`search ${title}`" placeholder="search..." />
-      <p v-if="error" class="rose" role="alert">{{ error }}</p>
+      <div class="dialog-bar">
+        <label class="field">
+          <span>search</span>
+          <input v-model="filter" type="search" autofocus />
+        </label>
+        <p class="dim count" aria-live="polite">{{ offered.length }} shown</p>
+        <p v-if="error" class="rose" role="alert">{{ error }}</p>
+      </div>
 
-      <ul v-if="offered.length" class="options">
-        <li v-for="item in offered" :key="item.id" :class="{ picked: chosen.includes(item.id) }">
-          <div>
-            <span class="name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
-            <span class="dim meta">
-              {{ item.type }}<template v-if="item.cost != null">{{ item.type ? ', ' : '' }}{{ item.cost }} {{ limit?.unit }}</template>
-            </span>
-            <span v-if="item.description" class="description">{{ item.description }}</span>
-          </div>
-          <button v-if="chosen.includes(item.id)" type="button" :disabled="saving" @click="toggle(item)">remove</button>
-          <button v-else type="button" :disabled="saving || tooCostly(item) || !!addBlocked" @click="toggle(item)">
-            {{ tooCostly(item) ? 'over limit' : addBlocked || 'add' }}
-          </button>
-        </li>
-      </ul>
-      <p v-else class="dim">nothing to choose from{{ filter ? ' with that search' : ' yet: the content packs may not be imported' }}.</p>
+      <div class="dialog-body">
+        <ul v-if="offered.length" class="pick-list">
+          <li v-for="item in offered" :key="item.id" :class="{ picked: chosen.includes(item.id), blocked: !chosen.includes(item.id) && blockedBy(item) }">
+            <div class="pick-about">
+              <span class="pick-name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
+              <span class="pick-meta">
+                {{ item.type }}<template v-if="item.cost != null">{{ item.type ? ', ' : '' }}{{ item.cost }} {{ limit?.unit }}</template>
+              </span>
+              <span v-if="item.description" class="pick-text">{{ item.description }}</span>
+            </div>
+            <div class="pick-action">
+              <button v-if="chosen.includes(item.id)" type="button" class="small danger" :disabled="saving" @click="toggle(item)">remove</button>
+              <template v-else>
+                <button type="button" class="small" :disabled="saving || !!blockedBy(item)" @click="toggle(item)">add</button>
+                <span v-if="blockedBy(item)" class="pick-reason">{{ blockedBy(item) }}</span>
+              </template>
+            </div>
+          </li>
+        </ul>
+        <p v-else class="empty">nothing {{ filter ? 'matches that search' : 'to choose from yet: the content packs may not be imported' }}.</p>
+      </div>
     </dialog>
   </section>
 </template>
@@ -172,72 +185,8 @@ function open() {
   font: 400 0.875rem/1.45 var(--read);
 }
 
-/* --- The picker --- */
-.picker {
-  width: min(44rem, calc(100vw - 2rem));
-  max-height: 80vh;
-  padding: 1rem;
-  border: 1px solid var(--lilac);
-  background: var(--void);
-  color: var(--text);
-  font: 400 0.9375rem/1.6 var(--mono);
-}
-
-.picker::backdrop {
-  background: rgb(0 0 0 / 0.6);
-}
-
-.picker-head {
-  display: flex;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.picker-head h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.picker-head button {
-  margin-left: auto;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
-}
-
-.picker p {
-  margin: 0.75rem 0 0;
-}
-
-.options {
-  margin: 0.75rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.options li {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--rule);
-}
-
-.options li.picked .name::before {
+/* --- The picker (dialog and option rows from style.css) --- */
+.pick-list li.picked .pick-name::before {
   content: '✓ ' / '';
-}
-
-.options > li > button {
-  flex-shrink: 0;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
-}
-
-.options > li > button:disabled {
-  color: var(--text-dim);
-  cursor: default;
 }
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { confirmAction } from '../confirm'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
 import { itemDetails, statLine } from '../itemDetails'
@@ -92,12 +93,13 @@ const withWeapon = (m: number, i: number, id: string | null) =>
     Array.from({ length: mountSize(mount) }, (_, j) => (k === m && j === i ? id : (props.mounts[k]?.[j] ?? null))),
   )
 
-function unequip(m: number, i: number, id: string) {
-  if (window.confirm(`remove ${find(weaponsById.value, id).name}?`)) store({ mounts: withWeapon(m, i, null) })
+async function unequip(m: number, i: number, id: string) {
+  if (await confirmAction(`remove ${find(weaponsById.value, id).name}?`, { confirmLabel: 'remove', danger: true }))
+    store({ mounts: withWeapon(m, i, null) })
 }
 
-function uninstall(index: number) {
-  if (window.confirm(`remove ${find(systemsById.value, props.installed[index]).name}?`))
+async function uninstall(index: number) {
+  if (await confirmAction(`remove ${find(systemsById.value, props.installed[index]).name}?`, { confirmLabel: 'remove', danger: true }))
     store({ systems: props.installed.filter((_, k) => k !== index) })
 }
 
@@ -190,7 +192,8 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 
 <template>
   <div class="mech-loadout">
-    <section v-if="frame && coreChoices.some(choice => sheet.core_bonuses?.includes(choice.id))">
+    <p v-if="frame && spTotal != null" class="sp" :class="{ rose: spUsed > spTotal }">[ system points {{ spUsed }} / {{ spTotal }} ]</p>
+    <section v-if="frame && coreChoices.some(choice => sheet.core_bonuses?.includes(choice.id))" class="panel">
       <h2 class="sheet-label">core bonus assignments<span class="tag"> private</span></h2>
       <div v-for="choice in coreChoices.filter(choice => sheet.core_bonuses?.includes(choice.id))" :key="choice.id" class="core-choice">
         <label :for="choice.id">{{ choice.name }}</label>
@@ -201,11 +204,11 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       </div>
     </section>
     <p v-if="orphaned.length" class="rose note">unfitted weapons: {{ orphaned.map(id => find(weaponsById, id).name).join(', ') }}.
-      <button v-if="editable" type="button" :disabled="saving" @click="clearOrphans">clear unfitted mounts</button>
+      <button v-if="editable" type="button" class="small" :disabled="saving" @click="clearOrphans">clear unfitted mounts</button>
     </p>
-    <section>
+    <section class="panel">
       <h2 class="sheet-label">weapon mounts<span class="tag"> private</span></h2>
-      <p v-if="!frame" class="dim note">choose a frame (top right) to fit its mounts.</p>
+      <p v-if="!frame" class="dim note">choose a frame (in the strip above) to fit its mounts.</p>
       <ul v-else class="slot-grid">
         <SlotCard v-for="weapon in builtInWeapons" :key="weapon.id" title="integrated mount">
           <BuildItem :item="weapon" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${weapon.id}`" :editable="editable" :save="save" />
@@ -216,10 +219,10 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
             <div class="place-head">
               <span class="dim">{{ placeLabel(place.allowed) }}</span>
               <span v-if="editable" class="place-tools">
-                <button type="button" :disabled="saving" @click="openWeapon(card.m, place.index, place.id, place.allowed)">
+                <button type="button" class="quiet" :disabled="saving" @click="openWeapon(card.m, place.index, place.id, place.allowed)">
                   {{ place.id ? 'swap' : 'equip' }}
                 </button>
-                <button v-if="place.id" type="button" :disabled="saving" @click="unequip(card.m, place.index, place.id)">
+                <button v-if="place.id" type="button" class="quiet rose" :disabled="saving" @click="unequip(card.m, place.index, place.id)">
                   remove
                 </button>
               </span>
@@ -231,25 +234,22 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       </ul>
     </section>
 
-    <section>
-      <header class="systems-head sheet-head">
-        <h2 class="sheet-label">systems<span class="tag"> private</span></h2>
-        <span v-if="spTotal != null" class="sp" :class="{ rose: spUsed > spTotal }">system points {{ spUsed }}/{{ spTotal }}</span>
-      </header>
-      <p v-if="!frame" class="dim note">choose a frame (top right) to see its system points.</p>
+    <section class="panel">
+      <h2 class="sheet-label">systems<span class="tag"> private</span></h2>
+      <p v-if="!frame" class="dim note">choose a frame (in the strip above) to see its system points.</p>
       <ul v-else-if="installed.length || builtInSystems.length || editable" class="slot-grid">
         <SlotCard v-for="system in builtInSystems" :key="system.id" title="integrated system">
           <BuildItem :item="system" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${system.id}`" :editable="editable" :save="save" />
         </SlotCard>
         <SlotCard v-for="(id, index) in installed" :key="`${id}-${index}`" :title="find(systemsById, id).type.toLowerCase() || 'system'">
           <template v-if="editable" #tools>
-            <button type="button" :disabled="saving" @click="uninstall(index)">remove</button>
+            <button type="button" class="quiet rose" :disabled="saving" @click="uninstall(index)">remove</button>
           </template>
           <BuildItem :item="find(systemsById, id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="id" :editable="editable" :save="save" />
         </SlotCard>
         <SlotCard v-if="editable" title="new system" empty>
           <template #tools>
-            <button type="button" :disabled="saving" @click="openSystem">install</button>
+            <button type="button" class="quiet" :disabled="saving" @click="openSystem">install</button>
           </template>
         </SlotCard>
       </ul>
@@ -274,7 +274,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 .mech-loadout {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: var(--space-m);
   container-type: inline-size;
 }
 
@@ -285,16 +285,17 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 .core-choice { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.75rem; font-size: 0.875rem; }
 .core-choice select { max-width: 100%; }
 
-.systems-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 1rem;
+/* System points used / total, for weapons and systems together: at the top of the tab, like StatRow's budgets. */
+.sp {
+  max-width: none;
+  margin: 0;
+  color: var(--sky);
+  font-size: 1.0625rem;
+  text-align: center;
 }
 
-.sp {
-  color: var(--text-dim);
-  font-size: 0.8125rem;
+.sp.rose {
+  color: var(--rose);
 }
 
 /* A place on a mount: what it takes and its buttons, then the weapon. Two places are split by a line. */
@@ -316,23 +317,12 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
   align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 0.75rem;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .place-tools {
   display: flex;
   gap: 0.75rem;
-}
-
-.place-tools button {
-  min-height: 0;
-  padding: 0.1rem 0.25rem;
-  border-color: transparent;
-  font-size: 0.875rem;
-}
-
-.place-tools button:hover:not(:disabled) {
-  text-decoration: underline;
 }
 
 .vacant {

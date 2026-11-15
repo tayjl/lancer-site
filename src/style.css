@@ -406,6 +406,146 @@ label.field .error {
   }
 }
 
+/* A modal dialog (pickers, full information, "are you sure?"): <dialog class="dialog"> holding a .dialog-head (title,
+   then the close button), an optional .dialog-bar (a search box that stays put) and a .dialog-body. Never taller than
+   the screen: only the body scrolls. The parts fill the dialog, so a click on the dialog itself is on the backdrop. */
+dialog.dialog {
+  width: min(44rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--lilac);
+  background: var(--panel);
+  color: var(--text);
+  font: 400 0.9375rem/1.6 var(--mono);
+}
+
+dialog.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.dialog-head,
+.dialog-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem var(--space-m);
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.dialog-head > :first-child {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.dialog-bar > p {
+  margin: 0;
+}
+
+/* The search field takes the row; the match count sits level with its box; an error gets its own line. */
+.dialog-bar > .field {
+  flex: 1 1 16rem;
+}
+
+.dialog-bar input {
+  width: 100%;
+}
+
+.dialog-bar > .count {
+  align-self: flex-end;
+  padding-bottom: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.dialog-bar > [role='alert'] {
+  flex-basis: 100%;
+}
+
+.dialog-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+}
+
+/* A picker's options (ItemPicker.vue, LoadoutBox.vue): name, facts and rules on the left, the button at the right,
+   and why it can't be chosen beside it. */
+.pick-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pick-list > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.pick-list > li:first-child {
+  border-top: 0;
+}
+
+.pick-list > li:hover,
+.pick-list > li:focus-within {
+  background: var(--raised);
+}
+
+.pick-list .pick-about {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pick-list .pick-name {
+  color: var(--lilac);
+  font-weight: 700;
+}
+
+.pick-list .pick-meta {
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+}
+
+.pick-list .pick-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  color: var(--text-dim);
+  font: 400 0.875rem/1.45 var(--read);
+}
+
+.pick-list .pick-action {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+  max-width: 40%;
+  text-align: right;
+}
+
+.pick-list .pick-reason {
+  color: var(--rose);
+  font-size: 0.8125rem;
+}
+
+/* Blocked options: dimmed, but their reason stays readable. */
+.pick-list > li.blocked .pick-about {
+  opacity: 0.6;
+}
+
 /* For anything read at length, like a backstory: the readable font instead of monospace. */
 .prose {
   font: 400 1.0625rem/1.55 var(--read);
@@ -479,6 +619,12 @@ label.field .error {
 
   .panel {
     padding: 1rem;
+  }
+
+  .dialog-head,
+  .dialog-bar,
+  .dialog-body {
+    padding-inline: 1rem;
   }
 }
 

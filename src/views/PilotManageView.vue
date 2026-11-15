@@ -710,13 +710,13 @@ async function createMech() {
   .glance {
     position: sticky;
     top: var(--topbar-h);
-    z-index: 1;
+    z-index: 2;
   }
 
   .tabs {
     position: sticky;
     top: calc(var(--topbar-h) + var(--glance-h));
-    z-index: 1;
+    z-index: 2;
     background: var(--void);
   }
 }

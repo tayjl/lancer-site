@@ -4,9 +4,9 @@ import type { Info } from '../info'
 import InfoButton from './InfoButton.vue'
 
 // A picker dialog for one loadout slot (or the frame): a searchable list of options, each with a short
-// summary and a button to choose it. "blocked" on an option disables it and says why (e.g. "over limit").
-// The parent opens it with open(), saves the choice itself, then closes it with close(). With "info", an option's
-// name opens its full information on top of the picker.
+// summary and a button to choose it. "blocked" on an option disables it and says why beside the button (e.g.
+// "not enough sp"). The parent opens it with open(), saves the choice itself, then closes it with close(). With
+// "info", an option's name opens its full information on top of the picker.
 type Option = { id: string; name: string; meta?: string; text?: string; blocked?: string; info?: () => Info }
 const props = defineProps<{ title: string; options: Option[]; current?: string | null; saving?: boolean; error?: string }>()
 const emit = defineEmits<{ choose: [id: string] }>()
@@ -28,115 +28,38 @@ defineExpose({ open, close: () => dialog.value?.close() })
 </script>
 
 <template>
-  <dialog ref="dialog" class="picker" :aria-label="title">
-    <header class="picker-head">
-      <h3>{{ title }}</h3>
-      <button type="button" @click="dialog?.close()">cancel</button>
+  <dialog ref="dialog" class="dialog" :aria-label="title">
+    <header class="dialog-head">
+      <h2>{{ title }}</h2>
+      <button type="button" class="small" @click="dialog?.close()">close</button>
     </header>
-    <input v-model="filter" type="text" :aria-label="`search: ${title}`" placeholder="search..." />
-    <p v-if="error" class="rose" role="alert">{{ error }}</p>
+    <div class="dialog-bar">
+      <label class="field">
+        <span>search</span>
+        <input v-model="filter" type="search" autofocus />
+      </label>
+      <p class="dim count" aria-live="polite">{{ shown.length }} of {{ options.length }}</p>
+      <p v-if="error" class="rose" role="alert">{{ error }}</p>
+    </div>
 
-    <ul v-if="shown.length" class="options">
-      <li v-for="option in shown" :key="option.id">
-        <div>
-          <span class="name"><InfoButton v-if="option.info" :info="option.info" :label="option.name" /><template v-else>{{ option.name }}</template></span>
-          <span v-if="option.meta" class="dim meta">{{ option.meta }}</span>
-          <span v-if="option.text" class="text">{{ option.text }}</span>
-        </div>
-        <button v-if="option.id === current" type="button" disabled>chosen</button>
-        <button v-else type="button" :disabled="saving || !!option.blocked" @click="emit('choose', option.id)">
-          {{ option.blocked || 'choose' }}
-        </button>
-      </li>
-    </ul>
-    <p v-else class="dim">nothing to choose from{{ filter ? ' with that search' : ' yet: the content packs may not be imported' }}.</p>
+    <div class="dialog-body">
+      <ul v-if="shown.length" class="pick-list">
+        <li v-for="option in shown" :key="option.id" :class="{ blocked: option.blocked && option.id !== current }">
+          <div class="pick-about">
+            <span class="pick-name"><InfoButton v-if="option.info" :info="option.info" :label="option.name" /><template v-else>{{ option.name }}</template></span>
+            <span v-if="option.meta" class="pick-meta">{{ option.meta }}</span>
+            <span v-if="option.text" class="pick-text">{{ option.text }}</span>
+          </div>
+          <div class="pick-action">
+            <button v-if="option.id === current" type="button" class="small" disabled>chosen</button>
+            <template v-else>
+              <button type="button" class="small" :disabled="saving || !!option.blocked" @click="emit('choose', option.id)">choose</button>
+              <span v-if="option.blocked" class="pick-reason">{{ option.blocked }}</span>
+            </template>
+          </div>
+        </li>
+      </ul>
+      <p v-else class="empty">nothing {{ filter ? 'matches that search' : 'to choose from yet: the content packs may not be imported' }}.</p>
+    </div>
   </dialog>
 </template>
-
-<style scoped>
-.picker {
-  width: min(44rem, calc(100vw - 2rem));
-  max-height: 80vh;
-  padding: 1rem;
-  border: 1px solid var(--lilac);
-  background: var(--void);
-  color: var(--text);
-  font: 400 0.9375rem/1.6 var(--mono);
-}
-
-.picker::backdrop {
-  background: rgb(0 0 0 / 0.6);
-}
-
-.picker-head {
-  display: flex;
-  align-items: baseline;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-}
-
-.picker-head h3 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.picker-head button {
-  margin-left: auto;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
-}
-
-.picker p {
-  margin: 0.75rem 0 0;
-}
-
-.options {
-  margin: 0.75rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.options li {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.6rem 0;
-  border-top: 1px solid var(--rule);
-}
-
-.name {
-  display: block;
-  color: var(--lilac);
-  font-weight: 700;
-}
-
-.meta {
-  display: block;
-  font-size: 0.75rem;
-}
-
-.text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  color: var(--text-dim);
-  font: 400 0.875rem/1.45 var(--read);
-}
-
-.options > li > button {
-  flex-shrink: 0;
-  max-width: 45%;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
-}
-
-.options > li > button:disabled {
-  color: var(--text-dim);
-  cursor: default;
-}
-</style>
