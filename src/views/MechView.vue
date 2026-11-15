@@ -7,6 +7,8 @@ import Portrait from '../components/Portrait.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import InfoButton from '../components/InfoButton.vue'
 import RulesText from '../components/RulesText.vue'
+import StatIcon from '../components/StatIcon.vue'
+import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { frameInfo } from '../info'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
@@ -51,6 +53,11 @@ const catalogue = computed(() => ({
   gear: gear.value,
 }))
 const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
+// The page takes its manufacturer's colour and logo, from the packs, so new manufacturers just work. A frame is
+// private: other players get no sheet, so no frame, and the neutral look gives nothing away.
+const manufacturers = useManufacturers()
+const maker = computed(() => manufacturers.value.find((m) => m.id === baseFrame.value?.source))
+const logo = computed(() => makerLogo(maker.value))
 const grants = computed(() => talentGrants(sheet.value, talents.value))
 const optional = computed(() => grants.value.optional.map(id => integrated.value.get(id)).filter(item => !!item))
 const availableWeapons = computed(() => [...weapons.value, ...optional.value.filter(item => !!item.mount)])
@@ -156,7 +163,7 @@ async function scrap() {
 </script>
 
 <template>
-  <main class="page mech-page">
+  <main class="page mech-page" :style="{ '--maker': makerColour(maker) }">
     <RouterLink :to="back.to" class="back">&lt; {{ back.label }}</RouterLink>
 
     <p v-if="loading" class="dim">loading mech record...</p>
@@ -166,6 +173,8 @@ async function scrap() {
     <div v-else class="sheet">
       <!-- At a glance: name, manufacturer id, pilot, frame. -->
       <header class="glance">
+        <StatIcon v-if="logo" :src="logo" class="plate-logo" />
+        <span v-else-if="baseFrame?.source" class="plate-code">{{ baseFrame.source }}</span>
         <div class="names">
           <input
             v-if="editable"
@@ -194,6 +203,10 @@ async function scrap() {
               <dt>pilot</dt>
               <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
             </div>
+            <div v-if="baseFrame?.mechtype.length">
+              <dt>class</dt>
+              <dd class="class-name">{{ baseFrame.mechtype.join(' / ').toLowerCase() }}</dd>
+            </div>
             <div v-if="canSeePrivate">
               <dt>frame</dt>
               <dd>
@@ -216,7 +229,9 @@ async function scrap() {
 
       <!-- Right on wide screens; between the top strip and appearance on phones. -->
       <aside class="side">
-        <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
+        <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
+          <StatIcon v-if="logo" :src="logo" class="portrait-logo" />
+        </Portrait>
         <p v-if="own" class="dim small">image upload: module offline</p>
       </aside>
 
@@ -228,11 +243,13 @@ async function scrap() {
       <div class="wide">
         <template v-if="canSeePrivate">
           <StatRow title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
-          <div v-if="frame" class="build-resources">
-            <span>AI capacity <strong>{{ resources.aiCap }}</strong></span>
-            <span v-if="resources.limited"><strong>{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }}</strong> uses on Limited items</span>
-            <span>repairing structure costs <strong>{{ resources.structureRepairs }}</strong> repairs</span>
-            <span>overcharge heat <strong>{{ resources.overcharge }}</strong></span>
+          <div v-if="frame" class="readout">
+            <dl>
+              <div><dt>ai capacity</dt><dd>{{ resources.aiCap }}</dd></div>
+              <div v-if="resources.limited"><dt>limited items</dt><dd>{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }} uses</dd></div>
+              <div><dt>repairing structure</dt><dd>{{ resources.structureRepairs }} repairs</dd></div>
+              <div><dt>overcharge heat</dt><dd>{{ resources.overcharge }}</dd></div>
+            </dl>
             <p v-for="(check, index) in resources.checks" :key="index"><strong>{{ check.source }}:</strong> {{ check.text }}</p>
           </div>
           <details v-if="frame && effects.reminders.length" class="effect-reminders">
@@ -359,14 +376,70 @@ async function scrap() {
   border-color: var(--rule);
 }
 
-/* --- Top strip --- */
+/* --- The manufacturer's look: --maker (set on the page) colours the labels and cards below. Tinted, not filled,
+   so it stays calm; the content's own colours (tags, combat rules) keep their meaning. --- */
+.sheet :deep(.sheet-label) {
+  color: var(--maker);
+}
+
+.sheet :deep(.stat-row ul),
+.sheet :deep(.slot) {
+  border-color: color-mix(in srgb, var(--maker) 35%, var(--rule));
+}
+
+.sheet :deep(.slot) {
+  border-top: 3px solid var(--maker);
+}
+
+.sheet :deep(.slot-head) {
+  border-left: 0;
+  background: color-mix(in srgb, var(--maker) 14%, var(--panel));
+}
+
+.sheet :deep(.slot-head h3) {
+  color: var(--maker);
+}
+
+.side :deep(.portrait) {
+  border-color: color-mix(in srgb, var(--maker) 45%, var(--rule));
+}
+
+.portrait-logo {
+  display: block;
+  margin: 0 auto 0.75rem;
+  color: var(--maker);
+  font-size: 5rem;
+  opacity: 0.45;
+}
+
+/* --- Top strip: a registration plate in the manufacturer's colour, with its logo, or its code as a stamp if the
+   pack has no logo for it. --- */
 .glance {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 2.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--rule);
+  gap: 1rem 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
+  border-top: 4px solid var(--maker);
+  background: color-mix(in srgb, var(--maker) 10%, transparent);
+}
+
+.plate-logo {
+  color: var(--maker);
+  font-size: 4.5rem;
+}
+
+.plate-code {
+  padding: 0.35rem 0.6rem;
+  border: 2px solid var(--maker);
+  color: var(--maker);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.class-name {
+  color: var(--rose);
 }
 
 .names {
@@ -378,7 +451,7 @@ async function scrap() {
 
 .mech-name {
   margin: 0;
-  color: var(--lilac);
+  color: var(--maker);
   font: 700 2.5rem/1.1 var(--mono);
 }
 
@@ -434,14 +507,55 @@ input.maker-id {
   margin: 0.75rem 0 1.5rem;
   font-size: 0.875rem;
 }
-.build-resources { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0; font-size: 0.8125rem; color: var(--text-dim); }
-.build-resources strong { color: var(--lilac); }
-.build-resources p { flex-basis: 100%; margin: 0; color: var(--text); }
-.build-resources p strong { color: var(--sky); font-weight: 400; }
-.effect-reminders summary { cursor: pointer; color: var(--sky); }
+/* The numbers that aren't stats, as a row of tiles to match the stats above them. */
+.readout dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.readout dl div {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--maker) 35%, var(--rule));
+  background: color-mix(in srgb, var(--maker) 6%, transparent);
+  text-align: center;
+}
+
+.readout dt {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.readout dd {
+  margin: 0;
+  color: var(--maker);
+  font-weight: 700;
+}
+
+.readout p {
+  max-width: none;
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.readout p strong {
+  color: var(--sky);
+  font-weight: 400;
+}
+
+.effect-reminders summary {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--maker) 35%, var(--rule));
+  background: color-mix(in srgb, var(--maker) 8%, transparent);
+  color: var(--maker);
+  cursor: pointer;
+}
+
 .effect-reminders ul { list-style: none; padding: 0; }
 .effect-reminders li { padding: 0.75rem 0; border-top: 1px solid var(--rule); }
-.effect-reminders strong { color: var(--lilac); }
+.effect-reminders strong { color: var(--maker); }
 .effect-reminders li .rules-text { margin-top: 0.25rem; }
 
 /* The frame at the top right: a button while editable, at the size of the other facts. */
@@ -467,6 +581,13 @@ input.maker-id {
   font-size: 0.875rem;
 }
 
+/* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */
+@media (min-width: 56rem) {
+  .sheet :deep(.stat-row ul) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
 /* --- Narrow screens: one column, with the image between the top strip and appearance --- */
 @media (max-width: 56rem) {
   .sheet {
@@ -485,6 +606,12 @@ input.maker-id {
 
   .mech-name {
     font-size: 1.875rem;
+  }
+
+  .glance-facts {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem 1.5rem;
   }
 
   /* The top strip, centred. */

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref } from 'vue'
 import InfoButton from '../components/InfoButton.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import StatIcon from '../components/StatIcon.vue'
-import { ARCHIVE_CATEGORIES, archiveEntries, archiveGroups, loadManufacturers, makerColour, makerLogo, searchArchive, type ArchiveCategory, type ArchiveEntry } from '../archive'
+import { ARCHIVE_CATEGORIES, archiveEntries, archiveGroups, makerColour, makerLogo, searchArchive, useManufacturers, type ArchiveCategory, type ArchiveEntry } from '../archive'
 import { useGameData } from '../gameData'
 import { manufacturerInfo, type Manufacturer } from '../info'
 import { useMechData } from '../mechData'
@@ -16,8 +16,7 @@ import { useMechData } from '../mechData'
 // (licences, core bonuses, frames, weapons, systems) is listed under a band in that colour.
 const { frames, weapons, systems } = useMechData()
 const { gear, talents, coreBonuses } = useGameData()
-const manufacturers = shallowRef<Manufacturer[]>([])
-loadManufacturers().then((list) => (manufacturers.value = list))
+const manufacturers = useManufacturers()
 
 const entries = computed(() =>
   archiveEntries({

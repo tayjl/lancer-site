@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue'
 import { supabase } from './lib/supabaseClient'
 import type { CoreBonus, Item, Talent } from './gameData'
 import { coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
@@ -87,6 +88,14 @@ export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufactur
 export function searchArchive(entries: ArchiveEntry[], query: string): ArchiveEntry[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   return words.length ? entries.filter((e) => words.every((word) => e.search.includes(word))) : []
+}
+
+// The manufacturers in the loaded packs, for anything styled by corporation. Empty until they arrive (or if they
+// can't load), which just leaves pages in their neutral lilac.
+export function useManufacturers() {
+  const manufacturers = shallowRef<Manufacturer[]>([])
+  loadManufacturers().then((list) => (manufacturers.value = list))
+  return manufacturers
 }
 
 export async function loadManufacturers(): Promise<Manufacturer[]> {

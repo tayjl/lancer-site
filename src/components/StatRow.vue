@@ -120,7 +120,7 @@ li + li {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--lilac);
+  color: var(--maker, var(--lilac));
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.1;

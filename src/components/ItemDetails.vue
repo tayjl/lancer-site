@@ -49,7 +49,7 @@ const rules = computed(() => itemRules(props.item.raw ?? {}))
 }
 
 .item-name {
-  color: var(--lilac);
+  color: var(--maker, var(--lilac));
   font-weight: 700;
 }
 

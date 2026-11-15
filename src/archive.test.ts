@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { archiveEntries, archiveGroups, searchArchive, type ArchiveContent } from './archive'
+import { archiveEntries, archiveGroups, makerColour, makerLogo, searchArchive, type ArchiveContent } from './archive'
 import { coreContent } from './coreContent'
 import { toItem, type CoreBonus, type Talent } from './gameData'
 import type { Manufacturer } from './info'
@@ -54,6 +54,17 @@ describe('archives', () => {
     const talentGroups = archiveGroups(entries.filter(entry => entry.category === 'talents'), content.manufacturers)
     expect(talentGroups).toHaveLength(1)
     expect(talentGroups[0]).toMatchObject({ title: '', colour: 'var(--lilac)' })
+  })
+
+  it('handles LCP manufacturers with no logo, and refuses a colour that is not a plain hex value', () => {
+    const homebrew: Manufacturer = { id: 'NEW', name: 'New Corp', quote: '', description: '', colour: '#123abc' }
+    expect(makerColour(homebrew)).toBe('#123abc')
+    expect(makerLogo(homebrew)).toBeNull()
+    expect(makerLogo({ ...homebrew, logo: 'not-bundled' })).toBeNull()
+    expect(makerColour({ ...homebrew, colour: 'red; background: url(x)' })).toBe('var(--lilac)')
+    expect(makerColour(undefined)).toBe('var(--lilac)')
+    const entry = { category: 'frames', id: 'x', name: 'X', meta: '', group: 'NEW', level: 0, search: '', info: entries[0].info } as const
+    expect(archiveGroups([entry], [homebrew])[0]).toMatchObject({ title: 'NEW', colour: '#123abc', logo: null })
   })
 
   it('finds frames by their manufacturer', () => {

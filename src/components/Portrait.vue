@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// A 3:4 image frame. Without an image it shows an empty dashed frame instead.
+// A 3:4 image frame. Without an image it shows an empty dashed frame instead, with room (the slot) for a mark.
 defineProps<{ src: string | null; alt: string }>()
 </script>
 
 <template>
   <div class="portrait">
     <img v-if="src" :src="src" :alt="alt" />
-    <span v-else class="dim">no image<br />on file</span>
+    <span v-else class="dim"><slot />no image<br />on file</span>
   </div>
 </template>
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
 import AddBox from '../components/AddBox.vue'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
@@ -13,6 +14,7 @@ import SheetGroup from '../components/SheetGroup.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
+import StatIcon from '../components/StatIcon.vue'
 import StatRow from '../components/StatRow.vue'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
@@ -175,6 +177,11 @@ const licenceDetails = (id: string): RankStep[] =>
       ...systems.value.filter((s) => s.licenceId === id && s.licenceLevel === level).map((s) => ({ kind: 'system', name: s.name, info: () => itemInfo(s) })),
     ],
   }))
+// Hangar cards take their frame's manufacturer colour and logo. Frames are private: without the sheet there's no
+// frame, so other players' view of the card stays neutral.
+const manufacturers = useManufacturers()
+const frameOf = (mechId: string) => frames.value.find((f) => f.id === sheet.value.mechs?.[mechId]?.frame)
+const makerOf = (mechId: string) => manufacturers.value.find((m) => m.id === frameOf(mechId)?.source)
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
 // Talents: each rank's name and rules.
@@ -496,9 +503,12 @@ async function createMech() {
           <div class="hangar-body">
             <ul v-if="mechs.length" class="mechs">
               <li v-for="mech in mechs" :key="mech.id">
-                <RouterLink :to="mechLink(mech.id)" class="mech-card">
-                  <Portrait :src="mech.image" :alt="`Image of ${mech.name}`" />
+                <RouterLink :to="mechLink(mech.id)" class="mech-card" :style="{ '--maker': makerColour(makerOf(mech.id)) }">
+                  <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
+                    <StatIcon v-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
+                  </Portrait>
                   <span class="mech-name">{{ mech.name }}</span>
+                  <span v-if="frameOf(mech.id)" class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
                   <span class="dim">{{ mech.manufacturer_id }}</span>
                 </RouterLink>
               </li>
@@ -861,24 +871,43 @@ input.name {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  width: 11rem;
+  width: 13rem;
   padding: 0.6rem;
-  border: 1px solid var(--rule);
+  border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
+  border-top: 4px solid var(--maker);
+  background: color-mix(in srgb, var(--maker) 8%, transparent);
   color: var(--text);
   font-size: 0.75rem;
+  text-align: center;
   text-decoration: none;
 }
 
 .mech-card:hover,
 .mech-card:focus-visible {
-  border-color: var(--lilac);
+  border-color: var(--maker);
+}
+
+.mech-card :deep(.portrait) {
+  border-color: color-mix(in srgb, var(--maker) 35%, var(--rule));
+}
+
+.mech-logo {
+  display: block;
+  margin: 0 auto 0.5rem;
+  color: var(--maker);
+  font-size: 3.5rem;
+  opacity: 0.45;
 }
 
 .mech-name {
   margin-top: 0.35rem;
-  color: var(--lilac);
-  font-size: 0.9375rem;
-  font-weight: 600;
+  color: var(--maker);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mech-frame {
+  color: var(--text);
 }
 
 .add-mech {
