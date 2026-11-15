@@ -34,6 +34,13 @@ export async function fetchPilots(status: Tables<'characters'>['status']) {
   return { pilots: (data ?? []).map(toPilot), error: error?.message ?? '' }
 }
 
+// The pilot lists' search: every typed word must appear in the callsign, pilot name, player name or a mech name.
+export function pilotMatches(pilot: PublicPilot, query: string) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const text = [pilot.callsign, pilot.pilot_name, pilot.player?.display_name, ...pilot.mechs.map((mech) => mech.name)].join(' ').toLowerCase()
+  return words.every((word) => text.includes(word))
+}
+
 export async function fetchPilot(id: number) {
   const { data, error } = await supabase.from('characters').select(PILOT_FIELDS).eq('id', id).maybeSingle()
   return { pilot: data ? toPilot(data) : null, error: error?.message ?? '' }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import InfoButton from '../components/InfoButton.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
@@ -39,8 +40,20 @@ const MOTTOS: Record<string, string> = { HORUS: 'Access is yours, so long as you
 const subtitle = (maker: Manufacturer) => SUBTITLES[maker.id] ?? (maker.name !== maker.id ? maker.name : '')
 const colourOf = (entry: ArchiveEntry) => makerColour(makers.value.get(entry.group))
 
-const category = ref<ArchiveCategory>('manufacturers')
-const query = ref('')
+// The category and the search live in the url (?cat=frames&q=goblin, defaults left out), like the pilot sheet's
+// ?tab=, so reloads, back and shared links keep them. The search is a plain ref that writes to the url, so typing
+// never waits on the router.
+const route = useRoute()
+const router = useRouter()
+const category = computed<ArchiveCategory>({
+  get: () => ARCHIVE_CATEGORIES.find((cat) => cat === route.query.cat) ?? 'manufacturers',
+  set: (cat) => router.replace({ query: { ...route.query, cat: cat === 'manufacturers' ? undefined : cat } }),
+})
+const query = ref(String(route.query.q ?? ''))
+const searchBox = useTemplateRef<HTMLInputElement>('searchBox')
+watch(query, (q) => router.replace({ query: { ...route.query, q: q || undefined } }))
+watch(() => route.query.q, (q) => (query.value = String(q ?? '')))
+const tabCounts = computed(() => Object.fromEntries(ARCHIVE_CATEGORIES.map((cat) => [cat, entries.value.filter((entry) => entry.category === cat).length])))
 const groups = computed(() => archiveGroups(entries.value.filter((entry) => entry.category === category.value), manufacturers.value))
 
 // A manufacturer card's counts, each a shortcut to that category. Licences always show, even "0 licences" (GMS
@@ -65,10 +78,17 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
       <span class="dim">{{ entries.length }} entries</span>
     </PageHeader>
 
-    <input v-model="query" type="text" role="searchbox" class="search" aria-label="search every category of the archives" placeholder="search every category..." />
+    <div class="search">
+      <label class="field">
+        <span>search every category</span>
+        <input ref="searchBox" v-model="query" type="search" placeholder="name, maker or rules text" @keydown.esc="query = ''" />
+      </label>
+      <button v-if="query" type="button" class="small" @click="(query = ''), searchBox?.focus()">clear</button>
+    </div>
 
     <template v-if="query.trim()">
-      <p class="dim count" role="status">{{ resultCount }} {{ resultCount === 1 ? 'match' : 'matches' }}</p>
+      <p v-if="resultCount" class="count" role="status">{{ resultCount }} {{ resultCount === 1 ? 'match' : 'matches' }}</p>
+      <p v-else class="empty" role="status">nothing matches that search.</p>
       <section v-for="group in results" :key="group.name">
         <h2 class="sheet-label">{{ group.name }}<span class="tag">{{ ` ${group.entries.length}` }}</span></h2>
         <ul class="entries">
@@ -82,7 +102,7 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
     </template>
 
     <template v-else>
-      <SheetTabs v-model="category" :tabs="ARCHIVE_CATEGORIES" label="archive categories" />
+      <SheetTabs v-model="category" :tabs="ARCHIVE_CATEGORIES" :counts="tabCounts" label="archive categories" />
 
       <!-- Manufacturers: a big card each, in the corporation's colour. -->
       <ul v-if="category === 'manufacturers' && manufacturers.length" class="makers">
@@ -117,7 +137,9 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
           </ul>
         </section>
       </template>
-      <p v-else class="dim empty">nothing here yet: the content packs may still be loading, or not imported.</p>
+      <!-- The catalogues don't say when they've finished loading, so "nothing at all" can mean either. -->
+      <p v-else-if="entries.length" class="empty">nothing in this category in the loaded content packs.</p>
+      <p v-else class="empty">no content yet: the content packs may still be loading, or none are imported.</p>
     </template>
   </main>
 </template>
@@ -126,18 +148,30 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
 .archives {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  max-width: none;
+  gap: var(--space-l);
 }
 
+/* The search: a wide field centred above everything, with its clear button level with the box. */
 .search {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-s);
+}
+
+.search .field {
+  flex: 0 1 36rem;
+}
+
+.search input {
+  width: 100%;
   font-size: 1rem;
 }
 
-.count,
-.empty {
+.count {
   max-width: none;
   margin: 0;
+  color: var(--sky);
   text-align: center;
 }
 
@@ -193,6 +227,11 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
   font-size: 2.25rem;
   font-weight: 700;
   line-height: 1.1;
+}
+
+.maker:hover,
+.maker:focus-within {
+  border-color: var(--maker);
 }
 
 .maker-name {
@@ -260,22 +299,24 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
 }
 
 .band-count {
-  color: var(--text-dim);
-  font-size: 0.75rem;
+  color: var(--sky);
+  font-size: 0.8125rem;
 }
 
-/* --- Entries: tiles with a bar in their manufacturer's colour on top and a faint tint of it. --- */
+/* --- Entries: tiles with a bar in their manufacturer's colour on top and a faint tint of it. The whole tile opens
+   the entry's information: the name's button is stretched over it. --- */
 .entries {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.6rem;
+  gap: var(--space-s);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .entry {
+  position: relative;
   flex: 0 1 16rem;
   display: flex;
   flex-direction: column;
@@ -288,13 +329,30 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
   text-align: center;
 }
 
-.entry:hover {
+.entry:hover,
+.entry:focus-within {
   border-color: var(--maker);
+  background: color-mix(in srgb, var(--maker) 12%, var(--raised));
+}
+
+.entry:has(:focus-visible) {
+  outline: 2px solid var(--lilac);
+  outline-offset: 2px;
+}
+
+.entry :deep(.name)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.entry :deep(.name):focus-visible {
+  outline: none;
 }
 
 .entry-maker {
   color: var(--maker);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.1em;
 }
@@ -306,6 +364,14 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
 
 .meta {
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+}
+
+/* Phones: two tiles to a row. */
+@media (max-width: 40rem) {
+  .entry {
+    flex-basis: calc(50% - var(--space-s) / 2);
+    padding-inline: var(--space-s);
+  }
 }
 </style>

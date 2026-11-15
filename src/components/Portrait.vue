@@ -17,7 +17,7 @@ defineProps<{ src: string | null; alt: string }>()
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border: 1px dashed var(--rule);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   text-align: center;
 }
 

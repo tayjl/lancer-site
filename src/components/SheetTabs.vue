@@ -2,7 +2,8 @@
 // A row of terminal options that picks what shows below (my pilot's groups: stats, equipment, licences, talents;
 // the archives' categories). The chosen one is "> stats <" in rose, like a terminal menu pointing at it. "label"
 // names the row for screen readers.
-withDefaults(defineProps<{ tabs: readonly string[]; label?: string }>(), { label: 'pilot sheet sections' })
+// "counts" (optional) shows a number after a tab's name, e.g. "frames 28".
+withDefaults(defineProps<{ tabs: readonly string[]; label?: string; counts?: Record<string, number> }>(), { label: 'pilot sheet sections' })
 const current = defineModel<string>({ required: true })
 </script>
 
@@ -17,7 +18,7 @@ const current = defineModel<string>({ required: true })
       :aria-pressed="tab === current"
       @click="current = tab"
     >
-      {{ tab }}
+      {{ tab }}<span v-if="counts?.[tab] !== undefined" class="tab-count">{{ ' ' + counts[tab] }}</span>
     </button>
   </nav>
 </template>
@@ -35,6 +36,12 @@ const current = defineModel<string>({ required: true })
 .sheet-tabs button {
   padding: 0;
   font-size: 1.125rem;
+}
+
+.tab-count {
+  color: var(--sky);
+  font-size: 0.875rem;
+  font-weight: 400;
 }
 
 /* The chosen group keeps the hover look: rose, with arrows for brackets. */
