@@ -36,8 +36,9 @@ defineProps<{ title: string }>()
 }
 
 .tools :slotted(button) {
-  padding: 0;
-  font-size: 0.8125rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.875rem;
 }
 
 .group-body {

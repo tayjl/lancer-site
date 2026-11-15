@@ -1,12 +1,24 @@
 <script setup lang="ts">
-// The top of a page, in the pilot sheet's style: the page's name large in lilac, a short line about it, and a
-// rule under it. The default slot sits on the right (e.g. a count).
-defineProps<{ title: string; summary?: string }>()
+import type { RouteLocationRaw } from 'vue-router'
+
+// The top of a page, in the pilot sheet's style: an optional breadcrumb ("registry / WARDEN / lantern ii"), the
+// page's name large in lilac, a short line about it, and a rule under it. The default slot sits on the right
+// (e.g. a count). The last crumb is the current page, so it isn't a link.
+defineProps<{ title: string; summary?: string; crumbs?: { label: string; to?: RouteLocationRaw }[] }>()
 </script>
 
 <template>
   <header class="page-header">
     <div>
+      <nav v-if="crumbs?.length" aria-label="Breadcrumb" class="crumbs">
+        <ol>
+          <li v-for="(crumb, i) in crumbs" :key="i">
+            <span v-if="i === crumbs.length - 1" aria-current="page">{{ crumb.label }}</span>
+            <RouterLink v-else-if="crumb.to" :to="crumb.to">{{ crumb.label }}</RouterLink>
+            <span v-else>{{ crumb.label }}</span>
+          </li>
+        </ol>
+      </nav>
       <h1>{{ title }}</h1>
       <p v-if="summary" class="dim">{{ summary }}</p>
     </div>
@@ -34,6 +46,33 @@ p {
   margin: 0.35rem 0 0;
 }
 
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  color: var(--text);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.crumbs li + li::before {
+  content: '/' / '';
+  margin-right: 0.5rem;
+  color: var(--text-dim);
+}
+
+.crumbs a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  color: var(--lilac);
+  text-decoration: underline;
+}
+
 .side {
   margin-left: auto;
 }
@@ -42,6 +81,10 @@ p {
   .page-header {
     flex-direction: column;
     text-align: center;
+  }
+
+  .crumbs ol {
+    justify-content: center;
   }
 
   h1 {

@@ -342,5 +342,4 @@ async function reject() {
 label { display: flex; flex-direction: column; gap: 0.5rem; }
 textarea { width: 100%; padding: 0.65rem; border: 1px solid var(--rule); background: none; color: var(--text); font: inherit; resize: vertical; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; }
-.actions button { padding-inline: 0; }
 </style>

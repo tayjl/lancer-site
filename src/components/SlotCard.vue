@@ -10,7 +10,7 @@ defineProps<{ title: string; empty?: boolean }>()
       <h3><slot name="title">{{ title }}</slot></h3>
       <span class="tools"><slot name="tools" /></span>
     </header>
-    <p v-if="empty" class="empty">// empty //</p>
+    <p v-if="empty" class="vacant">// empty //</p>
     <div v-else class="slot-body"><slot /></div>
   </li>
 </template>
@@ -45,8 +45,14 @@ defineProps<{ title: string; empty?: boolean }>()
 }
 
 .tools :slotted(button) {
-  padding: 0;
-  font-size: 0.75rem;
+  min-height: 0;
+  padding: 0.1rem 0.25rem;
+  border-color: transparent;
+  font-size: 0.875rem;
+}
+
+.tools :slotted(button:hover:not(:disabled)) {
+  text-decoration: underline;
 }
 
 .slot-body {
@@ -58,7 +64,7 @@ defineProps<{ title: string; empty?: boolean }>()
 
 /* Centred in the space under the header. "max-width: none" undoes the 70ch cap on paragraphs (style.css),
    which left it off centre in wide slots. */
-.empty {
+.vacant {
   display: grid;
   flex: 1;
   place-items: center;

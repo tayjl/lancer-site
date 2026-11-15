@@ -539,7 +539,7 @@ async function createMech() {
           <h2 class="sheet-label">death</h2>
           <div class="death-body">
             <p class="dim">if your pilot dies in the story, mark them dead. this can't be undone.</p>
-            <button type="button" @click="confirmDeath">mark pilot dead</button>
+            <button type="button" class="danger" @click="confirmDeath">mark pilot dead</button>
           </div>
         </section>
 
@@ -635,8 +635,7 @@ async function createMech() {
 }
 
 .change-note button {
-  padding-inline: 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .gm-note {
@@ -654,8 +653,7 @@ async function createMech() {
 
 .gm-note button {
   margin-top: 0.5rem;
-  padding-inline: 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .writing {
@@ -777,11 +775,6 @@ input.name {
   margin: 0;
 }
 
-.death-body button {
-  padding-inline: 0;
-  color: var(--rose);
-}
-
 .save-status {
   position: absolute;
   top: calc(100% + 0.2rem);
@@ -844,7 +837,6 @@ input.name {
 
 .register-form button {
   align-self: flex-start;
-  padding-inline: 0;
 }
 
 /* --- Hangar: mechs centred, so a single mech sits in the middle --- */
@@ -932,7 +924,6 @@ input.name {
 }
 
 .actions button {
-  padding-inline: 0;
   font-size: 0.875rem;
 }
 

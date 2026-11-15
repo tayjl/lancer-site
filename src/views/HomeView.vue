@@ -42,7 +42,7 @@ function onBooted() {
     <nav class="links" aria-label="Pages">
       <!-- Only the buttons wait for the log; the disclaimer is visible immediately. -->
       <div v-for="(group, i) in pages" :key="i" class="row" :class="{ waiting: !booted }">
-        <button v-for="page in group" :key="page.name" type="button" @click="router.push({ name: page.name })">
+        <button v-for="page in group" :key="page.name" type="button" class="option" @click="router.push({ name: page.name })">
           {{ page.label }}
         </button>
       </div>

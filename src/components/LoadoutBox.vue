@@ -127,8 +127,9 @@ function open() {
 
 .edit {
   margin-left: auto;
-  padding: 0;
-  font-size: 0.8125rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.875rem;
 }
 
 .body {
@@ -208,7 +209,8 @@ function open() {
 
 .picker-head button {
   margin-left: auto;
-  padding: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
   font-size: 0.875rem;
 }
 
@@ -237,8 +239,9 @@ function open() {
 
 .options > li > button {
   flex-shrink: 0;
-  padding: 0;
-  font-size: 0.8125rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.875rem;
 }
 
 .options > li > button:disabled {

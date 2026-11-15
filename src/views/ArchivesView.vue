@@ -219,9 +219,10 @@ const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
 }
 
 .maker-counts button {
-  padding: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
   color: var(--maker);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .maker-counts button:hover,

@@ -82,7 +82,8 @@ defineExpose({ open, close: () => dialog.value?.close() })
 
 .picker-head button {
   margin-left: auto;
-  padding: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
   font-size: 0.875rem;
 }
 
@@ -129,8 +130,9 @@ defineExpose({ open, close: () => dialog.value?.close() })
 .options > li > button {
   flex-shrink: 0;
   max-width: 45%;
-  padding: 0;
-  font-size: 0.8125rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.875rem;
 }
 
 .options > li > button:disabled {

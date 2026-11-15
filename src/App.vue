@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vu
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
 import { isGm, isOwner, profile } from './auth'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 import InfoDialog from './components/InfoDialog.vue'
 import { supabase } from './lib/supabaseClient'
 
@@ -53,32 +54,34 @@ async function disconnect() {
   <!-- The logged-in layout: a bar across the top, the page under it. -->
   <div v-else class="shell" :class="{ 'menu-open': menuOpen }">
     <header ref="bar" class="topbar">
-      <div class="brand-row">
-        <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
-        <RouterLink :to="{ name: 'home' }" class="brand" aria-label="HOR_OS: home">
-          <pre class="logo" aria-hidden="true">{{ logoArt }}</pre>
-        </RouterLink>
-        <!-- Phones only. -->
-        <button type="button" class="menu-toggle" aria-controls="main-menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
-          {{ menuOpen ? 'close' : 'menu' }}
-        </button>
-      </div>
+      <div class="bar-inner">
+        <div class="brand-row">
+          <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
+          <RouterLink :to="{ name: 'home' }" class="brand" aria-label="HOR_OS: home">
+            <pre class="logo" aria-hidden="true">{{ logoArt }}</pre>
+          </RouterLink>
+          <!-- Phones only. -->
+          <button type="button" class="option menu-toggle" aria-controls="main-menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+            {{ menuOpen ? 'close' : 'menu' }}
+          </button>
+        </div>
 
-      <nav id="main-menu" aria-label="Main" class="tabs">
-        <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
-          {{ tab.label }}
-        </RouterLink>
-        <template v-if="isGm">
-          <span class="group" aria-hidden="true">gm:</span>
-          <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
+        <nav id="main-menu" aria-label="Main" class="tabs">
+          <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
             {{ tab.label }}
           </RouterLink>
-        </template>
-      </nav>
+          <template v-if="isGm">
+            <span class="group" aria-hidden="true">gm:</span>
+            <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
+              {{ tab.label }}
+            </RouterLink>
+          </template>
+        </nav>
 
-      <div class="operator">
-        <p v-if="profile">{{ profile.display_name }} <span class="role">[{{ profile.role }}]</span></p>
-        <button type="button" @click="disconnect">disconnect</button>
+        <div class="operator">
+          <p v-if="profile">{{ profile.display_name }} <span class="role">[{{ profile.role }}]</span></p>
+          <button type="button" class="quiet" @click="disconnect">disconnect</button>
+        </div>
       </div>
     </header>
 
@@ -87,28 +90,39 @@ async function disconnect() {
   </div>
   <!-- The full information on any item (src/info.ts), opened from cards and pickers anywhere. -->
   <InfoDialog />
+  <!-- "Are you sure?" (src/confirm.ts). Opened last, so it sits above the info dialog and pickers. -->
+  <ConfirmDialog />
 </template>
 
 <style scoped>
+/* --topbar-h: the sticky bar's height, for anything else that sticks under it. */
 .shell {
+  --topbar-h: 3.875rem; /* the logo (48px) and its padding, plus the bottom border */
   display: grid;
   grid-template-rows: auto 1fr; /* top bar, page */
+  grid-template-columns: minmax(0, 1fr); /* wide tables scroll in their own box, not the page */
   min-height: 100vh;
   min-height: 100dvh;
 }
 
-/* --- Top bar: the name, the tabs, who you are --- */
+/* --- Top bar: the name, the tabs, who you are, lined up with the page column --- */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 2;
-  display: flex;
-  align-items: stretch;
-  gap: 0 2rem;
-  padding: 0 1.5rem;
   border-bottom: 1px solid var(--rule);
   background: var(--void);
   font: 400 0.9375rem/1.6 var(--mono);
+}
+
+.bar-inner {
+  display: flex;
+  align-items: stretch;
+  gap: 0 2rem;
+  max-width: var(--page-max);
+  min-height: calc(var(--topbar-h) - 1px);
+  margin: 0 auto;
+  padding: 0 1.5rem;
 }
 
 .brand-row {
@@ -136,14 +150,14 @@ async function disconnect() {
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  gap: 0 1.5rem;
+  gap: 0 0.25rem;
 }
 
-/* A tab is plain text; the current one is lilac with a line under it. */
+/* A tab is plain text with room to tap; the current one is lilac on a panel, with a line under it. */
 .tabs a {
   display: flex;
   align-items: center;
-  padding: 0.85rem 0 calc(0.85rem - 2px);
+  padding: 0 0.75rem;
   border-bottom: 2px solid transparent;
   color: var(--text-dim);
   text-decoration: none;
@@ -155,6 +169,7 @@ async function disconnect() {
 
 .tabs a.current {
   border-bottom-color: var(--lilac);
+  background: var(--panel);
   color: var(--lilac);
 }
 
@@ -162,9 +177,9 @@ async function disconnect() {
 .group {
   display: flex;
   align-items: center;
-  padding-left: 1.5rem;
+  padding-left: 1rem;
   border-left: 1px solid var(--rule);
-  margin-block: 0.75rem;
+  margin: 0.75rem 0 0.75rem 0.75rem;
   color: var(--rose);
   font-size: 0.8125rem;
 }
@@ -173,7 +188,7 @@ async function disconnect() {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0 1.25rem;
+  gap: 0 1rem;
   margin-left: auto;
   font-size: 0.875rem;
 }
@@ -187,44 +202,41 @@ async function disconnect() {
 }
 
 .operator button {
-  padding-inline: 0;
   font-size: 0.875rem;
-}
-
-/* Pages use the full width under the bar. */
-.shell :deep(.page) {
-  margin: 0;
 }
 
 .menu-toggle {
   display: none;
 }
 
-/* --- Phones and narrow windows: the bar shows the name and two toggles; [ menu ] opens the tabs --- */
-@media (max-width: 48rem) {
+/* --- Phones and narrow windows (too narrow for every tab on one row, an owner's included): the bar shows the logo
+   and [ menu ], which opens the tabs. Not sticky here. --- */
+@media (max-width: 72rem) {
+  .shell {
+    --topbar-h: 0px;
+  }
+
   .topbar {
     position: static;
+  }
+
+  .bar-inner {
     flex-direction: column;
     padding: 0 1rem;
   }
 
   .brand-row {
     justify-content: center;
-    gap: 0;
     min-height: 3rem;
     position: relative;
   }
 
   .menu-toggle {
     position: absolute;
+    right: 0;
     display: block;
     padding-inline: 0;
     font-size: 0.875rem;
-  }
-
-
-  .menu-toggle {
-    right: 0;
   }
 
   .shell:not(.menu-open) .tabs,
@@ -234,12 +246,11 @@ async function disconnect() {
 
   .tabs {
     justify-content: center;
-    gap: 0 1.25rem;
     padding-bottom: 0.5rem;
   }
 
   .tabs a {
-    padding: 0.5rem 0 calc(0.5rem - 2px);
+    min-height: 2.75rem;
   }
 
   .group {
@@ -257,6 +268,5 @@ async function disconnect() {
     padding: 0.5rem 0 0.75rem;
     border-top: 1px solid var(--rule);
   }
-
 }
 </style>

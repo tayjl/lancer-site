@@ -362,6 +362,7 @@ async function buy(id: string) {
 
 .steps button {
   width: 1.75rem;
+  min-height: 0;
   padding: 0;
   border: 1px solid var(--rule);
   color: var(--text-dim);

@@ -211,7 +211,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
           <BuildItem :item="weapon" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${weapon.id}`" :editable="editable" :save="save" />
         </SlotCard>
         <SlotCard v-for="card in mountCards" :key="card.m" :title="`${card.mount.toLowerCase()} mount`">
-          <p v-if="card.bracing" class="empty">// bracing the superheavy weapon //</p>
+          <p v-if="card.bracing" class="vacant">// bracing the superheavy weapon //</p>
           <div v-for="place in card.places" :key="place.index" class="place">
             <div class="place-head">
               <span class="dim">{{ placeLabel(place.allowed) }}</span>
@@ -225,7 +225,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
               </span>
             </div>
             <BuildItem v-if="place.id" :item="find(weaponsById, place.id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`${card.m}:${place.index}`" :location="{ mount: card.m, position: place.index, integrated: card.mount === 'Integrated Auxiliary' }" :editable="editable" :save="save" />
-            <p v-else class="empty">// empty //</p>
+            <p v-else class="vacant">// empty //</p>
           </div>
         </SlotCard>
       </ul>
@@ -325,11 +325,17 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 }
 
 .place-tools button {
-  padding: 0;
-  font-size: 0.75rem;
+  min-height: 0;
+  padding: 0.1rem 0.25rem;
+  border-color: transparent;
+  font-size: 0.875rem;
 }
 
-.empty {
+.place-tools button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.vacant {
   display: grid;
   flex: 1;
   place-items: center;

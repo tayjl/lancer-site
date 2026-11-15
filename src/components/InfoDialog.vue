@@ -103,7 +103,8 @@ const summary = computed(() => `stats compared with every frame: ${radar.value.m
   position: absolute;
   top: 0.75rem;
   right: 1rem;
-  padding: 0;
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
   font-size: 0.875rem;
 }
 

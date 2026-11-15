@@ -12,6 +12,7 @@ const current = defineModel<string>({ required: true })
       v-for="tab in tabs"
       :key="tab"
       type="button"
+      class="option"
       :class="{ current: tab === current }"
       :aria-pressed="tab === current"
       @click="current = tab"

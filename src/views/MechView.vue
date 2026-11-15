@@ -287,7 +287,7 @@ async function scrap() {
           <h2 class="sheet-label">decommission</h2>
           <p class="dim small">removes this mech from your hangar for good.</p>
           <p v-if="scrapError" class="rose" role="alert">{{ scrapError }}</p>
-          <button type="button" class="scrap" @click="scrap">scrap mech</button>
+          <button type="button" class="scrap danger" @click="scrap">scrap mech</button>
         </section>
       </div>
 
@@ -560,7 +560,8 @@ input.maker-id {
 
 /* The frame at the top right: a button while editable, at the size of the other facts. */
 .frame-button {
-  padding: 0;
+  min-height: 2rem;
+  padding: 0.25rem 0.65rem;
   font-size: 1rem;
 }
 
@@ -576,9 +577,6 @@ input.maker-id {
 
 .scrap {
   margin-top: 0.5rem;
-  padding-inline: 0;
-  color: var(--rose);
-  font-size: 0.875rem;
 }
 
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */

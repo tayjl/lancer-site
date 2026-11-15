@@ -15,7 +15,9 @@ const props = defineProps<{ info: () => Info; label: string }>()
 /* Looks like the name it replaces, with a dotted underline to show it opens more. No terminal brackets. */
 .info-link {
   display: inline;
+  min-height: 0;
   padding: 0;
+  border: 0;
   color: inherit;
   font: inherit;
   text-align: inherit;

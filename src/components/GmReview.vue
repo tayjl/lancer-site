@@ -126,7 +126,7 @@ async function sendBack() {
         <button type="button" :disabled="busy" @click="sendBack">refuse pilot</button>
       </div>
       <div v-else-if="pilot.status === 'approved'" class="actions">
-        <button type="button" class="rose" :disabled="busy" @click="markDead">mark pilot dead</button>
+        <button type="button" class="danger" :disabled="busy" @click="markDead">mark pilot dead</button>
       </div>
     </form>
   </section>
@@ -174,10 +174,6 @@ input[type='number'] {
   gap: 0.75rem 1.5rem;
 }
 
-.numbers button {
-  padding-inline: 0;
-}
-
 textarea {
   resize: vertical;
 }
@@ -192,9 +188,5 @@ textarea:focus {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
-}
-
-.actions button {
-  padding-inline: 0;
 }
 </style>

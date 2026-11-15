@@ -102,6 +102,7 @@ const isPlainColour = () => !COLOURS.some((colour) => is('textStyle', { color: c
 
 /* Small toggle buttons without the usual [ brackets ]. Pressed ones are outlined in lilac. */
 .tool {
+  min-height: 0;
   padding: 0.1rem 0.45rem;
   border: 1px solid var(--rule);
   color: var(--text-dim);

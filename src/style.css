@@ -9,6 +9,14 @@
   --rose: #ff9eb0; /* second accent: warnings, and the glitch's other colour */
   --sky: #a6d8ea; /* third accent: usernames in chat */
   --mint: #a9dfb5; /* gains, additions and refunds */
+  --raised: #26252c; /* a surface a step above --panel: hovered table rows */
+
+  /* The page column (the logged-in pages and the top bar line up with it) and the spacing steps. */
+  --page-max: 84rem;
+  --space-s: 0.5rem;
+  --space-m: 1rem;
+  --space-l: 1.5rem;
+  --space-xl: 2.5rem;
 
   /* Cascadia Mono has every block and shade character, so the ASCII art lines up. */
   --mono: 'Cascadia Mono Variable', ui-monospace, Consolas, monospace; /* the terminal's voice */
@@ -82,71 +90,231 @@ a:hover {
   outline-offset: 3px;
 }
 
-/* Terminal-style buttons: a bracketed option, [ like this ]. When hovered or selected, the brackets turn into
-   arrows, > like this <, the way a terminal menu points at the chosen option. */
-button {
-  padding: 0.25rem 0.5rem;
-  border: 0;
+/* Buttons (the developer's pick, 2026-11-15): a boxed button, lilac text in a thin outline. Wrapped in :where()
+   so any component's own button rule wins without a specificity fight. Variants: .primary (the one main action
+   on a view), .danger (destructive), .quiet (a minor inline action, like edit or remove in a card), .small. */
+:where(button) {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--rule);
   background: none;
   color: var(--lilac);
-  font: 600 1rem/1.5 var(--mono);
+  font: 600 0.9375rem/1.5 var(--mono);
   cursor: pointer;
 }
 
+:where(button:hover:not(:disabled), button:focus-visible) {
+  border-color: var(--lilac);
+}
+
+:where(button.primary) {
+  border-color: var(--lilac);
+  background: var(--lilac);
+  color: var(--void);
+}
+
+:where(button.primary:hover:not(:disabled), button.primary:focus-visible) {
+  border-color: var(--text);
+  background: var(--text);
+}
+
+:where(button.danger) {
+  border-color: var(--rose);
+  color: var(--rose);
+}
+
+:where(button.danger:hover:not(:disabled), button.danger:focus-visible) {
+  border-color: var(--rose);
+  background: var(--rose);
+  color: var(--void);
+}
+
+:where(button.quiet) {
+  min-height: 0;
+  padding: 0.15rem 0.25rem;
+  border-color: transparent;
+}
+
+:where(button.quiet:hover:not(:disabled), button.quiet:focus-visible) {
+  border-color: transparent;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+:where(button.small) {
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.875rem;
+}
+
+:where(button:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The old terminal option, [ like this ], kept for the home and login screens and the in-page tabs. When hovered
+   or selected, the brackets turn into arrows, > like this <, the way a terminal menu points at the chosen option. */
+:where(button.option) {
+  min-height: 0;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  font-size: 1rem;
+}
+
 /* The "/ ''" part stops screen readers announcing the brackets. */
-button::before {
+:where(button.option)::before {
   content: '[ ' / '';
 }
 
-button::after {
+:where(button.option)::after {
   content: ' ]' / '';
 }
 
 /* :focus rather than :focus-visible, so a button that's selected for you (like Uplink) looks selected. */
-button:hover,
-button:focus {
+:where(button.option:hover, button.option:focus) {
   color: var(--rose);
 }
 
-button:hover::before,
-button:focus::before {
+:where(button.option:hover, button.option:focus)::before {
   content: '> ' / '';
 }
 
-button:hover::after,
-button:focus::after {
+:where(button.option:hover, button.option:focus)::after {
   content: ' <' / '';
 }
 
-/* The arrows already show which option is selected, so the usual focus box isn't needed. */
-button:focus-visible {
+/* The arrows already show which option is selected, so the usual focus ring isn't needed. (Not in :where(), so
+   it beats the global :focus-visible ring.) */
+button.option:focus-visible {
   outline: none;
 }
 
-/* Text inputs, terminal style: an outlined box that turns lilac while you type in it. */
-input[type='text'] {
-  width: 100%;
+/* Form fields: a dark box with a thin outline that turns lilac while you use it. */
+input[type='text'],
+input[type='search'],
+input[type='number'],
+textarea,
+select {
+  min-height: 2.5rem;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--rule);
-  background: none;
+  border-radius: 0;
+  background: var(--void);
   color: var(--text);
   font: 400 0.9375rem/1.4 var(--mono);
 }
 
-input[type='text']:focus {
-  border-color: var(--lilac);
-  outline: none;
+input[type='text'] {
+  width: 100%;
 }
 
-/* The standard page column. Pages read like terminal output, so their text is monospace by default. */
+:is(input[type='text'], input[type='search'], input[type='number'], textarea, select):focus {
+  border-color: var(--lilac);
+  outline: 1px solid var(--lilac);
+  outline-offset: 0;
+}
+
+/* A labelled field: <label class="field"><span>name</span><input /><span class="hint">...</span></label>. */
+label.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--text-dim);
+  font: 400 0.8125rem/1.4 var(--mono);
+}
+
+label.field .hint {
+  color: var(--text-dim);
+}
+
+label.field .error {
+  color: var(--rose);
+}
+
+/* The standard page column, centred. Pages read like terminal output, so their text is monospace by default. */
 .page {
-  max-width: none;
+  width: 100%; /* not shrink-to-fit, which auto margins would cause in the shell's grid */
+  max-width: var(--page-max);
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
   font: 400 0.9375rem/1.6 var(--mono);
 }
 
-/* A pilot sheet section's tag: a filled block with a lilac edge, sitting on the box below it. */
+/* A section of a page: a filled panel. .sheet-label works as its title. */
+.panel {
+  padding: 1.25rem;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+/* A status banner: text, then an optional row of actions. .info, .warn and .ok change the accent on its edge. */
+.notice {
+  --accent: var(--lilac);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+}
+
+.notice > :last-child {
+  margin-bottom: 0;
+}
+
+.notice.info { --accent: var(--sky); }
+.notice.warn { --accent: var(--rose); }
+.notice.ok { --accent: var(--mint); }
+
+/* A small status chip: pending, approved, dead or draft. */
+.badge {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border: 1px solid currentColor;
+  color: var(--text-dim);
+  font: 400 0.8125rem/1.6 var(--mono);
+}
+
+.badge.pending { color: var(--rose); }
+.badge.approved { color: var(--sky); }
+.badge.dead { color: var(--text-dim); }
+.badge.draft { color: var(--lilac); }
+
+/* Nothing here yet: a dashed box with a quiet line in the middle. */
+.empty {
+  max-width: none;
+  margin: 0;
+  padding: 2.5rem 1.5rem;
+  border: 1px dashed var(--rule);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* A readable data table. Put it in a wrapper with "overflow: auto" if it may be wider than a phone. */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 0.9375rem/1.5 var(--mono);
+}
+
+.table th,
+.table td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-dim);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.table tbody tr:hover {
+  background: var(--raised);
+}
+
 /* A section's label (option C, the developer's pick, 2026-10-31): a terminal prompt, "> backstory // private". The
    dim ">" and "//" are drawn by CSS with empty alt text, so screen readers just hear "backstory private"; the tag
    stays red, as the developer asked of the earlier labels. Takes the free space in a flex header, so anything beside
@@ -248,7 +416,6 @@ input[type='text']:focus {
   font-weight: 700;
 }
 
-/* The ">" before a page title, like a command typed at a prompt. */
 /* Colour helpers, used by the chats and terminal text. */
 .dim {
   color: var(--text-dim);
@@ -279,6 +446,10 @@ input[type='text']:focus {
 @media (max-width: 40rem) {
   .page {
     padding: 1.5rem 1rem;
+  }
+
+  .panel {
+    padding: 1rem;
   }
 }
 

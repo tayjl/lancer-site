@@ -286,7 +286,6 @@ th, td { padding: 1rem; white-space: nowrap; }
 tr + tr td { border-top: 1px solid var(--rule); }
 .pack-name { color: var(--lilac); }
 .author { display: block; margin-top: 0.25rem; font-size: 0.875rem; }
-td button { padding-inline: 0; }
 .empty { max-width: none; margin: 0; padding: 2rem; border: 1px dashed var(--rule); text-align: center; }
 .library-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0; margin: 0; padding: 0; border-top: 1px solid var(--rule); list-style: none; }
 .library-counts li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--rule); }

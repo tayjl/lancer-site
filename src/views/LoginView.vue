@@ -33,9 +33,9 @@ async function uplink() {
 
     <div class="uplink">
       <!-- Hidden (but still taking up its space) until the log finishes, so nothing jumps when it appears. -->
-      <button ref="uplinkButton" type="button" :class="{ waiting: !booted }" @click="uplink">uplink with discord</button>
+      <button ref="uplinkButton" type="button" class="option" :class="{ waiting: !booted }" @click="uplink">uplink with discord</button>
       <p v-if="error" role="alert" class="error">Uplink failed: {{ error }}</p>
-      <ThirdPartyNotice class="notice" />
+      <ThirdPartyNotice />
     </div>
   </main>
 </template>
