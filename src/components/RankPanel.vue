@@ -141,7 +141,7 @@ async function buy(id: string) {
     </ul>
     <p v-else class="dim note">none.</p>
 
-    <p v-if="error" class="rose note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
 
     <ItemPicker ref="picker" :title="`buy a ${noun} (rank I, ${price} manna)`" :options="offered" :saving="saving" :error="error" @choose="buy" />
   </section>
@@ -371,5 +371,13 @@ async function buy(id: string) {
 .blocked {
   margin-right: 0.35rem;
   font-size: 0.8125rem;
+}
+
+/* Phones: a bigger target for the thumb. */
+@media (max-width: 40rem) {
+  .steps button {
+    width: 2.5rem;
+    min-height: 2.5rem;
+  }
 }
 </style>

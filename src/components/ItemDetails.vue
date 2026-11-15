@@ -80,14 +80,14 @@ const rules = computed(() => itemRules(props.item.raw ?? {}))
 
 .stat-label {
   color: var(--text-dim);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
 }
 
 .text {
   font-size: 0.875rem;
 }
 .rules { color: var(--text-dim); font: 400 0.8125rem/1.5 var(--read); }
-.rules summary { cursor: pointer; color: var(--sky); }
+.rules summary { cursor: pointer; color: var(--sky); font-size: 0.875rem; }
 .rules p, .rule { margin-top: 0.5rem; }
 .rule strong { color: var(--lilac); }
 .rule .rules-text { font-size: 0.8125rem; }
@@ -105,6 +105,6 @@ const rules = computed(() => itemRules(props.item.raw ?? {}))
   padding: 0 0.4rem;
   border: 1px solid var(--rule);
   color: var(--sky);
-  font-size: 0.6875rem;
+  font-size: 0.8125rem;
 }
 </style>

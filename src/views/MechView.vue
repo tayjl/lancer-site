@@ -205,8 +205,8 @@ async function scrap() {
     </nav>
 
     <p v-if="loading" class="dim">loading mech record...</p>
-    <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
-    <p v-else-if="!mech" class="rose">no mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
+    <p v-else-if="loadError" class="notice warn" role="alert">{{ loadError }}</p>
+    <p v-else-if="!mech" class="notice warn" role="alert">no mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
 
     <div v-else class="sheet" :style="{ '--glance-h': `${glanceHeight}px` }">
       <!-- The summary strip: a registration plate in the manufacturer's colour. Sticks under the top bar on wide screens. -->
@@ -214,6 +214,8 @@ async function scrap() {
         <StatIcon v-if="logo" :src="logo" class="plate-logo" />
         <span v-else-if="baseFrame?.source" class="plate-code">{{ baseFrame.source }}</span>
         <div class="names">
+          <!-- While editable the name is a field, so the page's heading is for screen readers only. -->
+          <h1 v-if="editable" class="sr-only">{{ mech.name || 'mech' }}</h1>
           <input
             v-if="editable"
             class="inline mech-name"
@@ -285,7 +287,7 @@ async function scrap() {
               <p class="dim">removes this mech from your hangar for good.</p>
               <button type="button" class="danger" @click="scrap">scrap mech</button>
             </div>
-            <p v-if="scrapError" class="rose" role="alert">{{ scrapError }}</p>
+            <p v-if="scrapError" class="notice warn" role="alert">{{ scrapError }}</p>
           </section>
         </div>
       </div>
@@ -406,6 +408,7 @@ async function scrap() {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
   gap: 0.5rem 2.5rem;
   padding: 0.9rem 1.25rem;
   border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
@@ -484,7 +487,7 @@ async function scrap() {
 .frame-info {
   display: block;
   color: var(--text-dim);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 .save-status {
@@ -510,6 +513,30 @@ async function scrap() {
     top: calc(var(--topbar-h) + var(--glance-h));
     z-index: 2;
     background: var(--void);
+  }
+
+  /* Anything focused (tabbing through fields) scrolls clear of the stuck strip and tabs. */
+  .tab-panel * {
+    scroll-margin-top: calc(var(--topbar-h) + var(--glance-h) + 4rem);
+  }
+}
+
+/* Shorter screens (laptops at 768 or 720 tall): a tighter strip, so the stuck stack stays about a third of the screen. */
+@media (min-width: 48rem) and (min-height: 40rem) and (max-height: 52rem) {
+  .glance {
+    padding-block: 0.5rem;
+  }
+
+  .mech-name {
+    font-size: 1.5rem;
+  }
+
+  .plate-logo {
+    font-size: 2.5rem;
+  }
+
+  .tabs {
+    padding-top: 0.25rem;
   }
 }
 

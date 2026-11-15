@@ -56,4 +56,17 @@ const current = defineModel<string>({ required: true })
 .current::after {
   content: ' <' / '';
 }
+
+/* Phones: compact rows of two or three, each still tall enough to tap. */
+@media (max-width: 40rem) {
+  .sheet-tabs {
+    gap: 0 1rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .sheet-tabs button {
+    min-height: 2.5rem;
+    font-size: 0.875rem;
+  }
+}
 </style>

@@ -85,7 +85,7 @@ async function equip(id: string) {
     </ul>
     <p v-else class="dim note">no gear equipped.</p>
 
-    <p v-if="error" class="rose note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
     <p v-if="layout.overflow.length" class="rose note">
       no free slot for: {{ layout.overflow.map(nameOf).join(', ') }}. they're dropped at the next loadout change.
     </p>

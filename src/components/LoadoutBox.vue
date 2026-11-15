@@ -78,7 +78,7 @@ function open() {
           <span v-if="item.description" class="description">{{ item.description }}</span>
         </li>
       </ul>
-      <p v-else class="dim empty">none installed.<template v-if="editable"> use edit to add some.</template></p>
+      <p v-else class="empty">none installed.<template v-if="editable"> use edit to add some.</template></p>
     </div>
 
     <dialog ref="dialog" class="dialog" :aria-label="`choose ${title}`">
@@ -140,10 +140,6 @@ function open() {
 
 .edit {
   margin-left: auto;
-}
-
-.empty {
-  margin: 0;
 }
 
 .cards {

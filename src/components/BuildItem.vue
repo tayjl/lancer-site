@@ -48,7 +48,7 @@ async function set(key: string, value: string) {
       </template>
     </div>
     <ItemDetails :item="displayed" />
-    <p v-if="error" class="rose" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn" role="alert">not saved: {{ error }}</p>
   </div>
 </template>
 

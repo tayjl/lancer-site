@@ -80,7 +80,9 @@ async function disconnect() {
 
         <div class="operator">
           <p v-if="profile">{{ profile.display_name }} <span class="role">[{{ profile.role }}]</span></p>
-          <button type="button" class="quiet" @click="disconnect">disconnect</button>
+          <button type="button" class="quiet" :title="profile ? `connected as ${profile.display_name} [${profile.role}]` : undefined" @click="disconnect">
+            disconnect
+          </button>
         </div>
       </div>
     </header>
@@ -146,9 +148,9 @@ async function disconnect() {
   color: var(--rose);
 }
 
+/* One row, never wrapped, so --topbar-h stays true (the narrower layouts below take over before it would). */
 .tabs {
   display: flex;
-  flex-wrap: wrap;
   align-items: stretch;
   gap: 0 0.25rem;
 }
@@ -158,6 +160,7 @@ async function disconnect() {
   display: flex;
   align-items: center;
   padding: 0 0.75rem;
+  white-space: nowrap;
   border-bottom: 2px solid transparent;
   color: var(--text-dim);
   text-decoration: none;
@@ -186,15 +189,20 @@ async function disconnect() {
 
 .operator {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0 1rem;
+  min-width: 0;
   margin-left: auto;
   font-size: 0.875rem;
 }
 
+/* A long Discord name is cut short rather than pushing the bar onto a second row; the tooltip has it in full. */
 .operator p {
+  max-width: 18ch;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .role {
@@ -209,9 +217,45 @@ async function disconnect() {
   display: none;
 }
 
-/* --- Phones and narrow windows (too narrow for every tab on one row, an owner's included): the bar shows the logo
-   and [ menu ], which opens the tabs. Not sticky here. --- */
+/* --- Tablets and small laptops: the same one-row bar, tightened (14px tabs, smaller gaps), and the operator's name
+   moves into disconnect's tooltip. An owner's full tab set fits down to 56rem. --- */
 @media (max-width: 72rem) {
+  .topbar {
+    font-size: 0.875rem;
+  }
+
+  .bar-inner {
+    gap: 0 1rem;
+    padding: 0 1rem;
+  }
+
+  .tabs {
+    gap: 0 0.125rem;
+  }
+
+  .tabs a {
+    padding: 0 0.45rem;
+  }
+
+  .group {
+    padding-left: 0.6rem;
+    margin-left: 0.4rem;
+  }
+
+  .operator p {
+    display: none;
+  }
+}
+
+/* --- Phones and narrow windows (too narrow for every tab on one row, an owner's included): the bar shows the logo
+   and [ menu ], which opens the tabs and who you are. Not sticky here. --- */
+@media (max-width: 56rem) {
+  .operator p {
+    display: block;
+    max-width: none;
+    white-space: normal;
+  }
+
   .shell {
     --topbar-h: 0px;
   }
@@ -235,6 +279,7 @@ async function disconnect() {
     position: absolute;
     right: 0;
     display: block;
+    min-height: 2.5rem;
     padding-inline: 0;
     font-size: 0.875rem;
   }
@@ -245,6 +290,7 @@ async function disconnect() {
   }
 
   .tabs {
+    flex-wrap: wrap;
     justify-content: center;
     padding-bottom: 0.5rem;
   }
@@ -263,6 +309,7 @@ async function disconnect() {
   }
 
   .operator {
+    flex-wrap: wrap;
     justify-content: center;
     margin: 0;
     padding: 0.5rem 0 0.75rem;

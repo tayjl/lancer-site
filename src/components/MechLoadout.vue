@@ -256,7 +256,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       <p v-else class="dim note">no systems installed.</p>
     </section>
 
-    <p v-if="error" class="rose note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
 
     <ItemPicker
       ref="picker"

@@ -262,7 +262,6 @@ async function reject() {
 
 <style scoped>
 main > * + * { margin-top: var(--space-l); }
-.notice { max-width: none; }
 
 /* --- The summary strip --- */
 .strip {
@@ -271,6 +270,7 @@ main > * + * { margin-top: var(--space-l); }
   align-items: center;
   justify-content: space-between;
   gap: var(--space-m) var(--space-xl);
+  overflow-wrap: anywhere;
 }
 
 .who p { max-width: none; margin: 0; }

@@ -158,8 +158,8 @@ async function importPack() {
   <main class="page">
     <PageHeader title="gm: content" summary="the packs behind your pilots, mechs and equipment.">
       <div v-if="isOwner" class="actions">
-        <button v-if="!loading && !loadError && !coreInstalled" type="button" class="primary" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'loading core content…' : 'load core content' }}</button>
-        <button type="button" :class="{ primary: coreInstalled }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">import a pack</button>
+        <button v-if="!loading && !loadError && !coreInstalled" type="button" :class="{ primary: !candidate }" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'loading core content…' : 'load core content' }}</button>
+        <button type="button" :class="{ primary: coreInstalled && !candidate }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">import a pack</button>
       </div>
     </PageHeader>
     <p v-if="!profile" class="dim">loading...</p>
@@ -254,7 +254,7 @@ main > * + * { margin-top: var(--space-l); }
 .file-input { display: none; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
 .center { text-align: center; }
-.notice { max-width: none; }
+
 .notice h2 { margin: 0; font-size: 1.125rem; }
 .notice h3 { margin: 0; }
 .notice p, .notice ul { margin: 0; }

@@ -150,7 +150,7 @@ li + li {
   overflow-wrap: anywhere;
 }
 
-.sources summary { cursor: pointer; }
+.sources summary { cursor: pointer; font-size: 0.875rem; }
 .sources p { margin: 0.25rem 0; }
 
 /* Square steppers: the global boxed button, at a 2rem target. */
@@ -204,6 +204,14 @@ li + li {
   .sources {
     flex-basis: 100%;
     order: 3;
+  }
+}
+
+/* Phones: a bigger target for the thumb. */
+@media (max-width: 40rem) {
+  .steps button {
+    width: 2.5rem;
+    min-height: 2.5rem;
   }
 }
 </style>

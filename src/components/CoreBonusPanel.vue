@@ -88,7 +88,7 @@ async function choose(id: string) {
     </ul>
     <p v-else class="dim note">none{{ editable ? ' yet: every 3 licence ranks give one.' : '.' }}</p>
 
-    <p v-if="error" class="rose note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
 
     <ItemPicker ref="picker" title="choose a core bonus" :options="offered" :saving="saving" :error="error" @choose="choose" />
   </section>

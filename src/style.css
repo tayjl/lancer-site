@@ -254,6 +254,11 @@ label.field .error {
   list-style: none;
 }
 
+.crumbs li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .crumbs li + li::before {
   content: '/' / '';
   margin-right: 0.5rem;
@@ -305,6 +310,7 @@ label.field .error {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  max-width: none; /* often a <p>: not capped like body paragraphs */
   padding: 0.75rem 1rem;
   border-left: 3px solid var(--accent);
   background: var(--panel);
@@ -376,6 +382,7 @@ label.field .error {
   margin: 0 0 0.6rem;
   color: var(--lilac);
   font: 600 1.0625rem/1.4 var(--mono);
+  overflow-wrap: anywhere; /* a long mech or pilot name in a label wraps */
 }
 
 .sheet-label::before {
@@ -447,7 +454,7 @@ dialog.dialog[open] {
 }
 
 dialog.dialog::backdrop {
-  background: rgb(0 0 0 / 0.6);
+  background: color-mix(in srgb, var(--void) 70%, transparent);
 }
 
 .dialog-head,

@@ -35,6 +35,7 @@ defineProps<{ title: string; summary?: string; crumbs?: { label: string; to?: Ro
   margin-bottom: 1.75rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--rule);
+  overflow-wrap: anywhere; /* a long unbroken callsign wraps instead of widening the page */
 }
 
 h1 {

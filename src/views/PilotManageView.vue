@@ -274,8 +274,8 @@ async function createMech() {
     </nav>
 
     <p v-if="loading" class="dim">loading pilot record...</p>
-    <p v-else-if="loadError" class="rose" role="alert">{{ loadError }}</p>
-    <p v-else-if="!character && !own" class="rose">no pilot record with that id.</p>
+    <p v-else-if="loadError" class="notice warn" role="alert">{{ loadError }}</p>
+    <p v-else-if="!character && !own" class="notice warn" role="alert">no pilot record with that id.</p>
 
     <!-- No pilot yet: a name registers one, then the full sheet opens. -->
     <section v-else-if="!character" class="register panel">
@@ -290,7 +290,7 @@ async function createMech() {
           <span>name (required)</span>
           <input v-model="newPilot.name" type="text" required />
         </label>
-        <p v-if="registerError" class="rose" role="alert">{{ registerError }}</p>
+        <p v-if="registerError" class="notice warn" role="alert">{{ registerError }}</p>
         <button type="submit" class="primary">register pilot</button>
       </form>
     </section>
@@ -299,6 +299,8 @@ async function createMech() {
       <!-- The summary strip: who this is, the facts, and what happens next. Sticks under the top bar on wide screens. -->
       <header ref="glance" class="glance panel">
         <div class="names">
+          <!-- While editable the callsign is a field, so the page's heading is for screen readers only. -->
+          <h1 v-if="editable" class="sr-only">{{ character.callsign || character.pilot_name || 'my pilot' }}</h1>
           <input
             v-if="editable"
             class="inline callsign"
@@ -367,12 +369,12 @@ async function createMech() {
           <template v-else-if="!draft.submitted_at">
             <p>proposing changes. edit the sheet as normal, then submit it. your approved pilot stays as it is until a gm approves.</p>
             <button type="button" class="primary small" @click="track(submitChange())">submit for review</button>
-            <button type="button" class="small" @click="withdraw">withdraw</button>
+            <button type="button" class="small danger" @click="withdraw">withdraw</button>
           </template>
           <template v-else>
             <p>change submitted, waiting on a gm. the sheet shows what you submitted.</p>
             <button type="button" class="small" @click="track(reopenChange())">edit change</button>
-            <button type="button" class="small" @click="withdraw">withdraw</button>
+            <button type="button" class="small danger" @click="withdraw">withdraw</button>
           </template>
         </div>
         <p v-else-if="character.status === 'dead'" class="next dim">this pilot is dead. the record is kept, read-only.</p>
@@ -559,7 +561,7 @@ async function createMech() {
               <span>manufacturer id (XXXX-XXXX-XXXX)</span>
               <input v-model="newMech.manufacturerId" type="text" required />
             </label>
-            <p v-if="mechError" class="rose" role="alert">{{ mechError }}</p>
+            <p v-if="mechError" class="notice warn" role="alert">{{ mechError }}</p>
             <div class="actions">
               <button type="submit" class="primary">create mech</button>
               <button type="button" @click="addingMech = false">cancel</button>
@@ -585,7 +587,8 @@ async function createMech() {
   gap: var(--space-m);
 }
 
-.small {
+/* Small notes (not the global .small buttons, which keep their 14px). */
+p.small {
   font-size: 0.8125rem;
 }
 
@@ -594,6 +597,7 @@ async function createMech() {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
   gap: 0.5rem 2.5rem;
   padding-block: 0.9rem;
 }
@@ -719,6 +723,30 @@ async function createMech() {
     z-index: 2;
     background: var(--void);
   }
+
+  /* Anything focused (tabbing through fields) scrolls clear of the stuck strip and tabs. */
+  .tab-panel * {
+    scroll-margin-top: calc(var(--topbar-h) + var(--glance-h) + 4rem);
+  }
+}
+
+/* Shorter screens (laptops at 768 or 720 tall): a tighter strip, so the stuck stack stays about a third of the screen. */
+@media (min-width: 48rem) and (min-height: 40rem) and (max-height: 52rem) {
+  .glance {
+    padding-block: 0.5rem;
+  }
+
+  .callsign {
+    font-size: 1.5rem;
+  }
+
+  .next {
+    padding-top: 0.4rem;
+  }
+
+  .tabs {
+    padding-top: 0.25rem;
+  }
 }
 
 /* --- Profile: writing on the left, portrait and identity on the right --- */
@@ -827,6 +855,7 @@ async function createMech() {
 .mech-card {
   display: flex;
   flex-direction: column;
+  overflow-wrap: anywhere;
   gap: 0.15rem;
   width: 13rem;
   padding: 0.6rem;
