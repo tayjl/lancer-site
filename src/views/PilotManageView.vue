@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
+import { confirmAction } from '../confirm'
 import AddBox from '../components/AddBox.vue'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import GmReview from '../components/GmReview.vue'
@@ -10,7 +11,6 @@ import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RankPanel, { type RankStep } from '../components/RankPanel.vue'
-import SheetGroup from '../components/SheetGroup.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
@@ -24,11 +24,10 @@ import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints } from '../rules'
 
-// my pilot: your pilot as one sheet, laid out like COMP/CON. The important bits across the top,
-// long writing on the left, the portrait and identity table on the right (above the writing on phones),
-// then stats, bionics, gear, the mech hangar, licences, core bonuses and talents. Everything is edited in place and saves itself.
-// While a pilot is pending you can edit it directly; once it's approved, changes go through pending
-// paperwork (not built yet), so the sheet turns read-only.
+// my pilot: your pilot as one sheet. A summary strip across the top (callsign, facts, and what happens next), then
+// section tabs (profile, stats, equipment, licences, talents, mechs), each a stack of panels. Everything is edited
+// in place and saves itself. While a pilot is pending you can edit it directly; once it's approved, changes are
+// proposed as a draft that a GM approves (src/myPilot.ts).
 // The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
 // just like your own sheet. Private sections show only when the database hands over the sheet (the pilot's
 // player, GMs and owners). On the gm-review route (from the gm: pilots tab) GMs also get their controls: level,
@@ -69,25 +68,26 @@ const {
 
 // Your approved pilot: changes are proposed, then a GM approves them (src/myPilot.ts).
 const approvedOwn = computed(() => own && character.value?.status === 'approved')
-function confirmDeath() {
+async function confirmDeath() {
   const name = character.value!.callsign ?? character.value!.pilot_name
-  if (window.confirm(`mark ${name} dead? this can't be undone. they move to the memorial, and you can register a new pilot.`))
+  if (await confirmAction(`mark ${name} dead? this can't be undone. they move to the memorial, and you can register a new pilot.`, { confirmLabel: 'mark dead', danger: true }))
     track(markDead())
 }
 
-function withdraw() {
-  if (window.confirm('withdraw this change? everything in it is thrown away; your approved pilot stays as it is.')) track(withdrawChange())
+async function withdraw() {
+  if (await confirmAction('withdraw this change? everything in it is thrown away; your approved pilot stays as it is.', { confirmLabel: 'withdraw', danger: true }))
+    track(withdrawChange())
 }
 
-// Records lead back to the queue, or to the list the pilot is in.
+// Records' breadcrumb leads back to the queue, or to the list the pilot is in.
 const back = computed(() =>
   reviewing
     ? { name: 'gm-pilots', label: 'gm: pilots' }
     : character.value?.status === 'pending'
-      ? { name: 'pending', label: 'pending pilots' }
+      ? { name: 'pending', label: 'pending' }
       : character.value?.status === 'dead'
         ? { name: 'memorial', label: 'memorial' }
-        : { name: 'registry', label: 'pilot registry' },
+        : { name: 'registry', label: 'registry' },
 )
 // Your own mechs open for editing; anyone else's open read-only under their record.
 const mechLink = (mechId: string) =>
@@ -192,9 +192,23 @@ const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({
 
 const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids }))
 
-// The private groups, one shown at a time (SheetTabs.vue).
-const SHEET_TABS = ['stats', 'equipment', 'licences', 'talents']
-const tab = ref('stats')
+// The sections, one shown at a time (SheetTabs.vue), remembered in the url as ?tab= so a mech page can link back to
+// the hangar. Players without the private sheet only get the public ones; anything else falls back to profile.
+const tabs = computed(() => (canSeePrivate.value ? ['profile', 'stats', 'equipment', 'licences', 'talents', 'mechs'] : ['profile', 'mechs']))
+const tab = computed({
+  get: () => (tabs.value.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
+  set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
+})
+
+// The tabs stick just under the summary strip, so they need its height (it changes with the next-step line).
+const glance = useTemplateRef<HTMLElement>('glance')
+const glanceHeight = ref(0)
+const glanceObserver = new ResizeObserver(([entry]) => (glanceHeight.value = entry.borderBoxSize[0].blockSize))
+watch(glance, (el, old) => {
+  if (old) glanceObserver.unobserve(old)
+  if (el) glanceObserver.observe(el)
+})
+onBeforeUnmount(() => glanceObserver.disconnect())
 
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
@@ -252,11 +266,11 @@ async function createMech() {
 
 <template>
   <main class="page manage">
-    <nav v-if="!own" class="links">
-      <RouterLink :to="{ name: back.name }">&lt; {{ back.label }}</RouterLink>
-      <RouterLink v-if="isGm && !reviewing && character" :to="{ name: 'gm-review', params: { id: pilotId } }">
-        {{ character.status === 'pending' ? 'gm review' : 'gm controls: level and manna' }}
-      </RouterLink>
+    <nav v-if="!own && character" aria-label="Breadcrumb" class="crumbs">
+      <ol>
+        <li><RouterLink :to="{ name: back.name }">{{ back.label }}</RouterLink></li>
+        <li aria-current="page">{{ character.callsign ?? character.pilot_name }}</li>
+      </ol>
     </nav>
 
     <p v-if="loading" class="dim">loading pilot record...</p>
@@ -264,26 +278,26 @@ async function createMech() {
     <p v-else-if="!character && !own" class="rose">no pilot record with that id.</p>
 
     <!-- No pilot yet: a name registers one, then the full sheet opens. -->
-    <section v-else-if="!character" class="register">
+    <section v-else-if="!character" class="register panel">
       <h1 class="sheet-label">register a pilot</h1>
       <form class="register-form" @submit.prevent="register">
         <p>no pilot on file. a name is all that's needed to start; everything else is filled in on the sheet.</p>
-        <label>
-          <span class="dim">callsign</span>
+        <label class="field">
+          <span>callsign</span>
           <input v-model="newPilot.callsign" type="text" />
         </label>
-        <label>
-          <span class="dim">name (required)</span>
+        <label class="field">
+          <span>name (required)</span>
           <input v-model="newPilot.name" type="text" required />
         </label>
         <p v-if="registerError" class="rose" role="alert">{{ registerError }}</p>
-        <button type="submit">register pilot</button>
+        <button type="submit" class="primary">register pilot</button>
       </form>
     </section>
 
-    <div v-else class="sheet">
-      <!-- At a glance: callsign, name, player, status. -->
-      <header class="glance">
+    <div v-else class="sheet" :style="{ '--glance-h': `${glanceHeight}px` }">
+      <!-- The summary strip: who this is, the facts, and what happens next. Sticks under the top bar on wide screens. -->
+      <header ref="glance" class="glance panel">
         <div class="names">
           <input
             v-if="editable"
@@ -305,6 +319,10 @@ async function createMech() {
             @change="saveText('pilot_name', $event)"
           />
           <p v-else class="name">{{ character.pilot_name }}</p>
+          <p v-if="own" class="save-status" role="status">
+            <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+            <span v-else-if="status" class="dim">{{ status }}</span>
+          </p>
         </div>
         <div class="glance-side">
           <dl class="glance-facts">
@@ -314,391 +332,275 @@ async function createMech() {
             </div>
             <div>
               <dt>status</dt>
-              <dd class="badge" :class="character.status">{{ character.status }}</dd>
+              <dd><span class="badge" :class="character.status">{{ character.status }}</span></dd>
             </div>
             <template v-if="canSeePrivate">
               <div>
                 <dt>level</dt>
                 <dd>{{ gm.level }}</dd>
               </div>
-              <div :title="`${gm.manna} received, ${mannaSpent(sheet)} spent`">
+              <div>
                 <dt>manna</dt>
-                <dd :class="{ rose: balance < 0 }">{{ balance }}</dd>
+                <dd :class="{ rose: balance < 0 }">{{ balance }} left</dd>
+                <dd class="dim small">{{ gm.manna }} received · {{ mannaSpent(sheet) }} spent</dd>
               </div>
             </template>
           </dl>
-          <p v-if="own" class="save-status" role="status">
-            <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-            <span v-else class="dim">{{ status }}</span>
-          </p>
-        </div>
-        <div v-if="own && reviewNote" class="gm-note" role="note">
-          <p v-if="character.status === 'pending'" class="rose">sent back by a gm. change what they asked, then resubmit to rejoin the review queue.</p>
-          <p v-else class="lilac">note from the gm</p>
-          <p>{{ reviewNote }}</p>
-          <button v-if="character.status === 'pending'" type="button" @click="track(resubmit())">resubmit for review</button>
-          <button v-else-if="character.status === 'approved'" type="button" :disabled="status === 'saving...'" @click="track(dismissApprovalNote())">clear note</button>
+          <RouterLink v-if="isGm && !own && !reviewing" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
+            {{ character.status === 'pending' ? 'gm review' : 'gm controls' }}
+          </RouterLink>
         </div>
 
-        <!-- Your approved pilot: propose a change, write it, submit it, wait for a GM. -->
-        <div
-          v-if="approvedOwn"
-          class="change-note"
-          :class="{ rejected: !draft && change?.status === 'rejected', plain: !draft && change?.status !== 'rejected' }"
-          role="note"
-        >
+        <!-- What happens next, and the action that does it. -->
+        <div v-if="own && character.status === 'pending'" class="next">
+          <template v-if="reviewNote">
+            <p class="rose">sent back by a gm: change what they asked (note below), then resubmit.</p>
+            <button type="button" class="primary small" @click="track(resubmit())">resubmit for review</button>
+          </template>
+          <p v-else class="dim">waiting on a gm. you can keep editing.</p>
+        </div>
+        <div v-else-if="approvedOwn" class="next">
           <template v-if="!draft">
-            <template v-if="change?.status === 'rejected'">
-              <p class="rose">a gm rejected your last change.</p>
-              <p>{{ change.review_reason }}</p>
-            </template>
-            <div class="actions">
-              <button type="button" @click="track(proposeChange())">propose changes</button>
-            </div>
+            <p class="dim">approved. to change your pilot, propose changes for a gm to review.</p>
+            <button type="button" class="primary small" @click="track(proposeChange())">propose changes</button>
           </template>
           <template v-else-if="!draft.submitted_at">
             <p>proposing changes. edit the sheet as normal, then submit it. your approved pilot stays as it is until a gm approves.</p>
-            <div class="actions">
-              <button type="button" @click="track(submitChange())">submit for review</button>
-              <button type="button" @click="withdraw">withdraw</button>
-            </div>
+            <button type="button" class="primary small" @click="track(submitChange())">submit for review</button>
+            <button type="button" class="small" @click="withdraw">withdraw</button>
           </template>
           <template v-else>
             <p>change submitted, waiting on a gm. the sheet shows what you submitted.</p>
-            <div class="actions">
-              <button type="button" @click="track(reopenChange())">edit change</button>
-              <button type="button" @click="withdraw">withdraw</button>
-            </div>
+            <button type="button" class="small" @click="track(reopenChange())">edit change</button>
+            <button type="button" class="small" @click="withdraw">withdraw</button>
           </template>
         </div>
-        <RuleCheck v-if="canSeePrivate" class="full" :problems="problems" />
+        <p v-else-if="character.status === 'dead'" class="next dim">this pilot is dead. the record is kept, read-only.</p>
       </header>
 
-      <!-- Right on wide screens; between the top strip and appearance on phones. -->
-      <aside class="side">
-        <Portrait :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
-        <p v-if="own" class="dim small">image upload: module offline</p>
-        <table class="identity">
-          <tbody>
-            <tr v-for="[column, label] in IDENTITY" :key="column">
-              <th scope="row">{{ label }}</th>
-              <td>
-                <input
-                  v-if="editable"
-                  class="inline"
-                  type="text"
-                  :aria-label="label"
-                  :value="character[column] ?? ''"
-                  @change="saveText(column, $event)"
-                />
-                <template v-else>{{ character[column] ?? '-' }}</template>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </aside>
+      <!-- Long notes sit under the strip, so the sticky part stays short. -->
+      <div v-if="own && reviewNote && character.status === 'pending'" class="notice warn" role="note">
+        <p class="rose">note from the gm</p>
+        <p class="note-text">{{ reviewNote }}</p>
+      </div>
+      <div v-else-if="own && reviewNote && character.status === 'approved'" class="notice" role="note">
+        <p class="lilac">note from the gm</p>
+        <p class="note-text">{{ reviewNote }}</p>
+        <div><button type="button" class="small" :disabled="status === 'saving...'" @click="track(dismissApprovalNote())">clear note</button></div>
+      </div>
+      <div v-if="approvedOwn && !draft && change?.status === 'rejected'" class="notice warn" role="note">
+        <p class="rose">a gm rejected your last change.</p>
+        <p class="note-text">{{ change.review_reason }}</p>
+      </div>
+      <RuleCheck v-if="canSeePrivate" :problems="problems" />
 
-      <div class="writing">
-        <SheetField title="appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
-        <SheetField title="personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
-        <SheetField
-          v-if="canSeePrivate"
-          title="backstory"
-          tag="private"
-          :doc="sheet.backstory ?? null"
-          :editable="editable"
-          :save="saveBackstory"
-        />
+      <!-- One section at a time. v-show keeps every panel mounted, so switching never loses an open picker or an
+           unsaved field. -->
+      <SheetTabs v-model="tab" :tabs="tabs" class="tabs" />
+
+      <div v-show="tab === 'profile'" class="tab-panel profile">
+        <!-- Right on wide screens; first on phones. -->
+        <aside class="side panel">
+          <Portrait :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
+          <p v-if="own" class="dim small">image upload: module offline</p>
+          <table class="identity">
+            <tbody>
+              <tr v-for="[column, label] in IDENTITY" :key="column">
+                <th scope="row"><label :for="`identity-${column}`">{{ label }}</label></th>
+                <td>
+                  <input
+                    v-if="editable"
+                    :id="`identity-${column}`"
+                    type="text"
+                    :value="character[column] ?? ''"
+                    @change="saveText(column, $event)"
+                  />
+                  <template v-else>{{ character[column] ?? '-' }}</template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </aside>
+
+        <div class="writing">
+          <SheetField class="panel" title="appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
+          <SheetField class="panel" title="personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
+          <SheetField
+            v-if="canSeePrivate"
+            class="panel"
+            title="backstory"
+            tag="private"
+            :doc="sheet.backstory ?? null"
+            :editable="editable"
+            :save="saveBackstory"
+          />
+          <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
+          <section v-if="approvedOwn" class="panel danger-zone">
+            <h2 class="sheet-label">danger zone</h2>
+            <div class="death-body">
+              <p class="dim">if your pilot dies in the story, mark them dead. this can't be undone.</p>
+              <button type="button" class="danger" @click="confirmDeath">mark pilot dead</button>
+            </div>
+          </section>
+        </div>
       </div>
 
-      <div class="wide">
-        <!-- One group at a time, picked from SheetTabs.vue: stats, equipment, licences with core bonuses, talents.
-             v-show keeps every group mounted, so switching never loses an open picker or an unsaved field. The mech
-             hangar is always shown, below. -->
-        <template v-if="canSeePrivate">
-          <SheetTabs v-model="tab" :tabs="SHEET_TABS" />
-          <div v-show="tab === 'stats'" class="tab-panel">
-            <StatRow title="general stats" tag="private" :stats="vitals" :editable="false" :min="0" :max="0" />
-            <StatRow
-              title="personal stats"
-              tag="private"
-              :stats="stats.personal"
-              :editable="editable"
-              :min="PERSONAL_STAT_MIN"
-              :max="PERSONAL_STAT_MAX"
-              :budget="PERSONAL_STAT_POINTS"
-              @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
-            />
-            <StatRow
-              title="piloting stats"
-              tag="private"
-              :stats="stats.piloting"
-              :editable="editable"
-              :min="STAT_MIN"
-              :max="STAT_MAX"
-              :budget="skillPoints(gm.level)"
-              @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
-            />
-          </div>
-          <div v-show="tab === 'equipment'" class="tab-panel">
-            <LoadoutBox
-              title="bionics"
-              tag="private"
-              :items="bionicOptions"
-              :chosen="sheet.bionics ?? []"
-              :editable="editable"
-              :limit="{ label: 'mod limit', unit: 'mod points', max: modLimit(gm.level) }"
-              :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
-              :save="saveBionics"
-            />
-            <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
-          </div>
-          <div v-show="tab === 'licences'" class="tab-panel">
-            <RankPanel
-              title="licences"
-              noun="licence"
-              :options="licenceOptions"
-              :held="sheet.licences ?? {}"
-              :details="licenceDetails"
-              columns
-              :price="PRICES.licenceRank"
-              :balance="balance"
-              :editable="editable"
-              :save="saveLicences"
-            >
-              <template #summary>
-                <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
-              </template>
-            </RankPanel>
-            <CoreBonusPanel
-              :options="coreBonuses"
-              :licences="sheet.licences ?? {}"
-              :frames="frames"
-              :taken="sheet.core_bonuses ?? []"
-              :picks="coreBonusPicks(sheet)"
-              :editable="editable"
-              :save="saveCoreBonuses"
-            />
-          </div>
-          <div v-show="tab === 'talents'" class="tab-panel">
-            <RankPanel
-              title="talents"
-              noun="talent"
-              :options="talentOptions"
-              :held="sheet.talents ?? {}"
-              :details="talentDetails"
-              tiers
-              :price="PRICES.talentRank"
-              :balance="balance"
-              :editable="editable"
-              :save="saveTalents"
-            />
-          </div>
-        </template>
+      <template v-if="canSeePrivate">
+        <div v-show="tab === 'stats'" class="tab-panel">
+          <StatRow class="panel" title="general stats" tag="private" :stats="vitals" :editable="false" :min="0" :max="0" />
+          <StatRow
+            class="panel"
+            title="personal stats"
+            tag="private"
+            :stats="stats.personal"
+            :editable="editable"
+            :min="PERSONAL_STAT_MIN"
+            :max="PERSONAL_STAT_MAX"
+            :budget="PERSONAL_STAT_POINTS"
+            @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
+          />
+          <StatRow
+            class="panel"
+            title="piloting stats"
+            tag="private"
+            :stats="stats.piloting"
+            :editable="editable"
+            :min="STAT_MIN"
+            :max="STAT_MAX"
+            :budget="skillPoints(gm.level)"
+            @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+          />
+        </div>
+        <div v-show="tab === 'equipment'" class="tab-panel">
+          <LoadoutBox
+            class="panel"
+            title="bionics"
+            tag="private"
+            :items="bionicOptions"
+            :chosen="sheet.bionics ?? []"
+            :editable="editable"
+            :limit="{ label: 'mod limit', unit: 'mod points', max: modLimit(gm.level) }"
+            :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
+            :save="saveBionics"
+          />
+          <PilotLoadout class="panel" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+        </div>
+        <div v-show="tab === 'licences'" class="tab-panel">
+          <RankPanel
+            class="panel"
+            title="licences"
+            noun="licence"
+            :options="licenceOptions"
+            :held="sheet.licences ?? {}"
+            :details="licenceDetails"
+            columns
+            :price="PRICES.licenceRank"
+            :balance="balance"
+            :editable="editable"
+            :save="saveLicences"
+          >
+            <template #summary>
+              <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
+            </template>
+          </RankPanel>
+          <CoreBonusPanel
+            class="panel"
+            :options="coreBonuses"
+            :licences="sheet.licences ?? {}"
+            :frames="frames"
+            :taken="sheet.core_bonuses ?? []"
+            :picks="coreBonusPicks(sheet)"
+            :editable="editable"
+            :save="saveCoreBonuses"
+          />
+        </div>
+        <div v-show="tab === 'talents'" class="tab-panel">
+          <RankPanel
+            class="panel"
+            title="talents"
+            noun="talent"
+            :options="talentOptions"
+            :held="sheet.talents ?? {}"
+            :details="talentDetails"
+            tiers
+            :price="PRICES.talentRank"
+            :balance="balance"
+            :editable="editable"
+            :save="saveTalents"
+          />
+        </div>
+      </template>
 
-        <SheetGroup title="mech hangar">
-          <template #tools>
-            <button v-if="editable && mechs.length && !addingMech" type="button" @click="openNewMech">new mech</button>
-          </template>
-          <div class="hangar-body">
-            <ul v-if="mechs.length" class="mechs">
-              <li v-for="mech in mechs" :key="mech.id">
-                <RouterLink :to="mechLink(mech.id)" class="mech-card" :style="{ '--maker': makerColour(makerOf(mech.id)) }">
-                  <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
-                    <StatIcon v-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
-                  </Portrait>
-                  <span class="mech-name">{{ mech.name }}</span>
-                  <span v-if="frameOf(mech.id)" class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
-                  <span class="dim">{{ mech.manufacturer_id }}</span>
-                </RouterLink>
-              </li>
-            </ul>
+      <div v-show="tab === 'mechs'" class="tab-panel">
+        <section class="panel hangar">
+          <header class="sheet-head hangar-head">
+            <h2 class="sheet-label">mech hangar</h2>
+            <button v-if="editable && mechs.length && !addingMech" type="button" class="small" @click="openNewMech">new mech</button>
+          </header>
+          <ul v-if="mechs.length" class="mechs">
+            <li v-for="mech in mechs" :key="mech.id">
+              <RouterLink :to="mechLink(mech.id)" class="mech-card" :style="{ '--maker': makerColour(makerOf(mech.id)) }">
+                <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
+                  <StatIcon v-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
+                </Portrait>
+                <span class="mech-name">{{ mech.name }}</span>
+                <span v-if="frameOf(mech.id)" class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
+                <span class="dim">{{ mech.manufacturer_id }}</span>
+              </RouterLink>
+            </li>
+          </ul>
 
-            <form v-if="addingMech" class="new-mech" @submit.prevent="createMech">
-              <label>
-                <span class="dim">mech name (required)</span>
-                <input v-model="newMech.name" type="text" required />
-              </label>
-              <label>
-                <span class="dim">manufacturer id (XXXX-XXXX-XXXX)</span>
-                <input v-model="newMech.manufacturerId" type="text" required />
-              </label>
-              <p v-if="mechError" class="rose" role="alert">{{ mechError }}</p>
-              <div class="actions">
-                <button type="submit">create mech</button>
-                <button type="button" @click="addingMech = false">cancel</button>
-              </div>
-            </form>
-            <AddBox v-else-if="editable && !mechs.length" label="new mech" class="add-mech" @click="openNewMech" />
-            <p v-else-if="!mechs.length" class="dim">no mechs on file.</p>
-          </div>
-        </SheetGroup>
-
-        <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
-        <section v-if="approvedOwn" class="death">
-          <h2 class="sheet-label">death</h2>
-          <div class="death-body">
-            <p class="dim">if your pilot dies in the story, mark them dead. this can't be undone.</p>
-            <button type="button" class="danger" @click="confirmDeath">mark pilot dead</button>
-          </div>
+          <form v-if="addingMech" class="new-mech" @submit.prevent="createMech">
+            <label class="field">
+              <span>mech name (required)</span>
+              <input v-model="newMech.name" type="text" required />
+            </label>
+            <label class="field">
+              <span>manufacturer id (XXXX-XXXX-XXXX)</span>
+              <input v-model="newMech.manufacturerId" type="text" required />
+            </label>
+            <p v-if="mechError" class="rose" role="alert">{{ mechError }}</p>
+            <div class="actions">
+              <button type="submit" class="primary">create mech</button>
+              <button type="button" @click="addingMech = false">cancel</button>
+            </div>
+          </form>
+          <AddBox v-else-if="editable && !mechs.length" label="new mech" class="add-mech" @click="openNewMech" />
+          <p v-else-if="!mechs.length" class="empty">no mechs on file.</p>
         </section>
-
-        <!-- :key resets the decision box after a decision, so it shows the new status. -->
-        <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :problems="problems" @reviewed="load" />
       </div>
+
+      <!-- :key resets the decision box after a decision, so it shows the new status. -->
+      <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :problems="problems" @reviewed="load" />
     </div>
   </main>
 </template>
 
 <style scoped>
-/* Full width: the sheet uses the whole content area, not a centred column. */
-.manage {
-  max-width: none;
-}
-
-/* On a record: back to the list, and (for GMs, on a pending pilot) on to the review. */
-.links {
+.sheet,
+.tab-panel,
+.writing {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.links a {
-  color: var(--text-dim);
-  font-size: 0.875rem;
-  text-decoration: none;
-}
-
-.links a:hover {
-  color: var(--lilac);
+  flex-direction: column;
+  gap: var(--space-m);
 }
 
 .small {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
-/* --- Layout: top strip across, writing left, portrait right, then full-width sections --- */
-.sheet {
-  display: grid;
-  grid-template-areas:
-    'glance glance'
-    'writing side'
-    'wide wide';
-  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
-  gap: 1.5rem 2rem;
-  align-items: start;
-}
-
-.glance {
-  grid-area: glance;
-}
-
-.gm-note,
-.full {
-  flex-basis: 100%;
-}
-
-/* Your approved pilot's change: lilac while you write or wait, rose once rejected. */
-.change-note {
-  flex-basis: 100%;
-  padding: 0.6rem 0.9rem;
-  border-left: 3px solid var(--lilac);
-  background: var(--panel);
-  font-size: 0.875rem;
-  text-align: left;
-}
-
-.change-note.rejected {
-  border-left-color: var(--rose);
-}
-
-/* Nothing to say yet: just the button. */
-.change-note.plain {
-  padding: 0;
-  border: 0;
-  background: none;
-}
-
-.change-note.plain .actions {
-  margin-top: 0;
-}
-
-.change-note p {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.change-note .actions {
-  margin-top: 0.5rem;
-}
-
-.change-note button {
-  font-size: 0.875rem;
-}
-
-.gm-note {
-  padding: 0.6rem 0.9rem;
-  border-left: 3px solid var(--rose);
-  background: var(--panel);
-  font-size: 0.875rem;
-  text-align: left;
-}
-
-.gm-note p {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.gm-note button {
-  margin-top: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.writing {
-  grid-area: writing;
-}
-
-.side {
-  grid-area: side;
-}
-
-.wide {
-  grid-area: wide;
-}
-
-.writing,
-.wide,
-.tab-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
-}
-
-/* --- One-line fields: plain text until you point at them --- */
-.inline {
-  padding: 0.15rem 0.35rem;
-  border-color: transparent;
-}
-
-.inline:hover {
-  border-color: var(--rule);
-}
-
-/* --- Top strip --- */
+/* --- Summary strip --- */
 .glance {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 2.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--rule);
+  gap: 0.5rem 2.5rem;
+  padding-block: 0.9rem;
 }
 
 .names {
   display: flex;
-  flex: 1 1 22rem;
+  flex: 1 1 18rem;
   flex-direction: column;
   min-width: 0;
 }
@@ -706,29 +608,40 @@ async function createMech() {
 .callsign {
   margin: 0;
   color: var(--lilac);
-  font: 700 2.5rem/1.1 var(--mono);
+  font: 700 2rem/1.15 var(--mono);
 }
 
 .name {
   margin: 0;
   color: var(--text-dim);
-  font-size: 1.125rem;
+  font-size: 1rem;
 }
 
-input.callsign,
-input.name {
+/* Callsign and name: plain text with a faint underline that says they can be edited. */
+.inline {
+  min-height: 0;
   margin-left: -0.35rem;
+  padding: 0.1rem 0.35rem;
+  border-color: transparent;
+  border-bottom-color: var(--rule);
+  background: none;
 }
 
-/* Player and status (or pilot and frame) on the right, centred against the callsign and name. The save
-   status hangs just below without taking up room, so it doesn't pull them off centre. */
+.inline:hover {
+  border-color: var(--rule);
+}
+
 .glance-side {
-  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
 }
 
 .glance-facts {
   display: flex;
-  gap: 2.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
   margin: 0;
 }
 
@@ -739,52 +652,91 @@ input.name {
 
 .glance-facts dd {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
 }
 
-/* The status as a small outlined badge: rose while pending, sky once approved. */
-.badge {
-  width: fit-content;
-  padding: 0 0.4rem;
-  border: 1px solid currentColor;
+.glance-facts dd.small {
+  font-size: 0.8125rem;
 }
 
-.badge.pending {
-  color: var(--rose);
-}
-
-.badge.approved {
-  color: var(--sky);
-}
-
-.badge.dead {
-  color: var(--text-dim);
-}
-
-.death-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-  padding: 0.75rem;
+/* The GM's way to the review page: a link drawn as a small button. */
+.gm-link {
+  padding: 0.3rem 0.65rem;
   border: 1px solid var(--rule);
+  font: 600 0.875rem/1.5 var(--mono);
+  text-decoration: none;
 }
 
-.death-body p {
-  margin: 0;
+.gm-link:hover {
+  border-color: var(--lilac);
+  color: var(--lilac);
 }
 
 .save-status {
-  position: absolute;
-  top: calc(100% + 0.2rem);
-  right: 0;
+  min-height: 1.25rem;
   margin: 0;
   font-size: 0.8125rem;
-  white-space: nowrap;
 }
 
-/* --- Portrait and identity table --- */
+.next {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  max-width: none;
+  margin: 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.875rem;
+}
+
+.next p {
+  flex: 1 1 20rem;
+  margin: 0;
+}
+
+.note-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.tabs {
+  padding-top: 0.6rem;
+}
+
+/* Sticky only where there's room: wide and tall screens. The tabs stick just under the strip. */
+@media (min-width: 48rem) and (min-height: 40rem) {
+  .glance {
+    position: sticky;
+    top: var(--topbar-h);
+    z-index: 1;
+  }
+
+  .tabs {
+    position: sticky;
+    top: calc(var(--topbar-h) + var(--glance-h));
+    z-index: 1;
+    background: var(--void);
+  }
+}
+
+/* --- Profile: writing on the left, portrait and identity on the right --- */
+.profile {
+  display: grid;
+  grid-template-areas: 'writing side';
+  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
+  align-items: start;
+}
+
+.writing {
+  grid-area: writing;
+}
+
+.side {
+  grid-area: side;
+}
+
 .side p {
   margin: 0.35rem 0 0;
 }
@@ -797,17 +749,36 @@ input.name {
 
 .identity th,
 .identity td {
-  padding: 0.2rem 0;
-  border-bottom: 1px solid var(--rule);
+  padding: 0.25rem 0;
   text-align: left;
   vertical-align: middle;
 }
 
 .identity th {
-  width: 6.5rem;
+  width: 6rem;
   color: var(--text-dim);
   font-size: 0.8125rem;
   font-weight: 400;
+}
+
+.danger-zone {
+  border-color: var(--rose);
+}
+
+.danger-zone .sheet-label {
+  color: var(--rose);
+}
+
+.death-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+}
+
+.death-body p {
+  margin: 0;
 }
 
 /* --- Registering --- */
@@ -819,20 +790,10 @@ input.name {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid var(--rule);
 }
 
 .register-form p {
   margin: 0;
-}
-
-.register-form label,
-.new-mech label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.8125rem;
 }
 
 .register-form button {
@@ -840,13 +801,17 @@ input.name {
 }
 
 /* --- Hangar: mechs centred, so a single mech sits in the middle --- */
-.hangar-body {
+.hangar {
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+}
+
+.hangar-head {
+  display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1.25rem;
-  border: 1px solid var(--rule);
+  margin-bottom: 0;
 }
 
 .mechs {
@@ -867,9 +832,9 @@ input.name {
   padding: 0.6rem;
   border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
   border-top: 4px solid var(--maker);
-  background: color-mix(in srgb, var(--maker) 8%, transparent);
+  background: color-mix(in srgb, var(--maker) 8%, var(--void));
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   text-align: center;
   text-decoration: none;
 }
@@ -904,6 +869,7 @@ input.name {
 
 .add-mech {
   max-width: 16rem;
+  margin-inline: auto;
 }
 
 .new-mech {
@@ -911,26 +877,23 @@ input.name {
   flex-direction: column;
   gap: 0.75rem;
   width: min(100%, 24rem);
+  margin-inline: auto;
 }
 
-.new-mech p,
-.hangar-body > p {
+.new-mech p {
   margin: 0;
 }
 
 .actions {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
 }
 
-.actions button {
-  font-size: 0.875rem;
-}
-
-/* --- Narrow screens: one column, with the portrait between the top strip and appearance --- */
+/* --- Narrow screens: one column, with the portrait first --- */
 @media (max-width: 56rem) {
-  .sheet {
-    grid-template-areas: 'glance' 'side' 'writing' 'wide';
+  .profile {
+    grid-template-areas: 'side' 'writing';
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -943,15 +906,16 @@ input.name {
   .side p {
     text-align: center;
   }
+}
 
-  .callsign {
-    font-size: 1.875rem;
+/* --- Phones: the strip stacked and centred --- */
+@media (max-width: 48rem) {
+  .crumbs ol {
+    justify-content: center;
   }
 
-  /* The top strip, centred. */
   .glance {
     flex-direction: column;
-    align-items: center;
     text-align: center;
   }
 
@@ -966,16 +930,22 @@ input.name {
     text-align: center;
   }
 
-  .glance-facts dd {
-    margin-inline: auto;
+  .callsign {
+    font-size: 1.75rem;
   }
 
-  .save-status {
-    position: static;
-    min-height: 1.25rem;
-    margin-top: 0.35rem;
+  .glance-side,
+  .glance-facts {
+    justify-content: center;
+  }
+
+  .next {
+    justify-content: center;
     text-align: center;
-    white-space: normal;
+  }
+
+  .next p {
+    flex-basis: 100%;
   }
 }
 </style>

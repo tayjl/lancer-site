@@ -46,33 +46,6 @@ p {
   margin: 0.35rem 0 0;
 }
 
-.crumbs ol {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 0.5rem;
-  margin: 0 0 0.5rem;
-  padding: 0;
-  color: var(--text);
-  font-size: 0.875rem;
-  list-style: none;
-}
-
-.crumbs li + li::before {
-  content: '/' / '';
-  margin-right: 0.5rem;
-  color: var(--text-dim);
-}
-
-.crumbs a {
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.crumbs a:hover {
-  color: var(--lilac);
-  text-decoration: underline;
-}
-
 .side {
   margin-left: auto;
 }
@@ -83,7 +56,7 @@ p {
     text-align: center;
   }
 
-  .crumbs ol {
+  .crumbs :deep(ol) {
     justify-content: center;
   }
 

@@ -95,11 +95,11 @@ async function buy(id: string) {
             <span v-if="optionOf(id)?.meta" class="meta">{{ optionOf(id)?.meta }}</span>
           </span>
           <span v-if="editable" class="steps">
+            <span v-if="rank < MAX_LICENCE_RANK && !affordable" class="dim blocked">not enough manna</span>
             <button type="button" :aria-label="`lower ${nameOf(id)}`" :disabled="saving" @click="setRank(id, rank - 1)">-</button>
             <button
               type="button"
               :aria-label="`raise ${nameOf(id)}`"
-              :title="affordable ? '' : 'not enough manna'"
               :disabled="saving || rank >= MAX_LICENCE_RANK || !affordable"
               @click="setRank(id, rank + 1)"
             >
@@ -135,7 +135,7 @@ async function buy(id: string) {
       </SlotCard>
       <SlotCard v-if="editable" :title="`new ${noun}`" empty>
         <template #tools>
-          <button type="button" :disabled="saving" @click="open">buy</button>
+          <button type="button" class="quiet" :disabled="saving" @click="open">buy</button>
         </template>
       </SlotCard>
     </ul>
@@ -254,7 +254,7 @@ async function buy(id: string) {
   gap: 0.5rem;
   padding: 0.3rem 0.6rem;
   border-left: 3px solid currentColor;
-  background: var(--panel);
+  background: var(--raised);
   color: var(--sky);
   font-size: 0.8125rem;
   font-weight: 700;
@@ -325,7 +325,7 @@ async function buy(id: string) {
   display: grid;
   place-items: center;
   border-right: 1px solid var(--rule);
-  background: var(--panel);
+  background: var(--raised);
   color: var(--lilac);
   font-size: 1.5rem;
   font-weight: 700;
@@ -354,35 +354,22 @@ async function buy(id: string) {
   font-size: 0.8125rem;
 }
 
-/* Small square steppers, as in StatRow. */
+/* Square steppers, as in StatRow, with the reason + is blocked beside them. */
 .steps {
   display: flex;
+  align-items: center;
   gap: 0.35rem;
 }
 
 .steps button {
-  width: 1.75rem;
-  min-height: 0;
+  width: 2rem;
+  min-height: 2rem;
   padding: 0;
-  border: 1px solid var(--rule);
-  color: var(--text-dim);
-  font-weight: 400;
-  line-height: 1.4;
+  font-size: 1rem;
 }
 
-.steps button::before,
-.steps button::after {
-  content: none;
-}
-
-.steps button:hover:not(:disabled),
-.steps button:focus-visible {
-  border-color: var(--lilac);
-  color: var(--lilac);
-}
-
-.steps button:disabled {
-  opacity: 0.35;
-  cursor: default;
+.blocked {
+  margin-right: 0.35rem;
+  font-size: 0.8125rem;
 }
 </style>

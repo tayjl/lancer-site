@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { confirmAction } from '../confirm'
 import type { CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
 import { coreBonusProblems } from '../rules'
@@ -35,8 +36,9 @@ async function store(ids: string[]) {
   return !error.value
 }
 
-function remove(id: string) {
-  if (window.confirm(`remove ${byId.value.get(id)?.name ?? id}?`)) store(props.taken.filter((other) => other !== id))
+async function remove(id: string) {
+  if (await confirmAction(`remove ${byId.value.get(id)?.name ?? id}?`, { confirmLabel: 'remove', danger: true }))
+    store(props.taken.filter((other) => other !== id))
 }
 
 const picker = useTemplateRef('picker')
@@ -73,14 +75,14 @@ async function choose(id: string) {
     <ul v-if="taken.length || (editable && left > 0)" class="slot-grid">
       <SlotCard v-for="id in taken" :key="id" :title="byId.get(id)?.source.toLowerCase() || 'core bonus'">
         <template v-if="editable" #tools>
-          <button type="button" :disabled="saving" @click="remove(id)">remove</button>
+          <button type="button" class="quiet rose" :disabled="saving" @click="remove(id)">remove</button>
         </template>
         <p class="name"><InfoButton v-if="byId.get(id)" :info="() => coreBonusInfo(byId.get(id)!)" :label="byId.get(id)!.name" /><template v-else>{{ id }}</template></p>
         <RulesText :html="byId.get(id)?.effect ?? ''" />
       </SlotCard>
       <SlotCard v-if="editable && left > 0" title="new core bonus" empty>
         <template #tools>
-          <button type="button" :disabled="saving" @click="open">choose</button>
+          <button type="button" class="quiet" :disabled="saving" @click="open">choose</button>
         </template>
       </SlotCard>
     </ul>

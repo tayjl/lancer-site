@@ -95,39 +95,46 @@ const isPlainColour = () => !COLOURS.some((colour) => is('textStyle', { color: c
   margin-bottom: 0.5rem;
 }
 
+/* Each group is one joined strip of buttons. */
 .group {
   display: flex;
-  gap: 0.25rem;
 }
 
-/* Small toggle buttons without the usual [ brackets ]. Pressed ones are outlined in lilac. */
+.group .tool + .tool {
+  margin-left: -1px;
+}
+
+/* Toggle buttons. Pressed ones are raised, with a lilac outline and underline bar. */
 .tool {
-  min-height: 0;
-  padding: 0.1rem 0.45rem;
-  border: 1px solid var(--rule);
+  position: relative;
+  min-height: 2rem;
+  padding: 0.2rem 0.6rem;
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 400;
 }
 
-.tool::before,
-.tool::after {
-  content: none;
-}
-
 .tool:hover,
-.tool:focus {
+.tool:focus-visible {
+  z-index: 1;
   color: var(--text);
 }
 
 .tool[aria-pressed='true'] {
+  z-index: 1;
   border-color: var(--lilac);
+  background: var(--raised);
+  box-shadow: inset 0 -2px 0 var(--lilac);
   color: var(--lilac);
 }
 
-.tool:focus-visible {
-  outline: 1px solid var(--lilac);
-  outline-offset: 2px;
+/* An empty editor (one empty paragraph) shows a quiet hint where the text goes. */
+.editor :deep(.ProseMirror > p:only-child:has(> br.ProseMirror-trailingBreak:only-child))::before {
+  content: 'write here...';
+  float: left;
+  height: 0;
+  color: var(--text-dim);
+  pointer-events: none;
 }
 
 /* The writing area: the readable font, like the text it becomes. */
@@ -135,6 +142,7 @@ const isPlainColour = () => !COLOURS.some((colour) => is('textStyle', { color: c
   min-height: 6rem;
   padding: 0.75rem;
   border: 1px solid var(--rule);
+  background: var(--void);
   font: 400 1.0625rem/1.55 var(--read);
 }
 

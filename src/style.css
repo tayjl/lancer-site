@@ -241,6 +241,35 @@ label.field .error {
   font: 400 0.9375rem/1.6 var(--mono);
 }
 
+/* A breadcrumb (PageHeader.vue, the pilot sheet): <nav class="crumbs"><ol><li>...</li></ol></nav>, the last one the
+   current page. */
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  color: var(--text);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.crumbs li + li::before {
+  content: '/' / '';
+  margin-right: 0.5rem;
+  color: var(--text-dim);
+}
+
+.crumbs a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  color: var(--lilac);
+  text-decoration: underline;
+}
+
 /* A section of a page: a filled panel. .sheet-label works as its title. */
 .panel {
   padding: 1.25rem;

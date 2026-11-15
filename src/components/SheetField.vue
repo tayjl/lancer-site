@@ -58,7 +58,7 @@ onBeforeUnmount(() => {
 .status {
   margin-left: 0.5rem;
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 400;
 }
 
@@ -76,5 +76,11 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 0.75rem;
   border: 1px solid var(--rule);
+}
+
+/* Already inside a panel (the pilot sheet): no second box around read-only writing. */
+.field.panel .readonly {
+  padding: 0;
+  border: 0;
 }
 </style>

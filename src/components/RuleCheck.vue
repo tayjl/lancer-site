@@ -5,7 +5,7 @@ defineProps<{ problems: string[] }>()
 </script>
 
 <template>
-  <div v-if="problems.length" class="rule-check" role="note">
+  <div v-if="problems.length" class="notice warn rule-check" role="note">
     <p class="rose">rule check: {{ problems.length }} {{ problems.length === 1 ? 'problem' : 'problems' }}</p>
     <ul>
       <li v-for="problem in problems" :key="problem">{{ problem }}</li>
@@ -15,9 +15,7 @@ defineProps<{ problems: string[] }>()
 
 <style scoped>
 .rule-check {
-  padding: 0.6rem 0.9rem;
-  border-left: 3px solid var(--rose);
-  background: var(--panel);
+  gap: 0.35rem;
   font-size: 0.875rem;
   text-align: left;
 }
@@ -27,7 +25,7 @@ defineProps<{ problems: string[] }>()
 }
 
 .rule-check ul {
-  margin: 0.35rem 0 0;
+  margin: 0;
   padding-left: 1.25rem;
 }
 </style>

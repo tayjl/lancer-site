@@ -34,8 +34,8 @@ const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
 const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId)
 const back = own
-  ? { to: { name: 'pilot' }, label: 'my pilot' }
-  : { to: { name: 'pilot-record', params: { id: pilotId } }, label: 'pilot record' }
+  ? { to: { name: 'pilot', query: { tab: 'mechs' } }, label: 'my pilot' }
+  : { to: { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs' } }, label: 'pilot record' }
 
 const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))

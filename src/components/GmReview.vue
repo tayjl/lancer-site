@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { confirmAction } from '../confirm'
 import { supabase } from '../lib/supabaseClient'
 import type { Character } from '../myPilot'
 import RuleCheck from './RuleCheck.vue'
@@ -51,7 +52,7 @@ async function saveSheet(changes: { level?: number; manna?: number; review_note?
 // Level and manna save on their own button only; approving and sending back never need them.
 // GMs can mark an approved pilot dead too (mark_dead in the database). It can't be undone.
 async function markDead() {
-  if (!window.confirm(`mark ${name.value} dead? this can't be undone. they move to the memorial.`)) return
+  if (!(await confirmAction(`mark ${name.value} dead? this can't be undone. they move to the memorial.`, { confirmLabel: 'mark dead', danger: true }))) return
   busy.value = true
   const { error: deathError } = await supabase.rpc('mark_dead', { target_character_id: props.pilot.id })
   busy.value = false
@@ -72,7 +73,7 @@ async function saveNumbers() {
 async function approve() {
   error.value = ''
   const warning = props.problems.length ? ` the rule check lists ${props.problems.length} problem(s).` : ''
-  if (!window.confirm(`approve ${name.value}? they'll appear in the pilot registry.${warning}`)) return
+  if (!(await confirmAction(`approve ${name.value}? they'll appear in the pilot registry.${warning}`, { confirmLabel: 'approve' }))) return
   busy.value = true
   const sheetError = await saveSheet({ review_note: note.value.trim() || null })
   const { error: statusError } = sheetError
@@ -97,33 +98,33 @@ async function sendBack() {
 </script>
 
 <template>
-  <section class="decision">
+  <section class="decision panel">
     <h2 class="sheet-label">{{ pending ? 'decision' : 'gm controls' }}<span class="tag"> gm only</span></h2>
     <p v-if="loading" class="dim">loading...</p>
     <form v-else class="decision-body" @submit.prevent>
       <div v-if="!pending" class="numbers">
-        <label>
-          <span class="dim">level (gained narratively)</span>
+        <label class="field">
+          <span>level (gained narratively)</span>
           <input v-model.number="level" type="number" min="0" step="1" />
         </label>
-        <label>
-          <span class="dim">manna received (in total)</span>
+        <label class="field">
+          <span>manna received (in total)</span>
           <input v-model.number="manna" type="number" min="0" step="1" />
         </label>
         <button type="button" :disabled="busy" @click="saveNumbers">save level and manna</button>
       </div>
       <template v-if="pending">
-        <label>
-          <span class="dim">note to the player (sent with either decision; required to refuse)</span>
+        <label class="field">
+          <span>note to the player (sent with either decision; required to refuse)</span>
           <textarea v-model="note" rows="3"></textarea>
         </label>
         <RuleCheck :problems="problems" />
       </template>
-      <p v-if="error" class="rose" role="alert">{{ error }}</p>
+      <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
       <p v-else-if="message" class="dim" role="status">{{ message }}</p>
       <div v-if="pending" class="actions">
-        <button type="button" :disabled="busy" @click="approve">approve pilot</button>
-        <button type="button" :disabled="busy" @click="sendBack">refuse pilot</button>
+        <button type="button" class="primary" :disabled="busy" @click="approve">approve pilot</button>
+        <button type="button" class="danger" :disabled="busy" @click="sendBack">refuse pilot</button>
       </div>
       <div v-else-if="pilot.status === 'approved'" class="actions">
         <button type="button" class="danger" :disabled="busy" @click="markDead">mark pilot dead</button>
@@ -133,34 +134,23 @@ async function sendBack() {
 </template>
 
 <style scoped>
+.decision {
+  border-color: var(--lilac);
+}
+
 .decision-body {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid var(--lilac);
 }
 
 .decision-body p {
   margin: 0;
 }
 
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.8125rem;
-}
-
-/* Matches the site's text inputs (style.css). */
-input[type='number'],
 textarea {
   width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--rule);
-  background: none;
-  color: var(--text);
-  font: 400 0.9375rem/1.4 var(--mono);
+  resize: vertical;
 }
 
 input[type='number'] {
@@ -174,19 +164,9 @@ input[type='number'] {
   gap: 0.75rem 1.5rem;
 }
 
-textarea {
-  resize: vertical;
-}
-
-input:focus,
-textarea:focus {
-  border-color: var(--lilac);
-  outline: none;
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
+  gap: 0.5rem 1rem;
 }
 </style>

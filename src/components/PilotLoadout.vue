@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { confirmAction } from '../confirm'
 import { loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemDetails, statLine } from '../itemDetails'
 import { itemInfo } from '../info'
@@ -36,8 +37,8 @@ async function store(target: Slot, id: string | null) {
   return !error.value
 }
 
-function unequip(slot: Slot) {
-  if (window.confirm(`remove ${nameOf(slot.id!)}?`)) store(slot, null)
+async function unequip(slot: Slot) {
+  if (await confirmAction(`remove ${nameOf(slot.id!)}?`, { confirmLabel: 'remove', danger: true })) store(slot, null)
 }
 
 // --- The picker: items of the slot's type ---
@@ -76,8 +77,8 @@ async function equip(id: string) {
         :empty="!slot.id || !byId.get(slot.id)"
       >
         <template v-if="editable" #tools>
-          <button type="button" :disabled="saving" @click="open(slot)">{{ slot.id ? 'swap' : 'equip' }}</button>
-          <button v-if="slot.id" type="button" :disabled="saving" @click="unequip(slot)">remove</button>
+          <button type="button" class="quiet" :disabled="saving" @click="open(slot)">{{ slot.id ? 'swap' : 'equip' }}</button>
+          <button v-if="slot.id" type="button" class="quiet rose" :disabled="saving" @click="unequip(slot)">remove</button>
         </template>
         <ItemDetails :item="byId.get(slot.id!)!" />
       </SlotCard>

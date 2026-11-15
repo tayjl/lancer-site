@@ -134,7 +134,7 @@ li + li {
 
 .bonus {
   color: var(--sky);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .steps {
@@ -146,43 +146,19 @@ li + li {
 .sources {
   max-width: 100%;
   color: var(--text-dim);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
 
 .sources summary { cursor: pointer; }
 .sources p { margin: 0.25rem 0; }
 
-/* Small square steppers instead of the usual [ bracketed ] buttons. */
+/* Square steppers: the global boxed button, at a 2rem target. */
 .steps button {
-  width: 1.75rem;
-  min-height: 0;
+  width: 2rem;
+  min-height: 2rem;
   padding: 0;
-  border: 1px solid var(--rule);
-  color: var(--text-dim);
-  font-weight: 400;
-  line-height: 1.4;
-}
-
-.steps button::before,
-.steps button::after {
-  content: none;
-}
-
-.steps button:hover:not(:disabled),
-.steps button:focus-visible {
-  border-color: var(--lilac);
-  color: var(--lilac);
-}
-
-.steps button:focus-visible {
-  outline: 1px solid var(--lilac);
-  outline-offset: 2px;
-}
-
-.steps button:disabled {
-  opacity: 0.35;
-  cursor: default;
+  font-size: 1rem;
 }
 
 /* Too narrow for tiles side by side: one stat per line, name on the left, number and buttons on the right. */

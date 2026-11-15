@@ -63,10 +63,10 @@ function open() {
     <header class="head sheet-head">
       <h2 class="sheet-label">{{ title }}<span v-if="tag" class="tag">{{ ' ' + tag }}</span></h2>
       <span v-if="limit" class="limit" :class="{ rose: used > limit.max }">{{ limit.label }} {{ used }}/{{ limit.max }}</span>
-      <button v-if="editable" type="button" class="edit" @click="open">edit</button>
+      <button v-if="editable" type="button" class="small edit" @click="open">edit</button>
     </header>
 
-    <div class="body">
+    <div>
       <ul v-if="chosenItems.length" class="cards">
         <li v-for="item in chosenItems" :key="item.id">
           <span class="name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
@@ -127,14 +127,6 @@ function open() {
 
 .edit {
   margin-left: auto;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
-}
-
-.body {
-  padding: 0.75rem;
-  border: 1px solid var(--rule);
 }
 
 .empty {
@@ -156,7 +148,7 @@ function open() {
   gap: 0.2rem;
   padding: 0.6rem 0.75rem;
   border-left: 2px solid var(--lilac);
-  background: var(--panel);
+  background: var(--raised);
 }
 
 .name {
@@ -167,7 +159,7 @@ function open() {
 
 .meta {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
 }
 
 .description {

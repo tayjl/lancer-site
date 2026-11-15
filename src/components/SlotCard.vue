@@ -21,6 +21,7 @@ defineProps<{ title: string; empty?: boolean }>()
   flex-direction: column;
   min-height: 9rem;
   border: 1px solid var(--rule);
+  background: var(--void); /* reads as a card inside a .panel */
 }
 
 .slot-head {
@@ -29,7 +30,7 @@ defineProps<{ title: string; empty?: boolean }>()
   gap: 0.75rem;
   padding: 0.25rem 0.6rem;
   border-left: 3px solid var(--lilac);
-  background: var(--panel);
+  background: var(--raised);
 }
 
 .slot-head h3 {
