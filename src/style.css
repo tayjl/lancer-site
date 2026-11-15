@@ -277,6 +277,28 @@ label.field .error {
   background: var(--panel);
 }
 
+/* A panel's centred heading (the gm pages): <header class="panel-head"><h2>title <span class="badge">3</span></h2>
+   <p class="dim">what it is</p></header>. */
+.panel-head {
+  margin-bottom: var(--space-m);
+  text-align: center;
+}
+
+.panel-head h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.panel-head p {
+  max-width: none;
+  margin: 0.35rem 0 0;
+}
+
 /* A status banner: text, then an optional row of actions. .info, .warn and .ok change the accent on its edge. */
 .notice {
   --accent: var(--lilac);

@@ -87,27 +87,27 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
   <main class="page gm-pilots">
     <PageHeader title="gm: pilots" summary="review waiting pilots and manage every pilot record." />
     <p v-if="!profile" class="dim">loading...</p>
-    <p v-else-if="!isGm" class="rose">access denied. gm clearance required.</p>
-    <p v-else-if="loading" class="empty dim">loading pilot records...</p>
-    <p v-else-if="error" class="empty rose" role="alert">{{ error }}</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">access denied. gm clearance required.</p>
+    <p v-else-if="loading" class="empty">loading pilot records...</p>
+    <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
     <template v-else>
       <ReviewQueue :items="queueCards" description="oldest first. open a pilot to review their sheet." />
 
-      <section aria-labelledby="roster-title">
-        <header class="section-head">
-          <div>
-            <h2 id="roster-title">pilot records</h2>
-            <p class="dim">all pilots, including pending and dead. level and manna save when you leave the field.</p>
-          </div>
-          <span class="dim" role="status">{{ roster.length }} of {{ items.length }} pilots</span>
+      <section class="panel" aria-labelledby="roster-title">
+        <header class="panel-head">
+          <h2 id="roster-title">pilot records</h2>
+          <p class="dim">all pilots, including pending and dead. level and manna save when you leave the field.</p>
         </header>
-        <label class="search">
-          <span>find a pilot</span>
-          <input v-model="search" type="search" placeholder="search callsign, pilot name or player" />
-        </label>
-        <p v-if="!roster.length" class="empty dim">{{ items.length ? 'no pilots match your search.' : 'no pilots on file.' }}</p>
+        <div class="search">
+          <label class="field">
+            <span>find a pilot</span>
+            <input v-model="search" type="search" placeholder="search callsign, pilot name or player" />
+          </label>
+          <p class="count" role="status">{{ roster.length }} of {{ items.length }} pilots</p>
+        </div>
+        <p v-if="!roster.length" class="empty">{{ items.length ? 'no pilots match your search.' : 'no pilots on file.' }}</p>
         <div v-else class="record-window" role="region" aria-label="Pilot records" tabindex="0">
-          <table class="roster">
+          <table class="table">
             <thead>
               <tr>
                 <th scope="col">callsign</th>
@@ -128,12 +128,13 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <td>{{ pilot.pilot_name }}</td>
                 <td>{{ pilot.player?.display_name || 'unknown player' }}</td>
                 <td>
-                  <span class="status" :class="pilot.status" :title="pilot.status === 'pending' ? pilot.sheet?.review_note ?? '' : ''">
+                  <span class="badge" :class="pilot.status" :title="pilot.status === 'pending' ? pilot.sheet?.review_note ?? '' : ''">
                     {{ pilot.status === 'pending' && pilot.sheet?.review_note ? 'sent back' : pilot.status }}
                   </span>
                 </td>
                 <td>
                   <input
+                    class="level"
                     type="number" min="0" step="1"
                     :value="pilot.sheet?.level ?? 0"
                     :disabled="saving[pilot.id] || !pilot.sheet"
@@ -151,16 +152,18 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                     @change="saveNumber(pilot, 'manna', $event)"
                   />
                 </td>
-                <td class="balance" :class="{ rose: left(pilot) < 0 }" :title="`${spent(pilot)} spent`">{{ left(pilot) }}</td>
+                <td class="balance" :class="{ rose: left(pilot) < 0 }" :title="`${spent(pilot)} spent`">
+                  {{ left(pilot) }}<span class="spent">{{ spent(pilot) }} spent</span>
+                </td>
                 <td class="mech-names" :title="pilot.mechs.map((mech) => mech.name).join(', ')">
                   {{ pilot.mechs.map((mech) => mech.name).join(', ') || '-' }}
                 </td>
                 <td class="record-link">
-                  <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }">open sheet</RouterLink>
-                  <span v-if="!pilot.sheet" class="rose">private sheet missing</span>
+                  <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }" class="link-button">open sheet</RouterLink>
+                  <span v-if="!pilot.sheet" class="rose save-message">private sheet missing</span>
                   <span v-if="rowError[pilot.id]" class="rose save-message" role="alert">{{ rowError[pilot.id] }}</span>
                   <span v-else-if="saving[pilot.id]" class="dim save-message" role="status">saving...</span>
-                  <span v-else-if="saved[pilot.id]" class="dim save-message" role="status">saved</span>
+                  <span v-else-if="saved[pilot.id]" class="mint save-message" role="status">saved</span>
                 </td>
               </tr>
             </tbody>
@@ -172,66 +175,24 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
 </template>
 
 <style scoped>
-.gm-pilots { min-width: 0; max-width: none; }
-section + section { margin-top: 3rem; }
-.section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-h2 { margin: 0; font-size: clamp(1.5rem, 2.5vw, 2rem); }
-.section-head p { margin: 0.5rem 0 0; }
-.empty { max-width: none; margin: 0; padding: 2.5rem 1.5rem; border: 1px dashed var(--rule); text-align: center; }
-.search { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
-input[type='search'], input[type='number'] { padding: 0.55rem 0.65rem; border: 1px solid var(--rule); background: var(--void); color: var(--text); font: inherit; }
-input[type='search'] { width: 100%; }
-input[type='number'] { width: 7rem; max-width: 100%; }
-.roster td:nth-child(5) input { width: 5rem; }
+section + section { margin-top: var(--space-l); }
+.search { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: var(--space-s) var(--space-m); margin-bottom: var(--space-m); }
+.search .field { flex: 0 1 28rem; }
+.search input { width: 100%; }
+.count { margin: 0; padding-bottom: var(--space-s); color: var(--sky); }
+/* Scrolls inside its box on narrow screens; the header row stays put while the rows scroll. */
 .record-window { max-height: 70dvh; overflow: auto; border: 1px solid var(--rule); }
-.roster { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 1rem; }
-th { position: sticky; top: 0; z-index: 1; padding: 1rem; border-bottom: 1px solid var(--rule); background: var(--panel); color: var(--text); font-weight: 600; text-align: left; white-space: nowrap; }
-td {
-  padding: 0.75rem 1rem;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-tr + tr td {
-  border-top: 1px solid var(--rule);
-}
-
-.callsign, .balance {
-  color: var(--lilac);
-  font-weight: 600;
-}
-
-.balance.rose, .status.pending {
-  color: var(--rose);
-}
-
-.status {
-  color: var(--sky);
-}
-
-.status.dead {
-  color: var(--text-dim);
-}
-
-.mech-names {
-  max-width: 15rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.record-link {
-  position: relative;
-}
-
-.save-message {
-  display: block;
-  font-size: 0.8125rem;
-  white-space: normal;
-  min-width: 9rem;
-}
-
-input:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
+.table th { position: sticky; top: 0; z-index: 1; background: var(--panel); }
+.table th, .table td { white-space: nowrap; vertical-align: middle; }
+.table input { width: 8.5rem; }
+.table input.level { width: 5.5rem; }
+.callsign, .balance { color: var(--lilac); font-weight: 600; }
+.balance.rose { color: var(--rose); }
+.spent { display: block; color: var(--text-dim); font-size: 0.8125rem; font-weight: 400; }
+.mech-names { max-width: 15rem; overflow: hidden; text-overflow: ellipsis; }
+.save-message { display: block; margin-top: 0.25rem; font-size: 0.8125rem; white-space: normal; }
+.mint { color: var(--mint); }
+/* A link drawn like a small button. */
+.link-button { display: inline-block; padding: 0.3rem 0.65rem; border: 1px solid var(--rule); font: 600 0.875rem/1.5 var(--mono); text-decoration: none; }
+.link-button:hover, .link-button:focus-visible { border-color: var(--lilac); color: var(--lilac); }
 </style>

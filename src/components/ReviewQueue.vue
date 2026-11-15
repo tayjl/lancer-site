@@ -18,12 +18,12 @@ defineProps<{
 </script>
 
 <template>
-  <section class="review-queue">
-    <header>
-      <div><h2>waiting for review</h2><p class="dim">{{ description }}</p></div>
-      <span class="dim">{{ items.length }} waiting</span>
+  <section class="review-queue panel" aria-labelledby="queue-title">
+    <header class="panel-head">
+      <h2 id="queue-title">waiting for review <span class="badge count" :class="{ pending: items.length }">{{ items.length }} waiting</span></h2>
+      <p class="dim">{{ description }}</p>
     </header>
-    <p v-if="!items.length" class="empty dim">nothing waiting on a gm.</p>
+    <p v-if="!items.length" class="empty">nothing waiting on a gm.</p>
     <ol v-else class="cards">
       <li v-for="item in items" :key="item.id">
         <RouterLink :to="item.to" class="card">
@@ -41,16 +41,12 @@ defineProps<{
 </template>
 
 <style scoped>
-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-h2 { margin: 0; font-size: clamp(1.5rem, 2.5vw, 2rem); }
-header p { margin: 0.5rem 0 0; }
-.empty { max-width: none; margin: 0; padding: 2.5rem 1.5rem; border: 1px dashed var(--rule); text-align: center; }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 1rem; margin: 0; padding: 0; list-style: none; }
-.card { display: flex; align-items: center; gap: 1.25rem; height: 100%; padding: 1.25rem; border: 1px solid var(--rule); color: var(--text); text-decoration: none; }
-.card:hover { border-color: var(--lilac); background: var(--panel); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 24rem)); justify-content: center; gap: var(--space-m); margin: 0; padding: 0; list-style: none; }
+.card { display: flex; align-items: center; gap: 1.25rem; height: 100%; padding: 1rem; border: 1px solid var(--rule); background: var(--void); color: var(--text); text-decoration: none; }
+.card:hover, .card:focus-visible { border-color: var(--lilac); background: var(--raised); color: var(--text); }
 .card :deep(.portrait) { flex: 0 0 5rem; }
 .card > div { min-width: 0; overflow-wrap: anywhere; }
-.card h3 { margin: 0 0 0.5rem; font-size: 1.25rem; }
-.card p { margin: 0.2rem 0; }
-.age { color: var(--sky); }
+.card h3 { margin: 0 0 0.35rem; font-size: 1.125rem; }
+.card p { margin: 0.15rem 0; }
+.age { color: var(--sky); font-size: 0.875rem; }
 </style>

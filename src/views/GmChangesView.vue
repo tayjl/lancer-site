@@ -53,109 +53,54 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'a dele
 </script>
 
 <template>
-  <main class="page changes-page">
+  <main class="page">
     <PageHeader title="gm: changes" summary="changes players want to make to their approved pilots." />
 
     <p v-if="!profile" class="dim">loading...</p>
-    <p v-else-if="!isGm" class="rose">access denied. gm clearance required.</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">access denied. gm clearance required.</p>
     <template v-else>
-      <p v-if="loading" class="dim">loading queue...</p>
-      <p v-else-if="error" class="rose" role="alert">{{ error }}</p>
+      <p v-if="loading" class="empty">loading queue...</p>
+      <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
       <ReviewQueue v-else :items="queueCards" description="changes to approved pilots, oldest submission first. open a pilot to review the full change." />
 
-      <section v-if="reviewed.length">
-        <h2>history</h2>
-        <p class="dim small">the latest reviewed changes.</p>
-        <ul class="queue">
-          <li v-for="item in reviewed" :key="item.id">
-            <RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="row">
-              <span class="who"><span class="callsign">{{ nameOf(item.character) }}</span></span>
-              <span :class="item.status === 'approved' ? 'sky' : 'rose'">{{ item.status }}</span>
-              <span class="dim">{{ item.reviewer?.display_name ?? '-' }}</span>
-              <span class="dim">{{ item.reviewed_at ? `${since(item.reviewed_at)} ago` : '' }}</span>
-              <span v-if="item.review_reason" class="dim reason">{{ item.review_reason }}</span>
-            </RouterLink>
-          </li>
-        </ul>
+      <section v-if="!loading && !error" class="panel" aria-labelledby="history-title">
+        <header class="panel-head">
+          <h2 id="history-title">reviewed</h2>
+          <p class="dim">the latest reviewed changes.</p>
+        </header>
+        <p v-if="!reviewed.length" class="empty">no changes reviewed yet.</p>
+        <div v-else class="table-window" role="region" aria-label="Reviewed changes" tabindex="0">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">pilot</th>
+                <th scope="col">status</th>
+                <th scope="col">reviewer</th>
+                <th scope="col">when</th>
+                <th scope="col">reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in reviewed" :key="item.id">
+                <td><RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="callsign">{{ nameOf(item.character) }}</RouterLink></td>
+                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'pending'">{{ item.status }}</span></td>
+                <td>{{ item.reviewer?.display_name ?? '-' }}</td>
+                <td class="dim">{{ item.reviewed_at ? `${since(item.reviewed_at)} ago` : '' }}</td>
+                <td class="dim reason" :title="item.review_reason ?? ''">{{ item.review_reason ?? '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
     </template>
   </main>
 </template>
 
 <style scoped>
-.changes-page { min-width: 0; max-width: none; }
-section { margin-bottom: 2rem; }
-h2 { font-size: clamp(1.5rem, 2.5vw, 2rem); }
-
-.small {
-  margin: 0.5rem 0 0.75rem;
-  font-size: 0.8125rem;
-}
-
-.queue {
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--rule);
-  list-style: none;
-}
-
-.queue li + li {
-  border-top: 1px solid var(--rule);
-}
-
-/* One line per change on wide screens; it wraps on phones. */
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-  gap: 0.25rem 1.5rem;
-  align-items: baseline;
-  padding: 0.6rem 0.9rem;
-  color: var(--text);
-  font-size: 0.875rem;
-  text-decoration: none;
-}
-
-.row:hover,
-.row:focus-visible {
-  background: var(--panel);
-}
-
-.row:hover .callsign {
-  color: var(--rose);
-}
-
-.who {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 0.75rem;
-  min-width: 0;
-}
-
-.callsign {
-  color: var(--lilac);
-  font-weight: 700;
-}
-
-.age {
-  color: var(--sky);
-  white-space: nowrap;
-}
-
-.sky {
-  color: var(--sky);
-}
-
+section + section { margin-top: var(--space-l); }
+.table-window { overflow: auto; border: 1px solid var(--rule); }
+.table th, .table td { white-space: nowrap; }
+.callsign { font-weight: 700; }
 /* The rejection reason, cut to one line; the full reason is on the change's page. */
-.reason {
-  grid-column: 1 / -1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 40rem) {
-  .row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-}
+.reason { max-width: 24rem; overflow: hidden; text-overflow: ellipsis; }
 </style>

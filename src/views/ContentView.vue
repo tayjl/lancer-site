@@ -155,36 +155,37 @@ async function importPack() {
 </script>
 
 <template>
-  <main class="page content">
+  <main class="page">
     <PageHeader title="gm: content" summary="the packs behind your pilots, mechs and equipment.">
       <div v-if="isOwner" class="actions">
-        <button v-if="!loading && !loadError && !coreInstalled" type="button" class="confirm" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'loading core content…' : 'load core content' }}</button>
-        <button type="button" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">import a pack</button>
+        <button v-if="!loading && !loadError && !coreInstalled" type="button" class="primary" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'loading core content…' : 'load core content' }}</button>
+        <button type="button" :class="{ primary: coreInstalled }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">import a pack</button>
       </div>
     </PageHeader>
     <p v-if="!profile" class="dim">loading...</p>
-    <p v-else-if="!isOwner" class="rose">access denied. owners only.</p>
+    <p v-else-if="!isOwner" class="notice warn" role="alert">access denied. owners only.</p>
     <template v-else>
       <input ref="fileInput" class="file-input" type="file" accept=".lcp,.zip" aria-label="Choose Lancer content pack" :disabled="reading || saving" @change="onFile" />
-      <div v-if="loadError" class="notice error" role="alert">
-        <p>{{ loadError }}</p><button type="button" :disabled="loading" @click="load">try again</button>
+      <div v-if="loadError" class="notice warn" role="alert">
+        <p>{{ loadError }}</p>
+        <div><button type="button" :disabled="loading" @click="load">try again</button></div>
       </div>
-      <p v-if="loading" class="dim" role="status">loading installed content...</p>
-      <div v-if="result" class="notice success" role="status">
+      <p v-if="loading" class="empty" role="status">loading installed content...</p>
+      <div v-if="result" class="notice ok" role="status">
         <h2>{{ result.name }} is ready</h2>
         <p>version {{ result.version }} imported. {{ result.added }} new, {{ result.updated }} updated, {{ result.retained }} older items retained.</p>
         <p class="dim">its content is available in the pilot and mech pickers.</p>
       </div>
-      <p v-if="fileError" class="notice error" role="alert">{{ fileError }}</p>
+      <p v-if="fileError" class="notice warn" role="alert">{{ fileError }}</p>
 
-      <section v-if="candidate && plan" class="preview" aria-labelledby="preview-title">
-        <header class="section-head">
-          <div><p class="dim filename">{{ filename }}</p><h2 id="preview-title">{{ plan.existing ? 'review pack update' : 'review import' }}</h2></div>
-          <span class="version">{{ plan.existing?.version ? `${plan.existing.version} → ` : '' }}{{ candidate.manifest.version }}</span>
+      <section v-if="candidate && plan" class="preview panel" aria-labelledby="preview-title">
+        <header class="panel-head">
+          <p class="dim filename">{{ filename }}</p>
+          <h2 id="preview-title">{{ plan.existing ? 'review pack update' : 'review import' }} <span class="badge version">{{ plan.existing?.version ? `${plan.existing.version} → ` : '' }}{{ candidate.manifest.version }}</span></h2>
         </header>
         <h3 class="pack-title">{{ candidate.manifest.name }}</h3>
-        <p class="dim">by {{ candidate.manifest.author }}</p>
-        <p class="description">{{ plainPackText(candidate.manifest.description) }}</p>
+        <p class="dim center">by {{ candidate.manifest.author }}</p>
+        <p class="description prose">{{ plainPackText(candidate.manifest.description) }}</p>
         <dl class="preview-totals">
           <div><dt>new items</dt><dd class="gain">+{{ plan.added }}</dd></div>
           <div><dt>items to update</dt><dd class="sky">{{ plan.updated }}</dd></div>
@@ -193,47 +194,54 @@ async function importPack() {
         <ul class="kind-counts" aria-label="Content in this file">
           <li v-for="row in previewKinds" :key="row.kind">{{ row.label }} <strong>{{ row.count }}</strong></li>
         </ul>
-        <p v-if="plan.retained" class="dim">older items missing from this update stay available so existing pilots keep their equipment.</p>
-        <p v-for="warning in candidate.warnings" :key="warning" class="notice warning">{{ warning }}</p>
-        <details v-if="candidate.ignored.length" class="ignored">
-          <summary>{{ candidate.ignored.length }} files not used by this character manager</summary>
-          <p class="dim">only supported content files at the top level are imported.</p>
-          <ul><li v-for="file in candidate.ignored" :key="file">{{ file }}</li></ul>
-        </details>
-        <div v-if="plan.conflicts.length" class="notice error" role="alert">
-          <h3>item IDs need attention</h3>
-          <p>this import is blocked. Give these items unique IDs in the LCP editor, or select an update for their original pack.</p>
-          <ul><li v-for="conflict in plan.conflicts" :key="conflict.id"><code>{{ conflict.id }}</code>: {{ conflict.reason }}</li></ul>
+        <div class="checks">
+          <p v-if="plan.retained" class="dim">older items missing from this update stay available so existing pilots keep their equipment.</p>
+          <p v-for="warning in candidate.warnings" :key="warning" class="notice warn">{{ warning }}</p>
+          <details v-if="candidate.ignored.length" class="ignored">
+            <summary>{{ candidate.ignored.length }} files not used by this character manager</summary>
+            <p class="dim">only supported content files at the top level are imported.</p>
+            <ul><li v-for="file in candidate.ignored" :key="file">{{ file }}</li></ul>
+          </details>
+          <div v-if="plan.conflicts.length" class="notice warn" role="alert">
+            <h3>item IDs need attention</h3>
+            <p>this import is blocked. Give these items unique IDs in the LCP editor, or select an update for their original pack.</p>
+            <ul><li v-for="conflict in plan.conflicts" :key="conflict.id"><code>{{ conflict.id }}</code>: {{ conflict.reason }}</li></ul>
+          </div>
+          <p v-if="saveError" class="notice warn" role="alert">{{ saveError }}</p>
         </div>
-        <p v-if="saveError" class="notice error" role="alert">{{ saveError }}</p>
         <footer class="preview-actions">
           <p class="dim">{{ saving ? 'importing the pack and all its items…' : plan.existing ? 'updated rules apply wherever these items are used. Older items stay available.' : 'import this pack to make its content available to character sheets.' }}</p>
           <div class="actions">
             <button type="button" :disabled="saving" @click="cancel">cancel</button>
-            <button type="button" class="confirm" :disabled="saving || loading || !!loadError || !!plan.conflicts.length" @click="importPack">{{ saving ? 'importing…' : plan.existing ? 'update pack' : 'import pack' }}</button>
+            <button type="button" class="primary" :disabled="saving || loading || !!loadError || !!plan.conflicts.length" @click="importPack">{{ saving ? 'importing…' : plan.existing ? 'update pack' : 'import pack' }}</button>
           </div>
         </footer>
       </section>
       <p v-if="reading" role="status" class="dim">checking {{ filename }}…</p>
 
-      <section class="installed" aria-labelledby="installed-title">
-        <header class="section-head"><h2 id="installed-title">installed packs</h2><span class="dim">{{ packs.length }} {{ packs.length === 1 ? 'pack' : 'packs' }} · {{ items.length }} items</span></header>
-        <label v-if="packs.length" class="search"><span>find a pack</span><input v-model="search" type="search" placeholder="search pack name or author" /></label>
-        <p v-if="!loading && !packs.length && !loadError" class="empty dim">no packs installed yet. Import an LCP to start filling the pilot and mech pickers.</p>
-        <p v-else-if="!loading && packs.length && !filteredPacks.length" class="empty dim">no packs match your search.</p>
+      <section class="panel" aria-labelledby="installed-title">
+        <header class="panel-head">
+          <h2 id="installed-title">installed packs</h2>
+          <p class="dim">{{ packs.length }} {{ packs.length === 1 ? 'pack' : 'packs' }} · {{ items.length }} items</p>
+        </header>
+        <div v-if="packs.length" class="search">
+          <label class="field"><span>find a pack</span><input v-model="search" type="search" placeholder="search pack name or author" /></label>
+        </div>
+        <p v-if="!loading && !packs.length && !loadError" class="empty">no packs installed yet. Import an LCP to start filling the pilot and mech pickers.</p>
+        <p v-else-if="!loading && packs.length && !filteredPacks.length" class="empty">no packs match your search.</p>
         <div v-else-if="filteredPacks.length" class="table-window" role="region" aria-label="Installed packs" tabindex="0">
-          <table>
+          <table class="table">
             <thead><tr><th scope="col">pack</th><th scope="col">version</th><th scope="col">items</th><th scope="col">last imported</th><th scope="col">action</th></tr></thead>
             <tbody><tr v-for="pack in filteredPacks" :key="pack.id">
               <td><strong class="pack-name">{{ pack.name }}</strong><span v-if="authorOf(pack)" class="author dim">{{ authorOf(pack) }}</span></td>
               <td>{{ pack.version ?? '—' }}</td><td>{{ packCount(pack.id) }}</td><td class="dim">{{ dateOf(pack.imported_at) }}</td>
-              <td><button type="button" :disabled="loading || !!loadError || reading || saving" :aria-label="`update ${pack.name}`" @click="chooseFile(pack)">update</button></td>
+              <td><button type="button" class="small" :disabled="loading || !!loadError || reading || saving" :aria-label="`update ${pack.name}`" @click="chooseFile(pack)">update</button></td>
             </tr></tbody>
           </table>
         </div>
       </section>
-      <section v-if="!loading && !loadError" class="library" aria-labelledby="library-title">
-        <header class="section-head"><h2 id="library-title">content library</h2><span class="dim">available to your character sheets</span></header>
+      <section v-if="!loading && !loadError" class="panel" aria-labelledby="library-title">
+        <header class="panel-head"><h2 id="library-title">content library</h2><p class="dim">available to your character sheets</p></header>
         <ul class="library-counts"><li v-for="row in totals" :key="row.kind"><span>{{ row.label }}</span><strong>{{ row.count }}</strong></li><li><span>biomods</span><strong>{{ biomods }}</strong></li></ul>
         <p class="dim library-note">biomods are campaign content and are managed separately from LCPs.</p>
       </section>
@@ -242,54 +250,47 @@ async function importPack() {
 </template>
 
 <style scoped>
-.content { min-width: 0; max-width: none; }
+main > * + * { margin-top: var(--space-l); }
 .file-input { display: none; }
-h2 { margin: 0; font-size: clamp(1.5rem, 2.5vw, 2rem); }
-h3 { font-size: 1.125rem; }
-p { max-width: 78ch; }
-.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.75rem 2rem; margin-bottom: 1.25rem; }
-.filename { margin: 0 0 0.5rem; font-size: 0.875rem; overflow-wrap: anywhere; }
-.preview { padding: 1.5rem; border: 1px solid var(--lilac); background: var(--panel); }
-.pack-title { margin: 0 0 0.4rem; color: var(--text); font-size: 1.375rem; }
-.description { font-family: var(--read); line-height: 1.6; }
-.version { padding: 0.25rem 0.6rem; border: 1px solid var(--rule); color: var(--sky); }
-.preview-totals { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; margin: 1.5rem 0 1rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.center { text-align: center; }
+.notice { max-width: none; }
+.notice h2 { margin: 0; font-size: 1.125rem; }
+.notice h3 { margin: 0; }
+.notice p, .notice ul { margin: 0; }
+
+/* --- The import preview --- */
+.preview { border-color: var(--lilac); }
+.filename { margin: 0 0 0.35rem; font-size: 0.875rem; overflow-wrap: anywhere; }
+.version { color: var(--sky); overflow-wrap: anywhere; }
+.pack-title { margin: 0 0 0.25rem; color: var(--text); font-size: 1.375rem; text-align: center; }
+.description { margin-inline: auto; }
+.preview-totals { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem 2rem; margin: var(--space-l) 0 var(--space-m); }
 .preview-totals > div { display: flex; align-items: baseline; gap: 0.6rem; }
 .preview-totals dt { color: var(--text-dim); }
 .preview-totals dd { margin: 0; font-size: 1.125rem; font-weight: 600; }
-.gain, .success { color: var(--mint); }
+.gain { color: var(--mint); }
 .sky { color: var(--sky); }
-.kind-counts { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 0; margin: 0 0 1.25rem; list-style: none; }
+.kind-counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 1.5rem; margin: 0 0 var(--space-m); padding: 0; list-style: none; }
 .kind-counts strong { color: var(--lilac); }
-.ignored { margin: 1rem 0; }
-summary { cursor: pointer; color: var(--sky); }
+.checks { display: flex; flex-direction: column; gap: 0.75rem; }
+.checks > p { margin: 0; }
+.ignored summary { color: var(--sky); cursor: pointer; }
 .ignored p { margin: 0.75rem 0; }
 .ignored li, code { overflow-wrap: anywhere; }
-.notice { margin: 0 0 1.25rem; padding: 1rem 1.25rem; border: 1px solid currentColor; }
-.notice p { margin: 0.5rem 0 0; }
-.notice h2 { font-size: 1.375rem; }
-.notice h3 { margin: 0 0 0.5rem; }
-.error { color: var(--rose); }
-.warning { color: var(--sky); }
-.preview-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem 2rem; border-top: 1px solid var(--rule); margin-top: 1.5rem; padding-top: 1.25rem; }
+.preview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem 2rem; margin-top: var(--space-l); padding-top: 1.25rem; border-top: 1px solid var(--rule); }
 .preview-actions p { flex: 1 1 28rem; margin: 0; font-size: 0.875rem; }
-.actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
-.confirm { color: var(--mint); }
-button:disabled { opacity: 0.45; cursor: default; }
-.installed, .library { margin-top: 3rem; }
-.search { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
-input[type='search'] { width: 100%; border: 1px solid var(--rule); background: var(--void); color: var(--text); padding: 0.65rem; font: inherit; }
+
+/* --- Installed packs and the library --- */
+.search { display: flex; justify-content: center; margin-bottom: var(--space-m); }
+.search .field { flex: 0 1 28rem; }
+.search input { width: 100%; }
 .table-window { overflow: auto; border: 1px solid var(--rule); }
-table { width: 100%; border-spacing: 0; border-collapse: separate; text-align: left; }
-th { background: var(--panel); color: var(--text-dim); font-weight: 400; }
-th, td { padding: 1rem; white-space: nowrap; }
-tr + tr td { border-top: 1px solid var(--rule); }
+.table th, .table td { white-space: nowrap; vertical-align: middle; }
 .pack-name { color: var(--lilac); }
-.author { display: block; margin-top: 0.25rem; font-size: 0.875rem; }
-.empty { max-width: none; margin: 0; padding: 2rem; border: 1px dashed var(--rule); text-align: center; }
-.library-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0; margin: 0; padding: 0; border-top: 1px solid var(--rule); list-style: none; }
-.library-counts li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--rule); }
+.author { display: block; font-size: 0.875rem; }
+.library-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); margin: 0; padding: 0; border-top: 1px solid var(--rule); list-style: none; }
+.library-counts li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; border-bottom: 1px solid var(--rule); }
 .library-counts strong { color: var(--lilac); }
-.library-note { margin-top: 1rem; font-size: 0.875rem; }
-@media (max-width: 40rem) { .preview { padding: 1.25rem; } .version { overflow-wrap: anywhere; } }
+.library-note { margin: var(--space-m) 0 0; font-size: 0.875rem; text-align: center; max-width: none; }
 </style>
