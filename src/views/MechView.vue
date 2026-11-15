@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAction } from '../confirm'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -19,6 +19,7 @@ import { useGameData } from '../gameData'
 import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
+import { sectionOverride } from '../router'
 import { isLicensed, mechProblems } from '../rules'
 
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: a summary strip (the
@@ -44,6 +45,8 @@ const list = computed(() =>
       ? { name: 'memorial', label: 'memorial' }
       : { name: 'registry', label: 'registry' },
 )
+// The top bar marks that list too (src/router.ts).
+if (route.name === 'record-mech') watchEffect(() => (sectionOverride.value = list.value.name))
 const hangar = own ? { name: 'pilot', query: { tab: 'mechs' } } : { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs' } }
 
 // The sections, one at a time, remembered as ?tab= like the pilot sheet. Without the private sheet there's only

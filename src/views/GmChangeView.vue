@@ -243,9 +243,9 @@ async function reject() {
           <label class="field">
             <span>reason (needed to reject)</span>
             <textarea v-model="reason" rows="3"></textarea>
-            <span v-if="error" class="error" role="alert">{{ error }}</span>
           </label>
           <p v-if="stale" class="rose">approve is off: this pilot changed after the change was submitted.</p>
+          <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
           <div class="actions">
             <button type="button" class="primary" :disabled="busy || stale" @click="approve">approve change</button>
             <button type="button" class="danger" :disabled="busy" @click="reject">reject with reason</button>

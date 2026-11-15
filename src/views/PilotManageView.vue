@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, useTemplateRef, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
@@ -22,6 +22,7 @@ import { useMechData } from '../mechData'
 import { bionicInfo, frameInfo, itemInfo, talentInfo } from '../info'
 import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
 import type { PublicMech } from '../pilots'
+import { sectionOverride } from '../router'
 import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints } from '../rules'
 
 // my pilot: your pilot as one sheet. A summary strip across the top (callsign, facts, and what happens next), then
@@ -89,6 +90,8 @@ const back = computed(() =>
         ? { name: 'memorial', label: 'memorial' }
         : { name: 'registry', label: 'registry' },
 )
+// The top bar marks that list too (src/router.ts).
+if (route.name === 'pilot-record') watchEffect(() => (sectionOverride.value = back.value.name))
 // Your own mechs open for editing; anyone else's open read-only under their record.
 const mechLink = (mechId: string) =>
   own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId } }

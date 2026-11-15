@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import type { Tables } from './lib/database.types'
@@ -140,4 +141,11 @@ router.beforeEach(async (to) => {
   await authReady
   if (!to.meta.public && !session.value) return { name: 'login' }
   if (to.name === 'login' && session.value) return { name: 'home' }
+})
+
+// The tab a page marks when its route meta.section can't say: a pilot record marks the list the pilot is in.
+// Set by the record's view once the pilot loads; cleared when the path changes (App.vue keys views by path).
+export const sectionOverride = ref<string | null>(null)
+router.afterEach((to, from) => {
+  if (to.path !== from.path) sectionOverride.value = null
 })

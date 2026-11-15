@@ -6,6 +6,7 @@ import { isGm, isOwner, profile } from './auth'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import InfoDialog from './components/InfoDialog.vue'
 import { supabase } from './lib/supabaseClient'
+import { sectionOverride } from './router'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,7 +28,7 @@ const gmTabs = computed(() => [
   { name: 'gm-changes', label: 'changes' },
   ...(isOwner.value ? [{ name: 'gm-content', label: 'content' }] : []),
 ])
-const isCurrent = (name: string) => route.name === name || route.meta.section === name
+const isCurrent = (name: string) => route.name === name || (sectionOverride.value ?? route.meta.section) === name
 
 // On phones the bar collapses to the logo and a [ menu ] toggle (see the CSS at the bottom).
 // The menu closes when you pick a page, or once you've scrolled past it.
