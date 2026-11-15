@@ -3,6 +3,7 @@
   --void: #111113; /* page background: near-black grey */
   --panel: #1c1c21; /* raised surfaces */
   --rule: #403f48; /* borders and dividers */
+  --edge: #6e6c79; /* the resting outline of form fields and boxed buttons: 3.3:1 on --panel, 3.7:1 on --void */
   --text: #f5f4f7; /* general text: white */
   --text-dim: #b1afba;
   --lilac: #c9b3ff; /* main accent: titles, links, buttons, focus */
@@ -96,7 +97,7 @@ a:hover {
 :where(button) {
   min-height: 2.5rem;
   padding: 0.5rem 0.9rem;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--edge);
   background: none;
   color: var(--lilac);
   font: 600 0.9375rem/1.5 var(--mono);
@@ -198,7 +199,7 @@ textarea,
 select {
   min-height: 2.5rem;
   padding: 0.45rem 0.6rem;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--edge);
   border-radius: 0;
   background: var(--void);
   color: var(--text);
@@ -316,8 +317,10 @@ label.field .error {
   background: var(--panel);
 }
 
+/* The gap spaces the lines, so paragraphs inside don't add their own margin. */
+.notice > p,
 .notice > :last-child {
-  margin-bottom: 0;
+  margin: 0;
 }
 
 .notice.info { --accent: var(--sky); }

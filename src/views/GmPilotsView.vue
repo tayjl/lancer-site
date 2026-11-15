@@ -193,6 +193,6 @@ section + section { margin-top: var(--space-l); }
 .save-message { display: block; margin-top: 0.25rem; font-size: 0.8125rem; white-space: normal; }
 .mint { color: var(--mint); }
 /* A link drawn like a small button. */
-.link-button { display: inline-block; padding: 0.3rem 0.65rem; border: 1px solid var(--rule); font: 600 0.875rem/1.5 var(--mono); text-decoration: none; }
+.link-button { display: inline-block; padding: 0.3rem 0.65rem; border: 1px solid var(--edge); font: 600 0.875rem/1.5 var(--mono); text-decoration: none; }
 .link-button:hover, .link-button:focus-visible { border-color: var(--lilac); color: var(--lilac); }
 </style>

@@ -363,7 +363,8 @@ async function createMech() {
         </div>
         <div v-else-if="approvedOwn" class="next">
           <template v-if="!draft">
-            <p class="dim">approved. to change your pilot, propose changes for a gm to review.</p>
+            <p v-if="change?.status === 'rejected'" class="rose">a gm rejected your last change (reason below). propose a new change when you're ready.</p>
+            <p v-else class="dim">approved. to change your pilot, propose changes for a gm to review.</p>
             <button type="button" class="primary small" @click="track(proposeChange())">propose changes</button>
           </template>
           <template v-else-if="!draft.submitted_at">
@@ -666,7 +667,7 @@ p.small {
 /* The GM's way to the review page: a link drawn as a small button. */
 .gm-link {
   padding: 0.3rem 0.65rem;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--edge);
   font: 600 0.875rem/1.5 var(--mono);
   text-decoration: none;
 }

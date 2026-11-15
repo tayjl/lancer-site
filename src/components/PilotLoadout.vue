@@ -95,7 +95,7 @@ async function equip(id: string) {
 
     <ItemPicker
       ref="picker"
-      :title="`choose ${target?.label}`"
+      :title="`choose ${target?.label ?? 'pilot gear'}`"
       :options="options"
       :current="target?.id"
       :saving="saving"
