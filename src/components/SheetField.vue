@@ -11,6 +11,8 @@ const props = defineProps<{
   doc: Json | null
   editable: boolean
   tag?: string
+  quiet?: boolean // no save status of its own (the page shows one)
+  links?: { id: string; name: string; meta?: string; text?: string }[] // entries the writing may link to (lore only)
   save: (doc: Json | null) => Promise<string | null>
 }>()
 
@@ -45,10 +47,10 @@ onBeforeUnmount(() => {
   <section class="field">
     <h2 class="sheet-label">
       {{ title }}<span v-if="tag" class="private">{{ tag }}</span>
-      <span class="status" role="status">{{ status }}</span>
-      <span v-if="error" class="status error" role="alert">Not saved: {{ error }}</span>
+      <span v-if="!quiet" class="status" role="status">{{ status }}</span>
+      <span v-if="error && !quiet" class="status error" role="alert">Not saved: {{ error }}</span>
     </h2>
-    <RichTextEditor v-if="editable" v-model="draft" :label="title" />
+    <RichTextEditor v-if="editable" v-model="draft" :label="title" :links="links" />
     <RichText v-else-if="doc" :doc="doc" class="readonly prose" />
     <p v-else class="empty">Nothing on file.</p>
   </section>

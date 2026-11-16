@@ -9,7 +9,7 @@ import InfoButton from './InfoButton.vue'
 // open(), saves the choice itself, then closes it with close(). With "info", an option's name opens its full
 // information on top of the picker.
 type Option = { id: string; name: string; meta?: string | string[]; text?: string; blocked?: string; info?: () => Info }
-const props = defineProps<{ title: string; options: Option[]; current?: string | null; saving?: boolean; error?: string }>()
+const props = defineProps<{ title: string; options: Option[]; current?: string | null; saving?: boolean; error?: string; empty?: string }>()
 const emit = defineEmits<{ choose: [id: string] }>()
 
 const dialog = useTemplateRef('dialog')
@@ -69,7 +69,7 @@ defineExpose({ open, close: () => dialog.value?.close() })
           </div>
         </li>
       </ul>
-      <p v-else class="empty">Nothing {{ filter ? 'matches that search' : 'to choose from yet: the content packs may not be imported' }}.</p>
+      <p v-else class="empty">{{ filter ? 'Nothing matches that search.' : empty ?? 'Nothing to choose from yet: the content packs may not be imported.' }}</p>
     </div>
   </dialog>
 </template>

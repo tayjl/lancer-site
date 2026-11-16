@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { h, type VNode } from 'vue'
+import { RouterLink } from 'vue-router'
 import { sanitiseDoc, type SafeNode } from '../richText'
 
 // Shows formatted text saved by the editor. It's always cleaned by sanitiseDoc() first, then drawn
@@ -16,6 +17,11 @@ function draw(node: SafeNode): VNode | string {
   if (node.underline) out = h('u', out)
   if (node.italic) out = h('em', out)
   if (node.bold) out = h('strong', out)
+  // A link to a lore entry (src/richText.ts lets through nothing else): drawn as a router link, never raw HTML.
+  if (node.link) {
+    const inner = out
+    out = h(RouterLink, { to: node.link, class: 'lore-link' }, () => inner)
+  }
   return out
 }
 

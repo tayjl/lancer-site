@@ -8,6 +8,8 @@ import GmChangesView from './views/GmChangesView.vue'
 import GmChangeView from './views/GmChangeView.vue'
 import GmPilotsView from './views/GmPilotsView.vue'
 import HomeView from './views/HomeView.vue'
+import LoreEditView from './views/LoreEditView.vue'
+import LoreView from './views/LoreView.vue'
 import LoginView from './views/LoginView.vue'
 import MechView from './views/MechView.vue'
 import PilotManageView from './views/PilotManageView.vue'
@@ -31,6 +33,8 @@ declare module 'vue-router' {
     empty?: string
   }
 }
+
+const LORE_META = { title: 'Lore', summary: 'Stories, places and people of the campaign, written by the GMs.', section: 'lore' }
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -95,6 +99,10 @@ export const router = createRouter({
       component: ArchivesView,
       meta: { title: 'Archives' },
     },
+    // Lore the GMs write: the list with the newest entry (or the one in the url) beside it. /lore/:id urls are shared on Discord.
+    { path: '/lore', name: 'lore', component: LoreView, meta: LORE_META },
+    { path: '/lore/:id', name: 'lore-entry', component: LoreView, meta: LORE_META },
+    { path: '/lore/:id/edit', name: 'lore-edit', component: LoreEditView, meta: { ...LORE_META, gm: true } },
     // GM tabs. /gm opens the first one.
     { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },
     {

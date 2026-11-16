@@ -1119,3 +1119,21 @@ dialog.dialog::backdrop {
     animation: none;
   }
 }
+
+/* ───────────────────────── Links to lore entries (in the writing: RichText.vue, the lore editor) ─────────────────────────
+   Lilac AND always underlined, so a link never relies on colour alone; the underline goes full lilac on hover and focus.
+   Text a GM underlined with the editor's U stays in the text colour with the default underline. */
+a.lore-link,
+.ProseMirror a[href^='/lore/'] {
+  color: var(--lilac);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--lilac) 50%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a.lore-link:hover,
+a.lore-link:focus-visible,
+.ProseMirror a[href^='/lore/']:hover {
+  text-decoration-color: var(--lilac);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getSchema } from '@tiptap/vue-3'
-import { EDITOR_EXTENSIONS, sanitiseDoc } from './richText'
+import { EDITOR_EXTENSIONS, docText, editorExtensions, sanitiseDoc } from './richText'
 
 const doc = (...content: unknown[]) => ({ type: 'doc', content })
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks })
@@ -90,5 +90,52 @@ describe('sanitiseDoc', () => {
     for (let i = 0; i < 50; i++) node = { type: 'bulletList', content: [{ type: 'listItem', content: [node] }] }
     expect(() => sanitiseDoc(doc(node))).not.toThrow()
     expect(JSON.stringify(sanitiseDoc(doc(node)))).not.toContain('deep')
+  })
+})
+
+describe('links to lore entries', () => {
+  const ID = '123e4567-e89b-42d3-a456-426614174000'
+  const linked = (href: unknown, extra: Record<string, unknown> = {}) =>
+    doc({ type: 'paragraph', content: [text('the station', [{ type: 'link', attrs: { href, target: '_blank', rel: 'x', ...extra } }])] })
+
+  it('keeps a link to exactly /lore/<uuid>, with no other attribute', () => {
+    expect(sanitiseDoc(linked(`/lore/${ID}`))).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: 'the station', link: `/lore/${ID}` }] },
+    ])
+  })
+
+  it.each([
+    'javascript:alert(1)',
+    'https://evil.example/lore/' + ID,
+    '//evil.example/lore/' + ID,
+    '/registry/1',
+    '/lore/not-a-uuid',
+    `/lore/${ID}x`,
+    `/lore/${ID}/edit`,
+    `/lore/${ID}?next=https://evil.example`,
+    `/lore/${ID}
+`,
+    ` /lore/${ID}`,
+    `lore/${ID}`,
+    null,
+    42,
+  ])('drops the link but keeps the text for %s', (href) => {
+    expect(sanitiseDoc(linked(href))).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: 'the station' }] }])
+  })
+
+  it('drops a link mark with no attributes at all', () => {
+    expect(sanitiseDoc(doc({ type: 'paragraph', content: [text('x', [{ type: 'link' }])] }))).toEqual([
+      { type: 'paragraph', content: [{ type: 'text', text: 'x' }] },
+    ])
+  })
+
+  it('is only in the editor that asks for links', () => {
+    const marks = (links: boolean) => Object.keys(getSchema(editorExtensions(links)).marks)
+    expect(marks(false)).not.toContain('link')
+    expect(marks(true)).toContain('link')
+  })
+
+  it('reads plain text for search', () => {
+    expect(docText(linked(`/lore/${ID}`))).toBe('the station')
   })
 })

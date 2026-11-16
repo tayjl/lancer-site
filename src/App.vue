@@ -22,6 +22,7 @@ const tabs = [
   { name: 'pending', label: 'Pending' },
   { name: 'memorial', label: 'Memorial' },
   { name: 'archives', label: 'Archives' },
+  { name: 'lore', label: 'Lore' },
 ]
 const gmTabs = computed(() => [
   { name: 'gm-pilots', label: 'Pilots' },
@@ -90,8 +91,9 @@ async function disconnect() {
       </nav>
     </header>
 
-    <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. -->
-    <RouterView :key="route.path" />
+    <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. The lore
+         list and its entries are one page (the list keeps its place and search as you read). -->
+    <RouterView :key="route.meta.section === 'lore' ? 'lore' : route.path" />
   </div>
   <!-- The full information on any item (src/info.ts), opened from cards and pickers anywhere. -->
   <InfoDialog />
@@ -200,8 +202,8 @@ async function disconnect() {
   display: none;
 }
 
-/* --- Narrow screens (an owner's full tab set needs about 70rem): logo, Disconnect and Menu; Menu opens the drawer. --- */
-@media (max-width: 72rem) {
+/* --- Narrow screens (an owner's full tab set, with Lore, needs about 75rem): logo, Disconnect and Menu; Menu opens the drawer. --- */
+@media (max-width: 77rem) {
   .nav,
   .who {
     display: none;

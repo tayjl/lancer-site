@@ -16,6 +16,7 @@ const pages = computed(() => [
     { name: 'pending', label: 'pending' },
     { name: 'memorial', label: 'memorial' },
     { name: 'archives', label: 'archives' },
+    { name: 'lore', label: 'lore' },
   ],
   ...(isGm.value
     ? [

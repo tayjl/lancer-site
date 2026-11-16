@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lore · A · phone empty filter</title>
+<link rel="stylesheet" href="../../prototype/styles.css">
+<link rel="stylesheet" href="../lore.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#">My pilot</a>
+        <a class="tab" href="#">Registry</a>
+        <a class="tab" href="#">Pending <span class="count">2</span></a>
+        <a class="tab" href="#">Memorial</a>
+        <a class="tab" href="#">Archives</a>
+        <a class="tab" href="#" aria-current="page">Lore</a>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">Wren <span class="label">Player</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false">Menu</button>
+    </div>
+  </div>
+</header>
+<main class="page">
+
+<header class="page-head">
+  <div><h1>Lore</h1><p class="dim">Stories, places and people of the campaign, written by the GMs.</p></div>
+  
+</header>
+<div class="toolbar"><label class="lf"><span class="label">Search lore</span><span class="search-box"><svg class="icon" aria-hidden="true"><use href="../icons.svg#search"/></svg><input class="field" type="search" placeholder="Title, place or name" value="kraken"></span></label><div class="fchips" role="group" aria-label="Filter by kind">
+<button class="fchip" type="button" aria-pressed="true">All <span class="num">7</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#book-open"/></svg>Stories <span class="num">2</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#map-pin"/></svg>Places <span class="num">2</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#flag"/></svg>Factions <span class="num">1</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#user"/></svg>People <span class="num">1</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#calendar"/></svg>Events <span class="num">1</span></button>
+</div></div>
+<div class="empty" role="status"><span>Nothing matches that search.</span><button class="btn btn-sm" type="button">Clear search</button></div>
+</main>
+</body>
+</html>

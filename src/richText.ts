@@ -21,14 +21,16 @@ const SavedColour = Extension.create({
 
 // The editor's extensions (RichTextEditor.vue): bold, italic, underline, three sizes, bullet lists and small
 // headings. Everything else StarterKit offers is off, so the editor can only produce what RichText.vue shows.
-export const EDITOR_EXTENSIONS: Extensions = [
+// The lore editor adds links to other lore entries (and nothing else). The mark never opens, auto-detects or
+// auto-converts anything: a link only exists when a GM picks an entry for the selected text.
+export const editorExtensions = (links = false): Extensions => [
   StarterKit.configure({
     heading: { levels: [3] },
     blockquote: false,
     code: false,
     codeBlock: false,
     horizontalRule: false,
-    link: false,
+    link: links ? { openOnClick: false, autolink: false, linkOnPaste: false, HTMLAttributes: { target: null, rel: null } } : false,
     orderedList: false,
     strike: false,
   }),
@@ -36,6 +38,11 @@ export const EDITOR_EXTENSIONS: Extensions = [
   FontSize,
   SavedColour,
 ]
+export const EDITOR_EXTENSIONS = editorExtensions()
+
+// The only link text may have: to one lore entry, written exactly /lore/<uuid>.
+const LORE_HREF = /^\/lore\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const loreHref = (id: string) => `/lore/${id}`
 
 const SIZE_VALUES: readonly string[] = Object.values(SIZES)
 const BLOCKS = ['paragraph', 'heading', 'bulletList', 'listItem'] as const
@@ -48,6 +55,7 @@ export type SafeText = {
   italic?: true
   underline?: true
   size?: string
+  link?: string
 }
 export type SafeBlock = { type: (typeof BLOCKS)[number]; content: SafeNode[] }
 export type SafeNode = SafeText | SafeBlock | { type: 'hardBreak' }
@@ -79,10 +87,19 @@ function sanitiseText(text: string, marks: unknown): SafeText {
     if (mark.type === 'bold') safe.bold = true
     if (mark.type === 'italic') safe.italic = true
     if (mark.type === 'underline') safe.underline = true
+    // Any other link (outside sites, javascript:, other paths) is dropped and its text kept.
+    if (mark.type === 'link' && isObject(mark.attrs) && typeof mark.attrs.href === 'string' && LORE_HREF.test(mark.attrs.href)) safe.link = mark.attrs.href
     if (mark.type === 'textStyle' && isObject(mark.attrs)) {
       const { fontSize } = mark.attrs
       if (SIZE_VALUES.includes(fontSize as string)) safe.size = fontSize as string
     }
   }
   return safe
+}
+
+// The plain words of a document, blocks and breaks parted by spaces (for search and reading time).
+export function docText(doc: unknown): string {
+  const words = (nodes: SafeNode[]): string =>
+    nodes.map((node) => (node.type === 'text' ? node.text : node.type === 'hardBreak' ? ' ' : ` ${words(node.content)} `)).join('')
+  return words(sanitiseDoc(doc)).replace(/\s+/g, ' ').trim()
 }

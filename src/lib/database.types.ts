@@ -281,6 +281,53 @@ export type Database = {
           },
         ]
       }
+      lore_entries: {
+        Row: {
+          body: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          published_at: string | null
+          related: string[]
+          summary: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          published_at?: string | null
+          related?: string[]
+          summary?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          published_at?: string | null
+          related?: string[]
+          summary?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lore_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisations: {
         Row: {
           description: string | null

@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { EDITOR_EXTENSIONS, SIZES } from '../richText'
+import { useTemplateRef } from 'vue'
+import { editorExtensions, loreHref, SIZES } from '../richText'
 import Icon from './Icon.vue'
+import ItemPicker from './ItemPicker.vue'
 
 // The paragraph editor (extensions in src/richText.ts). The value is TipTap's JSON document, or null when empty.
 const doc = defineModel<unknown>()
-const props = defineProps<{ label: string }>()
+// "links" (only the lore editor sets it) adds a "Link to entry" button, with these entries to pick from.
+const props = defineProps<{ label: string; links?: { id: string; name: string; meta?: string; text?: string }[] }>()
 
 const editor = useEditor({
   content: (doc.value as object | null) ?? '',
-  extensions: EDITOR_EXTENSIONS,
+  extensions: editorExtensions(!!props.links),
   editorProps: { attributes: { 'aria-label': props.label, 'aria-multiline': 'true', role: 'textbox' } },
   onUpdate: ({ editor }) => (doc.value = editor.isEmpty ? null : editor.getJSON()),
 })
@@ -25,6 +28,15 @@ const toggleUnderline = () => chain()?.toggleUnderline().run()
 const toggleList = () => chain()?.toggleBulletList().run()
 const toggleHeading = () => chain()?.toggleHeading({ level: 3 }).run()
 const setSize = (size?: string) => (size ? chain()?.setFontSize(size) : chain()?.unsetFontSize())?.run()
+
+// The link button: on plain selected text it asks which entry to link to; on a link it takes the link off.
+const picker = useTemplateRef('picker')
+const noSelection = () => editor.value?.state.selection.empty ?? true
+const onLink = () => (is('link') ? chain()?.extendMarkRange('link').unsetLink().run() : picker.value?.open())
+const linkTo = (id: string) => {
+  chain()?.setLink({ href: loreHref(id) }).run()
+  picker.value?.close()
+}
 
 // Which buttons show as pressed, for the text where the cursor is.
 const is = (name: string, attrs?: Record<string, unknown>) => editor.value?.isActive(name, attrs) ?? false
@@ -49,8 +61,20 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
         <button type="button" class="tool" aria-label="Bullet list" title="Bullet list" :aria-pressed="is('bulletList')" @click="toggleList"><Icon name="list" /></button>
         <button type="button" class="tool" aria-label="Heading" title="Heading" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading"><Icon name="heading" /></button>
       </span>
+      <span v-if="links" class="group">
+        <button
+          type="button"
+          class="tool"
+          :aria-label="is('link') ? 'Remove link' : 'Link to entry'"
+          :title="!is('link') && noSelection() ? 'Select some text first' : is('link') ? 'Remove link' : 'Link to entry'"
+          :aria-pressed="is('link')"
+          :disabled="!is('link') && noSelection()"
+          @click="onLink"
+        ><Icon name="link" /></button>
+      </span>
     </div>
     <EditorContent :editor="editor" />
+    <ItemPicker v-if="links" ref="picker" title="Link to an entry" :options="links" empty="No other entries to link to." @choose="linkTo" />
   </div>
 </template>
 
@@ -150,6 +174,10 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
 .editor :deep(.ProseMirror h3) {
   margin: 1em 0 0.4em;
   font-size: 1rem;
+}
+
+.editor :deep(.ProseMirror a) {
+  cursor: text;
 }
 
 .editor :deep(.ProseMirror ul) {

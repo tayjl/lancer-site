@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lore · GM editor · desktop</title>
+<link rel="stylesheet" href="../../prototype/styles.css">
+<link rel="stylesheet" href="../lore.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#">My pilot</a>
+        <a class="tab" href="#">Registry</a>
+        <a class="tab" href="#">Pending <span class="count">2</span></a>
+        <a class="tab" href="#">Memorial</a>
+        <a class="tab" href="#">Archives</a>
+        <a class="tab" href="#" aria-current="page">Lore</a>
+      </div>
+      <div class="topbar-group">
+        <span class="label">GM</span>
+        <div class="tabs">
+          <a class="tab" href="#">Pilots</a>
+          <a class="tab" href="#">Changes <span class="count">3</span></a>
+        </div>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">Pell <span class="label">GM</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false">Menu</button>
+    </div>
+  </div>
+</header>
+<main class="page">
+
+<header class="page-head">
+  <div><nav class="crumbs" aria-label="Breadcrumb"><a href="#">Lore</a><span aria-hidden="true">/</span><span aria-current="page">New entry</span></nav><h1>New entry</h1><p class="dim">Write it here, then publish when it’s ready.</p></div>
+  
+</header>
+<div class="next editor-bar">
+  <span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#draft"/></svg>Draft</span>
+  <span class="next-text">Only GMs can see this until it’s published.</span>
+  <span class="save-ok"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#check"/></svg>Saved</span>
+  <div class="btn-row"><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../icons.svg#eye"/></svg>Preview</button><button class="btn btn-sm btn-primary" type="button">Publish</button></div>
+</div>
+<div class="ed-grid"><div class="ed-main">
+<section class="section">
+  <label class="lf"><span class="label">Title</span><input class="field" value="Halvard Station"></label>
+  <div class="lf"><span class="label" id="kind-l">Kind</span>
+    <div class="kinds" role="radiogroup" aria-labelledby="kind-l"><button class="kind-opt" type="button" role="radio" aria-checked="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#book-open"/></svg>Story</button><button class="kind-opt" type="button" role="radio" aria-checked="true"><svg class="icon" aria-hidden="true"><use href="../icons.svg#map-pin"/></svg>Place</button><button class="kind-opt" type="button" role="radio" aria-checked="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#flag"/></svg>Faction</button><button class="kind-opt" type="button" role="radio" aria-checked="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#user"/></svg>Person</button><button class="kind-opt" type="button" role="radio" aria-checked="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#calendar"/></svg>Event</button></div>
+  </div>
+  <label class="lf"><span class="label">Summary</span><input class="field" value="A tidal-locked refuelling hub at the edge of the Merrow shoals, run by habit and the Tidewright Compact."><span class="hint">Shown in lists and under the title.</span></label>
+</section>
+<section class="section">
+  <div class="section-head"><h2 class="section-title">Body</h2></div>
+  <div class="rte">
+    <div class="rte-bar" role="toolbar" aria-label="Formatting">
+      <div class="rte-group"><button class="rte-btn" type="button" aria-label="Bold" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#bold"/></svg></button><button class="rte-btn" type="button" aria-label="Italic" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#italic"/></svg></button><button class="rte-btn" type="button" aria-label="Underline" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#underline"/></svg></button></div>
+      <div class="rte-group"><button class="rte-btn rte-s" type="button" aria-label="Small text" aria-pressed="false">S</button><button class="rte-btn" type="button" aria-label="Normal text" aria-pressed="true">M</button><button class="rte-btn rte-l" type="button" aria-label="Large text" aria-pressed="false">L</button></div>
+      <div class="rte-group"><button class="rte-btn" type="button" aria-label="Bullet list" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#list"/></svg></button><button class="rte-btn" type="button" aria-label="Small heading" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#heading"/></svg></button></div>
+      <div class="rte-group"><button class="rte-btn" type="button" aria-label="Link to entry" title="Link to entry"><svg class="icon" aria-hidden="true"><use href="../icons.svg#link"/></svg></button></div>
+    </div>
+    <div class="rte-area"><div class="lore-body">
+<p>It began as a refuelling depot. It is now a town in all but name: about <strong>four thousand permanent residents</strong>, three times that on a busy tide, and a dockside market that never fully closes.</p>
+<h3>Before you dock</h3>
+<ul><li>Every hull pays a <u>berth tithe</u> to the <a href="#">Tidewright Compact</a>.</li><li>The lower docks flood on the high tide.</li></ul>
+    </div></div>
+  </div>
+</section>
+<section class="section">
+  <div class="section-head"><h2 class="section-title">Facts</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#info"/></svg>Codex option only</span></span></div>
+  <div class="fact-rows"><div class="fact-row"><input class="field" aria-label="Fact name" value="Type"><input class="field" aria-label="Fact value" value="Refuelling hub"><button class="btn btn-quiet btn-icon" type="button" aria-label="Remove fact"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#close"/></svg></button></div><div class="fact-row"><input class="field" aria-label="Fact name" value="Region"><input class="field" aria-label="Fact value" value="Merrow Shoals"><button class="btn btn-quiet btn-icon" type="button" aria-label="Remove fact"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#close"/></svg></button></div><div class="fact-row"><input class="field" aria-label="Fact name" value="Controlled by"><input class="field" aria-label="Fact value" value="The Tidewright Compact"><button class="btn btn-quiet btn-icon" type="button" aria-label="Remove fact"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#close"/></svg></button></div></div>
+  <div><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Add fact</button></div>
+</section></div><div class="ed-side">
+<section class="section">
+  <div class="section-head"><h2 class="section-title">Cover image</h2></div>
+  <div class="empty drop"><svg class="icon icon-l" aria-hidden="true"><use href="../icons.svg#image"/></svg><span>Image uploads aren’t built yet.</span><button class="btn btn-sm" type="button" disabled><svg class="icon" aria-hidden="true"><use href="../icons.svg#upload"/></svg>Choose image</button></div>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2 class="section-title">Related entries</h2></div>
+  <div class="chips"><span class="chip-x"><svg class="icon" aria-hidden="true"><use href="../icons.svg#map-pin"/></svg>Brightwater Reach<button type="button" aria-label="Remove Brightwater Reach"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#close"/></svg></button></span><span class="chip-x"><svg class="icon" aria-hidden="true"><use href="../icons.svg#book-open"/></svg>Salt and Static<button type="button" aria-label="Remove Salt and Static"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#close"/></svg></button></span><span class="chip-x"><svg class="icon" aria-hidden="true"><use href="../icons.svg#book-open"/></svg>The Long Quiet<button type="button" aria-label="Remove The Long Quiet"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#close"/></svg></button></span></div>
+  <div><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Link entry</button></div>
+</section></div></div>
+<section class="section danger-zone" style="margin-top:var(--space-l)">
+  <div class="section-head"><h2 class="section-title">Danger zone</h2></div>
+  <p class="hint" style="margin-bottom:var(--space-m)">Deleting an entry removes it for everyone and can’t be undone. Links to it from other entries will stop working.</p>
+  <button class="btn btn-danger" type="button"><svg class="icon" aria-hidden="true"><use href="../icons.svg#trash"/></svg>Delete entry</button>
+</section>
+</main>
+</body>
+</html>

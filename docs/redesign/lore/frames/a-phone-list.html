@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lore · A · phone list</title>
+<link rel="stylesheet" href="../../prototype/styles.css">
+<link rel="stylesheet" href="../lore.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#">My pilot</a>
+        <a class="tab" href="#">Registry</a>
+        <a class="tab" href="#">Pending <span class="count">2</span></a>
+        <a class="tab" href="#">Memorial</a>
+        <a class="tab" href="#">Archives</a>
+        <a class="tab" href="#" aria-current="page">Lore</a>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">Wren <span class="label">Player</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false">Menu</button>
+    </div>
+  </div>
+</header>
+<main class="page">
+
+<header class="page-head">
+  <div><h1>Lore</h1><p class="dim">Stories, places and people of the campaign, written by the GMs.</p></div>
+  
+</header>
+<div class="toolbar"><label class="lf"><span class="label">Search lore</span><span class="search-box"><svg class="icon" aria-hidden="true"><use href="../icons.svg#search"/></svg><input class="field" type="search" placeholder="Title, place or name" value=""></span></label><div class="fchips" role="group" aria-label="Filter by kind">
+<button class="fchip" type="button" aria-pressed="true">All <span class="num">7</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#book-open"/></svg>Stories <span class="num">2</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#map-pin"/></svg>Places <span class="num">2</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#flag"/></svg>Factions <span class="num">1</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#user"/></svg>People <span class="num">1</span></button>
+<button class="fchip" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="../icons.svg#calendar"/></svg>Events <span class="num">1</span></button>
+</div></div>
+<div class="a-list"><section class="group" aria-label="Stories">
+<div class="group-head"><svg class="icon kind-ico" aria-hidden="true"><use href="../icons.svg#book-open"/></svg><h3>Stories</h3><span class="num">2</span></div>
+<ul class="rows"><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">Salt and Static</span></span>
+<span class="row-facts sep"><span>12 Nov 2026</span><span>3 min read</span></span></button></li><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">The Long Quiet</span></span>
+<span class="row-facts sep"><span>2 Oct 2026</span><span>9 min read</span></span></button></li></ul>
+</section>
+<section class="group" aria-label="Places">
+<div class="group-head"><svg class="icon kind-ico" aria-hidden="true"><use href="../icons.svg#map-pin"/></svg><h3>Places</h3><span class="num">2</span></div>
+<ul class="rows"><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">Halvard Station</span></span>
+<span class="row-facts sep"><span>9 Nov 2026</span><span>2 min read</span></span></button></li><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">Brightwater Reach</span></span>
+<span class="row-facts sep"><span>14 Oct 2026</span><span>3 min read</span></span></button></li></ul>
+</section>
+<section class="group" aria-label="Factions">
+<div class="group-head"><svg class="icon kind-ico" aria-hidden="true"><use href="../icons.svg#flag"/></svg><h3>Factions</h3><span class="num">1</span></div>
+<ul class="rows"><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">The Tidewright Compact</span></span>
+<span class="row-facts sep"><span>4 Nov 2026</span><span>4 min read</span></span></button></li></ul>
+</section>
+<section class="group" aria-label="People">
+<div class="group-head"><svg class="icon kind-ico" aria-hidden="true"><use href="../icons.svg#user"/></svg><h3>People</h3><span class="num">1</span></div>
+<ul class="rows"><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">Cassia Vell</span></span>
+<span class="row-facts sep"><span>30 Oct 2026</span><span>2 min read</span></span></button></li></ul>
+</section>
+<section class="group" aria-label="Events">
+<div class="group-head"><svg class="icon kind-ico" aria-hidden="true"><use href="../icons.svg#calendar"/></svg><h3>Events</h3><span class="num">1</span></div>
+<ul class="rows"><li><button class="row" type="button">
+<span class="row-top"><span class="row-name">The Merrow Blackout</span></span>
+<span class="row-facts sep"><span>21 Oct 2026</span><span>5 min read</span></span></button></li></ul>
+</section></div>
+</main>
+</body>
+</html>

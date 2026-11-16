@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lore page options</title>
+<link rel="stylesheet" href="../prototype/styles.css">
+<link rel="stylesheet" href="lore.css">
+</head>
+<body class="shell">
+<header class="switcher">
+  <div class="tabs" role="tablist" aria-label="Lore page options">
+    <button class="tab" role="tab" data-t="a" aria-selected="true">A · Archive</button>
+    <button class="tab" role="tab" data-t="b" aria-selected="false">B · Library</button>
+    <button class="tab" role="tab" data-t="c" aria-selected="false">C · Codex</button>
+    <button class="tab" role="tab" data-t="g" aria-selected="false">GM editor (all options)</button>
+  </div>
+</header>
+<main>
+<section id="a" role="tabpanel">
+<div class="intro"><h2>Option A · Archive</h2><p>The same list + detail layout as the Archives. Quick to hop between many short entries, and it looks like the rest of the site. Long stories get a narrower reading column on desktop.</p></div>
+<figure style="margin:0 0 var(--space-xl)"><figcaption class="cap"><b>Desktop</b> · lore landing, GM view</figcaption><div class="scroll-wrap" style="margin:0;padding:0"><iframe class="frame frame-d" loading="lazy" src="frames/a-desktop.html" title="<b>Desktop</b> · lore landing, GM view"></iframe></div></figure>
+<div class="phones"><figure style="margin:0"><figcaption class="cap"><b>Phone</b> · list, player view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/a-phone-list.html" title="<b>Phone</b> · list, player view"></iframe></figure>
+<figure style="margin:0"><figcaption class="cap"><b>Phone</b> · entry, player view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/a-phone-entry.html" title="<b>Phone</b> · entry, player view"></iframe></figure>
+<figure style="margin:0"><figcaption class="cap"><b>Phone</b> · kind filter with nothing in it</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/a-phone-empty.html" title="<b>Phone</b> · kind filter with nothing in it"></iframe></figure></div>
+</section>
+<section id="b" role="tabpanel" hidden>
+<div class="intro"><h2>Option B · Library</h2><p>A landing page of entry cards with the newest entry featured, then a dedicated reading page for each entry. The most inviting option and the best reading experience; less dense once there are many entries. (Covers need image uploads, which aren’t built yet.)</p></div>
+<figure style="margin:0 0 var(--space-xl)"><figcaption class="cap"><b>Desktop</b> · lore landing, GM view</figcaption><div class="scroll-wrap" style="margin:0;padding:0"><iframe class="frame frame-d" loading="lazy" src="frames/b-desktop-landing.html" title="<b>Desktop</b> · lore landing, GM view"></iframe></div></figure>
+<figure style="margin:0 0 var(--space-xl)"><figcaption class="cap"><b>Desktop</b> · reading page, GM view</figcaption><div class="scroll-wrap" style="margin:0;padding:0"><iframe class="frame frame-d" loading="lazy" src="frames/b-desktop-reading.html" title="<b>Desktop</b> · reading page, GM view"></iframe></div></figure>
+<div class="phones"><figure style="margin:0"><figcaption class="cap"><b>Phone</b> · landing, player view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/b-phone-landing.html" title="<b>Phone</b> · landing, player view"></iframe></figure>
+<figure style="margin:0"><figcaption class="cap"><b>Phone</b> · reading page, player view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/b-phone-reading.html" title="<b>Phone</b> · reading page, player view"></iframe></figure></div>
+</section>
+<section id="c" role="tabpanel" hidden>
+<div class="intro"><h2>Option C · Codex</h2><p>An encyclopedia: a compact A-Z index and entries with a facts box and links between entries. Scales best to a big setting bible and suits places and factions; the plainest option for short stories.</p></div>
+<figure style="margin:0 0 var(--space-xl)"><figcaption class="cap"><b>Desktop</b> · lore landing, GM view</figcaption><div class="scroll-wrap" style="margin:0;padding:0"><iframe class="frame frame-d" loading="lazy" src="frames/c-desktop-landing.html" title="<b>Desktop</b> · lore landing, GM view"></iframe></div></figure>
+<figure style="margin:0 0 var(--space-xl)"><figcaption class="cap"><b>Desktop</b> · entry, GM view</figcaption><div class="scroll-wrap" style="margin:0;padding:0"><iframe class="frame frame-d" loading="lazy" src="frames/c-desktop-entry.html" title="<b>Desktop</b> · entry, GM view"></iframe></div></figure>
+<div class="phones"><figure style="margin:0"><figcaption class="cap"><b>Phone</b> · index, player view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/c-phone-index.html" title="<b>Phone</b> · index, player view"></iframe></figure>
+<figure style="margin:0"><figcaption class="cap"><b>Phone</b> · entry, player view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/c-phone-entry.html" title="<b>Phone</b> · entry, player view"></iframe></figure></div>
+</section>
+<section id="g" role="tabpanel" hidden>
+<div class="intro"><h2>GM editor (all options)</h2><p>How a GM writes an entry; the same for every option. Option C adds the Facts rows.</p></div>
+<figure style="margin:0 0 var(--space-xl)"><figcaption class="cap"><b>Desktop</b> · new entry, GM view</figcaption><div class="scroll-wrap" style="margin:0;padding:0"><iframe class="frame frame-d" loading="lazy" src="frames/editor-desktop.html" title="<b>Desktop</b> · new entry, GM view"></iframe></div></figure>
+<div class="phones"><figure style="margin:0"><figcaption class="cap"><b>Phone</b> · new entry, GM view</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/editor-phone.html" title="<b>Phone</b> · new entry, GM view"></iframe></figure></div>
+</section>
+</main>
+<script>
+const tabs = [...document.querySelectorAll('[data-t]')]
+function show(id) {
+  if (!document.getElementById(id)) id = 'a'
+  tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.t === id)))
+  document.querySelectorAll('main > section').forEach((s) => { s.hidden = s.id !== id })
+  history.replaceState(null, '', '#' + id)
+}
+tabs.forEach((t) => t.addEventListener('click', () => show(t.dataset.t)))
+show(location.hash.slice(1) || 'a')
+</script>
+</body>
+</html>
