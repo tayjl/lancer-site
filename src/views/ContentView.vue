@@ -167,8 +167,10 @@ async function importPack() {
     <template v-else>
       <input ref="fileInput" class="file-input" type="file" accept=".lcp,.zip" aria-label="Choose Lancer content pack" :disabled="reading || saving" @change="onFile" />
       <div v-if="loadError" class="notice warn" role="alert">
-        <p>{{ loadError }}</p>
-        <div><button type="button" :disabled="loading" @click="load">try again</button></div>
+        <div class="notice-head">
+          <p>{{ loadError }}</p>
+          <button type="button" class="small" :disabled="loading" @click="load">try again</button>
+        </div>
       </div>
       <p v-if="loading" class="empty" role="status">loading installed content...</p>
       <div v-if="result" class="notice ok" role="status">

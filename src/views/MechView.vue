@@ -35,7 +35,7 @@ const route = useRoute()
 const router = useRouter()
 const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
-const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, updateCharacter, updateSheet } = useMyPilot(pilotId)
+const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId)
 
 // The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
 const list = computed(() =>
@@ -229,20 +229,22 @@ async function scrap() {
             @change="saveText('name', $event)"
           />
           <h1 v-else class="mech-name">{{ mech.name }}</h1>
-          <input
-            v-if="editable"
-            class="inline maker-id"
-            type="text"
-            aria-label="manufacturer id (XXXX-XXXX-XXXX)"
-            placeholder="XXXX-XXXX-XXXX"
-            :value="mech.manufacturer_id"
-            @change="saveText('manufacturer_id', $event)"
-          />
-          <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
-          <p v-if="own" class="save-status" role="status">
-            <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-            <span v-else-if="status" class="dim">{{ status }}</span>
-          </p>
+          <div class="id-line">
+            <input
+              v-if="editable"
+              class="inline maker-id"
+              type="text"
+              aria-label="manufacturer id (XXXX-XXXX-XXXX)"
+              placeholder="XXXX-XXXX-XXXX"
+              :value="mech.manufacturer_id"
+              @change="saveText('manufacturer_id', $event)"
+            />
+            <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
+            <p v-if="own" class="save-status" role="status">
+              <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+              <span v-else-if="status" class="dim">{{ status }}</span>
+            </p>
+          </div>
         </div>
         <dl class="glance-facts">
           <div>
@@ -265,6 +267,12 @@ async function scrap() {
             </dd>
           </div>
         </dl>
+
+        <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
+        <div v-if="own && draft" class="next">
+          <p v-if="!draft.submitted_at">you're drafting a change: edits here go into it. submit it from <RouterLink :to="{ name: 'pilot' }">my pilot</RouterLink>.</p>
+          <p v-else>change submitted, waiting on a gm, so this mech is read-only. to edit it, choose edit change on <RouterLink :to="{ name: 'pilot' }">my pilot</RouterLink>.</p>
+        </div>
       </header>
 
       <RuleCheck v-if="canSeePrivate" :problems="problems" />
@@ -413,7 +421,8 @@ async function scrap() {
   align-items: center;
   overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
   gap: 0.5rem 2.5rem;
-  padding: 0.9rem 1.25rem;
+  --pad-y: 0.9rem; /* the draft bar's negative margin reads it, to sit flush with the bottom edge */
+  padding: var(--pad-y) 1.25rem;
   border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
   border-top: 4px solid var(--maker);
   background: color-mix(in srgb, var(--maker) 10%, var(--panel));
@@ -440,6 +449,7 @@ async function scrap() {
   display: flex;
   flex: 1 1 18rem;
   flex-direction: column;
+  align-items: flex-start; /* don't stretch the fields: they size to their text */
   min-width: 0;
 }
 
@@ -464,6 +474,12 @@ async function scrap() {
   border-color: transparent;
   border-bottom-color: var(--rule);
   background: none;
+  /* Hug the text, so the save status sits right after it. shortcut: Firefox has no field-sizing and keeps its
+     default ~20ch width; fine until Firefox ships it. */
+  width: auto;
+  min-width: 8ch;
+  max-width: 100%;
+  field-sizing: content;
 }
 
 .inline:hover {
@@ -493,10 +509,36 @@ async function scrap() {
   font-size: 0.875rem;
 }
 
+/* The manufacturer id, then the save status on the same line (as my pilot's name line). */
+.id-line {
+  display: flex;
+  align-self: stretch; /* the column's width, so a long name shrinks its field instead of overflowing */
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
 .save-status {
-  min-height: 1.25rem;
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: 0.8125rem;
+}
+
+/* The draft bar: a neutral band flush with the plate's bottom and sides (as my pilot's next-step bar). */
+.next {
+  flex-basis: calc(100% + 2.5rem); /* the full row plus the side padding it reaches into */
+  align-self: stretch;
+  margin: 0.35rem -1.25rem calc(-1 * var(--pad-y));
+  padding: 0.5rem 1.25rem;
+  border-top: 1px solid var(--rule);
+  background: var(--void);
+  font-size: 0.875rem;
+}
+
+.next p {
+  max-width: none;
+  margin: 0;
 }
 
 .tabs {
@@ -527,11 +569,16 @@ async function scrap() {
 /* Shorter screens (laptops at 768 or 720 tall): a tighter strip, so the stuck stack stays about a third of the screen. */
 @media (min-width: 48rem) and (min-height: 40rem) and (max-height: 52rem) {
   .glance {
-    padding-block: 0.5rem;
+    --pad-y: 0.5rem;
   }
 
   .mech-name {
     font-size: 1.5rem;
+  }
+
+  .next {
+    margin-top: 0.15rem;
+    padding-block: 0.35rem;
   }
 
   .plate-logo {
@@ -690,6 +737,16 @@ async function scrap() {
 
   .glance-facts {
     justify-content: center;
+  }
+
+  .id-line {
+    justify-content: center;
+  }
+
+  /* Its own line on phones, so the centred field stays centred; reserved, so the first save doesn't grow the strip. */
+  .save-status {
+    flex-basis: 100%;
+    min-height: 1lh;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { archiveEntries, archiveGroups, makerColour, makerLogo, searchArchive, type ArchiveContent } from './archive'
+import { archiveEntries, archiveGroups, filterByMakers, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent } from './archive'
 import { coreContent } from './coreContent'
 import { toItem, type CoreBonus, type Talent } from './gameData'
 import type { Manufacturer } from './info'
@@ -29,7 +29,10 @@ describe('archives', () => {
     expect(count('manufacturers')).toBe(content.manufacturers.length)
     expect(count('frames')).toBe(frames.length)
     expect(count('licences')).toBe(frames.filter(frame => frame.licenceLevel > 0).length)
-    expect(entries.find(entry => entry.id === 'mw_autopod')).toMatchObject({ category: 'mech weapons', meta: 'main launcher · horus goblin i' })
+    expect(entries.find(entry => entry.id === 'mw_autopod')).toMatchObject({ category: 'mech weapons', group: 'HORUS', licence: 'Goblin', level: 1 })
+    expect(entries.find(entry => entry.category === 'licences' && entry.id === 'mf_goblin')?.unlocks?.[1]).toContain('Goblin')
+    // Systems without effect text are summed up by their first action or deployable.
+    for (const name of ['Grounding Charges', 'Repulser Field', 'Clamp Bombs']) expect(entries.find(entry => entry.name === name)?.summary).toBeTruthy()
   })
 
   it('searches names, facts and rules text across every category, all words in any order', () => {
@@ -39,6 +42,17 @@ describe('archives', () => {
     const byRules = searchArchive(entries, 'lock on reaction').map(entry => entry.name)
     expect(byRules).toContain('Autopod')
     expect(searchArchive(entries, 'zzz-not-a-thing')).toEqual([])
+  })
+
+  it('ranks the exact name first, then names starting with the search, then names containing it, then other text', () => {
+    const names = (query: string) => searchArchive(entries, query).map(entry => entry.name)
+    expect(names('goblin')[0]).toBe('Goblin')
+    const drone = names('drone')
+    const firstOther = drone.findIndex(name => !name.toLowerCase().includes('drone'))
+    expect(firstOther).toBeGreaterThan(0)
+    expect(drone.slice(firstOther).every(name => !name.toLowerCase().includes('drone'))).toBe(true)
+    const starts = drone.filter(name => name.toLowerCase().startsWith('drone'))
+    expect(drone.slice(0, starts.length)).toEqual(starts)
   })
 
   it('groups entries by manufacturer in order, with their colours, gear by type and talents ungrouped', () => {
@@ -56,6 +70,41 @@ describe('archives', () => {
     expect(talentGroups[0]).toMatchObject({ title: '', colour: 'var(--lilac)' })
   })
 
+  it('splits weapons and systems into a section per licence, unlicensed first, each by rank', () => {
+    const groups = archiveGroups(entries.filter(entry => entry.category === 'mech weapons'), content.manufacturers)
+    const gms = groups.find(group => group.key === 'GMS')!
+    expect(gms.sections.map(section => section.licence)).toEqual([''])
+    const horus = groups.find(group => group.key === 'HORUS')!
+    const licences = horus.sections.map(section => section.licence)
+    expect(licences).toContain('Goblin')
+    expect(licences).toEqual([...licences].sort((a, b) => Number(Boolean(a)) - Number(Boolean(b)) || a.localeCompare(b)))
+    for (const section of horus.sections) {
+      expect(section.entries.every(entry => entry.licence === section.licence)).toBe(true)
+      expect(section.entries.map(entry => entry.level)).toEqual(section.entries.map(entry => entry.level).sort())
+    }
+    // Frames, and search results across every category, have one section each.
+    expect(archiveGroups(entries.filter(entry => entry.category === 'frames'), content.manufacturers).every(group => group.sections.length === 1)).toBe(true)
+    const ranked = archiveGroups(searchArchive(entries.filter(entry => entry.category === 'mech systems'), 'drone'), content.manufacturers, true)
+    expect(ranked.every(group => group.sections.length === 1)).toBe(true)
+  })
+
+  it('filters by known manufacturers only, leaving gear and talents alone', () => {
+    expect(parseMakers('GMS,IPS-N,NOPE', content.manufacturers)).toEqual(['GMS', 'IPS-N'])
+    expect(parseMakers(undefined, content.manufacturers)).toEqual([])
+    expect(filterByMakers(entries, [])).toBe(entries)
+    const filtered = filterByMakers(entries, ['SSC'])
+    expect(filtered.filter(entry => entry.category === 'frames').every(entry => entry.group === 'SSC')).toBe(true)
+    expect(filtered.filter(entry => entry.category === 'talents')).toHaveLength(content.talents.length)
+  })
+
+  it('reads a link to one entry', () => {
+    expect(parseItem('licences:mf_goblin')).toEqual({ category: 'licences', id: 'mf_goblin' })
+    expect(parseItem('mech weapons:a:b')).toEqual({ category: 'mech weapons', id: 'a:b' })
+    expect(parseItem('nonsense:mf_goblin')).toBeNull()
+    expect(parseItem('frames:')).toBeNull()
+    expect(parseItem(undefined)).toBeNull()
+  })
+
   it('handles LCP manufacturers with no logo, and refuses a colour that is not a plain hex value', () => {
     const homebrew: Manufacturer = { id: 'NEW', name: 'New Corp', quote: '', description: '', colour: '#123abc' }
     expect(makerColour(homebrew)).toBe('#123abc')
@@ -63,7 +112,7 @@ describe('archives', () => {
     expect(makerLogo({ ...homebrew, logo: 'not-bundled' })).toBeNull()
     expect(makerColour({ ...homebrew, colour: 'red; background: url(x)' })).toBe('var(--lilac)')
     expect(makerColour(undefined)).toBe('var(--lilac)')
-    const entry = { category: 'frames', id: 'x', name: 'X', meta: '', group: 'NEW', level: 0, search: '', info: entries[0].info } as const
+    const entry = { category: 'frames', id: 'x', name: 'X', group: 'NEW', level: 0, licence: '', summary: '', search: '', info: entries[0].info } as const
     expect(archiveGroups([entry], [homebrew])[0]).toMatchObject({ title: 'NEW', colour: '#123abc', logo: null })
   })
 

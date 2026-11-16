@@ -18,7 +18,8 @@ export type InfoGroup = { title?: string; tone?: Tone; lore?: string; stack?: bo
 export type InfoFact = { text: string; tone?: Tone }
 // "range": where the value sits among every frame's (the radar chart).
 export type InfoStat = { label: string; value: string; icon?: string | null; range?: { min: number; max: number; at: number } }
-export type Info = { kind: string; name: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
+// "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
+export type Info = { kind: string; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
 
 // The one dialog's contents; null while it's closed.
 export const shownInfo = shallowRef<Info | null>(null)
@@ -67,6 +68,7 @@ export function itemInfo(item: Item): Info {
   return {
     kind: pilot ? PILOT_KINDS[item.type] : item.mount ? `${item.mount} ${item.type} weapon`.toLowerCase() : (item.type || 'system').toLowerCase(),
     name: item.name,
+    source: text(raw.source),
     facts: facts(
       text(raw.source),
       pilot ? '' : { text: item.licenceLevel > 0 ? `licence: ${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : 'no licence needed', tone: TONES.licence },
@@ -90,6 +92,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
   return {
     kind: `${frame.source} frame`.trim(),
     name: frame.name,
+    source: frame.source,
     facts: facts(
       { text: frame.mechtype.join(' / ').toLowerCase(), tone: TONES.classification },
       `mounts: ${frame.mounts.join(', ').toLowerCase()}`,
@@ -139,6 +142,7 @@ export function coreBonusInfo(bonus: CoreBonus): Info {
   return {
     kind: `${bonus.source} core bonus`.trim(),
     name: bonus.name,
+    source: bonus.source,
     facts: [],
     lore: paragraphs(text(bonus.description)),
     stats: [],
@@ -166,6 +170,7 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
   return {
     kind: 'manufacturer',
     name: manufacturer.name,
+    source: manufacturer.id,
     facts: facts(manufacturer.id !== manufacturer.name ? manufacturer.id : '', made.length ? `${made.length} frames` : ''),
     lore: [text(manufacturer.quote) ? `<p>${text(manufacturer.quote)}</p>` : '', paragraphs(text(manufacturer.description))].join(''),
     stats: [],
@@ -173,16 +178,20 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
   }
 }
 
+// What rank "level" (1 to 3) of a frame's licence unlocks: the frame itself (at its own level), weapons and systems.
+export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], level: number) => [
+  ...(frame.licenceLevel === level ? [{ kind: 'frame', name: frame.name }] : []),
+  ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon', name: item.name })),
+  ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system', name: item.name })),
+]
+
 // A licence (one per licensed frame): what each of its three ranks unlocks, side by side like the sheet's ladder.
 export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = []): Info {
-  const unlocks = (level: number) => [
-    ...(frame.licenceLevel === level ? [`<li><b>frame:</b> ${frame.name}</li>`] : []),
-    ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => `<li><b>weapon:</b> ${item.name}</li>`),
-    ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => `<li><b>system:</b> ${item.name}</li>`),
-  ]
+  const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, level).map((unlock) => `<li><b>${unlock.kind}:</b> ${unlock.name}</li>`)
   return {
     kind: `${frame.source} licence`.trim(),
     name: frame.name,
+    source: frame.source,
     facts: facts({ text: frame.mechtype.join(' / ').toLowerCase(), tone: TONES.classification }, `${PRICES.licenceRank} manna per rank`),
     lore: '',
     stats: [],

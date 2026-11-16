@@ -323,6 +323,20 @@ label.field .error {
   margin: 0;
 }
 
+/* A notice's title row, its button (if any) at the end: <div class="notice-head"><p>title</p><button>…</button></div>.
+   When narrow, the button wraps under the title, at the start. */
+.notice-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.notice-head > * {
+  margin: 0;
+}
+
 .notice.info { --accent: var(--sky); }
 .notice.warn { --accent: var(--rose); }
 .notice.ok { --accent: var(--mint); }

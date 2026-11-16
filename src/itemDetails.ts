@@ -47,24 +47,27 @@ const ICONS: Record<string, string> = {
 // Tags that only repeat what the slot already says.
 const HIDDEN_TAGS = ['tg_gear', 'tg_pilot_weapon', 'tg_personal_armor']
 
+// Each stat's "kind" (bonus, range, damage or sp) lets the archives' rows put them in columns.
 // "tagNames" is lancer-data's tag list (e.g. "Limited {VAL}"); without it the id stands in ("limited").
 export function itemDetails(item: Item, tagNames: Map<string, string>) {
   const stats = [
     ...item.bonuses.filter(bonus => bonus.id !== 'pilot_evasion').map((bonus) => {
       const [label, icon] = BONUSES[bonus.id] ?? [bonus.id.replace('pilot_', ''), null]
-      return { label, icon, value: bonus.id === 'pilot_hp' && !bonus.replace ? `+${bonus.val}` : String(bonus.val) }
+      return { kind: 'bonus', label, icon, value: bonus.id === 'pilot_hp' && !bonus.replace ? `+${bonus.val}` : String(bonus.val) }
     }),
     ...item.range.map((entry) => ({
-      label: entry.type.toLowerCase(),
-      icon: ICONS[entry.type.toLowerCase()] ?? null,
+      kind: 'range',
+      label: String(entry.type ?? '').toLowerCase(),
+      icon: ICONS[String(entry.type ?? '').toLowerCase()] ?? null,
       value: String(entry.val),
     })),
     ...item.damage.map(entry => ({
-      label: entry.type.toLowerCase(),
-      icon: ICONS[entry.type.toLowerCase()] ?? null,
+      kind: 'damage',
+      label: String(entry.type ?? '').toLowerCase(),
+      icon: ICONS[String(entry.type ?? '').toLowerCase()] ?? null,
       value: String(averageDamage(entry.val)),
     })),
-    ...(item.sp ? [{ label: 'sp', icon: systemPointIcon, value: String(item.sp) }] : []),
+    ...(item.sp ? [{ kind: 'sp', label: 'sp', icon: systemPointIcon, value: String(item.sp) }] : []),
   ]
   const tags = item.tags
     .filter((tag) => !HIDDEN_TAGS.includes(tag.id) && !hiddenTags.value.has(tag.id))

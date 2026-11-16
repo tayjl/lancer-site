@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from 'vue'
-import { shownInfo } from '../info'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
+import { loadManufacturers, makerColour } from '../archive'
+import { shownInfo, type Manufacturer } from '../info'
 import RadarChart from './RadarChart.vue'
 import RulesText from './RulesText.vue'
 import StatIcon from './StatIcon.vue'
@@ -25,10 +26,22 @@ const radar = computed(() =>
     : [],
 )
 const summary = computed(() => `stats compared with every frame: ${radar.value.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`)
+
+// Something made by a manufacturer takes its colour for the border and the name (lilac otherwise). The
+// manufacturers are only fetched once something with one is first shown.
+const manufacturers = shallowRef<Manufacturer[]>([])
+let asked = false
+watch(shownInfo, (info) => {
+  if (info?.source && !asked) {
+    asked = true
+    loadManufacturers().then((list) => (manufacturers.value = list))
+  }
+})
+const accent = computed(() => makerColour(manufacturers.value.find((maker) => maker.id === shownInfo.value?.source)))
 </script>
 
 <template>
-  <dialog ref="dialog" class="dialog info" :aria-label="shownInfo ? `${shownInfo.kind}: ${shownInfo.name}` : 'full information'" @close="closed" @click.self="dialog?.close()">
+  <dialog ref="dialog" class="dialog info" :style="{ '--accent': accent }" :aria-label="shownInfo ? `${shownInfo.kind}: ${shownInfo.name}` : 'full information'" @close="closed" @click.self="dialog?.close()">
     <!-- The parts fill the dialog, so a click on the dialog itself is a click on the backdrop. -->
     <header v-if="shownInfo" class="dialog-head">
       <p class="kind">{{ shownInfo.kind }}</p>
@@ -83,6 +96,7 @@ const summary = computed(() => `stats compared with every frame: ${radar.value.m
 /* The dialog frame is style.css's .dialog, wider here for the radar and cards. */
 .info {
   width: min(60rem, calc(100vw - 2rem));
+  border-color: var(--accent);
 }
 
 .info-body {
@@ -105,7 +119,7 @@ const summary = computed(() => `stats compared with every frame: ${radar.value.m
 
 h3 {
   margin: 0;
-  color: var(--lilac);
+  color: var(--accent);
   font-size: 2rem;
   line-height: 1.2;
 }

@@ -203,7 +203,7 @@ const tab = computed({
   set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
 })
 
-// The tabs stick just under the summary strip, so they need its height (it changes with the next-step line).
+// The tabs stick just under the summary strip, so they need its height (it changes with the next-step bar).
 const glance = useTemplateRef<HTMLElement>('glance')
 const glanceHeight = ref(0)
 const glanceObserver = new ResizeObserver(([entry]) => (glanceHeight.value = entry.borderBoxSize[0].blockSize))
@@ -314,20 +314,22 @@ async function createMech() {
             @change="saveText('callsign', $event)"
           />
           <h1 v-else class="callsign">{{ character.callsign ?? character.pilot_name }}</h1>
-          <input
-            v-if="editable"
-            class="inline name"
-            type="text"
-            aria-label="name"
-            placeholder="name"
-            :value="character.pilot_name"
-            @change="saveText('pilot_name', $event)"
-          />
-          <p v-else class="name">{{ character.pilot_name }}</p>
-          <p v-if="own" class="save-status" role="status">
-            <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-            <span v-else-if="status" class="dim">{{ status }}</span>
-          </p>
+          <div class="name-line">
+            <input
+              v-if="editable"
+              class="inline name"
+              type="text"
+              aria-label="name"
+              placeholder="name"
+              :value="character.pilot_name"
+              @change="saveText('pilot_name', $event)"
+            />
+            <p v-else class="name">{{ character.pilot_name }}</p>
+            <p v-if="own" class="save-status" role="status">
+              <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
+              <span v-else-if="status" class="dim">{{ status }}</span>
+            </p>
+          </div>
         </div>
         <div class="glance-side">
           <dl class="glance-facts">
@@ -356,46 +358,58 @@ async function createMech() {
           </RouterLink>
         </div>
 
-        <!-- What happens next, and the action that does it. -->
+        <!-- What happens next: a sentence, and the action that does it (secondary first, the primary last). -->
         <div v-if="own && character.status === 'pending'" class="next">
           <template v-if="reviewNote">
-            <p class="rose">sent back by a gm: change what they asked (note below), then resubmit.</p>
-            <button type="button" class="primary small" @click="track(resubmit())">resubmit for review</button>
+            <p><span class="rose">sent back by a gm.</span> change what they asked (note below), then resubmit.</p>
+            <div class="next-actions">
+              <button type="button" class="primary small" @click="track(resubmit())">resubmit for review</button>
+            </div>
           </template>
           <p v-else class="dim">waiting on a gm. you can keep editing.</p>
         </div>
         <div v-else-if="approvedOwn" class="next">
           <template v-if="!draft">
-            <p v-if="change?.status === 'rejected'" class="rose">a gm rejected your last change (reason below). propose a new change when you're ready.</p>
-            <p v-else class="dim">approved. to change your pilot, propose changes for a gm to review.</p>
-            <button type="button" class="primary small" @click="track(proposeChange())">propose changes</button>
+            <p v-if="change?.status === 'rejected'"><span class="rose">your last change was rejected</span> (reason below).</p>
+            <p v-else class="dim">approved. changes go to a gm for review.</p>
+            <div class="next-actions">
+              <button type="button" class="primary small" @click="track(proposeChange())">propose changes</button>
+            </div>
           </template>
           <template v-else-if="!draft.submitted_at">
-            <p>proposing changes. edit the sheet as normal, then submit it. your approved pilot stays as it is until a gm approves.</p>
-            <button type="button" class="primary small" @click="track(submitChange())">submit for review</button>
-            <button type="button" class="small danger" @click="withdraw">withdraw</button>
+            <p>drafting a change. your approved pilot stays as it is until a gm approves.</p>
+            <div class="next-actions">
+              <button type="button" class="small danger" @click="withdraw">withdraw</button>
+              <button type="button" class="primary small" @click="track(submitChange())">submit for review</button>
+            </div>
           </template>
           <template v-else>
-            <p>change submitted, waiting on a gm. the sheet shows what you submitted.</p>
-            <button type="button" class="small" @click="track(reopenChange())">edit change</button>
-            <button type="button" class="small danger" @click="withdraw">withdraw</button>
+            <p>change submitted, waiting on a gm. the sheet shows what you sent.</p>
+            <div class="next-actions">
+              <button type="button" class="small" @click="track(reopenChange())">edit change</button>
+              <button type="button" class="small danger" @click="withdraw">withdraw</button>
+            </div>
           </template>
         </div>
-        <p v-else-if="character.status === 'dead'" class="next dim">this pilot is dead. the record is kept, read-only.</p>
+        <div v-else-if="character.status === 'dead'" class="next">
+          <p class="dim">this pilot is dead. the record is kept, read-only.</p>
+        </div>
       </header>
 
       <!-- Long notes sit under the strip, so the sticky part stays short. -->
       <div v-if="own && reviewNote && character.status === 'pending'" class="notice warn" role="note">
-        <p class="rose">note from the gm</p>
+        <div class="notice-head"><p class="rose">note from the gm</p></div>
         <p class="note-text">{{ reviewNote }}</p>
       </div>
       <div v-else-if="own && reviewNote && character.status === 'approved'" class="notice" role="note">
-        <p class="lilac">note from the gm</p>
+        <div class="notice-head">
+          <p class="lilac">note from the gm</p>
+          <button type="button" class="small quiet" :disabled="status === 'saving...'" @click="track(dismissApprovalNote())">clear note</button>
+        </div>
         <p class="note-text">{{ reviewNote }}</p>
-        <div><button type="button" class="small" :disabled="status === 'saving...'" @click="track(dismissApprovalNote())">clear note</button></div>
       </div>
       <div v-if="approvedOwn && !draft && change?.status === 'rejected'" class="notice warn" role="note">
-        <p class="rose">a gm rejected your last change.</p>
+        <div class="notice-head"><p class="rose">a gm rejected your last change.</p></div>
         <p class="note-text">{{ change.review_reason }}</p>
       </div>
       <RuleCheck v-if="canSeePrivate" :problems="problems" />
@@ -603,13 +617,17 @@ p.small {
   align-items: center;
   overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
   gap: 0.5rem 2.5rem;
-  padding-block: 0.9rem;
+  /* The next-step bar's negative margins read these, to sit flush with the bottom and side edges. */
+  --pad-y: 0.9rem;
+  --pad-x: 1.25rem;
+  padding: var(--pad-y) var(--pad-x);
 }
 
 .names {
   display: flex;
   flex: 1 1 18rem;
   flex-direction: column;
+  align-items: flex-start; /* don't stretch the fields: they size to their text */
   min-width: 0;
 }
 
@@ -633,6 +651,12 @@ p.small {
   border-color: transparent;
   border-bottom-color: var(--rule);
   background: none;
+  /* Hug the text, so the save status sits right after it. shortcut: Firefox has no field-sizing and keeps its
+     default ~20ch width; fine until Firefox ships it. */
+  width: auto;
+  min-width: 8ch;
+  max-width: 100%;
+  field-sizing: content;
 }
 
 .inline:hover {
@@ -680,28 +704,49 @@ p.small {
   color: var(--lilac);
 }
 
+/* The name, then the save status on the same line. The field sizes to its text and the status follows it; a long
+   error wraps inside its own box. */
+.name-line {
+  display: flex;
+  align-self: stretch; /* the column's width, so a long name shrinks its field instead of overflowing */
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.75rem;
+}
+
 .save-status {
-  min-height: 1.25rem;
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0;
   font-size: 0.8125rem;
 }
 
+/* The next-step bar: a band flush with the panel's bottom and sides, the sentence left, the buttons pinned right. */
 .next {
   display: flex;
-  flex-basis: 100%;
-  flex-wrap: wrap;
+  flex-basis: calc(100% + 2 * var(--pad-x)); /* the full row plus the side padding it reaches into */
+  align-self: stretch;
   align-items: center;
   gap: 0.5rem 1rem;
-  max-width: none;
-  margin: 0;
-  padding-top: 0.6rem;
+  min-height: calc(3rem + 1px); /* a small button plus padding and border: steady across states */
+  margin: 0.35rem calc(-1 * var(--pad-x)) calc(-1 * var(--pad-y));
+  padding: 0.5rem var(--pad-x);
   border-top: 1px solid var(--rule);
+  background: var(--void);
   font-size: 0.875rem;
 }
 
 .next p {
-  flex: 1 1 20rem;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none; /* not capped like body paragraphs, so the buttons reach the right edge */
   margin: 0;
+}
+
+.next-actions {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
 }
 
 .note-text {
@@ -737,7 +782,7 @@ p.small {
 /* Shorter screens (laptops at 768 or 720 tall): a tighter strip, so the stuck stack stays about a third of the screen. */
 @media (min-width: 48rem) and (min-height: 40rem) and (max-height: 52rem) {
   .glance {
-    padding-block: 0.5rem;
+    --pad-y: 0.5rem;
   }
 
   .callsign {
@@ -745,7 +790,9 @@ p.small {
   }
 
   .next {
-    padding-top: 0.4rem;
+    min-height: calc(2.5rem + 1px);
+    margin-top: 0.15rem;
+    padding-block: 0.25rem;
   }
 
   .tabs {
@@ -941,6 +988,13 @@ p.small {
   }
 }
 
+/* Small phones: .panel's own padding narrows here (style.css), so the strip's does too. */
+@media (max-width: 40rem) {
+  .glance {
+    --pad-x: 1rem;
+  }
+}
+
 /* --- Phones: the strip stacked and centred --- */
 @media (max-width: 48rem) {
   .crumbs ol {
@@ -972,13 +1026,28 @@ p.small {
     justify-content: center;
   }
 
-  .next {
+  .name-line {
     justify-content: center;
+  }
+
+  /* Its own line on phones, so the centred field stays centred; reserved, so the first save doesn't grow the strip. */
+  .save-status {
+    flex-basis: 100%;
+    min-height: 1lh;
+  }
+
+  .next {
+    flex-direction: column;
     text-align: center;
   }
 
   .next p {
-    flex-basis: 100%;
+    flex: none;
+  }
+
+  .next-actions {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 </style>
