@@ -143,7 +143,7 @@ const isPlainColour = () => !COLOURS.some((colour) => is('textStyle', { color: c
   padding: 0.75rem;
   border: 1px solid var(--rule);
   background: var(--void);
-  font: 400 1.0625rem/1.55 var(--read);
+  font: 400 1.0625rem/1.55 var(--sans);
 }
 
 .editor :deep(.ProseMirror:focus) {

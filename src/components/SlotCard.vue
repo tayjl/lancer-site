@@ -1,77 +1,30 @@
 <script setup lang="ts">
-// One loadout card (pilot loadout, mech mounts and systems): a header bar with the slot's name and its
-// buttons ("tools" slot), then what's in it, or "// empty //" centred when "empty". Goes in a .slot-grid.
-defineProps<{ title: string; empty?: boolean }>()
+// One place in a loadout (a pilot slot, a mech mount, a system): its name, if it has one, as a small uppercase label
+// above; then its card (ItemDetails), or, with "empty", the dashed empty state with that sentence and the "action"
+// slot's button ("Empty. Takes one Main or two Auxiliary weapons." [Equip weapon]). Goes in a .slot-grid.
+defineProps<{ label?: string; empty?: string }>()
 </script>
 
 <template>
   <li class="slot">
-    <header class="slot-head">
-      <h3><slot name="title">{{ title }}</slot></h3>
-      <span class="tools"><slot name="tools" /></span>
-    </header>
-    <p v-if="empty" class="vacant">// empty //</p>
-    <div v-else class="slot-body"><slot /></div>
+    <p v-if="label" class="label">{{ label }}</p>
+    <div v-if="empty" class="empty">
+      <p>{{ empty }}</p>
+      <slot name="action" />
+    </div>
+    <slot v-else />
   </li>
 </template>
 
 <style scoped>
 .slot {
-  display: flex;
-  flex-direction: column;
-  min-height: 9rem;
-  border: 1px solid var(--rule);
-  background: var(--void); /* reads as a card inside a .panel */
-}
-
-.slot-head {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.25rem 0.6rem;
-  border-left: 3px solid var(--lilac);
-  background: var(--raised);
-}
-
-.slot-head h3 {
-  margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-
-.tools {
-  display: flex;
-  gap: 0.75rem;
-  margin-left: auto;
-}
-
-.tools :slotted(button) {
-  min-height: 0;
-  padding: 0.1rem 0.25rem;
-  border-color: transparent;
-  font-size: 0.875rem;
-}
-
-.tools :slotted(button:hover:not(:disabled)) {
-  text-decoration: underline;
-}
-
-.slot-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem 0.75rem;
-}
-
-/* Centred in the space under the header. "max-width: none" undoes the 70ch cap on paragraphs (style.css),
-   which left it off centre in wide slots. */
-.vacant {
   display: grid;
-  flex: 1;
-  place-items: center;
-  max-width: none;
+  align-content: start;
+  gap: var(--space-xs);
+}
+
+.label,
+.empty p {
   margin: 0;
-  color: var(--text-dim);
-  font-size: 0.875rem;
 }
 </style>

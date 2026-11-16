@@ -41,6 +41,7 @@ const labels = computed(() =>
 </template>
 
 <style scoped>
+/* Neutral: the rings in the divider grey, the shape in white with a faint fill, the labels in secondary text. */
 .radar {
   display: block;
   width: 100%;
@@ -56,19 +57,21 @@ const labels = computed(() =>
 }
 
 .shape {
-  fill: var(--lilac);
-  fill-opacity: 0.3;
-  stroke: var(--lilac);
+  fill: var(--text);
+  fill-opacity: 0.12;
+  stroke: var(--text);
   stroke-width: 2;
   stroke-linejoin: round;
 }
 
 .dot {
-  fill: var(--lilac);
+  fill: var(--text);
 }
 
 .label {
-  fill: var(--lilac);
-  font: 400 13px var(--mono);
+  fill: var(--text-dim);
+  font: 700 14px var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 </style>

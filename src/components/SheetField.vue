@@ -44,7 +44,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="field">
     <h2 class="sheet-label">
-      {{ title }}<span v-if="tag" class="tag">{{ ' ' + tag }}</span>
+      {{ title }}<span v-if="tag" class="private">{{ tag }}</span>
       <span class="status" role="status">{{ status }}</span>
       <span v-if="error" class="status rose" role="alert">not saved: {{ error }}</span>
     </h2>

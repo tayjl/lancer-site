@@ -9,7 +9,7 @@ import Portrait from '../components/Portrait.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import InfoButton from '../components/InfoButton.vue'
 import RulesText from '../components/RulesText.vue'
-import StatIcon from '../components/StatIcon.vue'
+import Icon from '../components/Icon.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { frameInfo } from '../info'
 import SheetField from '../components/SheetField.vue'
@@ -214,7 +214,7 @@ async function scrap() {
     <div v-else class="sheet" :style="{ '--glance-h': `${glanceHeight}px` }">
       <!-- The summary strip: a registration plate in the manufacturer's colour. Sticks under the top bar on wide screens. -->
       <header ref="glance" class="glance">
-        <StatIcon v-if="logo" :src="logo" class="plate-logo" />
+        <Icon v-if="logo" :src="logo" class="plate-logo" />
         <span v-else-if="baseFrame?.source" class="plate-code">{{ baseFrame.source }}</span>
         <div class="names">
           <!-- While editable the name is a field, so the page's heading is for screen readers only. -->
@@ -284,14 +284,14 @@ async function scrap() {
         <!-- Right on wide screens; first on phones. -->
         <aside class="side panel">
           <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
-            <StatIcon v-if="logo" :src="logo" class="portrait-logo" />
+            <Icon v-if="logo" :src="logo" class="portrait-logo" />
           </Portrait>
           <p v-if="own" class="dim note">image upload: module offline</p>
         </aside>
 
         <div class="writing">
           <SheetField class="panel" title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-          <SheetField v-if="canSeePrivate" class="panel" title="history" tag="private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+          <SheetField v-if="canSeePrivate" class="panel" title="history" tag="Private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
           <section v-if="editable" class="panel danger-zone">
             <h2 class="sheet-label">danger zone</h2>
             <div class="danger-body">
@@ -305,9 +305,9 @@ async function scrap() {
 
       <template v-if="canSeePrivate">
         <div v-show="tab === 'stats'" class="tab-panel">
-          <StatRow class="panel" title="mech stats" tag="private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <StatRow class="panel" title="mech stats" tag="Private" :stats="stats" :editable="false" :min="0" :max="0" />
           <section v-if="frame" class="panel readout">
-            <h2 class="sheet-label">resources<span class="tag"> private</span></h2>
+            <h2 class="sheet-label">resources<span class="private">Private</span></h2>
             <dl>
               <div><dt>ai capacity</dt><dd>{{ resources.aiCap }}</dd></div>
               <div v-if="resources.limited"><dt>limited items</dt><dd>{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }} uses</dd></div>
@@ -317,7 +317,7 @@ async function scrap() {
             <p v-for="(check, index) in resources.checks" :key="index"><strong>{{ check.source }}:</strong> {{ check.text }}</p>
           </section>
           <section v-if="frame && effects.reminders.length" class="panel effect-reminders">
-            <h2 class="sheet-label">other effects and conditions<span class="tag"> private</span></h2>
+            <h2 class="sheet-label">other effects and conditions<span class="private">Private</span></h2>
             <p class="dim note">Only modifiers listed under stat sources are included automatically. Conditional effects, unsupported bonuses and other rules below need player or GM interpretation.</p>
             <ul>
               <li v-for="(reminder, index) in effects.reminders" :key="index">
@@ -380,24 +380,6 @@ async function scrap() {
 /* --- The manufacturer's look: --maker (set on the page) colours the labels and cards below. Tinted, not filled,
    so it stays calm; the content's own colours (tags, combat rules) keep their meaning. --- */
 .sheet :deep(.sheet-label) {
-  color: var(--maker);
-}
-
-.sheet :deep(.stat-row ul),
-.sheet :deep(.slot) {
-  border-color: color-mix(in srgb, var(--maker) 35%, var(--rule));
-}
-
-.sheet :deep(.slot) {
-  border-top: 3px solid var(--maker);
-}
-
-.sheet :deep(.slot-head) {
-  border-left: 0;
-  background: color-mix(in srgb, var(--maker) 14%, var(--panel));
-}
-
-.sheet :deep(.slot-head h3) {
   color: var(--maker);
 }
 

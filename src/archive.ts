@@ -103,7 +103,7 @@ export const makerColour = (maker?: Manufacturer) =>
   maker?.colour && /^#[0-9a-f]{3,8}$/i.test(maker.colour) ? maker.colour : 'var(--lilac)'
 
 // Massif's manufacturer logos (from COMP/CON, GPL-3.0; cleaned down to their shapes), by the packs' "logo" name.
-// Single-colour shapes, drawn in the manufacturer's colour with StatIcon.vue. Homebrew manufacturers have none.
+// Single-colour shapes, drawn in the manufacturer's colour with Icon.vue. Homebrew manufacturers have none.
 const LOGOS = import.meta.glob('./assets/logos/*.svg', { eager: true, import: 'default' }) as Record<string, string>
 export const makerLogo = (maker?: Manufacturer) => (maker?.logo ? LOGOS[`./assets/logos/${maker.logo}.svg`] : undefined) ?? null
 

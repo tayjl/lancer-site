@@ -5,7 +5,7 @@ import InfoButton from '../components/InfoButton.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
-import StatIcon from '../components/StatIcon.vue'
+import Icon from '../components/Icon.vue'
 import {
   ARCHIVE_CATEGORIES, MAKER_CATEGORIES, archiveEntries, archiveGroups, filterByMakers, makerColour, makerLogo, parseItem, parseMakers,
   searchArchive, useManufacturers, type ArchiveCategory, type ArchiveEntry, type ArchiveGroup,
@@ -71,7 +71,7 @@ const bar = useTemplateRef<HTMLElement>('bar')
 // Sideways only (never scrolls the page). Offsets are from .cat-bar, which is positioned (sticky).
 const showCurrent = () => {
   const nav = bar.value?.querySelector('nav')
-  const current = nav?.querySelector<HTMLElement>('.current')
+  const current = nav?.querySelector<HTMLElement>('[aria-current="true"]')
   if (nav && current) nav.scrollLeft = current.offsetLeft - (nav.clientWidth - current.offsetWidth) / 2
 }
 onMounted(showCurrent)
@@ -220,13 +220,13 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
         v-for="maker in makerChips"
         :key="maker.id"
         type="button"
-        class="chip"
+        class="maker-chip"
         :class="{ chosen: chosenMakers.includes(maker.id) }"
         :style="{ '--maker': makerColour(maker) }"
         :aria-pressed="chosenMakers.includes(maker.id)"
         @click="toggleMaker(maker.id)"
       >
-        <StatIcon v-if="makerLogo(maker)" :src="makerLogo(maker)!" />{{ maker.id }}
+        <Icon v-if="makerLogo(maker)" :src="makerLogo(maker)!" />{{ maker.id }}
       </button>
     </div>
 
@@ -235,7 +235,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
       <ul v-if="manufacturers.length" class="makers">
         <li v-for="maker in manufacturers" :key="maker.id" class="maker" :style="{ '--maker': makerColour(maker) }">
           <header class="maker-head">
-            <StatIcon v-if="makerLogo(maker)" :src="makerLogo(maker)!" class="maker-logo" />
+            <Icon v-if="makerLogo(maker)" :src="makerLogo(maker)!" class="maker-logo" />
             <InfoButton class="maker-id" :info="() => manufacturerInfo(maker, frames)" :label="maker.name" @click="open('manufacturers', maker.id)">{{ maker.id }}</InfoButton>
             <span v-if="subtitle(maker)" class="maker-name" :class="{ glitch: GLITCHED.has(maker.id) }">{{ subtitle(maker) }}</span>
           </header>
@@ -256,7 +256,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
         <h2 v-if="block.name" class="sheet-label">{{ block.name }}<span class="tag">{{ ` ${block.count}` }}</span></h2>
         <section v-for="group in block.groups" :key="group.key" class="band" :style="{ '--maker': group.colour }">
           <header v-if="group.title" class="band-head">
-            <StatIcon v-if="group.logo" :src="group.logo" class="band-logo" />
+            <Icon v-if="group.logo" :src="group.logo" class="band-logo" />
             <h3 class="band-title">{{ group.title }}</h3>
             <span class="band-count">{{ group.entries.length }}</span>
           </header>
@@ -281,7 +281,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
                     <span v-if="fact.tag" class="rank-tag">{{ fact.tag }}</span>
                     {{ fact.text }}
                     <span v-for="stat in fact.stats" :key="stat.label" class="stat" :title="stat.label">
-                      <StatIcon v-if="stat.icon" :src="stat.icon" />
+                      <Icon v-if="stat.icon" :src="stat.icon" />
                       <span :class="{ 'sr-only': !fact.named }">{{ stat.label }}</span>
                       {{ stat.value }}
                     </span>
@@ -334,53 +334,14 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
   font-size: 1rem;
 }
 
-/* The categories: sticky under the top bar (0 on phones, where the bar scrolls away), with the page's background so
-   rows don't show through. One row: it scrolls sideways when it doesn't fit. */
+/* The categories (SheetTabs, one row that scrolls sideways): sticky under the top bar, with the page's background so
+   rows don't show through. */
 .cat-bar {
   position: sticky;
   top: var(--topbar-h);
   z-index: 2;
   margin-block: calc(-1 * var(--space-s));
   background: var(--void);
-}
-
-.cat-bar :deep(.sheet-tabs) {
-  flex-wrap: nowrap;
-  justify-content: safe center;
-  overflow-x: auto;
-  padding-top: 0.5rem;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rule) transparent;
-}
-
-/* Touch screens swipe the row, so no scrollbar (it looked like a line under the chosen option). With a mouse it
-   stays thin, a little below the options so it doesn't read as an underline. */
-@media (pointer: coarse) {
-  .cat-bar :deep(.sheet-tabs) {
-    scrollbar-width: none;
-  }
-
-  .cat-bar :deep(.sheet-tabs)::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-@media (pointer: fine) {
-  .cat-bar :deep(.sheet-tabs button) {
-    margin-bottom: 0.3rem;
-  }
-}
-
-.cat-bar :deep(.sheet-tabs button) {
-  flex: none;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-@media (min-width: 40rem) {
-  .cat-bar :deep(.sheet-tabs) {
-    gap: 0.9rem;
-  }
 }
 
 /* The manufacturer filter: quiet chips, a chosen one tinted in its colour. */
@@ -391,7 +352,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
   gap: var(--space-s);
 }
 
-.chip {
+.maker-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -402,13 +363,13 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
   font-size: 0.875rem;
 }
 
-.chip:hover,
-.chip:focus-visible {
+.maker-chip:hover,
+.maker-chip:focus-visible {
   border-color: var(--maker);
   color: var(--text);
 }
 
-.chip.chosen {
+.maker-chip.chosen {
   border-color: var(--maker);
   background: color-mix(in srgb, var(--maker) 22%, transparent);
   color: var(--maker);
@@ -659,7 +620,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
   color: var(--text);
 }
 
-.stat .stat-icon {
+.stat .icon {
   color: var(--lilac);
 }
 

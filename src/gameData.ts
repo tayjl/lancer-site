@@ -5,6 +5,15 @@ import hpIcon from './assets/icons/hp.svg'
 import armourIcon from './assets/icons/armour.svg'
 import speedIcon from './assets/icons/speed.svg'
 import eDefIcon from './assets/icons/e_def.svg'
+import physicalityIcon from './assets/icons/physicality.svg'
+import dexterityIcon from './assets/icons/dexterity.svg'
+import perceptionIcon from './assets/icons/perception.svg'
+import acuityIcon from './assets/icons/acuity.svg'
+import techFluencyIcon from './assets/icons/techfluency.svg'
+import hullIcon from './assets/icons/hull.svg'
+import agilityIcon from './assets/icons/agility.svg'
+import systemsIcon from './assets/icons/systems.svg'
+import engineeringIcon from './assets/icons/engineering.svg'
 import { averageDamageText } from './damage'
 import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
 
@@ -139,13 +148,19 @@ export const MECH_SKILLS: PilotStat[] = [
   { id: 'engineering', name: 'engineering' },
 ]
 
+// Symbols for the personal stats (by their pilot_stats ids) and HASE. A personal stat an owner adds later has none.
+export const STAT_ICONS: Record<string, string> = {
+  physicality: physicalityIcon, dexterity: dexterityIcon, perception: perceptionIcon, acuity: acuityIcon, tech_fluency: techFluencyIcon,
+  hull: hullIcon, agility: agilityIcon, systems: systemsIcon, engineering: engineeringIcon,
+}
+
 // A sheet's stats, ready for StatRow, with bionic bonuses on the personal stats. Personal stats (house
 // rule) start at 2 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
 export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[], extraBonuses: NamedBonus[] = []) {
   const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses)
   const bonusFor = (statId: string) => installed.reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
   const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[], start: number) =>
-    stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), value: sheet[key]?.[stat.id] ?? start }))
+    stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), icon: STAT_ICONS[stat.id], value: sheet[key]?.[stat.id] ?? start }))
   return {
     personal: values('pilot_stats', pilotStats, 2).map((stat) => {
       const entries = extraBonuses.filter(entry => entry.bonus.id === stat.id && permanentBonus(entry.bonus)).flatMap(entry => {
@@ -193,13 +208,15 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
   })
 }
 
-// Bionics as LoadoutBox items: the bonuses and manna price as the subtitle, the mod-point cost as the cost.
+// Bionics as LoadoutBox items: the bonuses and manna price as the subtitle (and the bonuses as stats with symbols, for
+// the cards), the mod-point cost as the cost.
 // Every biomod costs the same (homebrew; PRICES in src/rules.ts), so the bionics table's own manna_cost is unused.
 export const bionicItems = (catalogue: Bionic[], price: number) =>
   catalogue.map((b) => ({
     id: b.id,
     name: b.name,
     type: [...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${price} manna`].join(', '),
+    stats: b.bonuses.map((bonus) => ({ label: bonus.stat_id.replace('_', '-'), value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}`, icon: STAT_ICONS[bonus.stat_id] })),
     description: b.description,
     cost: b.mod_point_cost,
     retired: b.retired,

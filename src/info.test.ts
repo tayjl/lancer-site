@@ -22,7 +22,8 @@ describe('full information', () => {
     expect(info.kind).toBe('main launcher weapon')
     expect(info.facts).toEqual([{ text: 'HORUS' }, { text: 'licence: HORUS Goblin I', tone: 'sky' }])
     expect(info.lore).toContain('antipersonnel weapon')
-    expect(headings(info, 'rules')).toEqual(['effect', 'Autonomous Assault (reaction, 1/round)'])
+    expect(headings(info, 'rules')).toEqual(['effect', 'Autonomous Assault'])
+    expect(info.groups[0].cards[1]).toMatchObject({ activation: 'Reaction', frequency: '1/round' })
     expect(info.groups[0].cards[1].html).toContain('<b>Trigger:</b>')
     expect(headings(info, 'tags')).toEqual(['seeking', 'unique'])
     expect(itemInfo(toItem('ms_turret_drones', data('ms_turret_drones'))).groups[1].cards.find(tag => tag.heading === 'limited 3')?.html).toContain('can only be used 3 times')
@@ -72,7 +73,7 @@ describe('full information', () => {
     expect(info.groups[0].cards[1].html).toContain('<b>Reactive Code (reaction, 1/round)</b>')
     const core = info.groups[1]
     expect(core.title).toBe('INSTINCT Rig')
-    expect(core.cards.map(card => card.heading)).toContain('Symbiosis (quick)')
+    expect(core.cards.find(card => card.heading === 'Symbiosis')?.activation).toBe('Quick')
   })
 
   it('shows every talent rank and core bonus text, with their summaries and lore', () => {
@@ -87,7 +88,8 @@ describe('full information', () => {
   it('shows bionic bonuses by stat name and escapes its plain text', () => {
     const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', manna_cost: 0, mod_point_cost: 2, retired: false, bonuses: [{ stat_id: 'perception', amount: 1 }] }
     const info = bionicInfo(bionic, new Map([['perception', 'perception']]), 500)
-    expect(info.stats).toEqual([{ label: 'perception', value: '+1' }])
+    expect(info.stats).toMatchObject([{ label: 'perception', value: '+1' }])
+    expect(info.stats[0].icon).toBeTruthy()
     expect(info.facts.map(fact => fact.text)).toEqual(['2 mod points', '500 manna'])
     expect(info.groups[0].cards[0].html).toBe('See &lt;far> &amp; wide')
   })

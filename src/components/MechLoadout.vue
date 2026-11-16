@@ -3,7 +3,7 @@ import { computed, ref, useTemplateRef } from 'vue'
 import { confirmAction } from '../confirm'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
-import { itemDetails, statLine } from '../itemDetails'
+import { itemDetails, itemFacts, statLine } from '../itemDetails'
 import { itemInfo } from '../info'
 import { plainText } from '../rulesText'
 import { allowedSizes, mountSize, type Frame } from '../mechData'
@@ -12,6 +12,7 @@ import { bracingMount, isLicensed, licenceName, rankName, superheavyMount } from
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 import BuildItem from './BuildItem.vue'
+import Icon from './Icon.vue'
 
 // A mech's loadout, in the pilot loadout's card style: a card for each of the frame's mounts, holding the
 // weapons that fit it (one or two places, by LANCER's mount rules in src/mechData.ts), then the systems.
@@ -94,12 +95,12 @@ const withWeapon = (m: number, i: number, id: string | null) =>
   )
 
 async function unequip(m: number, i: number, id: string) {
-  if (await confirmAction(`remove ${find(weaponsById.value, id).name}?`, { confirmLabel: 'remove', danger: true }))
+  if (await confirmAction(`Remove ${find(weaponsById.value, id).name}?`, { confirmLabel: 'Remove', danger: true }))
     store({ mounts: withWeapon(m, i, null) })
 }
 
 async function uninstall(index: number) {
-  if (await confirmAction(`remove ${find(systemsById.value, props.installed[index]).name}?`, { confirmLabel: 'remove', danger: true }))
+  if (await confirmAction(`Remove ${find(systemsById.value, props.installed[index]).name}?`, { confirmLabel: 'Remove', danger: true }))
     store({ systems: props.installed.filter((_, k) => k !== index) })
 }
 
@@ -120,23 +121,21 @@ const options = computed(() => {
     const changes = t.kind === 'weapon' ? { mounts: withWeapon(t.m, t.i, item.id), weapon_options: { ...props.details.weapon_options, [`${t.m}:${t.i}`]: {} } } : { systems: [...props.installed, item.id] }
     const capacity = props.capacityFor(changes)
     const swapped = t.kind === 'weapon' && t.id ? find(weaponsById.value, t.id).sp : 0
-    if (!isLicensed(item, props.licences)) return `needs ${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}`
-    if (has('tg_unique') && onMech.includes(item.id)) return 'unique'
-    if (has('tg_ai') && aiCount >= capacity.ai) return `ai capacity ${capacity.ai}`
-    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !props.superheavyMounting && !canBrace(t.m)) return 'needs an empty mount'
-    if (spUsed.value - swapped + item.sp > capacity.sp) return 'not enough sp'
+    if (!isLicensed(item, props.licences)) return `Needs ${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}`
+    if (has('tg_unique') && onMech.includes(item.id)) return 'Unique: already on this mech'
+    if (has('tg_ai') && aiCount >= capacity.ai) return `AI capacity ${capacity.ai}`
+    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !props.superheavyMounting && !canBrace(t.m)) return 'Needs an empty mount to brace it'
+    if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough SP'
     return ''
   }
   // Licensed items first, then the rest (shown, so players can see what a licence would unlock).
   return list
     .map((item) => {
       const details = itemDetails(item, tagNames.value)
-      const kind = [item.mount, item.type].filter(Boolean).join(' ').toLowerCase()
-      const licence = item.licenceLevel > 0 ? `${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}` : 'gms'
       return {
         id: item.id,
         name: item.name,
-        meta: [kind, statLine(details), licence].filter(Boolean).join(': '),
+        meta: [...itemFacts(item), statLine(details)].filter(Boolean),
         text: plainText(details.text),
         info: () => itemInfo(item),
         blocked: blockedBy(item),
@@ -146,7 +145,7 @@ const options = computed(() => {
     .sort((a, b) => Number(b.licensed) - Number(a.licensed))
 })
 
-const pickerTitle = computed(() => (target.value?.kind === 'weapon' ? `choose ${target.value.label}` : 'install a system'))
+const pickerTitle = computed(() => (target.value?.kind === 'weapon' ? `Choose ${target.value.label}` : 'Add a system'))
 
 function openWeapon(m: number, i: number, id: string | null, allowed: string[]) {
   target.value = { kind: 'weapon', m, i, id, allowed, label: placeLabel(allowed) }
@@ -163,7 +162,7 @@ function openSystem() {
 async function choose(id: string) {
   if (!props.editable || saving.value) return
   const offered = options.value.find(option => option.id === id)
-  if (!offered || offered.blocked) { error.value = offered?.blocked ?? 'item unavailable'; return }
+  if (!offered || offered.blocked) { error.value = offered?.blocked ?? 'Item unavailable'; return }
   const t = target.value!
   const saved = t.kind === 'weapon' ? await store({ mounts: withWeapon(t.m, t.i, id), weapon_options: { ...props.details.weapon_options, [`${t.m}:${t.i}`]: {} } }) : await store({ systems: [...props.installed, id] })
   if (saved) picker.value?.close()
@@ -171,6 +170,21 @@ async function choose(id: string) {
 
 // "main or auxiliary weapon"; a Heavy mount takes any size, so it just says so.
 const placeLabel = (allowed: string[]) => (allowed.length >= 4 ? 'any weapon' : `${allowed.join(' or ').toLowerCase()} weapon`)
+// What an empty mount takes, in its empty state; one not listed says what its first place takes.
+const MOUNT_HINTS: Record<string, string> = {
+  Main: 'Takes one Main or Auxiliary weapon.',
+  Heavy: 'Takes one weapon of any size.',
+  Flex: 'Takes one Main or two Auxiliary weapons.',
+  'Main/Aux': 'Takes one Main and one Auxiliary weapon.',
+  'Aux/Aux': 'Takes two Auxiliary weapons.',
+}
+const placeHint = (allowed: string[]) => `Empty. Takes ${allowed.length >= 4 ? 'a weapon of any size' : `one ${allowed.join(' or ')} weapon`}.`
+const mountHint = (mount: string, allowed: string[]) => (MOUNT_HINTS[mount] ? `Empty. ${MOUNT_HINTS[mount]}` : placeHint(allowed))
+// The system points meter: how full, and what's left.
+const spNote = computed(() => {
+  const left = (props.spTotal ?? 0) - spUsed.value
+  return left < 0 ? `${-left} over` : left === 0 ? 'All used.' : `${left} left`
+})
 const coreChoices = [
   { id: 'cb_mount_retrofitting', name: 'Mount Retrofitting' },
   { id: 'cb_auto_stabilizing_hardpoints', name: 'Auto-Stabilizing Hardpoints' },
@@ -192,71 +206,98 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 
 <template>
   <div class="mech-loadout">
-    <p v-if="frame && spTotal != null" class="sp" :class="{ rose: spUsed > spTotal }">[ system points {{ spUsed }} / {{ spTotal }} ]</p>
+    <section v-if="frame && spTotal != null" class="panel">
+      <div class="meter" :class="{ full: spUsed === spTotal, over: spUsed > spTotal }">
+        <div class="meter-head">
+          <span class="label">System points</span>
+          <span class="meter-value num">{{ spUsed }} / {{ spTotal }}</span>
+        </div>
+        <div class="meter-bar"><span :style="{ '--fill': `${spTotal ? Math.min(100, (spUsed / spTotal) * 100) : 100}%` }"></span></div>
+        <div class="meter-note">{{ spNote }}</div>
+      </div>
+    </section>
     <section v-if="frame && coreChoices.some(choice => sheet.core_bonuses?.includes(choice.id))" class="panel">
-      <h2 class="sheet-label">core bonus assignments<span class="tag"> private</span></h2>
+      <h2 class="sheet-label">Core bonus assignments<span class="private">Private</span></h2>
       <div v-for="choice in coreChoices.filter(choice => sheet.core_bonuses?.includes(choice.id))" :key="choice.id" class="core-choice">
         <label :for="choice.id">{{ choice.name }}</label>
         <select :id="choice.id" :value="details.core_mounts?.[choice.id] ?? -1" :disabled="!editable || saving" @change="setCore(choice.id, $event)">
-          <option :value="-1" disabled>choose target</option>
+          <option :value="-1" disabled>Choose target</option>
           <option v-for="target in targets(choice.id)" :key="target.value" :value="target.value">{{ target.name }}</option>
         </select>
       </div>
     </section>
-    <p v-if="orphaned.length" class="rose note">unfitted weapons: {{ orphaned.map(id => find(weaponsById, id).name).join(', ') }}.
-      <button v-if="editable" type="button" class="small" :disabled="saving" @click="clearOrphans">clear unfitted mounts</button>
-    </p>
+    <div v-if="orphaned.length" class="notice warn">
+      <div class="notice-head">
+        <p>Unfitted weapons: {{ orphaned.map(id => find(weaponsById, id).name).join(', ') }}.</p>
+        <button v-if="editable" type="button" class="small" :disabled="saving" @click="clearOrphans">Clear unfitted mounts</button>
+      </div>
+    </div>
     <section class="panel">
-      <h2 class="sheet-label">weapon mounts<span class="tag"> private</span></h2>
-      <p v-if="!frame" class="dim note">choose a frame (in the strip above) to fit its mounts.</p>
+      <h2 class="sheet-label">Weapon mounts<span class="private">Private</span></h2>
+      <p v-if="!frame" class="empty">Choose a frame (in the strip above) to fit its mounts.</p>
       <ul v-else class="slot-grid">
-        <SlotCard v-for="weapon in builtInWeapons" :key="weapon.id" title="integrated mount">
-          <BuildItem :item="weapon" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${weapon.id}`" :editable="editable" :save="save" />
+        <SlotCard v-for="weapon in builtInWeapons" :key="weapon.id" label="Integrated mount">
+          <BuildItem :item="weapon" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${weapon.id}`" :editable="editable" :save="save" integrated />
         </SlotCard>
-        <SlotCard v-for="card in mountCards" :key="card.m" :title="`${card.mount.toLowerCase()} mount`">
-          <p v-if="card.bracing" class="vacant">// bracing the superheavy weapon //</p>
-          <div v-for="place in card.places" :key="place.index" class="place">
-            <div class="place-head">
-              <span class="dim">{{ placeLabel(place.allowed) }}</span>
-              <span v-if="editable" class="place-tools">
-                <button type="button" class="quiet" :disabled="saving" @click="openWeapon(card.m, place.index, place.id, place.allowed)">
-                  {{ place.id ? 'swap' : 'equip' }}
-                </button>
-                <button v-if="place.id" type="button" class="quiet rose" :disabled="saving" @click="unequip(card.m, place.index, place.id)">
-                  remove
-                </button>
-              </span>
-            </div>
-            <BuildItem v-if="place.id" :item="find(weaponsById, place.id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`${card.m}:${place.index}`" :location="{ mount: card.m, position: place.index, integrated: card.mount === 'Integrated Auxiliary' }" :editable="editable" :save="save" />
-            <p v-else class="vacant">// empty //</p>
+        <SlotCard
+          v-for="card in mountCards"
+          :key="card.m"
+          :label="`${card.mount} mount`"
+          :empty="card.bracing ? 'Bracing the Superheavy weapon.' : card.places.every((place) => !place.id) ? mountHint(card.mount, card.places[0]?.allowed ?? []) : ''"
+        >
+          <template v-if="editable && !card.bracing && card.places[0]" #action>
+            <button type="button" class="small" :disabled="saving" @click="openWeapon(card.m, 0, null, card.places[0].allowed)">Equip weapon</button>
+          </template>
+          <div class="places">
+            <template v-for="place in card.places" :key="place.index">
+              <BuildItem
+                v-if="place.id"
+                :item="find(weaponsById, place.id)"
+                :sheet="sheet"
+                :details="details"
+                :bonuses="bonuses"
+                :item-key="`${card.m}:${place.index}`"
+                :location="{ mount: card.m, position: place.index, integrated: card.mount === 'Integrated Auxiliary' }"
+                :editable="editable"
+                :save="save"
+              >
+                <template v-if="editable" #foot>
+                  <button type="button" class="small" :disabled="saving" @click="openWeapon(card.m, place.index, place.id, place.allowed)">Swap</button>
+                  <button type="button" class="small quiet" :disabled="saving" @click="unequip(card.m, place.index, place.id)">Remove</button>
+                </template>
+              </BuildItem>
+              <div v-else class="empty">
+                <p>{{ placeHint(place.allowed) }}</p>
+                <button v-if="editable" type="button" class="small" :disabled="saving" @click="openWeapon(card.m, place.index, null, place.allowed)">Equip weapon</button>
+              </div>
+            </template>
           </div>
         </SlotCard>
       </ul>
     </section>
 
     <section class="panel">
-      <h2 class="sheet-label">systems<span class="tag"> private</span></h2>
-      <p v-if="!frame" class="dim note">choose a frame (in the strip above) to see its system points.</p>
-      <ul v-else-if="installed.length || builtInSystems.length || editable" class="slot-grid">
-        <SlotCard v-for="system in builtInSystems" :key="system.id" title="integrated system">
-          <BuildItem :item="system" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${system.id}`" :editable="editable" :save="save" />
+      <header class="sheet-head systems-head">
+        <h2 class="sheet-label">Systems<span class="private">Private</span></h2>
+        <button v-if="frame && editable" type="button" class="small" :disabled="saving" @click="openSystem"><Icon name="plus" />Add system</button>
+      </header>
+      <p v-if="!frame" class="empty">Choose a frame (in the strip above) to see its system points.</p>
+      <ul v-else-if="installed.length || builtInSystems.length" class="slot-grid">
+        <SlotCard v-for="system in builtInSystems" :key="system.id" label="Integrated system">
+          <BuildItem :item="system" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${system.id}`" :editable="editable" :save="save" integrated />
         </SlotCard>
-        <SlotCard v-for="(id, index) in installed" :key="`${id}-${index}`" :title="find(systemsById, id).type.toLowerCase() || 'system'">
-          <template v-if="editable" #tools>
-            <button type="button" class="quiet rose" :disabled="saving" @click="uninstall(index)">remove</button>
-          </template>
-          <BuildItem :item="find(systemsById, id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="id" :editable="editable" :save="save" />
-        </SlotCard>
-        <SlotCard v-if="editable" title="new system" empty>
-          <template #tools>
-            <button type="button" class="quiet" :disabled="saving" @click="openSystem">install</button>
-          </template>
+        <SlotCard v-for="(id, index) in installed" :key="`${id}-${index}`">
+          <BuildItem :item="find(systemsById, id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="id" :editable="editable" :save="save">
+            <template v-if="editable" #foot>
+              <button type="button" class="small quiet" :disabled="saving" @click="uninstall(index)">Remove</button>
+            </template>
+          </BuildItem>
         </SlotCard>
       </ul>
-      <p v-else class="dim note">no systems installed.</p>
+      <p v-else class="empty">No systems installed.</p>
     </section>
 
-    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
 
     <ItemPicker
       ref="picker"
@@ -274,65 +315,41 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 .mech-loadout {
   display: flex;
   flex-direction: column;
-  gap: var(--space-m);
-  container-type: inline-size;
+  gap: var(--space-l);
 }
 
-.note {
-  margin: 0.6rem 0 0;
-  font-size: 0.8125rem;
-}
-.core-choice { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.75rem; font-size: 0.875rem; }
-.core-choice select { max-width: 100%; }
-
-/* System points used / total, for weapons and systems together: at the top of the tab, like StatRow's budgets. */
-.sp {
-  max-width: none;
-  margin: 0;
-  color: var(--sky);
-  font-size: 1.0625rem;
-  text-align: center;
-}
-
-.sp.rose {
-  color: var(--rose);
-}
-
-/* A place on a mount: what it takes and its buttons, then the weapon. Two places are split by a line. */
-.place {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.place + .place {
-  padding-top: 0.75rem;
-  border-top: 1px dashed var(--rule);
-}
-
-.place-head {
+.core-choice {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
+  align-items: center;
+  gap: var(--space-m);
+  margin-top: var(--space-m);
+  font-size: var(--fs-s);
 }
 
-.place-tools {
-  display: flex;
-  gap: 0.75rem;
+.core-choice select {
+  max-width: 100%;
 }
 
-.vacant {
+/* A mount's weapons (two on a Flex, Main/Aux or Aux/Aux mount), one under the other. */
+.places {
   display: grid;
-  flex: 1;
-  place-items: center;
-  max-width: none;
-  min-height: 3rem;
+  gap: var(--space-s);
+}
+
+.places .empty p {
   margin: 0;
-  color: var(--text-dim);
-  font-size: 0.875rem;
+}
+
+.systems-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+}
+
+.systems-head .icon {
+  width: 16px;
+  height: 16px;
 }
 </style>

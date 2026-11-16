@@ -238,7 +238,7 @@ async function reject() {
       <p v-if="!pending" class="notice info">this change has been reviewed. its original comparison and cost were not stored; the figures above use the proposal and the current manna received.</p>
 
       <section v-if="waiting" class="decision panel" aria-labelledby="decision-title">
-        <h2 id="decision-title" class="sheet-label">decision<span class="tag"> gm only</span></h2>
+        <h2 id="decision-title" class="sheet-label">decision<span class="private">GM only</span></h2>
         <div class="decision-body">
           <label class="field">
             <span>reason (needed to reject)</span>

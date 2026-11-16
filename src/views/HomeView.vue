@@ -56,7 +56,7 @@ function onBooted() {
    the middle, the buttons at the bottom. --chrome is the height the bar takes; the art shrinks with the
    height left, and the column narrows with it (not below 34rem). */
 .home {
-  --chrome: 4rem;
+  --chrome: var(--topbar-h);
   container-type: inline-size;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

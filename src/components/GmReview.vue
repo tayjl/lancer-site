@@ -99,7 +99,7 @@ async function sendBack() {
 
 <template>
   <section class="decision panel">
-    <h2 class="sheet-label">{{ pending ? 'decision' : 'gm controls' }}<span class="tag"> gm only</span></h2>
+    <h2 class="sheet-label">{{ pending ? 'decision' : 'gm controls' }}<span class="private">GM only</span></h2>
     <p v-if="loading" class="dim">loading...</p>
     <form v-else class="decision-body" @submit.prevent>
       <div v-if="!pending" class="numbers">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
 import { isGm, isOwner, profile } from './auth'
@@ -17,31 +17,24 @@ const logoArt = logo.replace(/\r/g, '').trimEnd()
 // the content tab. Each is "current" on its own page, or on a page whose route meta.section names it (like a
 // pilot record under the registry).
 const tabs = [
-  { name: 'pilot', label: 'my pilot' },
-  { name: 'registry', label: 'registry' },
-  { name: 'pending', label: 'pending' },
-  { name: 'memorial', label: 'memorial' },
-  { name: 'archives', label: 'archives' },
+  { name: 'pilot', label: 'My pilot' },
+  { name: 'registry', label: 'Registry' },
+  { name: 'pending', label: 'Pending' },
+  { name: 'memorial', label: 'Memorial' },
+  { name: 'archives', label: 'Archives' },
 ]
 const gmTabs = computed(() => [
-  { name: 'gm-pilots', label: 'pilots' },
-  { name: 'gm-changes', label: 'changes' },
-  ...(isOwner.value ? [{ name: 'gm-content', label: 'content' }] : []),
+  { name: 'gm-pilots', label: 'Pilots' },
+  { name: 'gm-changes', label: 'Changes' },
+  ...(isOwner.value ? [{ name: 'gm-content', label: 'Content' }] : []),
 ])
 const isCurrent = (name: string) => route.name === name || (sectionOverride.value ?? route.meta.section) === name
+// Set on every tab, so it overrides RouterLink's own (which only marks the exact page).
+const current = (name: string) => (isCurrent(name) ? 'page' : undefined)
 
-// On phones the bar collapses to the logo and a [ menu ] toggle (see the CSS at the bottom).
-// The menu closes when you pick a page, or once you've scrolled past it.
+// Narrow screens: the tabs move into a drawer under the bar, opened by Menu. It closes when you pick a page.
 const menuOpen = ref(false)
-const bar = useTemplateRef('bar')
 watch(() => route.fullPath, () => (menuOpen.value = false))
-
-function closeMenuOnScroll() {
-  if (menuOpen.value && window.scrollY > (bar.value?.offsetHeight ?? 0)) menuOpen.value = false
-}
-
-onMounted(() => window.addEventListener('scroll', closeMenuOnScroll, { passive: true }))
-onUnmounted(() => window.removeEventListener('scroll', closeMenuOnScroll))
 
 async function disconnect() {
   await supabase.auth.signOut()
@@ -53,39 +46,48 @@ async function disconnect() {
   <RouterView v-if="route.meta.public" />
 
   <!-- The logged-in layout: a bar across the top, the page under it. -->
-  <div v-else class="shell" :class="{ 'menu-open': menuOpen }">
-    <header ref="bar" class="topbar">
-      <div class="bar-inner">
-        <div class="brand-row">
-          <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
-          <RouterLink :to="{ name: 'home' }" class="brand" aria-label="HOR_OS: home">
-            <pre class="logo" aria-hidden="true">{{ logoArt }}</pre>
-          </RouterLink>
-          <!-- Phones only. -->
-          <button type="button" class="option menu-toggle" aria-controls="main-menu" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
-            {{ menuOpen ? 'close' : 'menu' }}
-          </button>
-        </div>
+  <div v-else class="shell">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
+        <RouterLink :to="{ name: 'home' }" class="home" aria-label="HOR_OS: home">
+          <pre class="logo" aria-hidden="true">{{ logoArt }}</pre>
+        </RouterLink>
 
-        <nav id="main-menu" aria-label="Main" class="tabs">
-          <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
-            {{ tab.label }}
-          </RouterLink>
-          <template v-if="isGm">
-            <span class="group" aria-hidden="true">gm:</span>
-            <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :class="{ current: isCurrent(tab.name) }">
+        <nav class="nav" aria-label="Main">
+          <div class="tabs" data-end>
+            <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" class="tab" :aria-current="current(tab.name)">
               {{ tab.label }}
             </RouterLink>
-          </template>
+          </div>
+          <div v-if="isGm" class="group">
+            <span class="label">GM</span>
+            <div class="tabs" data-end>
+              <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" class="tab" :aria-current="current(tab.name)">
+                {{ tab.label }}
+              </RouterLink>
+            </div>
+          </div>
         </nav>
 
-        <div class="operator">
-          <p v-if="profile">{{ profile.display_name }} <span class="role">[{{ profile.role }}]</span></p>
-          <button type="button" class="quiet" :title="profile ? `connected as ${profile.display_name} [${profile.role}]` : undefined" @click="disconnect">
-            disconnect
+        <div class="user">
+          <span v-if="profile" class="who">{{ profile.display_name }} <span class="label">{{ profile.role }}</span></span>
+          <button type="button" class="quiet small" @click="disconnect">Disconnect</button>
+          <button type="button" class="small menu" aria-controls="drawer" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+            {{ menuOpen ? 'Close' : 'Menu' }}
           </button>
         </div>
       </div>
+
+      <!-- Narrow screens only: the same tabs as 44px rows. -->
+      <nav v-show="menuOpen" id="drawer" class="drawer" aria-label="Main">
+        <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
+        <template v-if="isGm">
+          <span class="label">GM</span>
+          <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
+        </template>
+        <span v-if="profile" class="label">Signed in as {{ profile.display_name }} ({{ profile.role }})</span>
+      </nav>
     </header>
 
     <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. -->
@@ -98,9 +100,7 @@ async function disconnect() {
 </template>
 
 <style scoped>
-/* --topbar-h: the sticky bar's height, for anything else that sticks under it. */
 .shell {
-  --topbar-h: 3.875rem; /* the logo (48px) and its padding, plus the bottom border */
   display: grid;
   grid-template-rows: auto 1fr; /* top bar, page */
   grid-template-columns: minmax(0, 1fr); /* wide tables scroll in their own box, not the page */
@@ -108,213 +108,143 @@ async function disconnect() {
   min-height: 100dvh;
 }
 
-/* --- Top bar: the name, the tabs, who you are, lined up with the page column --- */
+/* --- The top bar: the site's one sticky bar, on every screen size. Its height is --topbar-h (style.css). --- */
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 20;
+  height: var(--topbar-h);
   border-bottom: 1px solid var(--rule);
   background: var(--void);
-  font: 400 0.9375rem/1.6 var(--mono);
 }
 
-.bar-inner {
-  display: flex;
-  align-items: stretch;
-  gap: 0 2rem;
-  max-width: var(--page-max);
-  min-height: calc(var(--topbar-h) - 1px);
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
-.brand-row {
+.topbar-inner {
   display: flex;
   align-items: center;
+  gap: var(--space-l);
+  max-width: var(--page-max);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--space-l);
 }
 
-.brand {
-  padding: 0.4rem 0;
-  color: var(--lilac);
+.home {
+  flex: none;
+  color: var(--text);
   text-decoration: none;
 }
 
-/* Whole-pixel sizes keep the block characters sharp. */
+/* The HORUS art, small: the one terminal flourish in the bar. Whole-pixel sizes keep the block characters sharp. */
 .logo {
   margin: 0;
   font: 400 4px / 4px var(--mono);
+  white-space: pre;
 }
 
-.brand:hover {
-  color: var(--rose);
-}
-
-/* One row, never wrapped, so --topbar-h stays true (the narrower layouts below take over before it would). */
-.tabs {
+.nav {
   display: flex;
-  align-items: stretch;
-  gap: 0 0.25rem;
-}
-
-/* A tab is plain text with room to tap; the current one is lilac on a panel, with a line under it. */
-.tabs a {
-  display: flex;
+  flex: 1;
   align-items: center;
-  padding: 0 0.75rem;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.tabs a:hover {
-  color: var(--text);
-}
-
-.tabs a.current {
-  border-bottom-color: var(--lilac);
-  background: var(--panel);
-  color: var(--lilac);
-}
-
-/* "gm:" starts the GM tabs, after a thin divider. */
-.group {
-  display: flex;
-  align-items: center;
-  padding-left: 1rem;
-  border-left: 1px solid var(--rule);
-  margin: 0.75rem 0 0.75rem 0.75rem;
-  color: var(--rose);
-  font-size: 0.8125rem;
-}
-
-.operator {
-  display: flex;
-  align-items: center;
-  gap: 0 1rem;
+  gap: var(--space-xs);
   min-width: 0;
-  margin-left: auto;
-  font-size: 0.875rem;
+  height: 100%;
 }
 
-/* A long Discord name is cut short rather than pushing the bar onto a second row; the tooltip has it in full. */
-.operator p {
+/* The bar draws its own line, so the tab rows don't. */
+.nav .tabs {
+  height: 100%;
+  border-bottom: 0;
+}
+
+.nav .tab {
+  min-height: calc(var(--topbar-h) - 1px);
+}
+
+/* "GM" starts the GM tabs, after a thin divider. */
+.group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  height: 100%;
+  margin-left: var(--space-s);
+  padding-left: var(--space-m);
+}
+
+.group::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 0;
+  border-left: 1px solid var(--rule);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+  font-size: var(--fs-s);
+  white-space: nowrap;
+}
+
+/* A long Discord name is cut short rather than pushing the tabs off the bar. */
+.who {
   max-width: 18ch;
-  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.role {
-  color: var(--rose);
-}
-
-.operator button {
-  font-size: 0.875rem;
-}
-
-.menu-toggle {
+.menu,
+.drawer {
   display: none;
 }
 
-/* --- Tablets and small laptops: the same one-row bar, tightened (14px tabs, smaller gaps), and the operator's name
-   moves into disconnect's tooltip. An owner's full tab set fits down to 56rem. --- */
+/* --- Narrow screens (an owner's full tab set needs about 70rem): logo, Disconnect and Menu; Menu opens the drawer. --- */
 @media (max-width: 72rem) {
-  .topbar {
-    font-size: 0.875rem;
-  }
-
-  .bar-inner {
-    gap: 0 1rem;
-    padding: 0 1rem;
-  }
-
-  .tabs {
-    gap: 0 0.125rem;
-  }
-
-  .tabs a {
-    padding: 0 0.45rem;
-  }
-
-  .group {
-    padding-left: 0.6rem;
-    margin-left: 0.4rem;
-  }
-
-  .operator p {
+  .nav,
+  .who {
     display: none;
   }
-}
 
-/* --- Phones and narrow windows (too narrow for every tab on one row, an owner's included): the bar shows the logo
-   and [ menu ], which opens the tabs and who you are. Not sticky here. --- */
-@media (max-width: 56rem) {
-  .operator p {
-    display: block;
-    max-width: none;
-    white-space: normal;
+  .user {
+    margin-left: auto;
   }
 
-  .shell {
-    --topbar-h: 0px;
+  .menu {
+    display: inline-flex;
   }
 
-  .topbar {
-    position: static;
-  }
-
-  .bar-inner {
-    flex-direction: column;
-    padding: 0 1rem;
-  }
-
-  .brand-row {
-    justify-content: center;
-    min-height: 3rem;
-    position: relative;
-  }
-
-  .menu-toggle {
+  .drawer {
     position: absolute;
+    top: 100%;
     right: 0;
+    left: 0;
     display: block;
-    min-height: 2.5rem;
-    padding-inline: 0;
-    font-size: 0.875rem;
+    max-height: calc(100dvh - var(--topbar-h));
+    overflow-y: auto;
+    padding: var(--space-s) var(--space-l) var(--space-l);
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
   }
 
-  .shell:not(.menu-open) .tabs,
-  .shell:not(.menu-open) .operator {
-    display: none;
+  .drawer a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    border-bottom: 1px solid var(--rule);
+    color: var(--text);
+    text-decoration: none;
   }
 
-  .tabs {
-    flex-wrap: wrap;
-    justify-content: center;
-    padding-bottom: 0.5rem;
+  .drawer a[aria-current='page'] {
+    color: var(--lilac);
+    font-weight: 700;
   }
 
-  .tabs a {
-    min-height: 2.75rem;
-  }
-
-  .group {
-    flex-basis: 100%;
-    justify-content: center;
-    padding: 0.5rem 0 0;
-    border-top: 1px solid var(--rule);
-    border-left: 0;
-    margin: 0.25rem 0 0;
-  }
-
-  .operator {
-    flex-wrap: wrap;
-    justify-content: center;
-    margin: 0;
-    padding: 0.5rem 0 0.75rem;
-    border-top: 1px solid var(--rule);
+  .drawer .label {
+    display: block;
+    margin-top: var(--space-m);
   }
 }
 </style>

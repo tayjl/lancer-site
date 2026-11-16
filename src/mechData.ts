@@ -10,6 +10,10 @@ import structureIcon from './assets/icons/structure.svg'
 import systemPointIcon from './assets/icons/system_point.svg'
 import speedIcon from './assets/icons/speed.svg'
 import techAttackIcon from './assets/icons/tech_attack.svg'
+import sizeHalfIcon from './assets/icons/size-half.svg'
+import size1Icon from './assets/icons/size-1.svg'
+import size2Icon from './assets/icons/size-2.svg'
+import size3Icon from './assets/icons/size-3.svg'
 import { loadoutSlots, loadTagNames, toItem, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
 import { supabase } from './lib/supabaseClient'
 import type { MechPrivate, Sheet } from './myPilot'
@@ -77,6 +81,8 @@ const MECH_STATS = [
   ['system_points', 'system points', systemPointIcon],
   ['size', 'size', undefined],
 ] as const
+// Size's symbol shows the size itself.
+const SIZE_ICONS: Record<string, string> = { 0.5: sizeHalfIcon, 1: size1Icon, 2: size2Icon, 3: size3Icon }
 
 const BONUS_STATS: Record<string, string> = {
   structure: 'structure', stress: 'stress', hp: 'hp', heatcap: 'heat', heat_cap: 'heat',
@@ -310,7 +316,7 @@ export function mechStats(frame: Frame | null, skills: Record<string, number> | 
       const steps = [0.5, 1, 2, 3]
       value = resolved.usesBase ? steps[Math.min(3, Math.max(0, steps.indexOf(s.size ?? 1) + Math.trunc(value - (s.size ?? 1))))] : Math.min(3, Math.max(0.5, value))
     }
-    return { id, name, icon, value: frame ? value : null, contributors: frame ? contributors : [] }
+    return { id, name, icon: id === 'size' ? SIZE_ICONS[value] ?? size1Icon : icon, value: frame ? value : null, contributors: frame ? contributors : [] }
   })
 }
 

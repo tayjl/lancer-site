@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseRules, plainText } from './rulesText'
+import { paragraphs, parseRules, plainText } from './rulesText'
 
 describe('rules text', () => {
   it('keeps lists, bold and line breaks as data', () => {
@@ -26,5 +26,14 @@ describe('rules text', () => {
 
   it('flattens to one line for pickers', () => {
     expect(plainText('A<ul><li>B &amp; C</li></ul>')).toBe('A B & C')
+  })
+
+  it('turns top-level line breaks into paragraphs, leaving lists and breaks inside them alone', () => {
+    expect(paragraphs(parseRules('One.<br>Two <b>bold</b>.<ul><li>a<br>b</li></ul>'))).toEqual([
+      { tag: 'p', children: ['One.'] },
+      { tag: 'p', children: ['Two ', { tag: 'b', children: ['bold'] }, '.'] },
+      { tag: 'ul', children: [{ tag: 'li', children: ['a', { tag: 'br', children: [] }, 'b'] }] },
+    ])
+    expect(paragraphs(parseRules('No breaks.'))).toEqual(['No breaks.'])
   })
 })

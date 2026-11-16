@@ -1,72 +1,33 @@
 <script setup lang="ts">
-// A row of terminal options that picks what shows below (my pilot's groups: stats, equipment, licences, talents;
-// the archives' categories). The chosen one is "> stats <" in rose, like a terminal menu pointing at it. "label"
-// names the row for screen readers.
-// "counts" (optional) shows a number after a tab's name, e.g. "frames 28".
+// A row of underline tabs that picks what shows below (my pilot's and a mech's sections, the archives' categories),
+// in the global .tabs style. "label" names the row for screen readers; "counts" (optional) shows a number after a
+// tab's name, e.g. "Frames 28". Left-aligned; when the row doesn't fit it scrolls sideways, with a fade over the
+// right edge until the last tab is in view.
+import { onMounted, onUnmounted, onUpdated, useTemplateRef } from 'vue'
+
 withDefaults(defineProps<{ tabs: readonly string[]; label?: string; counts?: Record<string, number> }>(), { label: 'pilot sheet sections' })
 const current = defineModel<string>({ required: true })
+
+const row = useTemplateRef<HTMLElement>('row')
+const markEnd = () => row.value?.toggleAttribute('data-end', row.value.scrollLeft + row.value.clientWidth >= row.value.scrollWidth - 2)
+// Again when the row changes width with the window, or its tabs change (counts, a search's extra "all" tab).
+const resized = new ResizeObserver(markEnd)
+onMounted(() => row.value && resized.observe(row.value))
+onUpdated(markEnd)
+onUnmounted(() => resized.disconnect())
 </script>
 
 <template>
-  <nav class="sheet-tabs" :aria-label="label">
+  <nav ref="row" class="tabs" :aria-label="label" @scroll.passive="markEnd">
     <button
       v-for="tab in tabs"
       :key="tab"
       type="button"
-      class="option"
-      :class="{ current: tab === current }"
-      :aria-pressed="tab === current"
+      class="tab"
+      :aria-current="tab === current"
       @click="current = tab"
     >
-      {{ tab }}<span v-if="counts?.[tab] !== undefined" class="tab-count">{{ ' ' + counts[tab] }}</span>
+      {{ tab }}<span v-if="counts?.[tab] !== undefined" class="count">{{ counts[tab] }}</span>
     </button>
   </nav>
 </template>
-
-<style scoped>
-.sheet-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem 1.5rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--rule);
-}
-
-.sheet-tabs button {
-  padding: 0;
-  font-size: 1.125rem;
-}
-
-.tab-count {
-  color: var(--sky);
-  font-size: 0.875rem;
-  font-weight: 400;
-}
-
-/* The chosen group keeps the hover look: rose, with arrows for brackets. */
-.current {
-  color: var(--rose);
-}
-
-.current::before {
-  content: '> ' / '';
-}
-
-.current::after {
-  content: ' <' / '';
-}
-
-/* Phones: compact rows of two or three, each still tall enough to tap. */
-@media (max-width: 40rem) {
-  .sheet-tabs {
-    gap: 0 1rem;
-    padding-bottom: 0.25rem;
-  }
-
-  .sheet-tabs button {
-    min-height: 2.5rem;
-    font-size: 0.875rem;
-  }
-}
-</style>

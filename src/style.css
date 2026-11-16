@@ -1,74 +1,126 @@
-/* HOR_OS: the in-universe COMP/CON terminal look. Every colour and font lives in these variables. */
+/* HOR_OS: tokens, then one shared class per kind of thing. Ported from the approved redesign prototype
+   (docs/redesign/prototype/styles.css). Readability first: one job per colour, sans for words, mono only for numbers
+   and codes. Every colour and font lives in these variables. */
 :root {
-  --void: #111113; /* page background: near-black grey */
-  --panel: #1c1c21; /* raised surfaces */
-  --rule: #403f48; /* borders and dividers */
-  --edge: #6e6c79; /* the resting outline of form fields and boxed buttons: 3.3:1 on --panel, 3.7:1 on --void */
-  --text: #f5f4f7; /* general text: white */
-  --text-dim: #b1afba;
-  --lilac: #c9b3ff; /* main accent: titles, links, buttons, focus */
-  --rose: #ff9eb0; /* second accent: warnings, and the glitch's other colour */
-  --sky: #a6d8ea; /* third accent: usernames in chat */
-  --mint: #a9dfb5; /* gains, additions and refunds */
-  --raised: #26252c; /* a surface a step above --panel: hovered table rows */
+  /* Surfaces and text. */
+  --void: #111113; /* page background */
+  --panel: #1c1c21; /* sections, cards, dialogs */
+  --raised: #26252c; /* a step above panel: tag chips, hovered rows */
+  --rule: #403f48; /* dividers, card borders */
+  --edge: #6e6c79; /* outlines of controls and empty slots: 3.3:1 on --panel */
+  --text: #f5f4f7;
+  --text-dim: #b1afba; /* secondary text, labels, stat icons: 7.8:1 on --panel */
 
-  /* The page column (the logged-in pages and the top bar line up with it) and the spacing steps. */
-  --page-max: 84rem;
-  --space-s: 0.5rem;
-  --space-m: 1rem;
-  --space-l: 1.5rem;
-  --space-xl: 2.5rem;
+  /* Interface: lilac means "you can click this" or "you are here". Nothing else. */
+  --lilac: #c9b3ff;
+  --lilac-ink: #17121f; /* text on a filled lilac button */
 
-  /* Cascadia Mono has every block and shade character, so the ASCII art lines up. */
-  --mono: 'Cascadia Mono Variable', ui-monospace, Consolas, monospace; /* the terminal's voice */
-  --read: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; /* anything people read at length */
+  /* Status: each only ever means its status, and always comes with a symbol or a word. */
+  --ok: #a9dfb5; /* approved, saved, added, refunds, within budget */
+  --wait: #f2d675; /* pending, draft: waiting on someone */
+  --danger: #ff9eb0; /* rejected, rule broken, removed, over budget, destructive */
+  --dead: #b1afba; /* dead: the dim grey, always with the skull */
+  --info: #a6d8ea; /* neutral information and "changed" */
+
+  /* The old terminal accents: the login screen and the home page's boot sequence (and the glitch). Pages not yet
+     rebuilt in the redesign still use them; new work uses the status colours above instead. */
+  --rose: #ff9eb0;
+  --sky: #a6d8ea;
+  --mint: #a9dfb5;
+
+  /* Game meanings: COMP/CON's colours, lightened only where a dark-theme icon would fall under 3:1, darkened only
+     where white text would fall under 4.5:1. Damage colours are for icons only. */
+  --dmg-kinetic: #9e9e9e;
+  --dmg-energy: #29b6f6;
+  --dmg-explosive: #ffa726;
+  --dmg-burn: #e0443a;
+  --dmg-heat: #ff7043;
+  --dmg-variable: #e05cff;
+
+  --act-quick: #3949ab;
+  --act-full: #283593;
+  --act-reaction: #512da8;
+  --act-protocol: #007676;
+  --act-free: #00695c;
+  --act-overcharge: #c2004a;
+  --act-tech: #802475; /* quick tech, full tech, invade */
+
+  --type-weapon: #4f5560; /* mech and pilot weapons */
+  --type-system: #3a7d20; /* mech systems */
+  --type-frame: #673ab7; /* frames and licences */
+  --type-pilot: #005454; /* pilot armour, pilot gear, bionics */
+  --type-talent: #7a4e1d; /* talents */
+  --type-core: #d4e157; /* core bonuses and core systems: dark text on it */
+
+  /* Manufacturers: the packs' "dark" colour. Accent only: the logo and a 3px top border, never text or a tint. */
+  --mf-gms: #db1a2d;
+  --mf-ipsn: #1c9ae8;
+  --mf-ssc: #d1920a;
+  --mf-horus: #00a256;
+  --mf-ha: #a15ea8;
+
+  /* Type: Atkinson Hyperlegible Next for everything people read; Cascadia Mono for numbers and codes (and the boot
+     scrawl's art, as it has every block and shade character). Whole-pixel sizes keep text sharp. */
+  --sans: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+  --mono: 'Cascadia Mono Variable', ui-monospace, Consolas, monospace;
+  --fs-xs: 12px; /* uppercase labels, chips */
+  --fs-s: 14px; /* secondary text, card facts */
+  --fs-m: 16px; /* body and rules text */
+  --fs-l: 20px; /* item names in dialogs */
+  --fs-xl: 28px; /* callsign, mech name */
+
+  --space-xs: 4px;
+  --space-s: 8px;
+  --space-m: 12px;
+  --space-l: 16px;
+  --space-xl: 24px;
+  --radius: 4px;
+  --page-max: 84rem; /* the page column; the top bar lines up with it */
+  --topbar-h: 56px; /* the sticky top bar, for anything that sticks under it */
+  --tabs-h: 44px;
+  --tap: 36px; /* minimum control height; 44px on touch screens */
 
   color-scheme: dark;
   background: var(--void);
   color: var(--text);
 }
 
-/* Set on body, not :root, so 1rem stays 16px and font sizes land on whole pixels (sharper text). */
-body {
-  font: 400 1.0625rem/1.55 var(--read);
+@media (pointer: coarse), (max-width: 40rem) {
+  :root {
+    --tap: 44px;
+    --topbar-h: 52px;
+  }
 }
 
+/* ───────────────────────── Base ───────────────────────── */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
 }
 
+/* Set on body, not :root, so 1rem stays 16px. */
 body {
-  margin: 0;
   min-height: 100vh;
+  margin: 0;
+  font: 400 var(--fs-m) / 1.5 var(--sans);
 }
 
 h1,
 h2,
 h3 {
   margin: 0 0 0.6em;
-  font-family: var(--mono);
-  font-weight: 600;
-  line-height: 1.15;
-  color: var(--lilac);
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
-/* Terminal-sized headings: set apart by colour and the prompt, not by being huge. */
-h1 {
-  font-size: 1.375rem;
-}
-
-h2 {
-  font-size: 1.125rem;
-}
-
-h3 {
-  font-size: 1rem;
-}
+h1 { font-size: 22px; }
+h2 { font-size: 18px; }
+h3 { font-size: 16px; }
 
 p {
-  max-width: 70ch;
+  max-width: 72ch;
   margin: 0 0 1em;
 }
 
@@ -78,89 +130,155 @@ a {
 }
 
 a:hover {
-  color: var(--rose);
+  text-decoration-thickness: 2px;
 }
 
 ::selection {
-  background: var(--rose);
-  color: var(--void);
+  background: var(--lilac);
+  color: var(--lilac-ink);
 }
 
 :focus-visible {
   outline: 2px solid var(--lilac);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
-/* Buttons (the developer's pick, 2026-11-15): a boxed button, lilac text in a thin outline. Wrapped in :where()
-   so any component's own button rule wins without a specificity fight. Variants: .primary (the one main action
-   on a view), .danger (destructive), .quiet (a minor inline action, like edit or remove in a card), .small. */
+/* Numbers and codes (manufacturer ids, pack versions) line up in the monospace font. */
+.num,
+.code {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+/* The one uppercase label style: short labels over values, table headings, the GM group in the top bar. */
+.label {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Hidden on screen but still read by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ───────────────────────── Buttons ─────────────────────────
+   A boxed button: lilac uppercase text in a thin outline. Wrapped in :where() so any component's own button rule wins
+   without a specificity fight (which is also why the disabled look comes last). Variants: .primary (the one main
+   action on a view), .danger (destructive), .quiet (a minor text action), .small. */
 :where(button) {
-  min-height: 2.5rem;
-  padding: 0.5rem 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 0 14px;
   border: 1px solid var(--edge);
-  background: none;
+  border-radius: var(--radius);
+  background: transparent;
   color: var(--lilac);
-  font: 600 0.9375rem/1.5 var(--mono);
+  font: 700 13px / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
-:where(button:hover:not(:disabled), button:focus-visible) {
+:where(button:hover:not(:disabled)) {
   border-color: var(--lilac);
+  background: color-mix(in srgb, var(--lilac) 8%, transparent);
 }
 
 :where(button.primary) {
   border-color: var(--lilac);
   background: var(--lilac);
-  color: var(--void);
+  color: var(--lilac-ink);
 }
 
-:where(button.primary:hover:not(:disabled), button.primary:focus-visible) {
-  border-color: var(--text);
-  background: var(--text);
+:where(button.primary:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--lilac), white 25%);
 }
 
 :where(button.danger) {
-  border-color: var(--rose);
-  color: var(--rose);
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  color: var(--danger);
 }
 
-:where(button.danger:hover:not(:disabled), button.danger:focus-visible) {
-  border-color: var(--rose);
-  background: var(--rose);
-  color: var(--void);
+:where(button.danger:hover:not(:disabled)) {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 :where(button.quiet) {
-  min-height: 0;
-  padding: 0.15rem 0.25rem;
+  padding: 0 8px;
   border-color: transparent;
 }
 
-:where(button.quiet:hover:not(:disabled), button.quiet:focus-visible) {
+:where(button.quiet:hover:not(:disabled)) {
   border-color: transparent;
-  color: var(--text);
+  background: transparent;
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
 :where(button.small) {
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.875rem;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: var(--fs-xs);
+}
+
+@media (pointer: coarse) {
+  :where(button.small) {
+    min-height: 44px;
+  }
 }
 
 :where(button:disabled) {
-  opacity: 0.45;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--text-dim);
   cursor: not-allowed;
 }
 
-/* The old terminal option, [ like this ], kept for the home and login screens and the in-page tabs. When hovered
-   or selected, the brackets turn into arrows, > like this <, the way a terminal menu points at the chosen option. */
+/* A blocked action: the disabled button keeps its label and cost ("Raise rank · 600"), and the reason sits beside it
+   in secondary text: <span class="blocked"><button disabled aria-describedby="why">…</button>
+   <span id="why" class="blocked-reason">Not enough manna</span></span>. Only on a span, because list rows elsewhere use
+   "blocked" as a state. */
+:where(span.blocked) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--space-s);
+}
+
+.blocked-reason {
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+/* The old terminal option, [ like this ], only for the login and home screens. When hovered or selected, the
+   brackets turn into arrows, > like this <, the way a terminal menu points at the chosen option. It resets every
+   part of the button look above, so it stays exactly as it was. */
 :where(button.option) {
+  display: inline-block;
   min-height: 0;
   padding: 0.25rem 0.5rem;
   border: 0;
-  font-size: 1rem;
+  border-radius: 0;
+  background: none;
+  font: 600 1rem / 1.5 var(--mono);
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 /* The "/ ''" part stops screen readers announcing the brackets. */
@@ -174,6 +292,7 @@ a:hover {
 
 /* :focus rather than :focus-visible, so a button that's selected for you (like Uplink) looks selected. */
 :where(button.option:hover, button.option:focus) {
+  background: none;
   color: var(--rose);
 }
 
@@ -191,55 +310,63 @@ button.option:focus-visible {
   outline: none;
 }
 
-/* Form fields: a dark box with a thin outline that turns lilac while you use it. */
+/* ───────────────────────── Form fields ─────────────────────────
+   A dark box with an --edge outline that turns lilac while you use it. */
 input[type='text'],
 input[type='search'],
 input[type='number'],
 textarea,
 select {
-  min-height: 2.5rem;
-  padding: 0.45rem 0.6rem;
+  min-height: var(--tap);
+  padding: 6px 10px;
   border: 1px solid var(--edge);
-  border-radius: 0;
+  border-radius: var(--radius);
   background: var(--void);
   color: var(--text);
-  font: 400 0.9375rem/1.4 var(--mono);
+  font: 400 var(--fs-m) / 1.4 var(--sans);
 }
 
 input[type='text'] {
   width: 100%;
 }
 
-:is(input[type='text'], input[type='search'], input[type='number'], textarea, select):focus {
-  border-color: var(--lilac);
-  outline: 1px solid var(--lilac);
-  outline-offset: 0;
+input[type='number'] {
+  font-family: var(--mono);
 }
 
-/* A labelled field: <label class="field"><span>name</span><input /><span class="hint">...</span></label>. */
+:is(input[type='text'], input[type='search'], input[type='number'], textarea, select):focus {
+  border-color: var(--lilac);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--lilac);
+}
+
+/* A labelled field: <label class="field"><span>name</span><input /><span class="hint">...</span></label>. The first
+   span is the uppercase label. */
 label.field {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: var(--space-xs);
   color: var(--text-dim);
-  font: 400 0.8125rem/1.4 var(--mono);
+  font-size: var(--fs-s);
 }
 
-label.field .hint {
-  color: var(--text-dim);
+label.field > span:first-child {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 label.field .error {
-  color: var(--rose);
+  color: var(--danger);
 }
 
-/* The standard page column, centred. Pages read like terminal output, so their text is monospace by default. */
+/* ───────────────────────── Page ───────────────────────── */
 .page {
   width: 100%; /* not shrink-to-fit, which auto margins would cause in the shell's grid */
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: 2.5rem 1.5rem;
-  font: 400 0.9375rem/1.6 var(--mono);
+  padding: var(--space-xl) var(--space-l);
 }
 
 /* A breadcrumb (PageHeader.vue, the pilot sheet): <nav class="crumbs"><ol><li>...</li></ol></nav>, the last one the
@@ -247,11 +374,11 @@ label.field .error {
 .crumbs ol {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 0.5rem;
-  margin: 0 0 0.5rem;
+  gap: 0 6px;
+  margin: 0 0 var(--space-s);
   padding: 0;
-  color: var(--text);
-  font-size: 0.875rem;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
   list-style: none;
 }
 
@@ -262,65 +389,298 @@ label.field .error {
 
 .crumbs li + li::before {
   content: '/' / '';
-  margin-right: 0.5rem;
-  color: var(--text-dim);
+  margin-right: 6px;
 }
 
-.crumbs a {
-  color: var(--text-dim);
-  text-decoration: none;
-}
-
-.crumbs a:hover {
-  color: var(--lilac);
-  text-decoration: underline;
-}
-
-/* A section of a page: a filled panel. .sheet-label works as its title. */
+/* ───────────────────────── Sections ───────────────────────── */
+/* A section of a page: a filled panel. .sheet-label is its heading. */
 .panel {
-  padding: 1.25rem;
+  padding: var(--space-l);
   border: 1px solid var(--rule);
+  border-radius: var(--radius);
   background: var(--panel);
 }
 
-/* A panel's centred heading (the gm pages): <header class="panel-head"><h2>title <span class="badge">3</span></h2>
-   <p class="dim">what it is</p></header>. */
+/* A panel's heading with a line of explanation (the gm pages): <header class="panel-head"><h2>title
+   <span class="badge">3</span></h2><p class="dim">what it is</p></header>. */
 .panel-head {
   margin-bottom: var(--space-m);
-  text-align: center;
 }
 
 .panel-head h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem 0.75rem;
+  gap: var(--space-s) var(--space-m);
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .panel-head p {
   max-width: none;
-  margin: 0.35rem 0 0;
+  margin: var(--space-xs) 0 0;
+  font-size: var(--fs-s);
 }
 
-/* A status banner: text, then an optional row of actions. .info, .warn and .ok change the accent on its edge. */
+/* A section's heading: short, uppercase and tracked. Takes the free space in a flex header, so anything beside it
+   (points, licence level, an add button) sits at the right. */
+.sheet-label {
+  flex: 1;
+  min-width: 0;
+  margin: 0 0 var(--space-m);
+  color: var(--text);
+  font: 700 14px / 1.3 var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere; /* a long mech or pilot name in a heading wraps */
+}
+
+/* A header row holding a heading and more: the row takes the heading's space below, so every section has the same gap
+   between its heading and its content. */
+.sheet-head {
+  margin-bottom: var(--space-m);
+}
+
+/* Never squeezed under its own text: in a wrapping header the info beside it moves to the next line instead. */
+.sheet-head > .sheet-label {
+  min-width: fit-content;
+  margin-bottom: 0;
+}
+
+/* Privacy: a small lock and a word ("Private", "GM only"), beside a section's heading. */
+.private {
+  margin-left: var(--space-s);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* Inline (not flex), so the word keeps the heading's baseline. */
+.private::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  background: currentColor;
+  vertical-align: -2px;
+  mask: url('./assets/icons/lock.svg') center / contain no-repeat;
+}
+
+/* ───────────────────────── Tabs: one underline style everywhere ─────────────────────────
+   The top bar and the in-page section tabs (SheetTabs.vue). A row that scrolls sideways when it doesn't fit, with a
+   fade over the right edge while more tabs are off-screen (SheetTabs sets data-end once the last one is in view). */
+.tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tabs::after {
+  content: '';
+  position: sticky;
+  right: 0;
+  flex: none;
+  width: 40px;
+  margin-left: -40px;
+  background: linear-gradient(to right, transparent, var(--void) 85%);
+  pointer-events: none;
+}
+
+.tabs[data-end]::after {
+  opacity: 0;
+}
+
+.tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tabs-h);
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--text-dim);
+  font: 700 13px / 1 var(--sans);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: none;
+  color: var(--text);
+}
+
+.tab[aria-current='page'],
+.tab[aria-current='true'] {
+  border-bottom-color: var(--lilac);
+  color: var(--lilac);
+}
+
+.tab .count {
+  color: var(--text-dim);
+  font: 400 var(--fs-xs) var(--mono);
+}
+
+@media (max-width: 40rem) {
+  .tab {
+    padding: 0 10px;
+  }
+}
+
+/* ───────────────────────── Status badge: a pill with a symbol and a word ─────────────────────────
+   .draft (dashed), .pending, .approved, .rejected, .dead. A badge with no status (a count, a version) is plain. */
+.badge {
+  --c: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--c);
+  font: 700 var(--fs-xs) / 1 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge:is(.draft, .pending, .approved, .rejected, .dead) {
+  padding-left: 8px;
+}
+
+.badge:is(.draft, .pending, .approved, .rejected, .dead)::before {
+  content: '';
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  mask: var(--badge-icon) center / contain no-repeat;
+}
+
+.badge.draft { --c: var(--wait); --badge-icon: url('./assets/icons/draft.svg'); border-style: dashed; background: transparent; }
+.badge.pending { --c: var(--wait); --badge-icon: url('./assets/icons/pending.svg'); }
+.badge.approved { --c: var(--ok); --badge-icon: url('./assets/icons/approved.svg'); }
+.badge.rejected { --c: var(--danger); --badge-icon: url('./assets/icons/rejected.svg'); }
+.badge.dead { --c: var(--dead); --badge-icon: url('./assets/icons/dead.svg'); }
+
+/* ───────────────────────── Tag chip: square and neutral ───────────────────────── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--raised);
+  color: var(--text);
+  font: 700 var(--fs-xs) / 1 var(--sans);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chip .num {
+  margin-left: 4px;
+}
+
+/* ───────────────────────── Separated list: "Ilse Varga · Player: vanta · Approved" ─────────────────────────
+   The dots never end or start a line: each item's dot sits in the gap to its left, and the first item on every line
+   has its dot clipped off by the container. */
+.sep {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 20px;
+  overflow: hidden;
+  padding-block: 1px;
+}
+
+.sep > * {
+  position: relative;
+}
+
+.sep > *::before {
+  content: '·' / '';
+  position: absolute;
+  top: 50%;
+  left: -13px;
+  color: var(--text-dim);
+  font-weight: 400;
+  translate: 0 -50%;
+}
+
+/* ───────────────────────── Notice: a status banner with its symbol ─────────────────────────
+   .info (neutral), .warn (a rule broken, an error), .ok (done). Text, then an optional row of actions; the symbol is
+   drawn in the left padding, so any markup works inside. */
 .notice {
-  --accent: var(--lilac);
+  --c: var(--info);
+  --notice-icon: url('./assets/icons/info.svg');
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--space-s);
   max-width: none; /* often a <p>: not capped like body paragraphs */
-  padding: 0.75rem 1rem;
-  border-left: 3px solid var(--accent);
-  background: var(--panel);
+  padding: var(--space-m) var(--space-l) var(--space-m) calc(var(--space-l) + 20px + var(--space-m));
+  border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--c) 8%, var(--panel));
 }
+
+.notice::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--space-m) + 2px);
+  left: var(--space-l);
+  width: 20px;
+  height: 20px;
+  background: var(--c);
+  mask: var(--notice-icon) center / contain no-repeat;
+}
+
+.notice.warn { --c: var(--danger); --notice-icon: url('./assets/icons/warning.svg'); }
+.notice.ok { --c: var(--ok); --notice-icon: url('./assets/icons/approved.svg'); }
 
 /* The gap spaces the lines, so paragraphs inside don't add their own margin. */
 .notice > p,
 .notice > :last-child {
   margin: 0;
+}
+
+.notice ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.notice-title {
+  font-weight: 700;
 }
 
 /* A notice's title row, its button (if any) at the end: <div class="notice-head"><p>title</p><button>…</button></div>.
@@ -330,139 +690,163 @@ label.field .error {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.25rem 1rem;
+  gap: var(--space-xs) var(--space-l);
 }
 
 .notice-head > * {
   margin: 0;
 }
 
-.notice.info { --accent: var(--sky); }
-.notice.warn { --accent: var(--rose); }
-.notice.ok { --accent: var(--mint); }
+@media (max-width: 48rem) {
+  .notice {
+    padding: var(--space-s) var(--space-m) var(--space-s) calc(var(--space-m) + 20px + var(--space-s));
+  }
 
-/* A small status chip: pending, approved, dead or draft. */
-.badge {
-  display: inline-block;
-  padding: 0 0.4rem;
-  border: 1px solid currentColor;
-  color: var(--text-dim);
-  font: 400 0.8125rem/1.6 var(--mono);
+  .notice::before {
+    top: calc(var(--space-s) + 2px);
+    left: var(--space-m);
+  }
 }
 
-.badge.pending { color: var(--rose); }
-.badge.approved { color: var(--sky); }
-.badge.dead { color: var(--text-dim); }
-.badge.draft { color: var(--lilac); }
-
-/* Nothing here yet: a dashed box with a quiet line in the middle. */
+/* ───────────────────────── Empty state: the one look for "nothing here yet" ───────────────────────── */
 .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-s);
+  min-height: 96px;
   max-width: none;
   margin: 0;
-  padding: 2.5rem 1.5rem;
-  border: 1px dashed var(--rule);
+  padding: var(--space-l);
+  border: 1px dashed var(--edge);
+  border-radius: var(--radius);
   color: var(--text-dim);
+  font-size: var(--fs-s);
   text-align: center;
 }
 
-/* A readable data table. Put it in a wrapper with "overflow: auto" if it may be wider than a phone. */
+/* ───────────────────────── Meter: a budget (points, system points, manna) ─────────────────────────
+   <div class="meter"><div class="meter-head"><span class="label">System points</span><span class="meter-value num">
+   5 / 6</span></div><div class="meter-bar"><span style="--fill: 83%"></span></div></div>. .full when exactly used,
+   .over when over budget. .meter-inline is the one-line version for a section's header. */
+.meter {
+  display: grid;
+  gap: 6px;
+  min-width: 12rem;
+}
+
+.meter-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-s);
+}
+
+.meter-value {
+  margin-left: auto;
+  font: 700 var(--fs-m) var(--sans);
+}
+
+.meter-value .num,
+.meter-value.num {
+  font-family: var(--mono);
+}
+
+.meter-note {
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+.meter-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--raised);
+}
+
+.meter-bar > span {
+  display: block;
+  width: var(--fill);
+  height: 100%;
+  background: var(--text-dim);
+}
+
+.meter.full .meter-bar > span { background: var(--ok); }
+.meter.over .meter-value,
+.meter.over .meter-note { color: var(--danger); }
+.meter.over .meter-bar > span { background: var(--danger); }
+
+.meter-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+.meter-inline .num {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.meter-inline.over,
+.meter-inline.over .num {
+  color: var(--danger);
+}
+
+/* ───────────────────────── Table ─────────────────────────
+   Put it in a wrapper with "overflow: auto" if it may be wider than a phone. */
 .table {
   width: 100%;
   border-collapse: collapse;
-  font: 400 0.9375rem/1.5 var(--mono);
+  font-size: var(--fs-s);
 }
 
 .table th,
 .table td {
-  padding: 0.65rem 0.85rem;
+  padding: var(--space-s) var(--space-m);
   border-bottom: 1px solid var(--rule);
   text-align: left;
 }
 
 .table th {
   color: var(--text-dim);
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .table tbody tr:hover {
   background: var(--raised);
 }
 
-/* A section's label (option C, the developer's pick, 2026-10-31): a terminal prompt, "> backstory // private". The
-   dim ">" and "//" are drawn by CSS with empty alt text, so screen readers just hear "backstory private"; the tag
-   stays red, as the developer asked of the earlier labels. Takes the free space in a flex header, so anything beside
-   it (licence level, points, [ edit ]) sits at the right. */
-.sheet-label {
-  flex: 1;
-  min-width: 0;
-  margin: 0 0 0.6rem;
-  color: var(--lilac);
-  font: 600 1.0625rem/1.4 var(--mono);
-  overflow-wrap: anywhere; /* a long mech or pilot name in a label wraps */
-}
-
-.sheet-label::before {
-  content: '> ' / '';
-  color: var(--text-dim);
-  font-weight: 400;
-}
-
-.sheet-label .tag {
-  margin-left: 0.4rem;
-  color: var(--rose);
-  font-size: 0.8125rem;
-  font-weight: 400;
-}
-
-.sheet-label .tag::before {
-  content: '// ' / '';
-}
-
-/* A header row holding a label and more (points, licence level, [ edit ]): the row takes the label's space below,
-   so every section has the same gap between its label and its content. */
-.sheet-head {
-  margin-bottom: 0.6rem;
-}
-
-.sheet-head > .sheet-label {
-  margin-bottom: 0;
-}
-
-/* Loadout cards (SlotCard.vue), COMP/CON style: three to a row on a wide sheet, two, then one when narrow.
-   Put it on a list inside an element with "container-type: inline-size". */
+/* A grid of item cards (SlotCard.vue, ItemCard.vue): as many 20rem columns as fit, one on phones. */
 .slot-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  align-items: start;
+  gap: var(--space-m);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-@container (min-width: 36rem) {
-  .slot-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@container (min-width: 54rem) {
-  .slot-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* A modal dialog (pickers, full information, "are you sure?"): <dialog class="dialog"> holding a .dialog-head (title,
-   then the close button), an optional .dialog-bar (a search box that stays put) and a .dialog-body. Never taller than
-   the screen: only the body scrolls. The parts fill the dialog, so a click on the dialog itself is on the backdrop. */
+/* ───────────────────────── Dialog ─────────────────────────
+   Pickers, full information, "are you sure?": <dialog class="dialog"> holding a .dialog-head (title, then the close
+   button), an optional .dialog-bar (a search box that stays put) and a .dialog-body. Never taller than the screen: only
+   the body scrolls. The parts fill the dialog, so a click on the dialog itself is on the backdrop. --mf is the border:
+   a manufacturer's colour where the content has one. */
 dialog.dialog {
+  --mf: var(--edge);
   width: min(44rem, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);
   padding: 0;
-  border: 1px solid var(--lilac);
+  border: 1px solid var(--mf);
+  border-top: 3px solid var(--mf);
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
-  font: 400 0.9375rem/1.6 var(--mono);
 }
 
 dialog.dialog[open] {
@@ -479,8 +863,8 @@ dialog.dialog::backdrop {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem var(--space-m);
-  padding: 0.75rem 1.25rem;
+  gap: var(--space-s) var(--space-m);
+  padding: var(--space-m) var(--space-l);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -488,7 +872,7 @@ dialog.dialog::backdrop {
   flex: 1;
   min-width: 0;
   margin: 0;
-  font-size: 1.0625rem;
+  font-size: var(--fs-l);
 }
 
 .dialog-bar > p {
@@ -506,8 +890,8 @@ dialog.dialog::backdrop {
 
 .dialog-bar > .count {
   align-self: flex-end;
-  padding-bottom: 0.5rem;
-  font-size: 0.8125rem;
+  padding-bottom: var(--space-s);
+  font-size: var(--fs-s);
 }
 
 .dialog-bar > [role='alert'] {
@@ -517,7 +901,7 @@ dialog.dialog::backdrop {
 .dialog-body {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem 1.25rem;
+  padding: var(--space-l);
 }
 
 /* A picker's options (ItemPicker.vue, LoadoutBox.vue): name, facts and rules on the left, the button at the right,
@@ -531,8 +915,8 @@ dialog.dialog::backdrop {
 .pick-list > li {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem 1rem;
-  padding: 0.65rem 0.5rem;
+  gap: var(--space-s) var(--space-l);
+  padding: var(--space-s);
   border-top: 1px solid var(--rule);
 }
 
@@ -553,13 +937,12 @@ dialog.dialog::backdrop {
 }
 
 .pick-list .pick-name {
-  color: var(--lilac);
   font-weight: 700;
 }
 
 .pick-list .pick-meta {
   color: var(--text-dim);
-  font-size: 0.8125rem;
+  font-size: var(--fs-s);
 }
 
 .pick-list .pick-text {
@@ -569,7 +952,8 @@ dialog.dialog::backdrop {
   -webkit-line-clamp: 3;
   line-clamp: 3;
   color: var(--text-dim);
-  font: 400 0.875rem/1.45 var(--read);
+  font-size: var(--fs-s);
+  line-height: 1.45;
 }
 
 .pick-list .pick-action {
@@ -577,36 +961,43 @@ dialog.dialog::backdrop {
   flex-shrink: 0;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.2rem;
+  gap: var(--space-xs);
   max-width: 40%;
   text-align: right;
 }
 
+/* A blocked option's reason, as in the blocked-action pattern. */
 .pick-list .pick-reason {
-  color: var(--rose);
-  font-size: 0.8125rem;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
 }
 
-/* Blocked options: dimmed, but their reason stays readable. */
 .pick-list > li.blocked .pick-about {
   opacity: 0.6;
 }
 
-/* For anything read at length, like a backstory: the readable font instead of monospace. */
+/* ───────────────────────── Reading ───────────────────────── */
+/* For anything read at length, like a backstory. */
 .prose {
-  font: 400 1.0625rem/1.55 var(--read);
+  font-size: var(--fs-m);
+  line-height: 1.6;
 }
 
-/* LANCER rules text (RulesText.vue): readable, with its own lists and bold keywords kept. */
+/* LANCER rules text (RulesText.vue): readable and left-aligned, with its own lists and bold keywords kept. */
 .rules-text {
   color: var(--text);
-  font: 400 0.9375rem/1.5 var(--read);
+  font-size: var(--fs-m);
+  line-height: 1.5;
 }
 
 .rules-text p,
 .rules-text ul,
 .rules-text ol {
-  margin: 0 0 0.5em;
+  margin: 0 0 var(--space-s);
+}
+
+.rules-text p {
+  max-width: none;
 }
 
 .rules-text > :last-child {
@@ -615,27 +1006,23 @@ dialog.dialog::backdrop {
 
 .rules-text ul,
 .rules-text ol {
-  padding-left: 1.25em;
+  padding-left: 1.2em;
 }
 
 .rules-text li + li {
-  margin-top: 0.25em;
+  margin-top: var(--space-xs);
 }
 
 .rules-text li::marker {
-  color: var(--lilac);
-}
-
-.rules-text b {
-  color: var(--lilac);
-  font-weight: 700;
-}
-
-/* Colour helpers, used by the chats and terminal text. */
-.dim {
   color: var(--text-dim);
 }
 
+.rules-text b {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Colour helpers for the boot sequence's log and chat (login and home). */
 .lilac {
   color: var(--lilac);
 }
@@ -648,29 +1035,15 @@ dialog.dialog::backdrop {
   color: var(--sky);
 }
 
-/* Hidden on screen but still read by screen readers. */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 @media (max-width: 40rem) {
   .page {
-    padding: 1.5rem 1rem;
-  }
-
-  .panel {
-    padding: 1rem;
+    padding: var(--space-l) var(--space-l) var(--space-xl);
   }
 
   .dialog-head,
   .dialog-bar,
   .dialog-body {
-    padding-inline: 1rem;
+    padding-inline: var(--space-m);
   }
 }
 

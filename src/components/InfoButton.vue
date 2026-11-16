@@ -12,16 +12,23 @@ const props = defineProps<{ info: () => Info; label: string }>()
 </template>
 
 <style scoped>
-/* Looks like the name it replaces, with a dotted underline to show it opens more. No terminal brackets. */
+/* Looks like the name it replaces (not like a button), in its own colour: a real button with a pointer that underlines
+   on hover and focus (the prototype's item names). */
 .info-link {
   display: inline;
   min-height: 0;
   padding: 0;
   border: 0;
+  border-radius: 0;
+  background: none;
   color: inherit;
   font: inherit;
+  letter-spacing: inherit;
   text-align: inherit;
-  text-decoration: underline dotted color-mix(in srgb, currentColor 45%, transparent);
+  text-transform: inherit;
+  white-space: inherit;
+  cursor: pointer;
+  text-decoration: underline 2px transparent;
   text-underline-offset: 0.2em;
 }
 
@@ -32,7 +39,13 @@ const props = defineProps<{ info: () => Info; label: string }>()
 
 .info-link:hover,
 .info-link:focus-visible {
-  color: var(--rose);
-  text-decoration: underline solid;
+  background: none;
+  text-decoration-color: currentColor;
+}
+
+.info-link:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
 </style>

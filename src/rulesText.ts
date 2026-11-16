@@ -53,3 +53,24 @@ export function parseRules(html: string): RulesNode[] {
 // One line of text without the formatting, for pickers and summaries.
 export const plainText = (html: string) =>
   decode(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim()
+
+// Packs often separate paragraphs with a line break at the top level ("…paint'.<br>This system can only…"). Those
+// become real paragraphs, so they get paragraph spacing; lists and paragraphs stay as they are, and a line break
+// inside a list item or a paragraph stays a line break.
+const BLOCKS = new Set<RulesTag>(['p', 'ul', 'ol'])
+export function paragraphs(nodes: RulesNode[]): RulesNode[] {
+  if (!nodes.some((node) => typeof node !== 'string' && node.tag === 'br')) return nodes
+  const result: RulesNode[] = []
+  let run: RulesNode[] = []
+  const flush = () => {
+    if (run.some((node) => typeof node !== 'string' || node.trim())) result.push({ tag: 'p', children: run })
+    run = []
+  }
+  for (const node of nodes) {
+    if (typeof node !== 'string' && node.tag === 'br') flush()
+    else if (typeof node !== 'string' && BLOCKS.has(node.tag)) { flush(); result.push(node) }
+    else run.push(node)
+  }
+  flush()
+  return result
+}

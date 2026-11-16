@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HOR_OS redesign prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════ Top bar: the site's one sticky bar ═══════════════ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#pilot" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#pilot" aria-current="page">My pilot</a>
+        <a class="tab" href="#pilot">Registry</a>
+        <a class="tab" href="#pilot">Pending <span class="count">2</span></a>
+        <a class="tab" href="#pilot">Memorial</a>
+        <a class="tab" href="#items">Archives</a>
+      </div>
+      <div class="topbar-group">
+        <span class="label">GM</span>
+        <div class="tabs">
+          <a class="tab" href="#pilot">Pilots</a>
+          <a class="tab" href="#pilot">Changes <span class="count">3</span></a>
+          <a class="tab" href="#pilot">Content</a>
+        </div>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">vanta <span class="label">Owner</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false" aria-controls="drawer" data-menu>Menu</button>
+    </div>
+  </div>
+  <nav class="topbar-drawer" id="drawer" aria-label="Main">
+    <a href="#pilot" aria-current="page">My pilot</a>
+    <a href="#pilot">Registry</a>
+    <a href="#pilot">Pending</a>
+    <a href="#pilot">Memorial</a>
+    <a href="#items">Archives</a>
+    <span class="label">GM</span>
+    <a href="#pilot">Pilots</a>
+    <a href="#pilot">Changes</a>
+    <a href="#pilot">Content</a>
+    <span class="label">Signed in as vanta (owner)</span>
+  </nav>
+</header>
+
+<nav class="proto-index" aria-label="Prototype sections">
+  <strong>Prototype:</strong>
+  <a href="#legend">Legend</a>
+  <a href="#pilot">Pilot sheet</a>
+  <a href="#mech">Mech (IPS-N)</a>
+  <a href="#mech-gms">Mech (GMS)</a>
+  <a href="#items">Item cards</a>
+</nav>
+
+<main class="page">
+
+<!-- ═══════════════════════════════ 1. LEGEND ═══════════════════════════════ -->
+<section id="legend" aria-labelledby="legend-h">
+  <h1 class="proto-h" id="legend-h" style="border-top:0;margin-top:0">Legend: the style sheet</h1>
+  <p class="proto-note">Every colour has one job. Colour is never the only signal: each one comes with a symbol or a word. Where two jobs share a hue, they differ in shape (pill badge, square tag chip, clipped action chip, icon, header bar).</p>
+
+  <div class="stack">
+  <div class="section">
+    <div class="section-head"><h2 class="section-title">Colour jobs</h2></div>
+    <div class="scroll-x">
+    <table class="swatches">
+      <thead><tr><th>Colour</th><th>Token</th><th>Hex</th><th>Its one job</th><th>Shape it appears in</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><span class="swatch" style="--c:var(--void)"></span></td><td class="code">--void</td><td class="code">#111113</td><td>Page background</td><td>Page</td><td></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--panel)"></span></td><td class="code">--panel</td><td class="code">#1c1c21</td><td>Sections, cards, dialogs</td><td>Surface</td><td></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--raised)"></span></td><td class="code">--raised</td><td class="code">#26252c</td><td>Tag chips, hovered rows</td><td>Surface</td><td><span class="chip">Unique</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--rule)"></span></td><td class="code">--rule</td><td class="code">#403f48</td><td>Dividers and card borders</td><td>Line</td><td></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--edge)"></span></td><td class="code">--edge</td><td class="code">#6e6c79</td><td>Outlines of controls and empty slots (3.3:1)</td><td>Outline</td><td><button class="btn btn-sm" type="button">Edit</button></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--text)"></span></td><td class="code">--text</td><td class="code">#f5f4f7</td><td>Text</td><td>Text</td><td>Rules text</td></tr>
+        <tr><td><span class="swatch" style="--c:var(--text-dim)"></span></td><td class="code">--text-dim</td><td class="code">#b1afba</td><td>Secondary text, labels, stat icons; also <b>dead</b> (always with the skull)</td><td>Text, icon</td><td><span class="badge badge-dead"><svg class="icon" aria-hidden="true"><use href="icons.svg#dead"/></svg>Dead</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--lilac)"></span></td><td class="code">--lilac</td><td class="code">#c9b3ff</td><td><b>Interactive only</b>: buttons, links, focus ring, current tab or page</td><td>Button, link, underline</td><td><a href="#legend">A link</a></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--ok)"></span></td><td class="code">--ok</td><td class="code">#a9dfb5</td><td>Approved, saved, added, refund, budget exactly used</td><td>Pill badge, notice edge, meter fill</td><td><span class="badge badge-approved"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg>Approved</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--wait)"></span></td><td class="code">--wait</td><td class="code">#f2d675</td><td>Pending and draft: waiting on someone</td><td>Pill badge (draft dashed)</td><td><span class="badge badge-pending"><svg class="icon" aria-hidden="true"><use href="icons.svg#pending"/></svg>Pending</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--danger)"></span></td><td class="code">--danger</td><td class="code">#ff9eb0</td><td>Rejected, rule broken, removed, over budget, destructive button</td><td>Pill badge, notice edge, meter, danger button</td><td><span class="badge badge-rejected"><svg class="icon" aria-hidden="true"><use href="icons.svg#rejected"/></svg>Rejected</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--info)"></span></td><td class="code">--info</td><td class="code">#a6d8ea</td><td>Neutral information and "changed"; stat modifier notes</td><td>Notice edge, small note</td><td><span class="stat-note">2 + 1 bionic</span></td></tr>
+        <tr><th colspan="6" class="label">Game meanings (COMP/CON's colours)</th></tr>
+        <tr><td><span class="swatch" style="--c:var(--dmg-kinetic)"></span></td><td class="code">--dmg-kinetic</td><td class="code">#9e9e9e</td><td>Kinetic damage</td><td>Icon only</td><td><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>4 <small>kinetic</small></span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--dmg-energy)"></span></td><td class="code">--dmg-energy</td><td class="code">#29b6f6</td><td>Energy damage</td><td>Icon only</td><td><span class="rd dmg-energy"><svg class="icon" aria-hidden="true"><use href="icons.svg#energy"/></svg>4 <small>energy</small></span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--dmg-explosive)"></span></td><td class="code">--dmg-explosive</td><td class="code">#ffa726</td><td>Explosive damage</td><td>Icon only</td><td><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>7 <small>explosive</small></span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--dmg-burn)"></span></td><td class="code">--dmg-burn</td><td class="code">#e0443a</td><td>Burn</td><td>Icon only</td><td><span class="rd dmg-burn"><svg class="icon" aria-hidden="true"><use href="icons.svg#burn"/></svg>2 <small>burn</small></span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--dmg-heat)"></span></td><td class="code">--dmg-heat</td><td class="code">#ff7043</td><td>Heat</td><td>Icon only</td><td><span class="rd dmg-heat"><svg class="icon" aria-hidden="true"><use href="icons.svg#heat"/></svg>2 <small>heat</small></span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--dmg-variable)"></span></td><td class="code">--dmg-variable</td><td class="code">#e05cff</td><td>Variable damage</td><td>Icon only</td><td><span class="rd dmg-variable"><svg class="icon" aria-hidden="true"><use href="icons.svg#variable"/></svg>4 <small>variable</small></span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-quick)"></span></td><td class="code">--act-quick</td><td class="code">#3949ab</td><td>Quick action</td><td>Clipped action chip</td><td><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-full)"></span></td><td class="code">--act-full</td><td class="code">#283593</td><td>Full action</td><td>Clipped action chip</td><td><span class="action action-full"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_full"/></svg>Full</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-reaction)"></span></td><td class="code">--act-reaction</td><td class="code">#512da8</td><td>Reaction</td><td>Clipped action chip</td><td><span class="action action-reaction"><svg class="icon" aria-hidden="true"><use href="icons.svg#reaction"/></svg>Reaction</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-protocol)"></span></td><td class="code">--act-protocol</td><td class="code">#007676</td><td>Protocol</td><td>Clipped action chip</td><td><span class="action action-protocol"><svg class="icon" aria-hidden="true"><use href="icons.svg#protocol"/></svg>Protocol</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-free)"></span></td><td class="code">--act-free</td><td class="code">#00695c</td><td>Free action</td><td>Clipped action chip</td><td><span class="action action-free"><svg class="icon" aria-hidden="true"><use href="icons.svg#free_action"/></svg>Free</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-overcharge)"></span></td><td class="code">--act-overcharge</td><td class="code">#c2004a</td><td>Overcharge</td><td>Clipped action chip</td><td><span class="action action-overcharge"><svg class="icon" aria-hidden="true"><use href="icons.svg#overcharge"/></svg>Overcharge</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--act-tech)"></span></td><td class="code">--act-tech</td><td class="code">#802475</td><td>Quick tech, full tech, invade</td><td>Clipped action chip</td><td><span class="action action-tech"><svg class="icon" aria-hidden="true"><use href="icons.svg#tech_quick"/></svg>Quick tech</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--type-weapon)"></span></td><td class="code">--type-weapon</td><td class="code">#4f5560</td><td>Weapons (mech and pilot)</td><td>Card header bar</td><td>see cards</td></tr>
+        <tr><td><span class="swatch" style="--c:var(--type-system)"></span></td><td class="code">--type-system</td><td class="code">#3a7d20</td><td>Mech systems</td><td>Card header bar</td><td>see cards</td></tr>
+        <tr><td><span class="swatch" style="--c:var(--type-frame)"></span></td><td class="code">--type-frame</td><td class="code">#673ab7</td><td>Frames and licences</td><td>Card header bar</td><td>see cards</td></tr>
+        <tr><td><span class="swatch" style="--c:var(--type-pilot)"></span></td><td class="code">--type-pilot</td><td class="code">#005454</td><td>Pilot armour, pilot gear, bionics</td><td>Card header bar</td><td>see cards</td></tr>
+        <tr><td><span class="swatch" style="--c:var(--type-talent)"></span></td><td class="code">--type-talent</td><td class="code">#7a4e1d</td><td>Talents</td><td>Card header bar</td><td>see cards</td></tr>
+        <tr><td><span class="swatch" style="--c:var(--type-core)"></span></td><td class="code">--type-core</td><td class="code">#d4e157</td><td>Core bonuses, core systems (dark text)</td><td>Card header bar</td><td>see cards</td></tr>
+        <tr><th colspan="6" class="label">Manufacturers (accent only: logo, 3px top border, the mech plate's tint)</th></tr>
+        <tr><td><span class="swatch" style="--c:var(--mf-gms)"></span></td><td class="code">--mf-gms</td><td class="code">#db1a2d</td><td>GMS</td><td>Logo, top border</td><td><span class="mf-code mf-gms"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-gms"/></svg>GMS</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--mf-ipsn)"></span></td><td class="code">--mf-ipsn</td><td class="code">#1c9ae8</td><td>IPS-N</td><td>Logo, top border</td><td><span class="mf-code mf-ipsn"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ips-n"/></svg>IPS-N</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--mf-ssc)"></span></td><td class="code">--mf-ssc</td><td class="code">#d1920a</td><td>SSC</td><td>Logo, top border</td><td><span class="mf-code mf-ssc"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ssc"/></svg>SSC</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--mf-horus)"></span></td><td class="code">--mf-horus</td><td class="code">#00a256</td><td>HORUS</td><td>Logo, top border</td><td><span class="mf-code mf-horus"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-horus"/></svg>HORUS</span></td></tr>
+        <tr><td><span class="swatch" style="--c:var(--mf-ha)"></span></td><td class="code">--mf-ha</td><td class="code">#a15ea8</td><td>Harrison Armory</td><td>Logo, top border</td><td><span class="mf-code mf-ha"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ha"/></svg>HA</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="section type-scale">
+      <div class="section-head"><h2 class="section-title">Type</h2></div>
+      <div class="callsign">WARDEN <span class="dim" style="font-size:14px;font-weight:400">28px callsign, Atkinson 800</span></div>
+      <div style="font-size:20px;font-weight:700">Nanocarbon Sword <span class="dim" style="font-size:14px;font-weight:400">20px dialog item name</span></div>
+      <div class="item-name">Chain Axe <span class="dim" style="font-size:14px;font-weight:400">17px card item name (title case from the data)</span></div>
+      <div class="section-title">Section heading <span class="dim" style="font-size:14px;font-weight:400;text-transform:none;letter-spacing:0">14px uppercase, tracked</span></div>
+      <p>Body and rules text, 16px, sentence case. When you Grapple or Ram opponents of the same Size or smaller, you count as at least one Size larger.</p>
+      <p class="dim" style="font-size:14px">Secondary text, 14px.</p>
+      <div class="label">Uppercase label, 12px</div>
+      <div><span class="num" style="font-size:24px;font-weight:700">23</span> <span class="code">IPSN-7Q4K-BB21</span> <span class="dim" style="font-size:14px">Cascadia Mono: numbers and codes only</span></div>
+    </div>
+    <div class="section stack">
+      <div class="section-head"><h2 class="section-title">Buttons</h2></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button">Submit for review</button>
+        <button class="btn" type="button">Edit change</button>
+        <button class="btn btn-danger" type="button">Mark pilot dead</button>
+        <button class="btn btn-quiet" type="button">Clear note</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" type="button">Approve</button>
+        <button class="btn btn-sm" type="button"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg>Add system</button>
+        <button class="btn btn-danger btn-sm" type="button">Remove</button>
+        <span class="blocked"><button class="btn btn-sm" type="button" disabled aria-describedby="why-3">Raise rank · 600</button><span class="blocked-reason" id="why-3">Not enough manna</span></span>
+      </div>
+      <p class="dim" style="font-size:14px">Blocked actions: the disabled button keeps its label and cost, and the reason sits beside it in secondary text.</p>
+      <div class="section-head" style="margin:8px 0 0"><h2 class="section-title">Links and item names</h2></div>
+      <p style="font-size:14px">A <a href="#legend">text link</a> is lilac and underlined. An item's name opens its full information: it's a real button with a pointer cursor that underlines on hover and focus, and gets the focus ring, drawn in the header's own text colour. Try hovering or tabbing to these:</p>
+      <div class="cards">
+        <article class="item item-weapon"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#melee"/></svg><h3 class="item-name"><button type="button">Chain Axe</button></h3></div></article>
+        <article class="item item-core"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#corebonus"/></svg><h3 class="item-name"><button type="button">Reinforced Frame</button></h3></div></article>
+      </div>
+      <div class="section-head" style="margin:8px 0 0"><h2 class="section-title">Tabs</h2></div>
+      <div class="tabs" role="tablist" aria-label="Example tabs">
+        <button class="tab" role="tab" aria-selected="true" type="button">Profile</button>
+        <button class="tab" role="tab" aria-selected="false" type="button">Stats</button>
+        <button class="tab" role="tab" aria-selected="false" type="button">Mechs <span class="count">2</span></button>
+      </div>
+      <div class="section-head" style="margin:8px 0 0"><h2 class="section-title">Status badges</h2></div>
+      <div class="btn-row">
+        <span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="icons.svg#draft"/></svg>Draft</span>
+        <span class="badge badge-pending"><svg class="icon" aria-hidden="true"><use href="icons.svg#pending"/></svg>Pending</span>
+        <span class="badge badge-approved"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg>Approved</span>
+        <span class="badge badge-rejected"><svg class="icon" aria-hidden="true"><use href="icons.svg#rejected"/></svg>Rejected</span>
+        <span class="badge badge-dead"><svg class="icon" aria-hidden="true"><use href="icons.svg#dead"/></svg>Dead</span>
+      </div>
+      <div class="section-head" style="margin:8px 0 0"><h2 class="section-title">Tag chips and action chips</h2></div>
+      <div class="chips">
+        <span class="chip" title="This weapon always does 2 damage, even if it misses.">Reliable<span class="num">2</span></span>
+        <span class="chip">Unique</span>
+        <span class="chip">Limited<span class="num">3</span></span>
+        <span class="chip">Heat<span class="num">1</span>&nbsp;(self)</span>
+        <span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span>
+        <span class="action action-protocol"><svg class="icon" aria-hidden="true"><use href="icons.svg#protocol"/></svg>Protocol</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="section stack">
+      <div class="section-head"><h2 class="section-title">Notices</h2></div>
+      <div class="notice notice-info" role="status"><svg class="icon" aria-hidden="true"><use href="icons.svg#info"/></svg><div><div class="notice-title">Editing your draft</div>Edits to this mech go into your draft change, not the approved pilot.</div></div>
+      <div class="notice notice-warn" role="alert"><svg class="icon" aria-hidden="true"><use href="icons.svg#warning"/></svg><div><div class="notice-title">1 rule to fix</div>PILGRIM uses 7 of 6 system points.</div></div>
+      <div class="notice notice-ok" role="status"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg><div><div class="notice-title">Approved</div>A GM approved your change. Note: "Welcome aboard."</div></div>
+    </div>
+    <div class="section stack">
+      <div class="section-head"><h2 class="section-title">Meters and empty state</h2></div>
+      <div class="meter"><div class="meter-head"><span class="label">Personal points</span><span class="meter-value"><span class="num">1</span> of <span class="num">4</span> left</span></div><div class="meter-bar"><span style="--fill:75%"></span></div></div>
+      <div class="meter full"><div class="meter-head"><span class="label">System points</span><span class="meter-value num">5 / 5</span></div><div class="meter-bar"><span style="--fill:100%"></span></div><div class="meter-note">All used.</div></div>
+      <div class="meter over"><div class="meter-head"><span class="label">System points</span><span class="meter-value num">7 / 6</span></div><div class="meter-bar"><span style="--fill:100%"></span></div><div class="meter-note"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#warning"/></svg> 1 over</div></div>
+      <div class="empty">No gear in this slot.<button class="btn btn-sm" type="button">Equip gear</button></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2 class="section-title">"What happens next" bar, every state</h2></div>
+    <div class="stack">
+      <div class="next" style="border-top:1px solid var(--rule);border-radius:4px"><span class="badge badge-pending"><svg class="icon" aria-hidden="true"><use href="icons.svg#pending"/></svg>Pending</span>Waiting on a GM. You can keep editing.</div>
+      <div class="next" style="border-top:1px solid var(--rule);border-radius:4px"><span class="badge badge-rejected"><svg class="icon" aria-hidden="true"><use href="icons.svg#rejected"/></svg>Sent back</span>A GM sent this pilot back. Read their note, then resubmit.<div class="btn-row"><button class="btn btn-primary btn-sm" type="button">Resubmit for review</button></div></div>
+      <div class="next" style="border-top:1px solid var(--rule);border-radius:4px"><span class="badge badge-approved"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg>Approved</span>To change anything, propose a change for a GM to review.<div class="btn-row"><button class="btn btn-primary btn-sm" type="button">Propose changes</button></div></div>
+      <div class="next" style="border-top:1px solid var(--rule);border-radius:4px"><span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="icons.svg#draft"/></svg>Draft change</span>Your edits are saved as a draft. Submit it when you're ready.<div class="btn-row"><button class="btn btn-sm" type="button">Withdraw</button><button class="btn btn-primary btn-sm" type="button">Submit for review</button></div></div>
+      <div class="next" style="border-top:1px solid var(--rule);border-radius:4px"><span class="badge badge-pending"><svg class="icon" aria-hidden="true"><use href="icons.svg#pending"/></svg>Change submitted</span>Waiting on a GM. The sheet is read-only until then.<div class="btn-row"><button class="btn btn-sm" type="button">Withdraw</button><button class="btn btn-sm" type="button">Edit change</button></div></div>
+      <div class="next" style="border-top:1px solid var(--rule);border-radius:4px"><span class="badge badge-dead"><svg class="icon" aria-hidden="true"><use href="icons.svg#dead"/></svg>Dead</span>This pilot is in the memorial. The record is read-only.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2 class="section-title">Icons</h2><span class="section-meta dim" style="font-size:14px">All draw in the current text colour. "Proposal" = new symbol for the developer to approve.</span></div>
+    <h3 class="label" style="margin:0 0 8px">Mech stats (COMP/CON; hp, armour, speed from MDI)</h3>
+    <div class="icon-grid">
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg>HP</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg>Armour</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#evasion"/></svg>Evasion</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg>E-defence</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg>Speed</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#heat"/></svg>Heat cap</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#structure"/></svg>Structure</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#reactor"/></svg>Stress</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#repair"/></svg>Repair cap</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#tech_attack"/></svg>Tech attack</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#system_point"/></svg>System points</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#size-half"/></svg>Size ½</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#size-1"/></svg>Size 1</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#size-2"/></svg>Size 2</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#size-3"/></svg>Size 3</div>
+    </div>
+    <h3 class="label" style="margin:16px 0 8px">Piloting stats, HASE (Lucide; proposal)</h3>
+    <div class="icon-grid">
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#hull"/></svg>Hull <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#agility"/></svg>Agility <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#systems"/></svg>Systems <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#engineering"/></svg>Engineering <em>proposal</em></div>
+    </div>
+    <h3 class="label" style="margin:16px 0 8px">Personal stats, homebrew (Lucide; proposal)</h3>
+    <div class="icon-grid">
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#physicality"/></svg>Physicality <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#dexterity"/></svg>Dexterity <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#perception"/></svg>Perception <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#acuity"/></svg>Acuity <em>proposal</em></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#techfluency"/></svg>Tech-fluency <em>proposal</em></div>
+    </div>
+    <h3 class="label" style="margin:16px 0 8px">Damage (coloured) and range (text colour), COMP/CON</h3>
+    <div class="icon-grid">
+      <div class="icon-cell dmg-kinetic rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg><span style="font-family:var(--sans);font-weight:400">Kinetic</span></div>
+      <div class="icon-cell dmg-energy rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#energy"/></svg><span style="font-family:var(--sans);font-weight:400">Energy</span></div>
+      <div class="icon-cell dmg-explosive rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg><span style="font-family:var(--sans);font-weight:400">Explosive</span></div>
+      <div class="icon-cell dmg-burn rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#burn"/></svg><span style="font-family:var(--sans);font-weight:400">Burn</span></div>
+      <div class="icon-cell dmg-heat rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#heat"/></svg><span style="font-family:var(--sans);font-weight:400">Heat</span></div>
+      <div class="icon-cell dmg-variable rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#variable"/></svg><span style="font-family:var(--sans);font-weight:400">Variable</span></div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>Range</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#threat"/></svg>Threat</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#blast"/></svg>Blast</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#burst"/></svg>Burst</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#cone"/></svg>Cone</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#line"/></svg>Line</div>
+    </div>
+    <h3 class="label" style="margin:16px 0 8px">Actions, COMP/CON</h3>
+    <div class="icon-grid">
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_full"/></svg>Full</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#reaction"/></svg>Reaction</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#protocol"/></svg>Protocol</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#free_action"/></svg>Free</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#overcharge"/></svg>Overcharge</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#tech_quick"/></svg>Quick tech</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#tech_full"/></svg>Full tech</div>
+    </div>
+    <h3 class="label" style="margin:16px 0 8px">Things you own, COMP/CON</h3>
+    <div class="icon-grid">
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#pilot"/></svg>Pilot</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#frame"/></svg>Frame / mech</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#license"/></svg>Licence</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg>Talent</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#corebonus"/></svg>Core bonus</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Weapon</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>System</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg>Pilot gear</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#trait"/></svg>Frame trait</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#deployable"/></svg>Deployable</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#mine"/></svg>Mine</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#grenade"/></svg>Grenade</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#melee"/></svg>Melee</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#rank-1"/></svg>Rank I</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#rank-2"/></svg>Rank II</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#rank-3"/></svg>Rank III</div>
+    </div>
+    <h3 class="label" style="margin:16px 0 8px">Status and privacy (Lucide)</h3>
+    <div class="icon-grid">
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#draft"/></svg>Draft</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#pending"/></svg>Pending</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg>Approved</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#rejected"/></svg>Rejected</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#dead"/></svg>Dead</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#info"/></svg>Info</div>
+      <div class="icon-cell"><svg class="icon" aria-hidden="true"><use href="icons.svg#warning"/></svg>Warning</div>
+    </div>
+  </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 2. PILOT SHEET ═══════════════════════════════ -->
+<section id="pilot" aria-labelledby="pilot-h">
+  <h1 class="proto-h" id="pilot-h">Pilot sheet (the owner, drafting a change)</h1>
+
+  <div class="header">
+    <div class="portrait" role="img" aria-label="No portrait yet"><svg class="icon icon-l" aria-hidden="true"><use href="icons.svg#pilot"/></svg></div>
+    <div>
+      <div class="callsign">WARDEN</div>
+      <div class="subline sep"><span>Ilse Varga</span><span>Player: vanta</span><span class="badge badge-approved"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg>Approved</span></div>
+    </div>
+    <div class="facts">
+      <div class="fact"><span class="label">Level</span><span class="fact-value">3</span></div>
+      <div class="fact"><span class="label">Licence level</span><span class="fact-value">3</span></div>
+      <div class="fact"><span class="label">Manna left</span><span class="fact-value">300</span><span class="fact-sub"><span class="num">3,200</span> of <span class="num">3,500</span> spent</span></div>
+    </div>
+  </div>
+  <div class="next">
+    <span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="icons.svg#draft"/></svg>Draft change</span>
+    <span class="next-text">Your edits are saved as a draft. Submit it when you're ready. <span class="dim">Saved</span></span>
+    <div class="btn-row"><button class="btn btn-sm" type="button">Withdraw</button><button class="btn btn-primary btn-sm" type="button">Submit for review</button></div>
+  </div>
+
+  <div class="notice notice-warn" role="alert" style="margin-top:12px">
+    <svg class="icon" aria-hidden="true"><use href="icons.svg#warning"/></svg>
+    <div><div class="notice-title">1 rule to fix before you submit</div>PILGRIM (Everest) uses 7 of 6 system points. Remove a system or free up 1 point. <a href="#mech-gms">Open PILGRIM</a></div>
+  </div>
+
+  <div class="tabs tabs-sticky" role="tablist" aria-label="Pilot sheet" data-tabs style="margin-top:12px">
+    <button class="tab" role="tab" type="button" aria-selected="true" aria-controls="p-profile">Profile</button>
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="p-stats">Stats</button>
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="p-equipment">Equipment</button>
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="p-licences">Licences</button>
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="p-talents">Talents</button>
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="p-mechs">Mechs <span class="count">2</span></button>
+  </div>
+
+  <!-- Profile -->
+  <div id="p-profile" role="tabpanel" class="stack" style="margin-top:16px">
+    <div class="grid-2" style="grid-template-columns:minmax(0,2fr) minmax(16rem,1fr)">
+      <div class="stack">
+        <div class="section">
+          <div class="section-head"><h2 class="section-title">Appearance</h2></div>
+          <div class="prose"><p>Tall and narrow, with a shaved head and a burn scar that runs from her left ear to her collar. Always in a flight jacket two sizes too big, patched with the insignia of ships she has never served on.</p></div>
+        </div>
+        <div class="section">
+          <div class="section-head"><h2 class="section-title">Personality</h2></div>
+          <div class="prose"><p>Quiet until the shooting starts, then dry and unhurried on comms. Keeps promises to the letter and not one word further.</p></div>
+        </div>
+        <div class="section">
+          <div class="section-head"><h2 class="section-title">Backstory</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+          <div class="prose"><p>Grew up on a salvage tender in the Dawnline Shore. Learned to grapple wrecks before she learned to read, and joined a convoy escort after pirates took the tender. She has been chasing the same three ships ever since.</p></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-head"><h2 class="section-title">Identity</h2></div>
+        <div class="portrait" style="width:100%;max-width:160px;margin-bottom:12px" role="img" aria-label="No portrait yet"><svg class="icon icon-l" aria-hidden="true"><use href="icons.svg#pilot"/></svg></div>
+        <button class="btn btn-sm" type="button" style="margin-bottom:16px">Upload portrait</button>
+        <dl class="kv">
+          <dt><label for="f-age">Age</label></dt><dd><input class="field" id="f-age" value="31"></dd>
+          <dt><label for="f-gender">Gender</label></dt><dd><input class="field" id="f-gender" value="Woman"></dd>
+          <dt><label for="f-sex">Sexuality</label></dt><dd><input class="field" id="f-sex" value="Bisexual"></dd>
+          <dt><label for="f-h">Height</label></dt><dd><input class="field" id="f-h" value="1.86 m"></dd>
+          <dt><label for="f-w">Weight</label></dt><dd><input class="field" id="f-w" value="74 kg"></dd>
+          <dt><label for="f-eye">Eyes</label></dt><dd><input class="field" id="f-eye" value="Grey"></dd>
+          <dt><label for="f-hair">Hair</label></dt><dd><input class="field" id="f-hair" value="Shaved"></dd>
+        </dl>
+      </div>
+    </div>
+    <div class="section" style="border-color:rgb(255 158 176 / 0.4)">
+      <div class="section-head"><h2 class="section-title">Danger zone</h2></div>
+      <div class="btn-row"><span class="dim" style="font-size:14px;flex:1;min-width:14rem">Marking WARDEN dead moves her to the memorial. It can't be undone.</span><button class="btn btn-danger" type="button">Mark pilot dead</button></div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div id="p-stats" role="tabpanel" class="section-grid" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">General stats</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="stats">
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg><span class="stat-value">9</span><span class="stat-text"><span class="stat-label">HP</span><span class="stat-note">6 + 3 armour</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg><span class="stat-value">0</span><span class="stat-text"><span class="stat-label">Armour</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg><span class="stat-value">4</span><span class="stat-text"><span class="stat-label">Speed</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg><span class="stat-value">10</span><span class="stat-text"><span class="stat-label">E-defence</span></span></div>
+      </div>
+    </div>
+    <div class="section span-all">
+      <div class="section-head"><h2 class="section-title">Personal stats</h2><span class="section-meta"><span class="meter-inline"><span class="num">1</span> of <span class="num">4</span> points left</span><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="stats stats-adjustable">
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#physicality"/></svg><span class="stat-value">3</span><span class="stat-text"><span class="stat-label">Physicality</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower physicality"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise physicality"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#dexterity"/></svg><span class="stat-value">3</span><span class="stat-text"><span class="stat-label">Dexterity</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower dexterity"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise dexterity"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#perception"/></svg><span class="stat-value">3</span><span class="stat-text"><span class="stat-label">Perception</span><span class="stat-note">2 + 1 bionic</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower perception" disabled title="Already at the base minimum (2)"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise perception"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#acuity"/></svg><span class="stat-value">2</span><span class="stat-text"><span class="stat-label">Acuity</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower acuity" disabled title="Already at the base minimum (2)"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise acuity"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#techfluency"/></svg><span class="stat-value">3</span><span class="stat-text"><span class="stat-label">Tech-fluency</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower tech-fluency"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise tech-fluency"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Piloting stats (HASE)</h2><span class="section-meta"><span class="meter-inline"><span class="num">0</span> of <span class="num">5</span> points left</span><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="stats stats-adjustable">
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#hull"/></svg><span class="stat-value">2</span><span class="stat-text"><span class="stat-label">Hull</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower hull"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise hull" disabled title="No points left"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#agility"/></svg><span class="stat-value">2</span><span class="stat-text"><span class="stat-label">Agility</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower agility"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise agility" disabled title="No points left"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#systems"/></svg><span class="stat-value">0</span><span class="stat-text"><span class="stat-label">Systems</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower systems" disabled title="Already 0"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise systems" disabled title="No points left"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#engineering"/></svg><span class="stat-value">1</span><span class="stat-text"><span class="stat-label">Engineering</span></span><div class="stat-adjust"><button class="btn" type="button" aria-label="Lower engineering"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#minus"/></svg></button><button class="btn" type="button" aria-label="Raise engineering" disabled title="No points left"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg></button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipment -->
+  <div id="p-equipment" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Bionics</h2><span class="section-meta"><span class="meter-inline">Mod points <span class="num">1</span> / <span class="num">9</span></span><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span><button class="btn btn-sm" type="button"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg>Add bionic</button></span></div>
+      <div class="cards">
+        <article class="item item-pilot">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg><h3 class="item-name"><button type="button">Ocular suite</button></h3><span class="item-meta">1<span class="unit">MOD</span></span></div>
+          <div class="item-body">
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#perception"/></svg>+1 <small>perception</small></span></div>
+            <div class="rules">Replacement eyes with a zoom lens and low-light filter.</div>
+          </div>
+        </article>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Loadout</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="cards">
+        <div><div class="label" style="margin-bottom:4px">Armour</div>
+        <article class="item item-pilot">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg><h3 class="item-name"><button type="button">Light Hardsuit</button></h3></div>
+          <div class="item-body">
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg>+3 <small>HP</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg>10 <small>e-def</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg>4 <small>speed</small></span></div>
+            <div class="chips"><span class="chip">Personal armour</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Weapon 1</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Medium A/C</button></h3></div>
+          <div class="item-body">
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#threat"/></svg>1 <small>threat</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>2 <small>kinetic</small></span></div>
+            <div class="chips"><span class="chip">Pilot weapon</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Weapon 2</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Light Signature</button></h3></div>
+          <div class="item-body">
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>3 <small>range</small></span><span class="rd dmg-variable"><svg class="icon" aria-hidden="true"><use href="icons.svg#variable"/></svg>1 <small>variable</small></span></div>
+            <div class="rules">When a signature weapon is acquired, choose its damage type – Explosive, Energy, or Kinetic.</div>
+            <div class="chips"><span class="chip">Sidearm</span><span class="chip">Set damage type</span><span class="chip">Pilot weapon</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Gear 1</div>
+        <article class="item item-pilot">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg><h3 class="item-name"><button type="button">Patch</button></h3></div>
+          <div class="item-body">
+            <div class="ability"><div class="ability-head"><span class="action action-full"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_full"/></svg>Full</span><span class="ability-name">Use Patch</span></div>
+            <div class="ability-body rules">Expend a charge to apply a patch to either yourself or an adjacent pilot, restoring half their maximum HP. Patches have no effect on Down and Out pilots.</div></div>
+            <div class="chips"><span class="chip">Limited<span class="num">1</span></span><span class="chip">Gear</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Gear 2</div>
+        <article class="item item-pilot">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#grenade"/></svg><h3 class="item-name"><button type="button">Frag Grenades</button></h3></div>
+          <div class="item-body">
+            <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Use Frag Grenade</span></div>
+            <div class="ability-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>5</span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#blast"/></svg>1</span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>2 <small>explosive</small></span></div>
+            <div class="rules">Throw a grenade within Range 5. Affected characters within a Blast 1 must succeed on an Agility save or take 2 Explosive damage.</div></div></div>
+            <div class="chips"><span class="chip">Limited<span class="num">2</span></span><span class="chip">Grenade</span><span class="chip">Gear</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Gear 3</div>
+        <div class="empty">No gear in this slot.<button class="btn btn-sm" type="button">Equip gear</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Licences -->
+  <div id="p-licences" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Licences</h2><span class="section-meta"><span class="meter-inline">Licence level <span class="num">3</span></span><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span><span class="blocked"><button class="btn btn-sm" type="button" disabled aria-describedby="why-4">Add licence · 600</button><span class="blocked-reason" id="why-4">Not enough manna</span></span></span></div>
+      <div class="stack">
+        <article class="item item-frame">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#license"/></svg><h3 class="item-name"><button type="button">Blackbeard</button></h3><span class="item-meta"><span>IPS-N</span>Rank II</span></div>
+          <div class="item-body">
+            <div class="ladder">
+              <div class="rank held"><div class="rank-head"><span class="rank-num">I</span><span class="price" style="color:var(--text)"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#check"/></svg>Held</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Chain Axe</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Synthetic Muscle Netting</li></ul></div>
+              <div class="rank held"><div class="rank-head"><span class="rank-num">II</span><span class="price" style="color:var(--text)"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#check"/></svg>Held</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#frame"/></svg>Blackbeard frame</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Bristlecrown Flechette Launcher</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Nanocarbon Sword</li></ul></div>
+              <div class="rank locked"><div class="rank-head"><span class="rank-num">III</span><span class="price">Next: <span class="num">600</span> manna</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Reinforced Cabling</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>SEKHMET-Class NHP</li></ul></div>
+            </div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button" aria-label="Lower Blackbeard rank">Lower rank</button><span class="blocked"><button class="btn btn-sm" type="button" disabled aria-describedby="why-1">Raise rank · 600</button><span class="blocked-reason" id="why-1">Not enough manna</span></span></div>
+        </article>
+        <article class="item item-frame">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#license"/></svg><h3 class="item-name"><button type="button">Drake</button></h3><span class="item-meta"><span>IPS-N</span>Rank I</span></div>
+          <div class="item-body">
+            <div class="ladder">
+              <div class="rank held"><div class="rank-head"><span class="rank-num">I</span><span class="price" style="color:var(--text)"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#check"/></svg>Held</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Assault Cannon</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Argonaut Shield</li></ul></div>
+              <div class="rank locked"><div class="rank-head"><span class="rank-num">II</span><span class="price">Next: <span class="num">600</span> manna</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#frame"/></svg>Drake frame</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Concussion Missiles</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Aegis Shield Generator</li></ul></div>
+              <div class="rank locked"><div class="rank-head"><span class="rank-num">III</span><span class="price">Locked</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Leviathan Heavy Assault Cannon</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Portable Bunker</li></ul></div>
+            </div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Lower rank</button><span class="blocked"><button class="btn btn-sm" type="button" disabled aria-describedby="why-2">Raise rank · 600</button><span class="blocked-reason" id="why-2">Not enough manna</span></span></div>
+        </article>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Core bonuses</h2><span class="section-meta"><span class="meter-inline"><span class="num">1</span> of <span class="num">1</span> picks used</span><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="cards">
+        <article class="item item-core">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#corebonus"/></svg><h3 class="item-name"><button type="button">Reinforced Frame</button></h3><span class="item-meta">IPS-N</span></div>
+          <div class="item-body"><div class="rules">You gain +5 HP.</div></div>
+          <div class="item-foot"><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article>
+        <div class="empty">Next pick at 6 licence ranks.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Talents -->
+  <div id="p-talents" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Talents</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span><button class="btn btn-sm" type="button"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg>Add talent</button></span></div>
+      <div class="stack">
+        <article class="item item-talent">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg><h3 class="item-name"><button type="button">Brawler</button></h3><span class="item-meta">Rank II</span></div>
+          <div class="item-body tiers">
+            <div class="tier"><span class="rank-num">I</span><div><div class="tier-name">Hold and Lock</div><div class="rules">You gain +1 Accuracy on all melee attacks against targets you are Grappling.</div></div></div>
+            <div class="tier"><span class="rank-num">II</span><div><div class="tier-name">Sledgehammer</div><div class="rules">Your Improvised Attacks gain Knockback 2 and deal 9 Kinetic damage.</div></div></div>
+            <div class="tier locked"><span class="rank-num">III</span><div><div class="tier-name">Knockout Blow <span class="price" style="margin-left:8px">Next: <span class="num">300</span> manna</span></div><div class="rules">Gain a Brawler Die, 1d6 starting at 6. Each time you Grapple, Ram, or make an Improvised Attack, lower the value of the Brawler Die by 1. When the Brawler Die reaches 1, you may reset it to 6 and, as a full action, make a Knockout Blow against an adjacent character. The value of your Brawler Die persists between scenes, but it resets to 6 when you rest or perform a Full Repair.</div></div></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Lower rank</button><button class="btn btn-sm" type="button">Raise rank · 300</button></div>
+        </article>
+        <article class="item item-talent">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg><h3 class="item-name"><button type="button">Juggernaut</button></h3><span class="item-meta">Rank I</span></div>
+          <div class="item-body tiers">
+            <div class="tier"><span class="rank-num">I</span><div><div class="tier-name">Momentum</div><div class="rules">When you Boost, your next Ram before the start of your next turn gains +1 Accuracy and knocks your target back an additional 2 spaces.</div></div></div>
+            <div class="tier locked"><span class="rank-num">II</span><div><div class="tier-name">Kinetic Mass Transfer <span class="price" style="margin-left:8px">Next: <span class="num">300</span> manna</span></div><div class="rules">1/round, if you Ram a target into...<ul><li>...a space occupied by another character, the other character must succeed on a Hull save or be knocked Prone.</li><li>...an obstruction large enough to stop their movement, your target takes 4 kinetic damage.</li></ul></div></div></div>
+            <div class="tier locked"><span class="rank-num">III</span><div><div class="tier-name">Unstoppable Force <span class="price" style="margin-left:8px">Locked</span></div><div class="rules">1/round, when you Boost, you may supercharge your mech’s servos. Move your maximum speed in a straight line, take 1d3+3 Heat, and gain the following benefits:<ul><li>You can freely pass through characters the same Size as your mech or smaller; any characters passed through must succeed on a Hull save or be knocked Prone.</li><li>Any terrain, walls, or other stationary obstructions you attempt to pass through receive 20 Kinetic AP damage. If that is enough to destroy them, you pass through; otherwise, your movement ends.</li><li>You ignore difficult terrain.</li><li>Your movement ignores engagement and doesn’t provoke reactions.</li></ul></div></div></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Lower rank</button><button class="btn btn-sm" type="button">Raise rank · 300</button></div>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mechs -->
+  <div id="p-mechs" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Mech hangar</h2><span class="section-meta"><button class="btn btn-sm" type="button"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg>New mech</button></span></div>
+      <div class="hangar">
+        <a class="mech-card mf-ipsn" href="#mech">
+          <div class="portrait"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ips-n"/></svg></div>
+          <div><div class="mech-name">LANTERN</div><div class="dim sep" style="font-size:14px"><span>IPS-N Blackbeard</span><span>Striker</span></div><div class="code dim" style="font-size:13px;margin-top:2px">IPSN-7Q4K-BB21</div><div class="meter-inline" style="margin-top:6px">SP <span class="num">5</span> / <span class="num">5</span></div></div>
+        </a>
+        <a class="mech-card mf-gms" href="#mech-gms">
+          <div class="portrait"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-gms"/></svg></div>
+          <div><div class="mech-name">PILGRIM</div><div class="dim sep" style="font-size:14px"><span>GMS Everest</span><span>Balanced</span></div><div class="code dim" style="font-size:13px;margin-top:2px">GMSE-0042-PLGM</div><div class="meter-inline over" style="margin-top:6px"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#warning"/></svg>SP <span class="num">7</span> / <span class="num">6</span> <span>(1 over)</span></div></div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 3. MECH (IPS-N) ═══════════════════════════════ -->
+<section id="mech" aria-labelledby="mech-h">
+  <h1 class="proto-h" id="mech-h">Mech page (IPS-N Blackbeard)</h1>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#pilot">My pilot</a><span aria-hidden="true">/</span><a href="#p-mechs">Mechs</a><span aria-hidden="true">/</span><span aria-current="page">LANTERN</span></nav>
+  <div class="plate mf-ipsn">
+    <svg class="plate-logo" role="img" aria-label="IPS-N"><use href="icons.svg#logo-ips-n"/></svg>
+    <div>
+      <div class="callsign">LANTERN</div>
+      <div class="subline sep"><span class="plate-id">IPSN-7Q4K-BB21</span><span>IPS-N Blackbeard</span><span>Striker</span></div>
+    </div>
+    <div class="plate-side facts">
+      <div class="fact"><span class="label">Pilot</span><span style="font-weight:700">WARDEN</span></div>
+      <div class="fact"><span class="label">Size</span><span class="fact-value">1</span></div>
+      <div class="fact"><span class="label">System points</span><span class="fact-value">5 / 5</span></div>
+    </div>
+  </div>
+  <div class="notice notice-info" role="status" style="margin-top:12px"><svg class="icon" aria-hidden="true"><use href="icons.svg#info"/></svg><div>Edits to this mech go into your draft change. <a href="#pilot">Back to WARDEN's draft</a></div></div>
+
+  <div class="tabs tabs-sticky" role="tablist" aria-label="Mech" data-tabs style="margin-top:12px">
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="m-profile">Profile</button>
+    <button class="tab" role="tab" type="button" aria-selected="true" aria-controls="m-stats">Stats</button>
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="m-loadout">Loadout</button>
+  </div>
+
+  <div id="m-profile" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="grid-2" style="grid-template-columns:minmax(0,2fr) minmax(16rem,1fr)">
+      <div class="stack">
+        <div class="section"><div class="section-head"><h2 class="section-title">Appearance</h2></div><div class="prose"><p>Gunmetal with a hazard-orange stripe down the spine. The grapple spools are hand-painted with tally marks, one for every hull she has boarded.</p></div></div>
+        <div class="section"><div class="section-head"><h2 class="section-title">History</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div><div class="prose"><p>Bought third-hand from a convoy that was retiring its escorts. The previous pilot left a note taped inside the cockpit: "She pulls left."</p></div></div>
+      </div>
+      <div class="section"><div class="section-head"><h2 class="section-title">Image</h2></div><div class="portrait mf-ipsn" style="width:100%;max-width:160px" role="img" aria-label="No image yet"><svg class="icon icon-l" aria-hidden="true" style="color:var(--mf)"><use href="icons.svg#logo-ips-n"/></svg></div></div>
+    </div>
+    <div class="section" style="border-color:rgb(255 158 176 / 0.4)"><div class="section-head"><h2 class="section-title">Danger zone</h2></div><div class="btn-row"><span class="dim" style="font-size:14px;flex:1;min-width:14rem">Scrapping LANTERN removes it and its loadout from WARDEN's sheet.</span><button class="btn btn-danger" type="button">Scrap mech</button></div></div>
+  </div>
+
+  <div id="m-stats" role="tabpanel" class="stack" style="margin-top:16px">
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Mech stats</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="stats">
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg><span class="stat-value">23</span><span class="stat-text"><span class="stat-label">HP</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg><span class="stat-value">1</span><span class="stat-text"><span class="stat-label">Armour</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#evasion"/></svg><span class="stat-value">10</span><span class="stat-text"><span class="stat-label">Evasion</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg><span class="stat-value">6</span><span class="stat-text"><span class="stat-label">E-defence</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg><span class="stat-value">6</span><span class="stat-text"><span class="stat-label">Speed</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#heat"/></svg><span class="stat-value">5</span><span class="stat-text"><span class="stat-label">Heat cap</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#structure"/></svg><span class="stat-value">4</span><span class="stat-text"><span class="stat-label">Structure</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#reactor"/></svg><span class="stat-value">4</span><span class="stat-text"><span class="stat-label">Stress</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#repair"/></svg><span class="stat-value">6</span><span class="stat-text"><span class="stat-label">Repair cap</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#tech_attack"/></svg><span class="stat-value">−2</span><span class="stat-text"><span class="stat-label">Tech attack</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#system_point"/></svg><span class="stat-value">5</span><span class="stat-text"><span class="stat-label">System points</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#size-1"/></svg><span class="stat-value">1</span><span class="stat-text"><span class="stat-label">Size</span></span></div>
+      </div>
+      <details style="margin-top:12px;font-size:14px"><summary style="cursor:pointer;color:var(--lilac)">Where these numbers come from</summary>
+        <dl class="kv" style="margin-top:8px">
+          <dt>HP</dt><dd>Frame 12, hull 2 × 2 = 4, Reinforced Frame +5, Personalizations +2</dd>
+          <dt>Evasion</dt><dd>Frame 8, agility +2</dd>
+          <dt>Speed</dt><dd>Frame 5, half agility +1</dd>
+          <dt>Heat cap</dt><dd>Frame 4, engineering +1</dd>
+          <dt>Repair cap</dt><dd>Frame 5, half hull +1</dd>
+        </dl>
+      </details>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Other effects and conditions</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <ul class="effects">
+        <li><svg class="icon" aria-hidden="true"><use href="icons.svg#trait"/></svg><div><div class="src">Frame trait</div><b>Grapple cable.</b> The Blackbeard can Grapple targets within Range 5. If the Grapple is successful, the Blackbeard is immediately pulled adjacent to the target by the most direct path. If there are no suitable spaces, the grapple breaks and the Blackbeard does not move.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use href="icons.svg#trait"/></svg><div><div class="src">Frame trait</div><b>Lock/Kill Subsystem.</b> While grappling, the Blackbeard can Boost and take reactions.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use href="icons.svg#trait"/></svg><div><div class="src">Frame trait</div><b>Exposed Reactor.</b> The Blackbeard receives +1 Difficulty on ENGINEERING checks and saves.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use href="icons.svg#corebonus"/></svg><div><div class="src">Core power: Assault Grapples</div><div class="btn-row" style="margin:2px 0 4px"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><b>Omni-harpoon</b></div>This system fires grappling harpoons at any number of targets within Range 5 and line of sight. Affected characters must succeed on a Hull save or take 7 Kinetic damage and be knocked Prone, then pulled adjacent to you, or as close as possible. They become Immobilized until the end of their next turn. On a success, they take half damage and are otherwise unaffected.</div></li>
+        <li><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg><div><div class="src">Talent: Brawler I</div><b>Hold and Lock.</b> You gain +1 Accuracy on all melee attacks against targets you are Grappling. <span class="dim">Only when grappling: not counted in the stats above.</span></div></li>
+        <li><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg><div><div class="src">Talent: Juggernaut I</div><b>Momentum.</b> When you Boost, your next Ram before the start of your next turn gains +1 Accuracy and knocks your target back an additional 2 spaces. <span class="dim">Only after a Boost: not counted in the stats above.</span></div></li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="m-loadout" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="meter full"><div class="meter-head"><span class="label">System points</span><span class="meter-value num">5 / 5</span></div><div class="meter-bar"><span style="--fill:100%"></span></div><div class="meter-note">All used.</div></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Weapon mounts</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="cards">
+        <div><div class="label" style="margin-bottom:4px">Flex mount</div>
+          <div class="empty">Empty. Takes one Main or two Auxiliary weapons.<button class="btn btn-sm" type="button">Equip weapon</button></div></div>
+        <div><div class="label" style="margin-bottom:4px">Main mount</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#melee"/></svg><h3 class="item-name"><button type="button">Chain Axe</button></h3></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>IPS-N Blackbeard I</span><span>Main melee</span></div>
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#threat"/></svg>1 <small>threat</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>4 <small>kinetic</small></span></div>
+            <div class="chips"><span class="chip">Reliable<span class="num">2</span></span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Heavy mount</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#melee"/></svg><h3 class="item-name"><button type="button">Nanocarbon Sword</button></h3></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>IPS-N Blackbeard II</span><span>Heavy melee</span></div>
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#threat"/></svg>2 <small>threat</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>8 <small>kinetic</small></span></div>
+            <div class="chips"><span class="chip">Reliable<span class="num">3</span></span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-sm" type="button">Swap</button><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Systems</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span><span class="blocked"><button class="btn btn-sm" type="button" disabled aria-describedby="why-5">Add system</button><span class="blocked-reason" id="why-5">No system points left</span></span></span></div>
+      <div class="cards">
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg><h3 class="item-name"><button type="button">Synthetic Muscle Netting</button></h3><span class="item-meta">2<span class="unit">SP</span></span></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>IPS-N Blackbeard I</span></div>
+            <div class="rules">You may Ram targets larger than you, and when you Grapple or Ram larger targets, you count as the same Size as the largest opponent. When you Grapple or Ram opponents of the same Size or smaller, you count as at least one Size larger. Additionally, your lifting and dragging capacity is doubled.</div>
+            <div class="chips"><span class="chip">Unique</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article>
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#grenade"/></svg><h3 class="item-name"><button type="button">Pattern-B HEX Charges</button></h3><span class="item-meta">2<span class="unit">SP</span></span></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>GMS</span><span>Deployable</span></div>
+            <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Frag Grenade</span></div>
+              <div class="ability-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>5</span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#blast"/></svg>1</span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>4 <small>explosive</small></span></div>
+              <div class="rules">Throw a Frag Grenade within Range 5. All characters within a Blast 1 area must pass an Agility save or take 4 Explosive damage. On a success, they take half damage.</div></div></div>
+            <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><svg class="icon" aria-hidden="true"><use href="icons.svg#mine"/></svg><span class="ability-name">Explosive Mine</span></div>
+              <div class="ability-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#burst"/></svg>1</span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>7 <small>explosive</small></span></div>
+              <div class="rules">All characters within a Burst 1 area must pass an Agility save or take 7 Explosive damage. On a success, they take half damage.</div></div></div>
+            <div class="chips"><span class="chip">Limited<span class="num">3</span></span><span class="chip">Unique</span><span class="chip">Grenade</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article>
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg><h3 class="item-name"><button type="button">Personalizations</button></h3><span class="item-meta">1<span class="unit">SP</span></span></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>GMS</span></div>
+            <div class="rules"><p>You gain +2 HP and, in consultation with the GM, you may establish a minor modification you have made to your mech.</p><p>This mod has no numerical benefit beyond the additional HP it grants, but could provide other useful effects. If the GM agrees that this mod would help with either a pilot or mech skill check, you gain +1 Accuracy for that check.</p></div>
+            <div class="chips"><span class="chip">Unique</span></div>
+          </div>
+          <div class="item-foot"><button class="btn btn-quiet btn-sm" type="button">Remove</button></div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 4. MECH (GMS) ═══════════════════════════════ -->
+<section id="mech-gms" aria-labelledby="gms-h">
+  <h1 class="proto-h" id="gms-h">Mech page (GMS Everest): red is the maker, not an error</h1>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="#pilot">My pilot</a><span aria-hidden="true">/</span><a href="#p-mechs">Mechs</a><span aria-hidden="true">/</span><span aria-current="page">PILGRIM</span></nav>
+  <div class="plate mf-gms">
+    <svg class="plate-logo" role="img" aria-label="GMS"><use href="icons.svg#logo-gms"/></svg>
+    <div>
+      <div class="callsign">PILGRIM</div>
+      <div class="subline sep"><span class="plate-id">GMSE-0042-PLGM</span><span>GMS Everest</span><span>Balanced</span></div>
+    </div>
+    <div class="plate-side facts">
+      <div class="fact"><span class="label">Pilot</span><span style="font-weight:700">WARDEN</span></div>
+      <div class="fact"><span class="label">Size</span><span class="fact-value">1</span></div>
+      <div class="fact"><span class="label">System points</span><span class="fact-value" style="color:var(--danger)">7 / 6</span></div>
+    </div>
+  </div>
+  <div class="notice notice-warn" role="alert" style="margin-top:12px"><svg class="icon" aria-hidden="true"><use href="icons.svg#warning"/></svg><div><div class="notice-title">1 rule to fix</div>Systems use 7 of 6 system points. Remove a system or free up 1 point.</div></div>
+
+  <div class="tabs" role="tablist" aria-label="Mech (GMS)" data-tabs style="margin-top:12px">
+    <button class="tab" role="tab" type="button" aria-selected="false" aria-controls="g-stats">Stats</button>
+    <button class="tab" role="tab" type="button" aria-selected="true" aria-controls="g-loadout">Loadout</button>
+  </div>
+  <div id="g-stats" role="tabpanel" class="stack" style="margin-top:16px" hidden>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Mech stats</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="stats">
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg><span class="stat-value">19</span><span class="stat-text"><span class="stat-label">HP</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg><span class="stat-value">0</span><span class="stat-text"><span class="stat-label">Armour</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#evasion"/></svg><span class="stat-value">10</span><span class="stat-text"><span class="stat-label">Evasion</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg><span class="stat-value">8</span><span class="stat-text"><span class="stat-label">E-defence</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg><span class="stat-value">5</span><span class="stat-text"><span class="stat-label">Speed</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#heat"/></svg><span class="stat-value">7</span><span class="stat-text"><span class="stat-label">Heat cap</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#structure"/></svg><span class="stat-value">4</span><span class="stat-text"><span class="stat-label">Structure</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#reactor"/></svg><span class="stat-value">4</span><span class="stat-text"><span class="stat-label">Stress</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#repair"/></svg><span class="stat-value">6</span><span class="stat-text"><span class="stat-label">Repair cap</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#tech_attack"/></svg><span class="stat-value">0</span><span class="stat-text"><span class="stat-label">Tech attack</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#system_point"/></svg><span class="stat-value">6</span><span class="stat-text"><span class="stat-label">System points</span></span></div>
+        <div class="stat"><svg class="icon" aria-hidden="true"><use href="icons.svg#size-1"/></svg><span class="stat-value">1</span><span class="stat-text"><span class="stat-label">Size</span></span></div>
+      </div>
+    </div>
+  </div>
+  <div id="g-loadout" role="tabpanel" class="stack" style="margin-top:16px">
+    <div class="section">
+      <div class="meter over"><div class="meter-head"><span class="label">System points</span><span class="meter-value num">7 / 6</span></div><div class="meter-bar"><span style="--fill:100%"></span></div><div class="meter-note"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#warning"/></svg> 1 over</div></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Weapon mounts</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="cards">
+        <div><div class="label" style="margin-bottom:4px">Main mount</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Assault Rifle</button></h3></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Main rifle</span></div>
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>10 <small>range</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>4 <small>kinetic</small></span></div>
+            <div class="chips"><span class="chip">Reliable<span class="num">2</span></span></div></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Flex mount</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Thermal Rifle</button></h3></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Main rifle</span></div>
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>5 <small>range</small></span><span class="rd dmg-energy"><svg class="icon" aria-hidden="true"><use href="icons.svg#energy"/></svg>4 <small>energy</small></span></div>
+            <div class="chips"><span class="chip">AP</span></div></div>
+        </article></div>
+        <div><div class="label" style="margin-bottom:4px">Heavy mount</div>
+        <article class="item item-weapon">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Howitzer</button></h3></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Heavy cannon</span></div>
+            <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>20 <small>range</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#blast"/></svg>2 <small>blast</small></span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>7 <small>explosive</small></span></div>
+            <div class="chips"><span class="chip">Arcing</span><span class="chip">Inaccurate</span><span class="chip">Loading</span><span class="chip">Ordnance</span></div></div>
+        </article></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 class="section-title">Systems</h2><span class="section-meta"><span class="private"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</span></span></div>
+      <div class="cards">
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg><h3 class="item-name"><button type="button">Type-3 Projected Shield</button></h3><span class="item-meta">2<span class="unit">SP</span></span></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Shield</span></div>
+            <div class="ability"><div class="ability-head"><span class="action action-protocol"><svg class="icon" aria-hidden="true"><use href="icons.svg#protocol"/></svg>Protocol</span><span class="ability-name">Project Shield</span></div>
+              <div class="ability-body rules">Nominate a character within line of sight: all ranged or melee attacks that they make against you or that you make against them gain +2 Difficulty until the start of your next turn.</div></div>
+            <div class="chips"><span class="chip">Shield</span><span class="chip">Unique</span><span class="chip">Heat<span class="num">1</span>&nbsp;(self)</span></div></div>
+        </article>
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg><h3 class="item-name"><button type="button">Rapid Burst Jump Jet System</button></h3><span class="item-meta">2<span class="unit">SP</span></span></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Flight system</span></div><div class="rules">You can fly when you Boost; however, you must end the movement on the ground or another solid surface, or else immediately begin falling.</div><div class="chips"><span class="chip">Unique</span></div></div>
+        </article>
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg><h3 class="item-name"><button type="button">Custom Paint Job</button></h3><span class="item-meta">1<span class="unit">SP</span></span></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span></div><div class="rules"><p>When you take structure damage, roll 1d6. On a 6, you return to 1 HP and ignore the damage – the hit simply ‘scratched your paint’.</p><p>This system can only be used once before each Full Repair, and is not a valid target for system destruction.</p></div><div class="chips"><span class="chip">Unique</span><span class="chip">Indestructible</span></div></div>
+        </article>
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#grenade"/></svg><h3 class="item-name"><button type="button">Pattern-B HEX Charges</button></h3><span class="item-meta">2<span class="unit">SP</span></span></div>
+          <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Deployable</span></div><div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Frag Grenade</span></div>
+              <div class="ability-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>5</span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#blast"/></svg>1</span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>4 <small>explosive</small></span></div>
+              <div class="rules">Throw a Frag Grenade within Range 5. All characters within a Blast 1 area must pass an Agility save or take 4 Explosive damage. On a success, they take half damage.</div></div></div>
+            <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><svg class="icon" aria-hidden="true"><use href="icons.svg#mine"/></svg><span class="ability-name">Explosive Mine</span></div>
+              <div class="ability-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#burst"/></svg>1</span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>7 <small>explosive</small></span></div>
+              <div class="rules">All characters within a Burst 1 area must pass an Agility save or take 7 Explosive damage. On a success, they take half damage.</div></div></div><div class="chips"><span class="chip">Limited<span class="num">3</span></span><span class="chip">Unique</span><span class="chip">Grenade</span></div></div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 5. ITEM CARDS ═══════════════════════════════ -->
+<section id="items" aria-labelledby="items-h">
+  <h1 class="proto-h" id="items-h">Item cards: one component, every kind</h1>
+  <div class="cards">
+    <article class="item item-weapon">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Anti-Materiel Rifle</button></h3></div>
+      <div class="item-body"><div class="item-facts sep"><span>GMS</span><span>Heavy rifle</span><span>Mech weapon</span></div>
+        <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>20 <small>range</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>7 <small>kinetic</small></span></div>
+        <div class="chips"><span class="chip">Accurate</span><span class="chip">AP</span><span class="chip">Loading</span><span class="chip">Ordnance</span></div></div>
+    </article>
+    <article class="item item-system">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg><h3 class="item-name"><button type="button">Reinforced Cabling</button></h3><span class="item-meta">2<span class="unit">SP</span></span></div>
+      <div class="item-body"><div class="item-facts sep"><span>IPS-N Blackbeard III</span><span>Mech system</span></div>
+        <div class="ability"><div class="ability-head"><span class="action action-free"><svg class="icon" aria-hidden="true"><use href="icons.svg#free_action"/></svg>Free</span><span class="ability-name">Grapple Swing</span></div>
+          <div class="ability-body rules">1/turn, when making a standard move, you can fly your Speed in a straight line as long as there is a clear path. This move must end on an object or surface, or else you begin falling.</div></div>
+        <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Drag Down</span></div>
+          <div class="ability-body rules">Make a contested Hull check against a character within 5 Range and line of sight: the loser is knocked Prone.</div></div></div>
+    </article>
+    <article class="item item-weapon">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Heavy Signature</button></h3></div>
+      <div class="item-body"><div class="item-facts sep"><span>Pilot weapon</span></div>
+        <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>10 <small>range</small></span><span class="rd dmg-variable"><svg class="icon" aria-hidden="true"><use href="icons.svg#variable"/></svg>4 <small>variable</small></span></div>
+        <div class="rules">When a signature weapon is acquired, choose its damage type – Explosive, Energy, or Kinetic.</div>
+        <div class="chips"><span class="chip">Ordnance</span><span class="chip">Loading</span><span class="chip">Set damage type</span></div></div>
+    </article>
+    <article class="item item-pilot">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg><h3 class="item-name"><button type="button">Assault Hardsuit</button></h3></div>
+      <div class="item-body"><div class="item-facts sep"><span>Pilot armour</span></div>
+        <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg>+3 <small>HP</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg>1 <small>armour</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg>8 <small>e-def</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg>4 <small>speed</small></span></div>
+        <div class="rules dim" style="font-size:14px">These hardsuits, common among military units, feature heavier plating than light hardsuits but more mobility than heavy hardsuits. They are powered, augmenting the user’s strength, and typically feature an onboard computer, sensor suite, integrated air, burst EVA system, and waste recycling systems.</div>
+        <div class="chips"><span class="chip">Personal armour</span></div></div>
+    </article>
+    <article class="item item-pilot">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#grenade"/></svg><h3 class="item-name"><button type="button">Frag Grenades</button></h3></div>
+      <div class="item-body"><div class="item-facts sep"><span>Pilot gear</span></div>
+        <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Use Frag Grenade</span></div>
+          <div class="ability-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>5</span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#blast"/></svg>1</span><span class="rd dmg-explosive"><svg class="icon" aria-hidden="true"><use href="icons.svg#explosive"/></svg>2 <small>explosive</small></span></div></div></div>
+        <div class="chips"><span class="chip">Limited<span class="num">2</span></span><span class="chip">Grenade</span></div></div>
+    </article>
+    <article class="item item-core">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#corebonus"/></svg><h3 class="item-name"><button type="button">Sloped Plating</button></h3><span class="item-meta">IPS-N</span></div>
+      <div class="item-body"><div class="item-facts sep"><span>Core bonus</span><span>needs 3 IPS-N licence ranks</span></div><div class="rules">You gain +1 Armor, up to the maximum (+4).</div></div>
+    </article>
+  </div>
+
+  <div class="stack" style="margin-top:12px">
+    <article class="item item-talent">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg><h3 class="item-name"><button type="button">Juggernaut</button></h3><span class="item-meta">Talent</span></div>
+      <div class="item-body tiers">
+        <div class="tier"><span class="rank-num">I</span><div><div class="tier-name">Momentum</div><div class="rules">When you Boost, your next Ram before the start of your next turn gains +1 Accuracy and knocks your target back an additional 2 spaces.</div></div></div>
+        <div class="tier"><span class="rank-num">II</span><div><div class="tier-name">Kinetic Mass Transfer</div><div class="rules">1/round, if you Ram a target into...<ul><li>...a space occupied by another character, the other character must succeed on a Hull save or be knocked Prone.</li><li>...an obstruction large enough to stop their movement, your target takes 4 kinetic damage.</li></ul></div></div></div>
+        <div class="tier"><span class="rank-num">III</span><div><div class="tier-name">Unstoppable Force</div><div class="rules">1/round, when you Boost, you may supercharge your mech’s servos. Move your maximum speed in a straight line, take 1d3+3 Heat, and gain the following benefits:<ul><li>You can freely pass through characters the same Size as your mech or smaller; any characters passed through must succeed on a Hull save or be knocked Prone.</li><li>Any terrain, walls, or other stationary obstructions you attempt to pass through receive 20 Kinetic AP damage. If that is enough to destroy them, you pass through; otherwise, your movement ends.</li><li>You ignore difficult terrain.</li><li>Your movement ignores engagement and doesn’t provoke reactions.</li></ul></div></div></div>
+      </div>
+    </article>
+    <article class="item item-frame">
+      <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#license"/></svg><h3 class="item-name"><button type="button">Blackbeard</button></h3><span class="item-meta">IPS-N licence</span></div>
+      <div class="item-body"><div class="ladder">
+        <div class="rank"><div class="rank-head"><span class="rank-num">I</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Chain Axe</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Synthetic Muscle Netting</li></ul></div>
+        <div class="rank"><div class="rank-head"><span class="rank-num">II</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#frame"/></svg>Blackbeard frame</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Bristlecrown Flechette Launcher</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg>Nanocarbon Sword</li></ul></div>
+        <div class="rank"><div class="rank-head"><span class="rank-num">III</span></div><ul class="unlocks"><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>Reinforced Cabling</li><li><svg class="icon" aria-hidden="true"><use href="icons.svg#system"/></svg>SEKHMET-Class NHP</li></ul></div>
+      </div></div>
+    </article>
+  </div>
+
+  <h2 class="section-title" style="margin:24px 0 8px">Information dialog (open)</h2>
+  <div class="dialog mf-ipsn" role="dialog" aria-labelledby="dlg-h" style="--mf:var(--mf-ipsn)">
+    <div class="dialog-head">
+      <svg class="icon" aria-hidden="true" style="color:var(--mf)"><use href="icons.svg#logo-ips-n"/></svg>
+      <div style="flex:1"><div class="label">Mech weapon</div><h2 id="dlg-h" style="font-size:20px">Nanocarbon Sword</h2></div>
+      <button class="btn btn-sm" type="button">Close</button>
+    </div>
+    <div class="dialog-body">
+      <div class="item-facts sep"><span>IPS-N</span><span>Blackbeard licence II</span><span>Heavy melee</span></div>
+      <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#threat"/></svg>2 <small>threat</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>8 <small>kinetic</small></span></div>
+      <p class="lore">IPS-N’s nanocarbon sword is a new spin on an old classic. Embedded nanosensors along the blade capture a full spectrum of data and transfer it to omninet storage banks for after-action review. Meanwhile, onboard software interprets the live feedback and adjusts the molecular composition of the blade edge in real time.</p>
+      <div>
+        <div class="label" style="margin-bottom:8px">Tags</div>
+        <dl class="dl-tags">
+          <dt><span class="chip">Reliable<span class="num">3</span></span></dt>
+          <dd>This weapon has some degree of self-correction or is simply powerful enough to cause damage even with a glancing blow. It always does 3 damage, even if it misses its target or rolls less damage.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+// Tab switching: each [data-tabs] row shows the panel its selected tab controls.
+document.querySelectorAll('[data-tabs]').forEach((row) => {
+  const tabs = [...row.querySelectorAll('[role=tab]')]
+  tabs.forEach((tab) => tab.addEventListener('click', () => {
+    tabs.forEach((t) => {
+      const on = t === tab
+      t.setAttribute('aria-selected', on)
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on
+    })
+  }))
+})
+// ?show=p-stats,m-loadout opens those tabs, for screenshots and review links.
+// Overflow cue: mark a tab row once its last tab is in view (or it doesn't overflow), which hides the fade.
+const markEnd = (row) => row.toggleAttribute('data-end', row.scrollLeft + row.clientWidth >= row.scrollWidth - 2)
+document.querySelectorAll('.tabs').forEach((row) => { markEnd(row); row.addEventListener('scroll', () => markEnd(row), { passive: true }) })
+addEventListener('resize', () => document.querySelectorAll('.tabs').forEach(markEnd))
+// ?only=pilot shows just that section.
+const only = new URLSearchParams(location.search).get('only')
+if (only) document.querySelectorAll('main > section').forEach((s) => { s.hidden = s.id !== only })
+new URLSearchParams(location.search).get('show')?.split(',').forEach((id) => document.querySelector(`[aria-controls="${id}"]`)?.click())
+// Phone menu.
+const menu = document.querySelector('[data-menu]')
+menu.addEventListener('click', () => {
+  const open = document.getElementById('drawer').classList.toggle('open')
+  menu.setAttribute('aria-expanded', open)
+})
+</script>
+</body>
+</html>

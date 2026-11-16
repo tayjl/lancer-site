@@ -83,7 +83,7 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'a dele
             <tbody>
               <tr v-for="item in reviewed" :key="item.id">
                 <td><RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="callsign">{{ nameOf(item.character) }}</RouterLink></td>
-                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'pending'">{{ item.status }}</span></td>
+                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'rejected'">{{ item.status }}</span></td>
                 <td>{{ item.reviewer?.display_name ?? '-' }}</td>
                 <td class="dim">{{ item.reviewed_at ? `${since(item.reviewed_at)} ago` : '' }}</td>
                 <td class="dim reason" :title="item.review_reason ?? ''">{{ item.review_reason ?? '-' }}</td>

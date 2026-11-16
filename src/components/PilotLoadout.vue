@@ -9,9 +9,9 @@ import ItemDetails from './ItemDetails.vue'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 
-// The pilot's loadout, laid out like COMP/CON's: one armour slot, two weapon slots and three gear slots,
-// each a card that shows the item's stats, rules text and tags. Empty slots say so. Each slot only takes
-// items of its type, picked from the catalogue (sheet.pilot_gear holds the ids; the slot comes from the type).
+// The pilot's loadout, laid out like COMP/CON's: one armour slot, two weapon slots and three gear slots, each named
+// above its item card. Empty slots say so, with a button to equip one. Each slot only takes items of its type, picked
+// from the catalogue (sheet.pilot_gear holds the ids; the slot comes from the type).
 const props = defineProps<{
   items: Item[]
   chosen: string[]
@@ -22,8 +22,13 @@ const props = defineProps<{
 const byId = computed(() => new Map(props.items.map((item) => [item.id, item])))
 const layout = computed(() => loadoutSlots(props.chosen, (id) => byId.value.get(id)?.type))
 const nameOf = (id: string) => byId.value.get(id)?.name ?? id
-// Read-only sheets skip empty slots: six "// empty //" cards are a lot of scrolling past nothing.
+// Read-only sheets skip empty slots: six empty states are a lot of scrolling past nothing.
 const shownSlots = computed(() => layout.value.slots.filter((slot) => props.editable || (slot.id && byId.value.get(slot.id))))
+
+// Each slot's name over its card ("Armour", "Weapon 1"), and the word for what it holds.
+const KINDS: Record<string, string> = { Armor: 'armour', Weapon: 'weapon', Gear: 'gear' }
+const slotName = (slot: Slot) => (slot.type === 'Armor' ? 'Armour' : `${slot.type} ${slot.index + 1}`)
+const emptyText = (slot: Slot) => (slot.id && byId.value.get(slot.id) ? '' : `No ${KINDS[slot.type]} in this slot.`)
 
 // --- Changing a slot: rebuilds the whole list from the slots ---
 const error = ref('')
@@ -38,7 +43,7 @@ async function store(target: Slot, id: string | null) {
 }
 
 async function unequip(slot: Slot) {
-  if (await confirmAction(`remove ${nameOf(slot.id!)}?`, { confirmLabel: 'remove', danger: true })) store(slot, null)
+  if (await confirmAction(`Remove ${nameOf(slot.id!)}?`, { confirmLabel: 'Remove', danger: true })) store(slot, null)
 }
 
 // --- The picker: items of the slot's type ---
@@ -67,35 +72,34 @@ async function equip(id: string) {
 
 <template>
   <section class="pilot-loadout">
-    <h2 class="sheet-label">loadout<span class="tag"> private</span></h2>
+    <h2 class="sheet-label">Loadout<span class="private">Private</span></h2>
 
     <ul v-if="shownSlots.length" class="slot-grid">
-      <SlotCard
-        v-for="slot in shownSlots"
-        :key="`${slot.type}-${slot.index}`"
-        :title="slot.label"
-        :empty="!slot.id || !byId.get(slot.id)"
-      >
-        <template v-if="editable" #tools>
-          <button type="button" class="quiet" :disabled="saving" @click="open(slot)">{{ slot.id ? 'swap' : 'equip' }}</button>
-          <button v-if="slot.id" type="button" class="quiet rose" :disabled="saving" @click="unequip(slot)">remove</button>
+      <SlotCard v-for="slot in shownSlots" :key="`${slot.type}-${slot.index}`" :label="slotName(slot)" :empty="emptyText(slot)">
+        <template #action>
+          <button type="button" class="small" :disabled="saving" @click="open(slot)">Equip {{ KINDS[slot.type] }}</button>
         </template>
-        <ItemDetails :item="byId.get(slot.id!)!" />
+        <ItemDetails :item="byId.get(slot.id!)!">
+          <template v-if="editable" #foot>
+            <button type="button" class="small" :disabled="saving" @click="open(slot)">Swap</button>
+            <button type="button" class="small quiet" :disabled="saving" @click="unequip(slot)">Remove</button>
+          </template>
+        </ItemDetails>
       </SlotCard>
     </ul>
-    <p v-else class="dim note">no gear equipped.</p>
+    <p v-else class="empty">No gear equipped.</p>
 
-    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
-    <p v-if="layout.overflow.length" class="rose note">
-      no free slot for: {{ layout.overflow.map(nameOf).join(', ') }}. they're dropped at the next loadout change.
+    <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
+    <p v-if="layout.overflow.length" class="notice warn note">
+      No free slot for {{ layout.overflow.map(nameOf).join(', ') }}. They're dropped at the next loadout change.
     </p>
     <p v-if="items.length && layout.unknown.length" class="dim note">
-      also on file: {{ layout.unknown.length }} item(s) from content packs that aren't loaded.
+      Also on file: {{ layout.unknown.length }} item(s) from content packs that aren't loaded.
     </p>
 
     <ItemPicker
       ref="picker"
-      :title="`choose ${target?.label ?? 'pilot gear'}`"
+      :title="`Choose ${target ? KINDS[target.type] : 'pilot gear'}`"
       :options="options"
       :current="target?.id"
       :saving="saving"
@@ -106,12 +110,8 @@ async function equip(id: string) {
 </template>
 
 <style scoped>
-.pilot-loadout {
-  container-type: inline-size;
-}
-
 .note {
-  margin: 0.6rem 0 0;
-  font-size: 0.8125rem;
+  margin: var(--space-m) 0 0;
+  font-size: var(--fs-s);
 }
 </style>

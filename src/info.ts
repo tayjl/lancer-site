@@ -1,7 +1,7 @@
 import { shallowRef } from 'vue'
 import { averageDamageText } from './damage'
-import { hiddenTags, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
-import { itemDetails, itemRules } from './itemDetails'
+import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
+import { activationOf, itemDetails, itemRules } from './itemDetails'
 import { licenceNames, mechStats, type Frame } from './mechData'
 import { PRICES, rankName } from './rules'
 
@@ -11,13 +11,16 @@ import { PRICES, rankName } from './rules'
 // power with the power's own lore, an item's rules, its tags). Rules text stays formatted HTML for RulesText.vue.
 // Each card and group title has a "tone", one of the site's accents, by what it is (TONES), for colour and contrast.
 export type Tone = 'lilac' | 'rose' | 'sky'
-export type InfoCard = { heading: string; html: string; tone: Tone }
+// An action's card also has its activation (ActionChip.vue), frequency and own range and damage (itemRules).
+export type InfoCard = { heading: string; html: string; tone: Tone; activation?: string; frequency?: string; stats?: InfoStat[] }
 // "stack": cards one above another, for rules read in order (an item's effect, then on attack, on hit...).
-export type InfoGroup = { title?: string; tone?: Tone; lore?: string; stack?: boolean; cards: InfoCard[] }
+// "tags": tag chips, each with what it means.
+export type InfoGroup = { title?: string; tone?: Tone; lore?: string; stack?: boolean; tags?: boolean; cards: InfoCard[] }
 // Facts under the name; "tone" colours the important ones (a frame's classification, the licence).
 export type InfoFact = { text: string; tone?: Tone }
 // "range": where the value sits among every frame's (the radar chart).
-export type InfoStat = { label: string; value: string; icon?: string | null; range?: { min: number; max: number; at: number } }
+// "kind" is an item stat's (itemDetails): range, damage, bonus or sp.
+export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string; range?: { min: number; max: number; at: number } }
 // "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
 export type Info = { kind: string; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
 
@@ -40,13 +43,19 @@ const facts = (...all: (InfoFact | string)[]): InfoFact[] =>
   all.map((fact) => (typeof fact === 'string' ? { text: fact } : fact)).filter((fact) => fact.text)
 const card = (heading: string, html: unknown, tone: Tone = TONES.rules): InfoCard[] => (text(html) ? [{ heading, html: averageDamageText(text(html)), tone }] : [])
 // On attack / hit / crit effects, actions and deployables (itemRules), as combat cards.
-const rules = (raw: Record<string, unknown>): InfoCard[] => itemRules(raw).map((rule) => ({ heading: rule.name, html: rule.text, tone: TONES.combat }))
+const rules = (raw: Record<string, unknown>): InfoCard[] =>
+  itemRules(raw).map(({ name, text, ...action }) => ({ heading: name, html: text, tone: TONES.combat, ...action }))
 // Groups with nothing in them are left out.
 const groups = (...all: InfoGroup[]) => all.filter((group) => group.cards.length)
 // Lore separates its paragraphs with single line breaks; as real paragraphs they get space between them.
 const paragraphs = (html: string) => html.split(/<br\s*\/?>/i).map((part) => part.trim()).filter(Boolean).map((part) => `<p>${part}</p>`).join('')
 // Item descriptions are short: their paragraphs read better run together.
 const merged = (html: string) => html.replace(/\s*<br\s*\/?>\s*/gi, ' ')
+// An action written into a card's text: "Reactive Code (reaction, 1/round)".
+const when = (rule: InfoCard) => {
+  const parts = [rule.activation?.toLowerCase(), rule.frequency].filter(Boolean)
+  return parts.length ? ` (${parts.join(', ')})` : ''
+}
 const half = (value: number | null) => (value === 0.5 ? '½' : String(value ?? '-'))
 
 function tagCards(tags: Item['tags']): InfoCard[] {
@@ -78,7 +87,7 @@ export function itemInfo(item: Item): Info {
     stats: itemDetails(item, tagNames.value).stats,
     groups: groups(
       { title: 'rules', stack: true, cards: [...(effect ? card('effect', effect, summons(item) ? TONES.combat : TONES.rules) : card('description', merged(text(item.description)))), ...rules(raw)] },
-      { title: 'tags', tone: TONES.tag, cards: tagCards(item.tags) },
+      { title: 'tags', tone: TONES.tag, tags: true, cards: tagCards(item.tags) },
     ),
   }
 }
@@ -111,7 +120,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     }),
     groups: groups(
       // One card per trait, its actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
-      { cards: traits.flatMap((trait) => card(text(trait.name) || 'trait', [text(trait.description), ...rules(trait).map((rule) => `<p><b>${rule.heading}</b><br>${rule.html}</p>`)].join(''), TONES.trait)) },
+      { cards: traits.flatMap((trait) => card(text(trait.name) || 'trait', [text(trait.description), ...rules(trait).map((rule) => `<p><b>${rule.heading}${when(rule)}</b><br>${rule.html}</p>`)].join(''), TONES.trait)) },
       {
         title: text(core.name) || 'core system',
         tone: TONES.power,
@@ -119,7 +128,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
         cards: [
           ...card(`passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, core.passive_effect),
           // No "core power:" label: its place under the core system and its rose header say so.
-          ...card(`${text(core.active_name) || text(core.name)}${core.activation ? ` (${text(core.activation).toLowerCase()})` : ''}`, core.active_effect, TONES.power),
+          ...card(text(core.active_name) || text(core.name), core.active_effect, TONES.power).map((power) => ({ ...power, ...(activationOf(core.activation) ? { activation: text(core.activation) } : {}) })),
           ...rules({ actions: [...list(core.passive_actions), ...list(core.active_actions)], deployables: core.deployables }),
         ],
       },
@@ -156,7 +165,7 @@ export function bionicInfo(bionic: Bionic, statNames: Map<string, string>, price
     kind: 'bionic',
     name: bionic.name,
     facts: facts(`${bionic.mod_point_cost} mod points`, `${price} manna`, bionic.retired ? 'retired: no longer offered' : ''),
-    stats: bionic.bonuses.map((bonus) => ({ label: statNames.get(bonus.stat_id) ?? bonus.stat_id, value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}` })),
+    stats: bionic.bonuses.map((bonus) => ({ label: statNames.get(bonus.stat_id) ?? bonus.stat_id, icon: STAT_ICONS[bonus.stat_id], value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}` })),
     groups: groups({ title: 'rules', cards: card('description', (bionic.description ?? '').replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))) }),
   }
 }

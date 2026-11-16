@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
-import AddBox from '../components/AddBox.vue'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import GmReview from '../components/GmReview.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
@@ -14,7 +13,7 @@ import RankPanel, { type RankStep } from '../components/RankPanel.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
-import StatIcon from '../components/StatIcon.vue'
+import Icon from '../components/Icon.vue'
 import StatRow from '../components/StatRow.vue'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
@@ -449,7 +448,7 @@ async function createMech() {
             v-if="canSeePrivate"
             class="panel"
             title="backstory"
-            tag="private"
+            tag="Private"
             :doc="sheet.backstory ?? null"
             :editable="editable"
             :save="saveBackstory"
@@ -467,11 +466,11 @@ async function createMech() {
 
       <template v-if="canSeePrivate">
         <div v-show="tab === 'stats'" class="tab-panel">
-          <StatRow class="panel" title="general stats" tag="private" :stats="vitals" :editable="false" :min="0" :max="0" />
+          <StatRow class="panel" title="general stats" tag="Private" :stats="vitals" :editable="false" :min="0" :max="0" />
           <StatRow
             class="panel"
             title="personal stats"
-            tag="private"
+            tag="Private"
             :stats="stats.personal"
             :editable="editable"
             :min="PERSONAL_STAT_MIN"
@@ -482,7 +481,7 @@ async function createMech() {
           <StatRow
             class="panel"
             title="piloting stats"
-            tag="private"
+            tag="Private"
             :stats="stats.piloting"
             :editable="editable"
             :min="STAT_MIN"
@@ -495,12 +494,12 @@ async function createMech() {
           <LoadoutBox
             class="panel"
             title="bionics"
-            tag="private"
+            tag="Private"
             :items="bionicOptions"
             :chosen="sheet.bionics ?? []"
             :editable="editable"
-            :limit="{ label: 'mod limit', unit: 'mod points', max: modLimit(gm.level) }"
-            :add-blocked="balance < PRICES.bionic ? 'not enough manna' : ''"
+            :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
+            :add-blocked="balance < PRICES.bionic ? 'Not enough manna' : ''"
             :save="saveBionics"
           />
           <PilotLoadout class="panel" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
@@ -520,7 +519,7 @@ async function createMech() {
             :save="saveLicences"
           >
             <template #summary>
-              <span>licence level <strong class="lilac">{{ licenceLevel(sheet) }}</strong></span>
+              <span class="meter-inline">Licence level <span class="num">{{ licenceLevel(sheet) }}</span></span>
             </template>
           </RankPanel>
           <CoreBonusPanel
@@ -561,7 +560,7 @@ async function createMech() {
             <li v-for="mech in mechs" :key="mech.id">
               <RouterLink :to="mechLink(mech.id)" class="mech-card" :style="{ '--maker': makerColour(makerOf(mech.id)) }">
                 <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
-                  <StatIcon v-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
+                  <Icon v-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
                 </Portrait>
                 <span class="mech-name">{{ mech.name }}</span>
                 <span v-if="frameOf(mech.id)" class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
@@ -585,8 +584,11 @@ async function createMech() {
               <button type="button" @click="addingMech = false">cancel</button>
             </div>
           </form>
-          <AddBox v-else-if="editable && !mechs.length" label="new mech" class="add-mech" @click="openNewMech" />
-          <p v-else-if="!mechs.length" class="empty">no mechs on file.</p>
+          <div v-else-if="editable && !mechs.length" class="empty">
+            <p>No mechs yet.</p>
+            <button type="button" class="small" @click="openNewMech">New mech</button>
+          </div>
+          <p v-else-if="!mechs.length" class="empty">No mechs on file.</p>
         </section>
       </div>
 
@@ -945,11 +947,6 @@ p.small {
 
 .mech-frame {
   color: var(--text);
-}
-
-.add-mech {
-  max-width: 16rem;
-  margin-inline: auto;
 }
 
 .new-mech {

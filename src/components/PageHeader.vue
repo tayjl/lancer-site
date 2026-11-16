@@ -31,20 +31,22 @@ defineProps<{ title: string; summary?: string; crumbs?: { label: string; to?: Ro
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem 2.5rem;
-  margin-bottom: 1.75rem;
-  padding-bottom: 1.25rem;
+  gap: var(--space-l) var(--space-xl);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-l);
   border-bottom: 1px solid var(--rule);
   overflow-wrap: anywhere; /* a long unbroken callsign wraps instead of widening the page */
 }
 
 h1 {
   margin: 0;
-  font: 700 2rem/1.1 var(--mono);
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 p {
-  margin: 0.35rem 0 0;
+  margin: var(--space-xs) 0 0;
 }
 
 .side {
@@ -54,15 +56,11 @@ p {
 @media (max-width: 48rem) {
   .page-header {
     flex-direction: column;
-    text-align: center;
-  }
-
-  .crumbs :deep(ol) {
-    justify-content: center;
+    align-items: flex-start;
   }
 
   h1 {
-    font-size: 1.625rem;
+    font-size: 22px;
   }
 
   .side {

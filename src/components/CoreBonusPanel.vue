@@ -6,13 +6,13 @@ import type { Frame } from '../mechData'
 import { coreBonusProblems } from '../rules'
 import { plainText } from '../rulesText'
 import { coreBonusInfo } from '../info'
-import InfoButton from './InfoButton.vue'
+import ItemCard from './ItemCard.vue'
 import ItemPicker from './ItemPicker.vue'
 import RulesText from './RulesText.vue'
-import SlotCard from './SlotCard.vue'
 
 // Core bonuses (homebrew; src/rules.ts): free, one for every 3 licence ranks bought ("picks"). A card per one
-// taken, and a card to choose another while picks are left.
+// taken (lime, dark text), the picks used in the heading, and the empty state for the next pick: a button while picks
+// are left, otherwise how many licence ranks give the next one (every 3: coreBonusPicks in rules.ts).
 const props = defineProps<{
   options: CoreBonus[]
   taken: string[]
@@ -37,7 +37,7 @@ async function store(ids: string[]) {
 }
 
 async function remove(id: string) {
-  if (await confirmAction(`remove ${byId.value.get(id)?.name ?? id}?`, { confirmLabel: 'remove', danger: true }))
+  if (await confirmAction(`Remove ${byId.value.get(id)?.name ?? id}?`, { confirmLabel: 'Remove', danger: true }))
     store(props.taken.filter((other) => other !== id))
 }
 
@@ -67,58 +67,50 @@ async function choose(id: string) {
 <template>
   <section class="core-bonuses">
     <header class="head sheet-head">
-      <h2 class="sheet-label">core bonuses<span class="tag"> private</span></h2>
-      <span class="dim" :class="{ rose: left < 0 }">{{ taken.length }}/{{ picks }} taken<template v-if="editable">, one free per 3 licence ranks</template></span>
+      <h2 class="sheet-label">Core bonuses<span class="private">Private</span></h2>
+      <span class="meter-inline" :class="{ over: left < 0 }"><span class="num">{{ taken.length }}</span> of <span class="num">{{ picks }}</span> picks used</span>
     </header>
-    <p v-if="editable" class="dim note">each non-GMS bonus needs another 3 licence ranks from its manufacturer.</p>
+    <p v-if="editable" class="dim note">One free pick per 3 licence ranks. Each non-GMS bonus needs another 3 licence ranks from its manufacturer.</p>
 
-    <ul v-if="taken.length || (editable && left > 0)" class="slot-grid">
-      <SlotCard v-for="id in taken" :key="id" :title="byId.get(id)?.source.toLowerCase() || 'core bonus'">
-        <template v-if="editable" #tools>
-          <button type="button" class="quiet rose" :disabled="saving" @click="remove(id)">remove</button>
+    <ul v-if="taken.length || editable" class="slot-grid">
+      <li v-for="id in taken" :key="id">
+        <ItemCard type="core" icon="corebonus" :name="byId.get(id)?.name ?? id" :info="byId.get(id) ? () => coreBonusInfo(byId.get(id)!) : undefined" :meta="byId.get(id)?.source">
+          <RulesText :html="byId.get(id)?.effect ?? ''" />
+          <template v-if="editable" #foot>
+            <button type="button" class="small quiet" :disabled="saving" @click="remove(id)">Remove</button>
+          </template>
+        </ItemCard>
+      </li>
+      <li v-if="editable" class="empty">
+        <template v-if="left > 0">
+          <p>{{ left }} {{ left === 1 ? 'pick' : 'picks' }} left.</p>
+          <button type="button" class="small" :disabled="saving" @click="open">Choose core bonus</button>
         </template>
-        <p class="name"><InfoButton v-if="byId.get(id)" :info="() => coreBonusInfo(byId.get(id)!)" :label="byId.get(id)!.name" /><template v-else>{{ id }}</template></p>
-        <RulesText :html="byId.get(id)?.effect ?? ''" />
-      </SlotCard>
-      <SlotCard v-if="editable && left > 0" title="new core bonus" empty>
-        <template #tools>
-          <button type="button" class="quiet" :disabled="saving" @click="open">choose</button>
-        </template>
-      </SlotCard>
+        <p v-else>Next pick at <span class="num">{{ (picks + 1) * 3 }}</span> licence ranks.</p>
+      </li>
     </ul>
-    <p v-else class="dim note">none{{ editable ? ' yet: every 3 licence ranks give one.' : '.' }}</p>
+    <p v-else class="empty">No core bonuses.</p>
 
-    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
 
-    <ItemPicker ref="picker" title="choose a core bonus" :options="offered" :saving="saving" :error="error" @choose="choose" />
+    <ItemPicker ref="picker" title="Choose a core bonus" :options="offered" :saving="saving" :error="error" @choose="choose" />
   </section>
 </template>
 
 <style scoped>
-.core-bonuses {
-  container-type: inline-size;
-}
-
-.slot-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 1.5rem;
-  font-size: 0.8125rem;
-}
-
-.name {
-  margin: 0;
-  color: var(--lilac);
-  font-weight: 700;
+  gap: var(--space-s) var(--space-m);
 }
 
 .note {
-  margin: 0.6rem 0 0;
-  font-size: 0.8125rem;
+  margin: 0 0 var(--space-m);
+  font-size: var(--fs-s);
+}
+
+.empty p {
+  margin: 0;
 }
 </style>

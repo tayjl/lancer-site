@@ -1,32 +1,29 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import { MAX_LICENCE_RANK, rankName, sum } from '../rules'
-import frameIcon from '../assets/icons/structure.svg'
-import systemIcon from '../assets/icons/system_point.svg'
-import weaponIcon from '../assets/icons/range.svg'
+import { MAX_LICENCE_RANK, rankName } from '../rules'
 import type { Info } from '../info'
+import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
+import ItemCard from './ItemCard.vue'
 import ItemPicker from './ItemPicker.vue'
 import RulesText from './RulesText.vue'
-import SlotCard from './SlotCard.vue'
-import StatIcon from './StatIcon.vue'
 
 // What one rank gives: a talent rank's name and rules text, or the gear a licence rank unlocks.
 export type RankStep = { name?: string; html?: string; unlocks?: { kind: string; name: string; info?: () => Info }[] }
 
-// Things bought by rank with manna (licences and talents; src/rules.ts): a card per one held, with its rank
-// I to III, - and +, and what each rank gives ("details", one step per rank); and a card to buy a new one from
-// "options". Held ranks are bright; while editable, the ranks still to buy are shown dimmed, so players see what
-// they'd get. Each rank costs "price"; buying stops when the manna "balance" can't cover it. Lowering refunds it.
+// Things bought by rank with manna (licences and talents; src/rules.ts): an item card per one held, its rank in the
+// header, and what each rank gives ("details", one step per rank); and a button in the heading to buy a new one from
+// "options". Licences ("columns") lay ranks I to III side by side like COMP/CON's ladder, each with its unlocks and
+// their symbols; talents ("tiers") stack them, a big numeral beside the rank's name and rules. Held ranks are bright,
+// later ones dimmed, with "Next: 600 manna" or "Locked" while editable. Each rank costs "price"; buying stops when
+// the manna "balance" can't cover it (the button stays, disabled, with the reason beside it). Lowering refunds it.
 const props = defineProps<{
   title: string
   noun: string
   options: { id: string; name: string; meta?: string; info?: () => Info }[]
   held: Record<string, number>
   details: (id: string) => RankStep[]
-  // The ranks side by side, like COMP/CON's licence ladder, all three always shown (licences and talents).
   columns?: boolean
-  // Talents: COMP/CON's tiers, rank I to III stacked as strongly separated rows, all three always shown.
   tiers?: boolean
   price: number
   balance: number
@@ -36,11 +33,12 @@ const props = defineProps<{
 
 const optionOf = (id: string) => props.options.find((option) => option.id === id)
 const nameOf = (id: string) => optionOf(id)?.name ?? id
-const shownSteps = (id: string, rank: number) => props.details(id).slice(0, props.editable || props.columns || props.tiers ? MAX_LICENCE_RANK : rank)
-// Unlocks are told apart by colour and symbol (style below), with the kind still read out to screen readers.
-const KIND_ICONS: Record<string, string> = { frame: frameIcon, system: systemIcon, weapon: weaponIcon }
 const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
 const affordable = computed(() => props.balance >= props.price)
+// Licences are frame-purple, talents brown (the --type-* tokens).
+const look = computed(() => (props.columns ? { type: 'frame' as const, icon: 'license' } : { type: 'talent' as const, icon: 'talent' }))
+// What a rank's box says about it: held, the next one to buy, or locked behind it. Prices only while editable.
+const status = (i: number, rank: number) => (i < rank ? 'held' : !props.editable ? '' : i === rank ? 'next' : 'locked')
 
 const error = ref('')
 const saving = ref(false)
@@ -64,7 +62,7 @@ const picker = useTemplateRef('picker')
 const offered = computed(() =>
   props.options
     .filter((option) => !props.held[option.id])
-    .map((option) => ({ ...option, blocked: affordable.value ? '' : 'not enough manna' })),
+    .map((option) => ({ ...option, blocked: affordable.value ? '' : 'Not enough manna' })),
 )
 
 function open() {
@@ -80,304 +78,221 @@ async function buy(id: string) {
 <template>
   <section class="ranks">
     <header class="head sheet-head">
-      <h2 class="sheet-label">{{ title }}<span class="tag"> private</span></h2>
+      <h2 class="sheet-label">{{ title }}<span class="private">Private</span></h2>
       <slot name="summary" />
-      <span class="dim">{{ sum(held) }} {{ sum(held) === 1 ? 'rank' : 'ranks' }}<template v-if="editable">, {{ price }} manna each</template></span>
+      <span v-if="editable" class="blocked">
+        <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${noun}-why`" @click="open">
+          <Icon name="plus" />Add {{ noun }} · <span class="num">{{ price }}</span>
+        </button>
+        <span v-if="!affordable" :id="`${noun}-why`" class="blocked-reason">Not enough manna</span>
+      </span>
     </header>
 
-    <ul v-if="ranks.length || editable" class="slot-grid">
-      <SlotCard v-for="[id, rank] in ranks" :key="id" :title="nameOf(id)">
-        <template v-if="optionOf(id)?.info" #title><InfoButton :info="optionOf(id)!.info!" :label="nameOf(id)" /></template>
-        <div class="rank">
-          <span>
-            <span class="rank-value">rank {{ rankName(rank) }}</span>
-            <span class="dim"> of {{ rankName(MAX_LICENCE_RANK) }}</span>
-            <span v-if="optionOf(id)?.meta" class="meta">{{ optionOf(id)?.meta }}</span>
-          </span>
-          <span v-if="editable" class="steps">
-            <span v-if="rank < MAX_LICENCE_RANK && !affordable" class="dim blocked">not enough manna</span>
-            <button type="button" :aria-label="`lower ${nameOf(id)}`" :disabled="saving" @click="setRank(id, rank - 1)">-</button>
-            <button
-              type="button"
-              :aria-label="`raise ${nameOf(id)}`"
-              :disabled="saving || rank >= MAX_LICENCE_RANK || !affordable"
-              @click="setRank(id, rank + 1)"
-            >
-              +
-            </button>
-          </span>
-        </div>
-        <ol class="steps-list" :class="{ columns, tiers }">
-          <li v-for="(step, i) in shownSteps(id, rank)" :key="i" class="step" :class="{ locked: i >= rank }">
-            <span v-if="tiers" class="tier-mark" :aria-label="`rank ${rankName(i + 1)}`">{{ rankName(i + 1) }}</span>
-            <div class="step-body">
-              <p class="step-head">
-                <span v-if="!tiers" class="numeral">{{ columns ? 'rank ' : '' }}{{ rankName(i + 1) }}</span>
-                <span v-if="step.name" class="step-name">{{ step.name }}</span>
-                <template v-if="editable">
-                  <span v-if="i === rank" class="dim step-note">next: {{ affordable ? `${price} manna` : 'not enough manna' }}</span>
-                  <span v-else-if="i > rank" class="dim step-note">locked</span>
-                </template>
+    <div v-if="ranks.length" class="list">
+      <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info">
+        <template #meta>Rank {{ rankName(rank) }}</template>
+        <ol :class="columns ? 'ladder' : 'tiers'">
+          <li v-for="(step, i) in details(id).slice(0, MAX_LICENCE_RANK)" :key="i" class="rank" :class="{ locked: i >= rank }">
+            <span class="numeral">{{ rankName(i + 1) }}</span>
+            <div class="rank-body">
+              <p v-if="step.name || status(i, rank)" class="rank-head">
+                <span v-if="step.name" class="rank-name">{{ step.name }}</span>
+                <span v-if="status(i, rank) === 'held'" class="status held"><Icon name="check" />Held</span>
+                <span v-else-if="status(i, rank) === 'next'" class="status">Next: <span class="num">{{ price }}</span> manna</span>
+                <span v-else-if="status(i, rank) === 'locked'" class="status">Locked</span>
               </p>
               <RulesText v-if="step.html" :html="step.html" />
               <ul v-if="step.unlocks?.length" class="unlocks">
-                <li v-for="item in step.unlocks" :key="`${item.kind}:${item.name}`" :class="item.kind">
-                  <StatIcon v-if="KIND_ICONS[item.kind]" :src="KIND_ICONS[item.kind]" />
+                <li v-for="item in step.unlocks" :key="`${item.kind}:${item.name}`">
+                  <Icon :name="item.kind" />
                   <span class="sr-only">{{ item.kind }}:</span>
                   <InfoButton v-if="item.info" :info="item.info" :label="item.name" />
                   <template v-else>{{ item.name }}</template>
                 </li>
               </ul>
-              <p v-else-if="!step.html" class="dim step-empty">nothing new at this rank.</p>
+              <p v-else-if="!step.html" class="dim nothing">Nothing new at this rank.</p>
             </div>
           </li>
         </ol>
-      </SlotCard>
-      <SlotCard v-if="editable" :title="`new ${noun}`" empty>
-        <template #tools>
-          <button type="button" class="quiet" :disabled="saving" @click="open">buy</button>
+        <template v-if="editable" #foot>
+          <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
+          <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
+            <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
+              Raise rank · <span class="num">{{ price }}</span>
+            </button>
+            <span v-if="!affordable" :id="`${id}-why`" class="blocked-reason">Not enough manna</span>
+          </span>
         </template>
-      </SlotCard>
-    </ul>
-    <p v-else class="dim note">none.</p>
+      </ItemCard>
+    </div>
+    <p v-else class="empty">No {{ title.toLowerCase() }} yet.</p>
 
-    <p v-if="error" class="notice warn note" role="alert">not saved: {{ error }}</p>
+    <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
 
-    <ItemPicker ref="picker" :title="`buy a ${noun} (rank I, ${price} manna)`" :options="offered" :saving="saving" :error="error" @choose="buy" />
+    <ItemPicker ref="picker" :title="`Add a ${noun} (rank I, ${price} manna)`" :options="offered" :saving="saving" :error="error" @choose="buy" />
   </section>
 </template>
 
 <style scoped>
-.ranks {
-  container-type: inline-size;
-}
-
-.slot-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem 1.5rem;
-  font-size: 0.8125rem;
+  gap: var(--space-s) var(--space-m);
+}
+
+.head .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-m);
+}
+
+/* Licences: ranks I to III side by side (one column on phones). Talents: stacked tiers, numeral on the left. */
+.ladder,
+.tiers {
+  display: grid;
+  gap: var(--space-s);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ladder {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .rank {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--void);
 }
 
-.rank-value {
-  color: var(--lilac);
-  font-size: 1.375rem;
-  font-weight: 700;
-}
-
-.meta {
-  display: block;
-  color: var(--text-dim);
-  font-size: 0.8125rem;
-}
-
-/* One block per rank: a numeral tag, the rank's name, then what it gives. Ranks not yet bought are dimmed. */
-.steps-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.step {
-  padding-left: 0.75rem;
-  border-left: 2px solid var(--lilac);
-}
-
-.step.locked {
-  border-left-color: var(--rule);
-  opacity: 0.55;
-}
-
-.step-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.25rem 0.6rem;
-  max-width: none;
-  margin: 0 0 0.35rem;
+.rank.locked {
+  border-color: var(--rule);
+  opacity: 0.6;
 }
 
 .numeral {
-  min-width: 2.25rem;
-  padding: 0 0.35rem;
-  border: 1px solid var(--lilac);
-  color: var(--lilac);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  text-align: center;
+  font-weight: 800;
 }
 
 .locked .numeral {
-  border-color: var(--rule);
   color: var(--text-dim);
 }
 
-.step-name {
-  color: var(--text);
+.rank-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-s);
+  max-width: none;
+  margin: 0;
+}
+
+.rank-name {
   font-weight: 700;
 }
 
-.step-note,
-.step-empty {
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+.status.held {
+  color: var(--text);
+}
+
+.status .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.nothing {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: var(--fs-s);
+}
+
+/* A licence rank: the numeral and its status on one line, then its unlocks. */
+.ladder .rank {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m) var(--space-m);
+}
+
+.ladder .numeral {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.ladder .rank-body {
+  display: contents;
+}
+
+.ladder .rank-head {
+  min-height: 25px;
+}
+
+.ladder .unlocks,
+.ladder .nothing {
+  grid-column: 1 / -1;
 }
 
 .unlocks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.5rem;
+  display: grid;
+  gap: 4px;
   margin: 0;
   padding: 0;
+  font-size: var(--fs-s);
   list-style: none;
 }
 
-/* One bar per unlock, coloured by kind: frames rose, systems lilac, weapons sky. */
 .unlocks li {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.3rem 0.6rem;
-  border-left: 3px solid currentColor;
-  background: var(--raised);
-  color: var(--sky);
-  font-size: 0.8125rem;
-  font-weight: 700;
+  gap: 6px;
 }
 
-.unlocks li.frame {
-  color: var(--rose);
-}
-
-.unlocks li.system {
-  color: var(--lilac);
-}
-
-/* Licences and talents: three columns, rank I to III, each a centred heading over its unlocks or rules (one column on phones). */
-.steps-list.columns {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem 1.25rem;
-}
-
-.columns .step {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.columns .step-head {
-  justify-content: center;
-}
-
-.columns .unlocks {
-  flex-direction: column;
-  flex-wrap: nowrap;
-}
-
-.columns .unlocks li {
-  justify-content: center;
-  text-align: center;
-}
-
-/* A talent rank's rules, centred under its heading; lists keep their items left-aligned. */
-.columns .rules-text {
-  text-align: center;
-}
-
-.columns .rules-text :deep(ul),
-.columns .rules-text :deep(ol) {
-  /* Its own centred block (shrink-to-fit), not inline beside the sentence leading into it. */
-  display: table;
-  margin-inline: auto;
-  text-align: left;
-}
-
-/* Talents: COMP/CON's tiers. Each rank is its own bordered row: a large numeral on the left, the rank's name and
-   rules beside it as normal left-aligned text (the developer's choice: centred lists read oddly). Held ranks have a
-   lilac numeral; ranks not yet bought are dimmed. */
-.steps-list.tiers {
-  gap: 0.5rem;
-}
-
-.tiers .step {
-  display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr);
-  padding: 0;
-  border: 1px solid var(--rule);
-}
-
-.tier-mark {
-  display: grid;
-  place-items: center;
-  border-right: 1px solid var(--rule);
-  background: var(--raised);
-  color: var(--lilac);
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.locked .tier-mark {
+.unlocks .icon {
+  width: 18px;
+  height: 18px;
   color: var(--text-dim);
 }
 
-.tiers .step-body {
-  padding: 0.6rem 0.9rem 0.75rem;
+/* A talent rank: a big numeral in its own column, then the rank's name and rules, left-aligned. */
+.tiers .rank {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--space-m);
+  padding: var(--space-m);
 }
 
-@container (max-width: 40rem) {
-  .steps-list.columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.tiers .numeral {
+  font-size: 22px;
+  text-align: center;
+}
 
-  .columns .step-head {
-    justify-content: flex-start;
-  }
+.tiers .rank-body {
+  display: grid;
+  gap: 2px;
 }
 
 .note {
-  margin: 0.6rem 0 0;
-  font-size: 0.8125rem;
+  margin: var(--space-m) 0 0;
+  font-size: var(--fs-s);
 }
 
-/* Square steppers, as in StatRow, with the reason + is blocked beside them. */
-.steps {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.steps button {
-  width: 2rem;
-  min-height: 2rem;
-  padding: 0;
-  font-size: 1rem;
-}
-
-.blocked {
-  margin-right: 0.35rem;
-  font-size: 0.8125rem;
-}
-
-/* Phones: a bigger target for the thumb. */
 @media (max-width: 40rem) {
-  .steps button {
-    width: 2.5rem;
-    min-height: 2.5rem;
+  .ladder {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>
