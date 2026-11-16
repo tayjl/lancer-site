@@ -50,13 +50,13 @@ export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBo
   const taken = sheet.core_bonuses ?? []
   const picks = coreBonusPicks(sheet)
   if (taken.length > picks)
-    problems.push(`core bonuses taken: ${taken.length}, but ${licenceLevel(sheet)} licence ranks only give ${picks}.`)
+    problems.push(`Core bonuses taken: ${taken.length}, but ${licenceLevel(sheet)} licence ranks only give ${picks}.`)
 
   const manufacturers = new Map<string, number>()
   for (const id of new Set(taken)) {
     const bonus = bonuses.find((bonus) => bonus.id === id)
     if (!bonus) {
-      problems.push(`core bonus ${id} isn't in the loaded content packs.`)
+      problems.push(`Core bonus ${id} isn't in the loaded content packs.`)
       continue
     }
     if (taken.filter((other) => other === id).length > 1) problems.push(`${bonus.name} can only be taken once.`)
@@ -141,8 +141,8 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
     if ((item?.raw?.talent_item || allTalentEquipment.has(id)) && !unlocked.has(id)) problems.push(`${item?.name ?? id} needs its talent rank; it is no longer granted.`)
     if (frame.integrated.includes(id)) problems.push(`${item?.name ?? id} is integrated and must not also occupy a normal slot.`)
   }
-  if ((mech.mounts ?? []).slice(frame.mounts.length).some(places => places.some(Boolean))) problems.push('weapons remain on mounts this build no longer has; remove or refit them.')
-  if ((mech.mounts ?? []).some((places, index) => index < frame.mounts.length && places.slice(mountSize(frame.mounts[index])).some(Boolean))) problems.push('weapons remain in extra slots this mount no longer has; remove or refit them.')
+  if ((mech.mounts ?? []).slice(frame.mounts.length).some(places => places.some(Boolean))) problems.push('Weapons remain on mounts this build no longer has; remove or refit them.')
+  if ((mech.mounts ?? []).some((places, index) => index < frame.mounts.length && places.slice(mountSize(frame.mounts[index])).some(Boolean))) problems.push('Weapons remain in extra slots this mount no longer has; remove or refit them.')
   for (const id of ['cb_mount_retrofitting', 'cb_auto_stabilizing_hardpoints']) {
     if (!sheet.core_bonuses?.includes(id)) continue
     const index = mech.core_mounts?.[id]
@@ -168,7 +168,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   const needs = (item: { name: string; licenceId: string; licenceLevel: number }) =>
     `${item.name} needs ${licenceName(catalogue.frames, item.licenceId)} licence rank ${rankName(item.licenceLevel)}.`
   if (!isLicensed({ licenceId: frame.id, licenceLevel: frame.licenceLevel }, licences))
-    problems.push(needs({ name: `the ${frame.name} frame`, licenceId: frame.id, licenceLevel: frame.licenceLevel }))
+    problems.push(needs({ name: `The ${frame.name} frame`, licenceId: frame.id, licenceLevel: frame.licenceLevel }))
 
   // Weapons: licence, mount size, Superheavy bracing, Unique.
   const mounts = (mech.mounts ?? []).slice(0, frame.mounts.length)
@@ -180,7 +180,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
     ids.forEach((id, i) => {
       if (!id) return
       const weapon = lookup(catalogue.weapons, id)
-      if (!weapon) return problems.push(`a weapon (${id}) isn't in the loaded content packs.`)
+      if (!weapon) return problems.push(`A weapon (${id}) isn't in the loaded content packs.`)
       fitted.push(weapon)
       if (!isLicensed(weapon, licences)) problems.push(needs(weapon))
       // Checked against the places before it only, so a clash (e.g. Main + Auxiliary on Flex) is reported once.
@@ -190,12 +190,12 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   })
   const heavy = superheavyMount(mounts, (id) => catalogue.weapons.get(id)?.mount)
   if (heavy >= 0 && !mechResources(sheet, effects).superheavyMounting && bracingMount(frame.mounts, mounts, heavy) < 0)
-    problems.push('its superheavy weapon needs a second, empty mount.')
+    problems.push('Its Superheavy weapon needs a second, empty mount.')
 
   // Systems: licence, Unique, one AI.
   const installed = (mech.systems ?? []).map((id) => lookup(catalogue.systems, id))
   installed.forEach((system, k) => {
-    if (!system) problems.push(`a system (${mech.systems![k]}) isn't in the loaded content packs.`)
+    if (!system) problems.push(`A system (${mech.systems![k]}) isn't in the loaded content packs.`)
     else if (!isLicensed(system, licences)) problems.push(needs(system))
   })
   const integratedItems = frame.integrated.map(id => catalogue.integrated.get(id)).filter((item): item is Item => !!item)
@@ -203,12 +203,12 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   for (const item of new Set(known.filter(isUnique)))
     if (known.filter((other) => other.id === item.id).length > 1) problems.push(`${item.name} is unique: one per mech.`)
   const aiCap = Math.max(0, resolveBonuses(1, effects.modifiers.filter(entry => entry.stat === 'ai_cap')).value)
-  if ([...known, ...integratedItems].filter(isAi).length > aiCap) problems.push(aiCap === 1 ? 'only one AI per mech.' : `only ${aiCap} AIs allowed on this mech.`)
+  if ([...known, ...integratedItems].filter(isAi).length > aiCap) problems.push(aiCap === 1 ? 'Only one AI per mech.' : `Only ${aiCap} AIs allowed on this mech.`)
 
   // System points.
   const total = mechStats(frame, sheet.mech_skills, effects.modifiers).find((stat) => stat.id === 'system_points')!.value ?? 0
   const used = known.reduce((spent, item) => spent + item.sp, 0)
-  if (used > total) problems.push(`its system points are over: ${used}/${total}.`)
+  if (used > total) problems.push(`Its system points are over: ${used}/${total}.`)
 
   return problems
 }
@@ -221,30 +221,30 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 
   const skills = sum(sheet.mech_skills)
-  if (skills > skillPoints(gm.level)) problems.push(`${skills} hase points taken, but level ${gm.level} only gives ${skillPoints(gm.level)}.`)
+  if (skills > skillPoints(gm.level)) problems.push(`${skills} HASE points taken, but level ${gm.level} only gives ${skillPoints(gm.level)}.`)
   for (const [id, value] of Object.entries(sheet.mech_skills ?? {}))
     if (!Number.isInteger(value) || value < 0 || value > MAX_SKILL) problems.push(`${id} must be a whole number from 0 to ${MAX_SKILL}.`)
 
   const mods = (sheet.bionics ?? []).reduce((total, id) => total + (catalogue.bionicCosts?.get(id) ?? 0), 0)
-  if (mods > modLimit(gm.level)) problems.push(`bionics use ${mods} mod points, but level ${gm.level} only gives ${modLimit(gm.level)}.`)
+  if (mods > modLimit(gm.level)) problems.push(`Bionics use ${mods} mod points, but level ${gm.level} only gives ${modLimit(gm.level)}.`)
 
   for (const [id, rank] of Object.entries(sheet.licences ?? {}))
     if (!Number.isInteger(rank) || rank < 0 || rank > MAX_LICENCE_RANK) problems.push(`${licenceName(catalogue.frames, id)} licence must be a whole rank from 0 to III.`)
-    else if (rank > 0 && !catalogue.frames.some(frame => frame.id === id && frame.licenceLevel > 0)) problems.push(`licence ${id} isn't in the loaded licensed frames.`)
+    else if (rank > 0 && !catalogue.frames.some(frame => frame.id === id && frame.licenceLevel > 0)) problems.push(`Licence ${id} isn't in the loaded licensed frames.`)
   for (const [id, rank] of Object.entries(sheet.talents ?? {}))
-    if (!Number.isInteger(rank) || rank < 0 || rank > MAX_TALENT_RANK) problems.push(`talent ${id} must be a whole rank from 0 to III.`)
-    else if (rank > 0 && !catalogue.talents?.some(talent => talent.id === id)) problems.push(`talent ${id} isn't in the loaded content packs.`)
+    if (!Number.isInteger(rank) || rank < 0 || rank > MAX_TALENT_RANK) problems.push(`Talent ${id} must be a whole rank from 0 to III.`)
+    else if (rank > 0 && !catalogue.talents?.some(talent => talent.id === id)) problems.push(`Talent ${id} isn't in the loaded content packs.`)
   if (catalogue.gear) {
     const layout = loadoutSlots(sheet.pilot_gear ?? [], id => catalogue.gear!.find(item => item.id === id)?.type)
-    if (layout.overflow.length) problems.push('pilot gear exceeds its available armour, weapon or gear slots.')
-    if (layout.unknown.length) problems.push('pilot gear includes items unavailable in the loaded content packs.')
+    if (layout.overflow.length) problems.push('Pilot gear exceeds its available armour, weapon or gear slots.')
+    if (layout.unknown.length) problems.push('Pilot gear includes items unavailable in the loaded content packs.')
   }
   if (catalogue.bionicCosts) for (const id of sheet.bionics ?? [])
-    if (!catalogue.bionicCosts.has(id)) problems.push(`biomod ${id} isn't in the loaded catalogue.`)
-  if (new Set(sheet.bionics ?? []).size !== (sheet.bionics?.length ?? 0)) problems.push('a biomod can only be installed once.')
+    if (!catalogue.bionicCosts.has(id)) problems.push(`Biomod ${id} isn't in the loaded catalogue.`)
+  if (new Set(sheet.bionics ?? []).size !== (sheet.bionics?.length ?? 0)) problems.push('A biomod can only be installed once.')
   problems.push(...coreBonusProblems(sheet, catalogue.frames, catalogue.coreBonuses ?? []))
 
   for (const [mechId, mech] of Object.entries(sheet.mechs ?? {}))
-    for (const problem of mechProblems(mech, sheet, catalogue)) problems.push(`${mechNames[mechId] ?? 'a mech'}: ${problem}`)
+    for (const problem of mechProblems(mech, sheet, catalogue)) problems.push(`${mechNames[mechId] ?? 'A mech'}: ${problem}`)
   return problems
 }

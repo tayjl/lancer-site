@@ -6,7 +6,7 @@ const props = defineProps<{ info: () => Info; label: string }>()
 </script>
 
 <template>
-  <button type="button" class="info-link" :aria-label="`full information: ${label}`" @click="showInfo(props.info())">
+  <button type="button" class="info-link" :aria-label="`Full information: ${label}`" @click="showInfo(props.info())">
     <slot>{{ label }}</slot>
   </button>
 </template>

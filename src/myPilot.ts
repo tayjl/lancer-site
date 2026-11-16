@@ -46,8 +46,8 @@ export const MANUFACTURER_ID = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 
 // Checks a mech's name and manufacturer id before saving. Returns a message for the player, or null.
 export function mechProblem(name: string, manufacturerId: string) {
-  if (!name) return 'a mech needs a name.'
-  if (!MANUFACTURER_ID.test(manufacturerId)) return 'the manufacturer id should look like XXXX-XXXX-XXXX (letters and digits).'
+  if (!name) return 'A mech needs a name.'
+  if (!MANUFACTURER_ID.test(manufacturerId)) return 'The manufacturer ID should look like XXXX-XXXX-XXXX (letters and digits).'
   return null
 }
 

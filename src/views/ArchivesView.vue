@@ -187,24 +187,24 @@ function step(event: KeyboardEvent) {
 
 <template>
   <main class="page archives">
-    <PageHeader title="archives" summary="every manufacturer, licence, frame, weapon, system, piece of gear, talent and core bonus in the loaded content packs.">
-      <span class="dim">{{ entries.length }} entries</span>
+    <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, piece of gear, talent and core bonus in the loaded content packs.">
+      <span class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
     </PageHeader>
 
     <div class="search">
       <label class="field">
-        <span>search every category</span>
-        <input ref="searchBox" v-model="query" type="search" placeholder="name, maker or rules text" @keydown.esc="query = ''" />
+        <span>Search every category</span>
+        <input ref="searchBox" v-model="query" type="search" placeholder="Name, maker or rules text" @keydown.esc="query = ''" />
       </label>
-      <button v-if="query" type="button" class="small" @click="(query = ''), searchBox?.focus()">clear</button>
+      <button v-if="query" type="button" class="small" @click="(query = ''), searchBox?.focus()">Clear</button>
     </div>
 
     <!-- Sticky under the top bar, one row that scrolls sideways when narrow. -->
     <div ref="bar" class="cat-bar">
-      <SheetTabs v-model="view" :tabs="tabs" :counts="tabCounts" label="archive categories" />
+      <SheetTabs v-model="view" :tabs="tabs" :counts="tabCounts" label="Archive categories" />
     </div>
 
-    <div v-if="makerChips.length" class="maker-filter" role="group" aria-label="filter by manufacturer">
+    <div v-if="makerChips.length" class="maker-filter" role="group" aria-label="Filter by manufacturer">
       <button
         v-for="maker in makerChips"
         :key="maker.id"
@@ -236,7 +236,7 @@ function step(event: KeyboardEvent) {
           </ul>
         </li>
       </ul>
-      <p v-else class="empty">no content yet: the content packs may still be loading, or none are imported.</p>
+      <p v-else class="empty">No content yet: the content packs may still be loading, or none are imported.</p>
     </template>
 
     <!-- Everything else: the list (a box per manufacturer or gear type, licence sub-headings for weapons and systems)
@@ -283,10 +283,10 @@ function step(event: KeyboardEvent) {
         <InfoBody :info="selectedInfo" />
       </article>
     </div>
-    <p v-else-if="searching" class="empty" role="status">nothing matches that search.</p>
+    <p v-else-if="searching" class="empty" role="status">Nothing matches that search.</p>
     <!-- The catalogues don't say when they've finished loading, so "nothing at all" can mean either. -->
-    <p v-else-if="entries.length" class="empty">nothing in this category in the loaded content packs.</p>
-    <p v-else class="empty">no content yet: the content packs may still be loading, or none are imported.</p>
+    <p v-else-if="entries.length" class="empty">Nothing in this category in the loaded content packs.</p>
+    <p v-else class="empty">No content yet: the content packs may still be loading, or none are imported.</p>
   </main>
 </template>
 
@@ -306,7 +306,6 @@ function step(event: KeyboardEvent) {
 .search {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
   gap: var(--space-s);
 }
 
@@ -333,7 +332,6 @@ function step(event: KeyboardEvent) {
 .maker-filter {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: var(--space-s);
 }
 
@@ -447,7 +445,7 @@ function step(event: KeyboardEvent) {
 
 .maker-counts button:hover,
 .maker-counts button:focus-visible {
-  color: var(--rose);
+  color: var(--lilac);
 }
 
 /* --- A category: the list on the left (22rem) and the chosen entry's pane beside it, each sticky under the top bar

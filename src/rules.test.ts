@@ -77,7 +77,7 @@ describe('licences', () => {
     const sheet = { licences: { blackbeard: 1 }, mech_skills: { systems: 4 } }
     const problems = mechProblems({ frame: 'blackbeard', mounts: [[null], ['chain_axe']], systems: ['heat_sink'] }, sheet, catalogue)
     expect(problems).toEqual([
-      'the blackbeard frame needs IPS-N blackbeard licence rank II.',
+      'The blackbeard frame needs IPS-N blackbeard licence rank II.',
       'heat_sink needs IPS-N blackbeard licence rank III.',
     ])
   })
@@ -111,13 +111,13 @@ describe('core bonus eligibility', () => {
   it('exempts GMS from manufacturer requirements but still uses an overall slot', () => {
     expect(check({ blackbeard: 3, sherman: 3 }, ['ips', 'gms'])).toEqual([])
     expect(check({ blackbeard: 2 }, ['gms'])).toEqual([
-      'core bonuses taken: 1, but 2 licence ranks only give 0.',
+      'Core bonuses taken: 1, but 2 licence ranks only give 0.',
     ])
   })
 
   it('rejects duplicates, missing content and invalid ranks as manufacturer credit', () => {
     expect(check({ blackbeard: 3, drake: 3 }, ['ips', 'ips'])).toContain('IPS-N bonus can only be taken once.')
-    expect(check({ blackbeard: 3 }, ['missing'])).toContain("core bonus missing isn't in the loaded content packs.")
+    expect(check({ blackbeard: 3 }, ['missing'])).toContain("Core bonus missing isn't in the loaded content packs.")
     const invalidLicences: Record<string, number>[] = [{ blackbeard: 6 }, { blackbeard: 2.5, drake: 1 }, { everest: 3 }, { missing: 3 }]
     for (const licences of invalidLicences)
       expect(check(licences, ['ips']).some((problem) => problem.includes('IPS-N licence ranks'))).toBe(true)
@@ -141,7 +141,7 @@ describe('mechs', () => {
     const pilot = { licences: { blackbeard: 3 }, core_bonuses: ['capacity'] }
     const withBonus: Catalogue = { ...catalogue, coreBonuses: [{ id: 'capacity', name: 'Capacity', source: 'GMS', effect: '', bonuses: [{ id: 'sp', val: 2 }] }] }
     expect(mechProblems(mech, pilot, withBonus)).toEqual([])
-    expect(mechProblems(mech, { ...pilot, core_bonuses: [] }, withBonus)).toEqual(['its system points are over: 7/5.'])
+    expect(mechProblems(mech, { ...pilot, core_bonuses: [] }, withBonus)).toEqual(['Its system points are over: 7/5.'])
   })
 
   it('is happy with a legal GMS mech', () => {
@@ -154,7 +154,7 @@ describe('mechs', () => {
     expect(bracingMount(everest.mounts, [['pistol'], ['rifle'], ['cannon']], 2)).toBe(-1)
     expect(bracingMount(['Heavy', 'Integrated Auxiliary'], [['cannon'], []], 0)).toBe(-1)
     expect(mechProblems({ frame: 'everest', mounts: [['pistol'], ['rifle'], ['cannon']] }, sheet, catalogue)).toEqual([
-      'its superheavy weapon needs a second, empty mount.',
+      'Its Superheavy weapon needs a second, empty mount.',
     ])
   })
 
@@ -167,8 +167,8 @@ describe('mechs', () => {
     expect(problems).toEqual([
       "pistol (auxiliary) doesn't fit its flex mount.",
       'paint is unique: one per mech.',
-      'only one AI per mech.',
-      'its system points are over: 6/5.',
+      'Only one AI per mech.',
+      'Its system points are over: 6/5.',
     ])
   })
 })
@@ -179,9 +179,9 @@ describe('homebrew levelling and manna', () => {
     const problems = pilotProblems(sheet, { level: 0, manna: 10000 }, { ...catalogue, gear: [] }, {})
     expect(mannaSpent({ licences: { blackbeard: -3 } })).toBe(0)
     expect(problems).toContain('blackbeard licence must be a whole rank from 0 to III.'.replace('blackbeard', 'IPS-N blackbeard'))
-    expect(problems).toContain('talent missing must be a whole rank from 0 to III.')
+    expect(problems).toContain('Talent missing must be a whole rank from 0 to III.')
     expect(problems).toContain('hull must be a whole number from 0 to 6.')
-    expect(problems).toContain('pilot gear includes items unavailable in the loaded content packs.')
+    expect(problems).toContain('Pilot gear includes items unavailable in the loaded content packs.')
   })
   it('prices licence ranks at 600, biomods at 500 and talent ranks at 300', () => {
     expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } })).toBe(3 * 600 + 2 * 500 + 300)
@@ -201,14 +201,14 @@ describe('homebrew levelling and manna', () => {
     }
     expect(pilotProblems(sheet, { level: 1, manna: 2000 }, catalogue, { m1: 'Lantern' })).toEqual([
       '2200 manna spent, but only 2000 received.',
-      '4 hase points taken, but level 1 only gives 3.',
-      'core bonuses taken: 1, but 2 licence ranks only give 0.',
-      'Lantern: only one AI per mech.',
+      '4 HASE points taken, but level 1 only gives 3.',
+      'Core bonuses taken: 1, but 2 licence ranks only give 0.',
+      'Lantern: Only one AI per mech.',
     ])
     expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, catalogue, {})).toEqual([])
     expect(pilotProblems({ bionics: [1, 2, 2] }, { level: 0, manna: 1500 }, catalogue, {})).toEqual([
-      'bionics use 8 mod points, but level 0 only gives 6.',
-      'a biomod can only be installed once.',
+      'Bionics use 8 mod points, but level 0 only gives 6.',
+      'A biomod can only be installed once.',
     ])
   })
 })

@@ -207,7 +207,7 @@ async function importPack() {
           <p v-if="plan.retained" class="dim">Older items missing from this update stay available, so existing pilots keep their equipment.</p>
           <p v-for="warning in candidate.warnings" :key="warning" class="notice">{{ warning }}</p>
           <details v-if="candidate.ignored.length" class="ignored">
-            <summary>{{ candidate.ignored.length }} {{ candidate.ignored.length === 1 ? 'file' : 'files' }} not used by this site</summary>
+            <summary><span class="num">{{ candidate.ignored.length }}</span> {{ candidate.ignored.length === 1 ? 'file' : 'files' }} not used by this site</summary>
             <p class="dim">Only supported content files at the top level are imported.</p>
             <ul><li v-for="file in candidate.ignored" :key="file" class="code">{{ file }}</li></ul>
           </details>

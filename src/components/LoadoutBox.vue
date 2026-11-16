@@ -96,7 +96,7 @@ function open() {
           <span>Search</span>
           <input v-model="filter" type="search" autofocus />
         </label>
-        <p class="dim count" aria-live="polite">{{ offered.length }} shown</p>
+        <p class="dim count" aria-live="polite"><span class="num">{{ offered.length }}</span> shown</p>
         <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
       </div>
 

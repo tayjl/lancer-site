@@ -88,7 +88,7 @@ export function itemInfo(item: Item): Info {
     source: text(raw.source),
     facts: facts(
       text(raw.source),
-      pilot ? '' : { text: item.licenceLevel > 0 ? `licence: ${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : 'no licence needed', tone: TONES.licence },
+      pilot ? '' : { text: item.licenceLevel > 0 ? `Licence: ${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : 'No licence needed', tone: TONES.licence },
     ),
     // Pilot gear often has only a description, which then is its rules rather than lore.
     lore: effect ? merged(text(item.description)) : '',
@@ -111,9 +111,9 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     name: frame.name,
     source: frame.source,
     facts: facts(
-      { text: frame.mechtype.join(' / ').toLowerCase(), tone: TONES.classification },
-      `mounts: ${frame.mounts.join(', ').toLowerCase()}`,
-      { text: frame.licenceLevel ? `licence: ${frame.name} ${rankName(frame.licenceLevel)}` : 'no licence needed', tone: TONES.licence },
+      { text: frame.mechtype.join(' / '), tone: TONES.classification },
+      `Mounts: ${frame.mounts.join(', ')}`,
+      { text: frame.licenceLevel ? `Licence: ${frame.name} ${rankName(frame.licenceLevel)}` : 'No licence needed', tone: TONES.licence },
     ),
     lore: paragraphs(text(frame.description)),
     // The frame's own numbers, before HASE and bonuses.
@@ -209,7 +209,7 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
     facts: facts(manufacturer.id !== manufacturer.name ? manufacturer.id : '', made.length ? `${made.length} frames` : ''),
     lore: [text(manufacturer.quote) ? `<p>${text(manufacturer.quote)}</p>` : '', paragraphs(text(manufacturer.description))].join(''),
     stats: [],
-    groups: groups({ title: 'frames', cards: made.flatMap((frame) => card(frame.name, frame.mechtype.join(' / ').toLowerCase() || 'frame')) }),
+    groups: groups({ title: 'frames', cards: made.flatMap((frame) => card(frame.name, frame.mechtype.join(' / ') || 'Frame')) }),
   }
 }
 
@@ -222,17 +222,17 @@ export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], l
 
 // A licence (one per licensed frame): what each of its three ranks unlocks, side by side like the sheet's ladder.
 export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = []): Info {
-  const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, level).map((unlock) => `<li><b>${unlock.kind}:</b> ${unlock.name}</li>`)
+  const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, level).map((unlock) => `<li><b>${unlock.kind[0].toUpperCase()}${unlock.kind.slice(1)}:</b> ${unlock.name}</li>`)
   return {
     kind: `${frame.source} licence`.trim(),
     name: frame.name,
     source: frame.source,
-    facts: facts({ text: frame.mechtype.join(' / ').toLowerCase(), tone: TONES.classification }, `${PRICES.licenceRank} manna per rank`),
+    facts: facts({ text: frame.mechtype.join(' / '), tone: TONES.classification }, `${PRICES.licenceRank} manna per rank`),
     lore: '',
     stats: [],
     groups: groups({ title: 'ranks', cards: [1, 2, 3].flatMap((level) => {
       const items = unlocks(level)
-      return card(`rank ${rankName(level)}`, items.length ? `<ul>${items.join('')}</ul>` : 'nothing new at this rank.')
+      return card(`rank ${rankName(level)}`, items.length ? `<ul>${items.join('')}</ul>` : 'Nothing new at this rank.')
     }) }),
   }
 }

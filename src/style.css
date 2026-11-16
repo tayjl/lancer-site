@@ -22,8 +22,8 @@
   --dead: #b1afba; /* dead: the dim grey, always with the skull */
   --info: #a6d8ea; /* neutral information and "changed" */
 
-  /* The old terminal accents: the login screen and the home page's boot sequence (and the glitch). Pages not yet
-     rebuilt in the redesign still use them; new work uses the status colours above instead. */
+  /* The old terminal accents: only the login screen, the home page's boot sequence and the glitch. Everything else
+     uses the status colours above. */
   --rose: #ff9eb0;
   --sky: #a6d8ea;
   --mint: #a9dfb5;

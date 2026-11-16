@@ -36,19 +36,19 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     // Home: the login screen's boot scrawl, with buttons to every tab. The logo in the top bar links here.
-    { path: '/', name: 'home', component: HomeView, meta: { title: 'home' } },
+    { path: '/', name: 'home', component: HomeView, meta: { title: 'Home' } },
     {
       path: '/pilot',
       name: 'pilot',
       component: PilotManageView,
-      meta: { title: 'my pilot' },
+      meta: { title: 'My pilot' },
     },
     // One of your mechs.
     {
       path: '/pilot/mechs/:mechId',
       name: 'mech',
       component: MechView,
-      meta: { title: 'mech', section: 'pilot' },
+      meta: { title: 'Mech', section: 'pilot' },
     },
     {
       path: '/registry',
@@ -61,13 +61,13 @@ export const router = createRouter({
       path: '/registry/:id',
       name: 'pilot-record',
       component: PilotManageView,
-      meta: { title: 'pilot record', section: 'registry' },
+      meta: { title: 'Pilot record', section: 'registry' },
     },
     {
       path: '/registry/:id/mechs/:mechId',
       name: 'record-mech',
       component: MechView,
-      meta: { title: 'mech', section: 'registry' },
+      meta: { title: 'Mech', section: 'registry' },
     },
     // New pilots waiting on a GM, for everyone to read. GMs review them from the gm pilots tab. Changes to
     // approved pilots hold private data, so they're only in the gm changes tab.
@@ -93,7 +93,7 @@ export const router = createRouter({
       path: '/archives',
       name: 'archives',
       component: ArchivesView,
-      meta: { title: 'archives' },
+      meta: { title: 'Archives' },
     },
     // GM tabs. /gm opens the first one.
     { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },
@@ -101,33 +101,33 @@ export const router = createRouter({
       path: '/gm/pilots',
       name: 'gm-pilots',
       component: GmPilotsView,
-      meta: { title: 'gm: pilots', summary: 'review new pilots, and level up or pay any pilot.', gm: true },
+      meta: { title: 'GM pilots', summary: 'Review new pilots, and level up or pay any pilot.', gm: true },
     },
     // A pilot's record with the GM controls and, while pending, the decision. Opened from gm: pilots.
     {
       path: '/gm/pilots/:id',
       name: 'gm-review',
       component: PilotManageView,
-      meta: { title: 'gm review', gm: true, section: 'gm-pilots' },
+      meta: { title: 'GM review', gm: true, section: 'gm-pilots' },
     },
     {
       path: '/gm/changes',
       name: 'gm-changes',
       component: GmChangesView,
-      meta: { title: 'gm: changes', summary: 'changes players want to make to their approved pilots.', gm: true },
+      meta: { title: 'GM changes', summary: 'Changes players want to make to their approved pilots.', gm: true },
     },
     // One change: what it changes, then approve or reject.
     {
       path: '/gm/changes/:id',
       name: 'gm-change',
       component: GmChangeView,
-      meta: { title: 'gm: change', gm: true, section: 'gm-changes' },
+      meta: { title: 'GM change', gm: true, section: 'gm-changes' },
     },
     {
       path: '/gm/content',
       name: 'gm-content',
       component: ContentView,
-      meta: { title: 'gm: content', summary: 'the game content pilots are built from.', gm: true, owner: true },
+      meta: { title: 'GM content', summary: 'The packs behind your pilots, mechs and equipment.', gm: true, owner: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },

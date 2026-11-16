@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { isGm, profile } from '../auth'
-import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
 import type { PublicPilot } from '../pilots'
@@ -168,9 +167,9 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <td>
                   <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }" class="link-button">Open sheet</RouterLink>
                   <span v-if="!pilot.sheet" class="save-message error">Private sheet missing</span>
-                  <span v-if="rowError[pilot.id]" class="save-message error" role="alert">{{ rowError[pilot.id] }}</span>
+                  <span v-if="rowError[pilot.id]" class="save-message error" role="alert">Not saved: {{ rowError[pilot.id] }}</span>
                   <span v-else-if="saving[pilot.id]" class="save-message dim" role="status">Saving…</span>
-                  <span v-else-if="saved[pilot.id]" class="save-message saved" role="status"><Icon name="check" />Saved</span>
+                  <span v-else-if="saved[pilot.id]" class="save-message dim" role="status">Saved</span>
                 </td>
               </tr>
             </tbody>
@@ -199,7 +198,6 @@ section + section { margin-top: var(--space-l); }
 .spent { display: block; color: var(--text-dim); font-size: var(--fs-xs); }
 .mech-names { max-width: 15rem; overflow: hidden; text-overflow: ellipsis; }
 .save-message { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-xs); font-size: var(--fs-xs); white-space: normal; }
-.save-message.saved { color: var(--ok); }
 .save-message.error { color: var(--danger); }
 /* A link drawn like a small button. */
 .link-button { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--edge); border-radius: var(--radius); font: 700 var(--fs-xs) / 1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; }

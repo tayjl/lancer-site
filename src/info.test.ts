@@ -20,7 +20,7 @@ describe('full information', () => {
   it('shows a weapon with its licence, lore, actions and explained tags', () => {
     const info = itemInfo(toItem('mw_autopod', data('mw_autopod')))
     expect(info.kind).toBe('main launcher weapon')
-    expect(info.facts).toEqual([{ text: 'HORUS' }, { text: 'licence: HORUS Goblin I', tone: 'sky' }])
+    expect(info.facts).toEqual([{ text: 'HORUS' }, { text: 'Licence: HORUS Goblin I', tone: 'sky' }])
     expect(info.lore).toContain('antipersonnel weapon')
     expect(headings(info, 'rules')).toEqual(['effect', 'Autonomous Assault'])
     expect(info.groups[0].cards[1]).toMatchObject({ activation: 'Reaction', frequency: '1/round' })
@@ -62,7 +62,7 @@ describe('full information', () => {
     const goblin = frame('mf_goblin'), everest = frame('mf_standard_pattern_i_everest')
     const info = frameInfo(goblin, [goblin, everest])
     expect(info).toMatchObject({ kind: 'HORUS frame', name: 'Goblin' })
-    expect(info.facts[0]).toEqual({ text: 'controller / support', tone: 'rose' })
+    expect(info.facts[0]).toEqual({ text: 'Controller / Support', tone: 'rose' })
     expect(info.facts[2].tone).toBe('sky')
     expect(info.lore).toContain('first identified HORUS frame')
     expect(info.lore!.match(/<p>/g)).toHaveLength(3)
@@ -142,8 +142,8 @@ describe('archive information', () => {
     const info = licenceInfo(goblin, items('weapons'), items('systems'))
     expect(info).toMatchObject({ kind: 'HORUS licence', name: 'Goblin' })
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['rank I', 'rank II', 'rank III'])
-    expect(info.groups[0].cards[0].html).toContain('<b>weapon:</b> Autopod')
-    expect(info.groups[0].cards[1].html).toContain('<b>frame:</b> Goblin')
+    expect(info.groups[0].cards[0].html).toContain('<b>Weapon:</b> Autopod')
+    expect(info.groups[0].cards[1].html).toContain('<b>Frame:</b> Goblin')
   })
 
   it('shows a manufacturer’s motto, history and frames', () => {

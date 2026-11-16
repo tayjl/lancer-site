@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
-// The top of a page, in the pilot sheet's style: an optional breadcrumb ("registry / WARDEN / lantern ii"), the
-// page's name large in lilac, a short line about it, and a rule under it. The default slot sits on the right
+// The top of a page, in the pilot sheet's style: an optional breadcrumb ("Registry / WARDEN / Lantern II"), the
+// page's name large, a short line about it, and a rule under it. The default slot sits on the right
 // (e.g. a count). The last crumb is the current page, so it isn't a link.
 defineProps<{ title: string; summary?: string; crumbs?: { label: string; to?: RouteLocationRaw }[] }>()
 </script>

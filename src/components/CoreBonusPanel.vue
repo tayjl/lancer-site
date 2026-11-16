@@ -48,7 +48,7 @@ const blocked = (id: string) => coreBonusProblems(
 const offered = computed(() =>
   props.options
     .filter((bonus) => !props.taken.includes(bonus.id))
-    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source.toLowerCase(), text: plainText(bonus.effect), blocked: blocked(bonus.id), info: () => coreBonusInfo(bonus) })),
+    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source, text: plainText(bonus.effect), blocked: blocked(bonus.id), info: () => coreBonusInfo(bonus) })),
 )
 
 function open() {

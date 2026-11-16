@@ -39,7 +39,7 @@ defineExpose({ open, close: () => dialog.value?.close() })
         <span>Search</span>
         <input v-model="filter" type="search" autofocus />
       </label>
-      <p class="dim count" aria-live="polite">{{ shown.length }} of {{ options.length }}</p>
+      <p class="dim count" aria-live="polite"><span class="num">{{ shown.length }}</span> of <span class="num">{{ options.length }}</span></p>
       <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
     </div>
 

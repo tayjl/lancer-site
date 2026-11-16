@@ -172,7 +172,7 @@ const balance = computed(() => gm.value.manna - mannaSpent(sheet.value))
 const licenceOptions = computed(() =>
   frames.value
     .filter((frame) => frame.licenceLevel > 0)
-    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/').toLowerCase(), info: () => frameInfo(frame, frames.value) })),
+    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value) })),
 )
 const licenceDetails = (id: string): RankStep[] =>
   [1, 2, 3].map((level) => ({
@@ -332,7 +332,10 @@ async function createMech() {
               <template v-else>{{ character.pilot_name }}</template>
             </span>
             <span>Player: {{ playerName || '–' }}</span>
-            <span><span class="badge" :class="character.status">{{ character.status }}</span></span>
+            <span>
+              <span v-if="character.status === 'pending' && reviewNote" class="badge rejected">Sent back</span>
+              <span v-else class="badge" :class="character.status">{{ character.status }}</span>
+            </span>
           </div>
         </div>
         <div v-if="canSeePrivate || gmLink" class="header-side">

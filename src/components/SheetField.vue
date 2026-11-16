@@ -50,7 +50,7 @@ onBeforeUnmount(() => {
     </h2>
     <RichTextEditor v-if="editable" v-model="draft" :label="title" />
     <RichText v-else-if="doc" :doc="doc" class="readonly prose" />
-    <p v-else class="dim readonly">Nothing on file.</p>
+    <p v-else class="empty">Nothing on file.</p>
   </section>
 </template>
 
