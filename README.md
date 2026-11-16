@@ -1,7 +1,7 @@
 # LANCER Campaign Site
 
 A character tracker for a LANCER campaign: players submit characters and changes, GMs approve them.
-Built with Vue, Vite and TypeScript, using Supabase for the database and logins, and hosted on Vercel.
+Built with Vue, Vite and TypeScript, using Supabase for the database and logins, and hosted on Cloudflare.
 
 ## Running it locally
 

@@ -12,16 +12,16 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - I'm a junior developer. Act as a senior developer mentoring me.
 - **Don't write code or do the work for me unless I explicitly ask.** Explain, review, and point me in the right direction instead.
 - Explain things in plain English. Avoid jargon, or explain any term I'm unlikely to have met before.
-- **When I do ask for work to be done, Claude supervises and a subagent builds** (the developer, 2026-11-16). Coding and other high-token work (large reads, audits, screenshots, mockups) goes to an **Opus 5.5 subagent at medium effort**. The main Claude plans, writes the subagent's instructions, reviews what comes back (diffs and screenshots), and pushes back on anything that's messy, inconsistent or hard to read before it reaches me. Small edits and decisions stay with the main Claude.
+- **When I do ask for work to be done, Claude supervises and a subagent builds** (the developer, 2026-11-16). Coding and other high-token work (large reads, audits, screenshots, mockups) goes to a **Sonnet 5.5 subagent at high effort** (changed from Opus 5.5 medium by the developer, 2026-11-16). The main Claude plans, writes the subagent's instructions, reviews what comes back (diffs and screenshots), and pushes back on anything that's messy, inconsistent or hard to read before it reaches me. Small edits and decisions stay with the main Claude.
 
 ## Tech stack (decided)
 - **Frontend:** Vue + Vite (I already know Vue), with **TypeScript**.
 - **Database, logins and security rules:** Supabase (free tier).
-- **Hosting:** Vercel (free Hobby plan).
+- **Hosting:** Cloudflare (decided by the developer, 2026-11-16, replacing Vercel). The move isn't done yet: `vercel.json` is still in the repo, and whether it's Cloudflare Pages or Workers static assets isn't decided. **Cloudflare builds and deploys from the GitHub repo on every push**, so pushing is going live: ask before pushing.
 - **No custom backend API.** The Vue app talks straight to Supabase using `supabase-js`. Keep it simple.
 
 ## How the pieces fit
-- The browser (Vue app hosted on Vercel) talks to Supabase. There's nothing in between.
+- The browser (Vue app hosted on Cloudflare) talks to Supabase. There's nothing in between.
 - Security is enforced **in the database** with Row Level Security (RLS), never only in the frontend code, because anyone can tamper with code running in their browser.
 - The one exception to "no backend": small **database functions inside Supabase** (written in SQL) for actions that must happen all-or-nothing, such as approving a change. Vue calls them with `supabase.rpc()`. They're not a server, and there should only be one or two.
 
@@ -138,9 +138,9 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 
 ## Gotchas
 - **Vite environment variables:** only variables starting with `VITE_` reach the browser, and those are public. Only the public Supabase key goes in a `VITE_` variable. Keep `.env` files out of git.
-- **Vercel + Vue Router:** with clean URLs like `/characters/42`, refreshing the page can show a 404. Vercel needs a rewrite (in `vercel.json`) that sends every path to `index.html`.
+- **Hosting + Vue Router:** with clean URLs like `/characters/42`, refreshing the page can show a 404 unless the host sends every unknown path to `index.html`. On Vercel that was the rewrite in `vercel.json`. Cloudflare needs its own equivalent (single-page-app fallback); check it works after the move.
 - **Supabase free tier pauses projects after 1 week of inactivity.** No data is lost, and you restore it from the dashboard. Expect this during campaign breaks. Limits: 2 active free projects and a 500 MB database, which is plenty for this.
-- **Vercel Hobby is for non-commercial use only.** Don't charge players or add ads.
+- **Don't charge players or add ads** (this rule came from Vercel Hobby's non-commercial terms; keep it unless the developer says otherwise).
 - **New tables may not be reachable from the app automatically.** Depending on the project's Data API settings, each new table needs an explicit `grant` to the `authenticated` role, on top of RLS. Every migration that creates a table should enable RLS and grant only what's needed.
 
 ## LANCER game data
@@ -289,7 +289,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **Discord login is built.**
   - `src/auth.ts` holds the session and the logged-in user's profile.
   - `src/router.ts` sends anyone who isn't logged in to `/login`.
-  - The pages are in `src/views/`, and `vercel.json` has the rewrite for clean URLs.
+  - The pages are in `src/views/`, and `vercel.json` has the rewrite for clean URLs (Vercel only; needs a Cloudflare equivalent).
   - Checked up to Discord's login page. A real login hasn't been tested yet.
 - A real Discord login works: the hosted database has the first profile.
 - TypeScript types are generated into `src/lib/database.types.ts`. Run `npm run types` after any database change.
