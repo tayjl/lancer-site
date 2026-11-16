@@ -12,10 +12,12 @@ import { PRICES, rankName } from './rules'
 // Each card and group title has a "tone", one of the site's accents, by what it is (TONES), for colour and contrast.
 export type Tone = 'lilac' | 'rose' | 'sky'
 // An action's card also has its activation (ActionChip.vue), frequency and own range and damage (itemRules).
-export type InfoCard = { heading: string; html: string; tone: Tone; activation?: string; frequency?: string; stats?: InfoStat[] }
+// "actions": a frame trait's other actions, each drawn inside the trait's card with its own chip.
+export type InfoCard = { heading: string; html: string; tone: Tone; activation?: string; frequency?: string; stats?: InfoStat[]; actions?: InfoCard[] }
 // "stack": cards one above another, for rules read in order (an item's effect, then on attack, on hit...).
-// "tags": tag chips, each with what it means.
-export type InfoGroup = { title?: string; tone?: Tone; lore?: string; stack?: boolean; tags?: boolean; cards: InfoCard[] }
+// "tags": tag chips, each with what it means. "look" draws a frame's groups as item cards (ItemCard.vue): "traits"
+// a card per trait in the frame colour, "core" the whole group as one card in the core colour, titled by the group.
+export type InfoGroup = { title?: string; tone?: Tone; lore?: string; stack?: boolean; tags?: boolean; look?: 'traits' | 'core'; cards: InfoCard[] }
 // Facts under the name; "tone" colours the important ones (a frame's classification, the licence).
 export type InfoFact = { text: string; tone?: Tone }
 // "range": where the value sits among every frame's (the radar chart).
@@ -51,11 +53,6 @@ const groups = (...all: InfoGroup[]) => all.filter((group) => group.cards.length
 const paragraphs = (html: string) => html.split(/<br\s*\/?>/i).map((part) => part.trim()).filter(Boolean).map((part) => `<p>${part}</p>`).join('')
 // Item descriptions are short: their paragraphs read better run together.
 const merged = (html: string) => html.replace(/\s*<br\s*\/?>\s*/gi, ' ')
-// An action written into a card's text: "Reactive Code (reaction, 1/round)".
-const when = (rule: InfoCard) => {
-  const parts = [rule.activation?.toLowerCase(), rule.frequency].filter(Boolean)
-  return parts.length ? ` (${parts.join(', ')})` : ''
-}
 // An action named like the trait or core power it belongs to repeats it (COMP/CON's data often has both): show it
 // once, under the parent's heading, with the action's chip, numbers and text (the more detailed version); every
 // same-named action goes. Differently named actions stay, in "rest".
@@ -130,16 +127,16 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
       }
     }),
     groups: groups(
-      // One card per trait, its actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
-      { cards: traits.flatMap((trait) => {
+      // One card per trait, its other actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
+      { look: 'traits', cards: traits.flatMap((trait) => {
         const name = text(trait.name) || 'trait'
         const { card: main, rest } = absorb({ heading: name, html: averageDamageText(text(trait.description)), tone: TONES.trait }, name, rules(trait))
-        const html = [main.html, ...rest.map((rule) => `<p><b>${rule.heading}${when(rule)}</b><br>${rule.html}</p>`)].join('')
-        return html ? [{ ...main, html }] : []
+        return main.html || rest.length ? [{ ...main, ...(rest.length ? { actions: rest } : {}) }] : []
       }) },
       {
         title: text(core.name) || 'core system',
         tone: TONES.power,
+        look: 'core',
         lore: paragraphs(text(core.description)),
         cards: coreCards(core),
       },

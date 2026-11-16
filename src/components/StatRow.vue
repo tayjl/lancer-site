@@ -87,6 +87,17 @@ const raiseBlocked = (value: number | null) =>
 </template>
 
 <style scoped>
+/* In a stretched row of sections (the stats tab), the tiles grow to fill the taller neighbour's height, so the tiles
+   and their - / + line up across both sections. */
+.stat-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats {
+  flex: 1;
+}
+
 .head {
   display: flex;
   flex-wrap: wrap;
@@ -104,7 +115,7 @@ const raiseBlocked = (value: number | null) =>
 }
 
 .stats.rows {
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
 }
 
 /* No stats defined (e.g. personal stats before any exist): no empty grid. */

@@ -466,18 +466,7 @@ async function createMech() {
 
       <template v-if="canSeePrivate">
         <div v-show="tab === 'stats'" class="tab-panel section-grid">
-          <StatRow class="panel" title="General stats" tag="Private" :stats="vitals" :editable="false" :min="0" :max="0" />
-          <StatRow
-            class="panel span-all"
-            title="Personal stats"
-            tag="Private"
-            :stats="stats.personal"
-            :editable="editable"
-            :min="PERSONAL_STAT_MIN"
-            :max="PERSONAL_STAT_MAX"
-            :budget="PERSONAL_STAT_POINTS"
-            @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
-          />
+          <StatRow class="panel span-all" title="General stats" tag="Private" :stats="vitals" :editable="false" :min="0" :max="0" />
           <StatRow
             class="panel"
             title="Piloting stats (HASE)"
@@ -488,6 +477,17 @@ async function createMech() {
             :max="STAT_MAX"
             :budget="skillPoints(gm.level)"
             @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+          />
+          <StatRow
+            class="panel"
+            title="Personal stats"
+            tag="Private"
+            :stats="stats.personal"
+            :editable="editable"
+            :min="PERSONAL_STAT_MIN"
+            :max="PERSONAL_STAT_MAX"
+            :budget="PERSONAL_STAT_POINTS"
+            @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
           />
         </div>
         <div v-show="tab === 'equipment'" class="tab-panel">
@@ -566,10 +566,10 @@ async function createMech() {
                 </span>
                 <span class="mech-about">
                   <span class="mech-name">{{ mech.name }}</span>
-                  <span v-if="frameOf(mech.id)" class="mech-frame dim sep">
-                    <span>{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
-                    <span v-if="frameOf(mech.id)!.mechtype.length">{{ frameOf(mech.id)!.mechtype.join(' / ') }}</span>
-                  </span>
+                  <template v-if="frameOf(mech.id)">
+                    <span class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
+                    <span v-if="frameOf(mech.id)!.mechtype.length" class="mech-class dim">{{ frameOf(mech.id)!.mechtype.join(' / ') }}</span>
+                  </template>
                   <span class="code dim mech-id">{{ mech.manufacturer_id }}</span>
                 </span>
               </RouterLink>
@@ -901,7 +901,8 @@ async function createMech() {
   align-self: flex-start;
 }
 
-/* --- Hangar: a card per mech; its maker only as the logo and a thin top border (--mf) --- */
+/* --- Hangar: a card per mech, a showcase, so centred: the cards as a group, and the picture, name, frame and class
+   within each. Its maker only as the logo and a thin top border (--mf). --- */
 .hangar-head {
   display: flex;
   flex-wrap: wrap;
@@ -910,21 +911,27 @@ async function createMech() {
 }
 
 .hangar {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-m);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.hangar > li {
+  flex: 0 1 15rem;
+}
+
 .mech-card {
   --mf: var(--rule);
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--space-m);
   height: 100%;
+  text-align: center;
   padding: var(--space-m);
   border: 1px solid var(--rule);
   border-top: 3px solid var(--mf);
@@ -944,6 +951,7 @@ async function createMech() {
 .mech-thumb {
   display: grid;
   place-items: center;
+  width: 96px;
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border: 1px solid var(--rule);
@@ -970,6 +978,7 @@ async function createMech() {
 .mech-about {
   display: flex;
   flex-direction: column;
+  align-items: center;
   min-width: 0;
 }
 
@@ -978,7 +987,8 @@ async function createMech() {
   font-weight: 700;
 }
 
-.mech-frame {
+.mech-frame,
+.mech-class {
   font-size: var(--fs-s);
 }
 

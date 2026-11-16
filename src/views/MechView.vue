@@ -11,13 +11,15 @@ import InfoButton from '../components/InfoButton.vue'
 import RulesText from '../components/RulesText.vue'
 import Icon from '../components/Icon.vue'
 import ActionChip from '../components/ActionChip.vue'
+import InfoRule from '../components/InfoRule.vue'
+import ItemCard from '../components/ItemCard.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { frameInfo } from '../info'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { useGameData } from '../gameData'
-import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData, type ReminderKind } from '../mechData'
+import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder, type ReminderKind } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { sectionOverride } from '../router'
@@ -125,6 +127,22 @@ const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }> = {
   item: { icon: 'system', label: 'Equipment' },
   missing: { icon: 'warning', label: 'Unavailable' },
 }
+
+// "Other effects and conditions": the frame's traits as a card each (their actions and uncounted bonuses inside), the
+// core system as one card (its lore, passive and power), then everything else as a plain list.
+const traitCards = computed(() => {
+  const cards = new Map<string, Reminder[]>()
+  for (const entry of effects.value.reminders) {
+    const name = entry.kind === 'trait' ? (entry.from ?? entry.name) : ''
+    if (name) cards.set(name, [...(cards.get(name) ?? []), entry])
+  }
+  return [...cards].map(([name, entries]) => ({ name, entries }))
+})
+const coreEntries = computed(() => effects.value.reminders.filter((entry) => entry.kind === 'core' || entry.kind === 'core-power'))
+const otherReminders = computed(() => effects.value.reminders.filter((entry) => !['trait', 'core', 'core-power'].includes(entry.kind)))
+const coreSystem = computed(() => (baseFrame.value?.raw?.core_system ?? {}) as { name?: string; description?: string })
+const coreLabel = (entry: Reminder) =>
+  entry.kind === 'core-power' ? 'Core power' : entry.source === `${coreSystem.value.name ?? 'core system'} · passive` ? 'Passive' : undefined
 
 // --- The save status shown on the plate, for the one-line fields ---
 const status = ref('')
@@ -343,8 +361,38 @@ async function scrap() {
           <section v-if="frame && effects.reminders.length" class="panel">
             <h2 class="sheet-label">Other effects and conditions<span class="private">Private</span></h2>
             <p class="dim intro">Only the modifiers listed under the stats' sources are counted. These need you or the GM to apply them.</p>
-            <ul class="effects">
-              <li v-for="(reminder, index) in effects.reminders" :key="index">
+            <ul v-if="traitCards.length" class="trait-cards">
+              <li v-for="card in traitCards" :key="card.name">
+                <ItemCard type="frame" icon="trait" :name="card.name">
+                  <InfoRule
+                    v-for="(entry, index) in card.entries"
+                    :key="index"
+                    :class="{ ruled: index > 0 }"
+                    :heading="entry.name === card.name ? undefined : entry.name"
+                    :activation="entry.activation"
+                    :html="entry.text"
+                  >
+                    <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats above.</p>
+                  </InfoRule>
+                </ItemCard>
+              </li>
+            </ul>
+            <ItemCard v-if="coreEntries.length" type="core" icon="corebonus" :name="coreSystem.name ?? 'Core system'" class="core-card">
+              <RulesText v-if="coreSystem.description" class="lore" :html="coreSystem.description" />
+              <InfoRule
+                v-for="(entry, index) in coreEntries"
+                :key="index"
+                :class="{ ruled: index > 0 || coreSystem.description }"
+                :label="coreLabel(entry)"
+                :heading="entry.name"
+                :activation="entry.activation"
+                :html="entry.text"
+              >
+                <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats above.</p>
+              </InfoRule>
+            </ItemCard>
+            <ul v-if="otherReminders.length" class="effects">
+              <li v-for="(reminder, index) in otherReminders" :key="index">
                 <Icon :name="EFFECT_KINDS[reminder.kind].icon" />
                 <div class="effect">
                   <p class="label">{{ EFFECT_KINDS[reminder.kind].label }}{{ reminder.from ? `: ${reminder.from}` : '' }}</p>
@@ -682,7 +730,42 @@ async function scrap() {
   font-size: var(--fs-s);
 }
 
-/* --- Other effects and conditions (the prototype's .effects): symbol, uppercase kind, bold name, plain rules --- */
+/* --- Other effects and conditions: the frame's traits as equal-height cards in a grid, then the core system's card,
+   then the rest as the prototype's .effects rows (symbol, uppercase kind, bold name, plain rules). --- */
+.trait-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-m);
+  margin: 0 0 var(--space-m);
+  padding: 0;
+  list-style: none;
+}
+
+.trait-cards > li {
+  display: grid;
+}
+
+.core-card {
+  margin-bottom: var(--space-m);
+}
+
+.trait-cards:last-child,
+.core-card:last-child {
+  margin-bottom: 0;
+}
+
+/* Inside a card, each further rule or action under a thin rule on the card's own surface. */
+.ruled {
+  padding-top: var(--space-m);
+  border-top: 1px solid var(--rule);
+}
+
+.lore {
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+  font-style: italic;
+}
+
 .intro {
   max-width: none;
   margin: 0 0 var(--space-s);
@@ -733,6 +816,7 @@ async function scrap() {
 }
 
 .uncounted {
+  margin: 0;
   font-size: var(--fs-s);
 }
 

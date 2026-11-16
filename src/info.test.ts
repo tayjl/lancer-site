@@ -101,7 +101,9 @@ describe('full information', () => {
     expect(trait.heading).toBe('Grapple Cable')
     expect(trait.html).toContain('You can Grapple targets within Range 5.')
     expect(trait.html).not.toContain('The Blackbeard can Grapple.')
-    expect(trait.html).toContain('<b>Reel In (quick)</b>')
+    expect(trait.html).not.toContain('Reel In')
+    expect(trait.actions).toEqual([expect.objectContaining({ heading: 'Reel In', activation: 'Quick', html: 'Pull.' })])
+    expect(info.groups.map(group => group.look)).toEqual(['traits', 'core'])
     const core = info.groups[1].cards
     expect(core.map(card => card.heading)).toEqual(['Omni-harpoon'])
     expect(core[0]).toMatchObject({ activation: 'Quick' })

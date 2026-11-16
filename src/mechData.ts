@@ -215,7 +215,8 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     // The frame's description is lore, not rules.
     addRaw(baseFrame.name, '', baseFrame.raw, { kind: 'frame', name: baseFrame.name })
     for (const trait of (Array.isArray(baseFrame.raw.traits) ? baseFrame.raw.traits : []) as Record<string, unknown>[])
-      addRaw(`${baseFrame.name} · ${trait.name ?? 'trait'}`, trait.description, trait, { kind: 'trait', name: String(trait.name ?? 'Trait') })
+      // "from" keeps the trait's name on its actions and bonuses too, so the mech page groups them on the trait's card.
+      addRaw(`${baseFrame.name} · ${trait.name ?? 'trait'}`, trait.description, trait, { kind: 'trait', name: String(trait.name ?? 'Trait'), from: String(trait.name ?? 'Trait') })
     const core = baseFrame.raw.core_system as Record<string, unknown> | undefined
     if (core) {
       addRaw(`${core.name ?? 'core system'} · passive`, core.passive_effect, { ...core, bonuses: core.passive_bonuses ?? [] }, { kind: 'core', name: String(core.passive_name ?? core.name ?? 'Core system'), from: core.name ? String(core.name) : undefined })

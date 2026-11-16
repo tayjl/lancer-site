@@ -2,10 +2,10 @@ import { shallowRef } from 'vue'
 import { supabase } from './lib/supabaseClient'
 import type { CoreBonus, Item, Talent } from './gameData'
 import { averageDamageText } from './damage'
-import { coreBonusInfo, frameInfo, itemInfo, licenceInfo, licenceUnlocks, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
+import { coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
 import { itemDetails } from './itemDetails'
 import type { Frame } from './mechData'
-import { licenceName } from './rules'
+import { licenceName, rankName } from './rules'
 import { plainText } from './rulesText'
 
 // The archives page (ArchivesView.vue): every manufacturer, licence, core bonus, frame, mech weapon, mech system,
@@ -16,8 +16,8 @@ export type ArchiveCategory = (typeof ARCHIVE_CATEGORIES)[number]
 // entry is listed under: its manufacturer's id (or "other"), a pilot gear type, or "" for no grouping (talents).
 // "level" is its licence level (0 for GMS and anything unlicensed), which orders it within its group, and "licence"
 // the licence's name (a frame's, e.g. "Barbarossa"; "" when unlicensed) for weapons and systems.
-// What a row shows: "item" (weapons, systems, gear) or "frame" (frames, licences), "summary" (a one-line plain
-// effect, terse or motto) and, for licences, "unlocks": the names each rank (I to III) unlocks.
+// "item" (weapons, systems, gear) or "frame" (frames, licences) is what its row's facts come from (listFacts);
+// "summary" (a one-line plain effect, terse or motto) is searched too.
 export type ArchiveEntry = {
   category: ArchiveCategory
   id: string
@@ -28,7 +28,6 @@ export type ArchiveEntry = {
   item?: Item
   frame?: Frame
   summary: string
-  unlocks?: string[][]
   search: string
   info: () => Info
 }
@@ -81,7 +80,6 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
       entry(
         {
           category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => licenceInfo(f, weapons, systems),
-          unlocks: [1, 2, 3].map((level) => licenceUnlocks(f, weapons, systems, level).map((unlock) => unlock.name)),
         },
         f.mechtype,
         [],
@@ -96,6 +94,21 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
     ...talents.map((t) =>
       entry({ category: 'talents', group: '', id: t.id, name: t.name, summary: t.terse, info: () => talentInfo(t) }, [], t.ranks.flatMap((r) => [r.name, r.description]))),
   ]
+}
+
+// The one or two key facts a row in the archives' list shows after the name (its full information is in the detail
+// pane): a weapon's rank and mount and type, a system's rank and system points, a frame's or licence's role, a
+// manufacturer's code. Nothing for the rest: their group (maker, gear type) already says enough.
+export function listFacts(entry: ArchiveEntry): string[] {
+  const { item, frame } = entry
+  const rank = entry.level ? `Rank ${rankName(entry.level)}` : ''
+  const facts =
+    entry.category === 'mech weapons' && item ? [rank, `${item.mount} ${item.type}`.trim()]
+    : entry.category === 'mech systems' && item ? [rank, item.sp ? `${item.sp} SP` : '']
+    : frame ? [frame.mechtype.join(' / ')]
+    : entry.category === 'manufacturers' && entry.id !== entry.name ? [entry.id]
+    : []
+  return facts.filter(Boolean)
 }
 
 // A manufacturer's accent colour, if it's a plain hex colour (it comes from imported packs); otherwise lilac.

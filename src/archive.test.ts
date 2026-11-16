@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { archiveEntries, archiveGroups, filterByMakers, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent } from './archive'
+import { archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent } from './archive'
 import { coreContent } from './coreContent'
 import { toItem, type CoreBonus, type Talent } from './gameData'
 import type { Manufacturer } from './info'
@@ -30,7 +30,6 @@ describe('archives', () => {
     expect(count('frames')).toBe(frames.length)
     expect(count('licences')).toBe(frames.filter(frame => frame.licenceLevel > 0).length)
     expect(entries.find(entry => entry.id === 'mw_autopod')).toMatchObject({ category: 'mech weapons', group: 'HORUS', licence: 'Goblin', level: 1 })
-    expect(entries.find(entry => entry.category === 'licences' && entry.id === 'mf_goblin')?.unlocks?.[1]).toContain('Goblin')
     // Systems without effect text are summed up by their first action or deployable.
     for (const name of ['Grounding Charges', 'Repulser Field', 'Clamp Bombs']) expect(entries.find(entry => entry.name === name)?.summary).toBeTruthy()
   })
@@ -114,6 +113,16 @@ describe('archives', () => {
     expect(makerColour(undefined)).toBe('var(--lilac)')
     const entry = { category: 'frames', id: 'x', name: 'X', group: 'NEW', level: 0, licence: '', summary: '', search: '', info: entries[0].info } as const
     expect(archiveGroups([entry], [homebrew])[0]).toMatchObject({ title: 'NEW', colour: '#123abc', logo: null })
+  })
+
+  it('gives each list row one or two key facts', () => {
+    const facts = (category: string, name: string) => listFacts(entries.find(entry => entry.category === category && entry.name === name)!)
+    expect(facts('mech weapons', 'Autopod')).toEqual(['Rank I', 'Main Launcher'])
+    expect(facts('mech systems', 'Pattern-A Smoke Charges')).toEqual(['2 SP'])
+    expect(facts('frames', 'Goblin')).toEqual(['Controller / Support'])
+    expect(facts('licences', 'Goblin')).toEqual(['Controller / Support'])
+    expect(listFacts(entries.find(entry => entry.category === 'manufacturers' && entry.id === 'IPS-N')!)).toEqual(['IPS-N'])
+    expect(facts('talents', 'Ace')).toEqual([])
   })
 
   it('finds frames by their manufacturer', () => {

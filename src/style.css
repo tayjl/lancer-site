@@ -424,13 +424,11 @@ label.field .error {
   font-size: var(--fs-s);
 }
 
-/* Sections two to a row on wide screens (the pilot sheet's stats tab); .span-all takes a whole row. Dense, so a half
-   section after a full one moves up beside an earlier half. One column under 56rem. */
+/* Sections two to a row on wide screens (the pilot sheet's stats tab); .span-all takes a whole row. Sections on a row
+   stretch to the same height. One column under 72rem, where five stat tiles would no longer fit a half row. */
 .section-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-flow: row dense;
-  align-items: start;
   gap: var(--space-l);
 }
 
@@ -438,7 +436,7 @@ label.field .error {
   grid-column: 1 / -1;
 }
 
-@media (max-width: 56rem) {
+@media (max-width: 72rem) {
   .section-grid {
     grid-template-columns: minmax(0, 1fr);
   }
