@@ -362,7 +362,7 @@ export type Database = {
           submitted_by: string
         }
         Insert: {
-          based_on: string
+          based_on?: string
           character_id: number
           created_at?: string
           id?: never
@@ -528,7 +528,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      approve_change: { Args: { change_id: number }; Returns: undefined }
+      approve_change: {
+        Args: {
+          change_id: number
+          expected_submitted_at: string
+          note?: string
+        }
+        Returns: undefined
+      }
+      approve_pilot: {
+        Args: {
+          expected_updated_at: string
+          note?: string
+          target_character_id: number
+        }
+        Returns: undefined
+      }
       dismiss_approval_note: {
         Args: { expected_note: string; target_character_id: number }
         Returns: undefined
@@ -545,6 +560,10 @@ export type Database = {
       is_gm: { Args: never; Returns: boolean }
       is_owner: { Args: never; Returns: boolean }
       mark_dead: { Args: { target_character_id: number }; Returns: undefined }
+      reject_change: {
+        Args: { change_id: number; reason: string }
+        Returns: undefined
+      }
     }
     Enums: {
       change_status: "pending" | "approved" | "rejected"

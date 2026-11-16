@@ -5,6 +5,7 @@ import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
+import GmEditBar from '../components/GmEditBar.vue'
 import GmReview from '../components/GmReview.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
@@ -46,11 +47,14 @@ const {
   sheet,
   gm,
   reviewNote,
+  sheetUpdatedAt,
   playerName,
   canSeePrivate,
   loading,
   loadError,
   editable,
+  gmEditing,
+  waiting,
   mechs,
   load,
   create,
@@ -65,10 +69,32 @@ const {
   reopenChange,
   withdrawChange,
   markDead,
-} = useMyPilot(pilotId)
+} = useMyPilot(pilotId, { gmEdit: () => route.query.edit === '1' })
 
 // Your approved pilot: changes are proposed, then a GM approves them (src/myPilot.ts).
 const approvedOwn = computed(() => own && character.value?.status === 'approved')
+
+// A GM's note on your last approved change. "Clear note" only hides it on this device (the note stays in the
+// change's history), so it's remembered in localStorage, which can be missing or blocked: every access is guarded.
+const noteKey = (id: number) => `change-note-cleared:${id}`
+const clearedNote = ref<number | null>(null)
+const changeNote = computed(() => {
+  const c = change.value
+  if (!approvedOwn.value || draft.value || c?.status !== 'approved' || !c.review_reason || clearedNote.value === c.id) return null
+  try {
+    return localStorage.getItem(noteKey(c.id)) ? null : c.review_reason
+  } catch {
+    return c.review_reason
+  }
+})
+function clearChangeNote() {
+  clearedNote.value = change.value!.id
+  try {
+    localStorage.setItem(noteKey(change.value!.id), '1')
+  } catch {
+    // Hidden for this visit only.
+  }
+}
 async function confirmDeath() {
   const name = character.value!.callsign ?? character.value!.pilot_name
   if (await confirmAction(`Mark ${name} dead? This can't be undone. They move to the memorial, and you can register a new pilot.`, { confirmLabel: 'Mark dead', danger: true }))
@@ -92,9 +118,12 @@ const back = computed(() =>
 )
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'pilot-record') watchEffect(() => (sectionOverride.value = back.value.name))
-// Your own mechs open for editing; anyone else's open read-only under their record.
+// Your own mechs open for editing; anyone else's open read-only under their record (editable in a GM's edit mode, kept in the url).
 const mechLink = (mechId: string) =>
-  own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId } }
+  own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId }, query: gmEditing.value ? { edit: '1' } : undefined }
+// A GM's edit mode (?edit=1) on a living pilot's record or review page; Done leaves it.
+const gmCanEdit = computed(() => isGm.value && !own && character.value?.status !== 'dead')
+const setEdit = (on: boolean) => router.replace({ query: { ...route.query, edit: on ? '1' : undefined } })
 const { gear, bionics, pilotStats, talents, coreBonuses } = useGameData()
 
 // The identity table under the portrait. [column, label]
@@ -263,7 +292,7 @@ async function createMech() {
   // shortcut: duplicate manufacturer ids aren't checked yet. Warn about them once the registry reads real pilots.
   const mech: PublicMech = { id: crypto.randomUUID(), name, manufacturer_id: manufacturerId, appearance: null, image: null }
   mechError.value = (await updateCharacter({ mechs: [...mechs.value, mech] })) ?? ''
-  if (!mechError.value) router.push({ name: 'mech', params: { mechId: mech.id } })
+  if (!mechError.value) router.push(mechLink(mech.id))
 }
 </script>
 
@@ -300,7 +329,7 @@ async function createMech() {
 
     <div v-else class="sheet">
       <!-- The header: who this is and the figures that matter (the prototype's compact header). -->
-      <header class="header" :class="{ joined: hasNext }">
+      <header class="header" :class="{ joined: hasNext || gmEditing }">
         <div class="thumb">
           <img v-if="character.pilot_image" :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
           <Icon v-else name="pilot" />
@@ -338,7 +367,7 @@ async function createMech() {
             </span>
           </div>
         </div>
-        <div v-if="canSeePrivate || gmLink" class="header-side">
+        <div v-if="canSeePrivate || gmLink || gmCanEdit" class="header-side">
           <dl v-if="canSeePrivate" class="facts">
             <div class="fact">
               <dt class="label">Level</dt>
@@ -354,11 +383,23 @@ async function createMech() {
               <dd class="fact-sub"><span class="num">{{ amount(mannaSpent(sheet)) }}</span> of <span class="num">{{ amount(gm.manna) }}</span> spent</dd>
             </div>
           </dl>
-          <RouterLink v-if="gmLink" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
-            {{ character.status === 'pending' ? 'GM review' : 'GM controls' }}
-          </RouterLink>
+          <div v-if="gmLink || (gmCanEdit && !gmEditing)" class="gm-actions">
+            <RouterLink v-if="gmLink" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
+              {{ character.status === 'pending' ? 'GM review' : 'GM controls' }}
+            </RouterLink>
+            <button v-if="gmCanEdit && !gmEditing" type="button" class="small" @click="setEdit(true)">Edit pilot</button>
+          </div>
         </div>
       </header>
+
+      <GmEditBar
+        v-if="gmEditing"
+        :name="character.callsign ?? character.pilot_name"
+        :waiting="waiting"
+        :status="saving ? 'Saving…' : saved ? 'Saved' : ''"
+        :error="saveError"
+        @done="setEdit(false)"
+      />
 
       <!-- What happens next: a badge, a sentence and the actions that do it (secondary first, the primary last). Your
            own sheet's save status follows the sentence. -->
@@ -416,6 +457,14 @@ async function createMech() {
           <button type="button" class="small quiet" :disabled="saving" @click="track(dismissApprovalNote())">Clear note</button>
         </div>
         <p class="note-text">{{ reviewNote }}</p>
+      </div>
+      <div v-if="changeNote" class="notice" role="note">
+        <div class="notice-head">
+          <p class="notice-title">Note from the GM</p>
+          <button type="button" class="small quiet" @click="clearChangeNote">Clear note</button>
+        </div>
+        <p class="note-text">Your last change was approved.</p>
+        <p class="note-text">{{ changeNote }}</p>
       </div>
       <div v-if="approvedOwn && !draft && change?.status === 'rejected'" class="notice warn" role="note">
         <p class="notice-title">A GM rejected your last change</p>
@@ -599,7 +648,7 @@ async function createMech() {
       </div>
 
       <!-- :key resets the decision box after a decision, so it shows the new status. -->
-      <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :problems="problems" @reviewed="load" />
+      <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" @reviewed="load" />
     </div>
   </main>
 </template>
@@ -756,6 +805,12 @@ async function createMech() {
 }
 
 /* The GM's way to the review page: a link drawn as a small button. */
+.gm-actions {
+  display: flex;
+  align-items: stretch; /* the link and the button match in height */
+  gap: var(--space-s);
+}
+
 .gm-link {
   display: inline-flex;
   align-items: center;
@@ -864,24 +919,6 @@ async function createMech() {
 .kv dd {
   min-width: 0;
   margin: 0;
-}
-
-.danger-zone {
-  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
-}
-
-.danger-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-l);
-}
-
-.danger-body p {
-  flex: 1 1 14rem;
-  max-width: none;
-  margin: 0;
-  font-size: var(--fs-s);
 }
 
 /* --- Registering --- */

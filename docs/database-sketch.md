@@ -79,7 +79,9 @@ The dotted lines are links the database can't check: they're IDs stored inside t
 - **Change:**
   - The player can change their own character only while it's pending, and it has to stay pending, so they can't approve themselves.
   - GM+ can change any character at any time.
-- **Delete:** the player can delete their own while it's pending (withdrawing a new character). GM+ can delete any.
+- **Delete:** the player can delete their own while it's pending (withdrawing a new character). Only owners can delete any character (its sheet, changes and reputation go with it).
+- **One living character:** a player can't have a second pending or approved character (checked on insert, with a per-player lock so two requests at once can't both pass). GM+ can have several.
+- **Dead is final:** nobody, GMs and owners included, can change a dead character's status.
 
 ### `character_sheets`: the private details
 
@@ -139,9 +141,9 @@ Notes on the example:
 | `submitted_by` | → `profiles` | |
 | `proposed_public` | JSON | New values for the public card's fields. |
 | `proposed_sheet` | JSON | The full proposed sheet. |
-| `based_on` | date-time | When the character last changed before this edit started. Used to catch overwrites. |
+| `based_on` | date-time | When the character last changed, as the player saw it when they started this edit. The page sends it; the database keeps it if it's earlier than the character's real last change and clamps it if it's later. Never changes after. Used to catch overwrites. |
 | `status` | pending / approved / rejected | |
-| `review_reason` | text | Required when rejected. |
+| `review_reason` | text | The GM's note to the player: required when rejected, optional when approved. |
 | `reviewed_by` | → `profiles` | |
 | `reviewed_at` | date-time | |
 | `created_at` | date-time | |
@@ -151,8 +153,8 @@ The database allows **at most one pending change per character**.
 - **See:** the character's player and GM+.
 - **Add:** the character's player, for their own approved character.
 - **Change:**
-  - The player can edit their change while it's still pending.
-  - GM+ can only change it to rejected, with a reason. Approving goes through `approve_change` (see below).
+  - The player can edit their change while it's a draft (not submitted). Once submitted it is locked: they can only take it back to a draft, and can never change its status, review fields or `based_on`. Each submit is stamped with the database's own time.
+  - GM+ can only change it to rejected, with a reason. Approving and rejecting go through `approve_change` and `reject_change` (see below).
 - **Delete:** the player can delete their change while it's pending (withdrawing it). Reviewed changes are never deleted, because they're the history.
 
 ### `content_packs` and `content_items`: LANCER data and homebrew LCPs
@@ -244,14 +246,17 @@ It starts with five rows: physicality, dexterity, perception, acuity and tech-fl
 
 ## Database functions
 
-These are the two all-or-nothing actions:
+These are the all-or-nothing actions:
 
-1. **`approve_change(change_id)`**, for GM+ only:
-   1. Checks that the caller is a GM or owner, and that the change is still pending.
-   2. Checks that the character hasn't changed since `based_on`. If it has, it refuses. The GM then rejects the change, and the player resubmits on top of the latest version. This stops a GM's direct edit from being silently overwritten.
-   3. Copies `proposed_public` into `characters`, and `proposed_sheet` into `character_sheets`.
-   4. Marks the change approved, with who approved it and when.
-2. **`mark_dead(character_id)`**, for the character's player or GM+:
+1. **`approve_change(change_id, expected_submitted_at, note)`**, for GM+ only:
+   1. Checks that the caller is a GM or owner, and that the change is submitted and still pending.
+   2. Checks that the change wasn't resubmitted since the GM opened it (`expected_submitted_at`, to the millisecond), so they approve only what they saw.
+   3. Checks that the character hasn't changed since `based_on`. If it has, it refuses. The GM then rejects the change, and the player resubmits on top of the latest version. This stops a GM's direct edit from being silently overwritten.
+   4. Copies `proposed_public` into `characters`, and `proposed_sheet` into `character_sheets`.
+   5. Marks the change approved, with who approved it, when, and the optional note (in `review_reason`).
+2. **`reject_change(change_id, reason)`**, for GM+ only: rejects a submitted, pending change in one statement. The reason is required; it records who rejected it and when.
+3. **`approve_pilot(character_id, expected_updated_at, note)`**, for GM+ only: approves a pending new character and saves the optional note (`review_note`) together. It refuses if the character or its sheet changed since the GM loaded it (to the millisecond).
+4. **`mark_dead(character_id)`**, for the character's player or GM+:
    1. Checks the caller.
    2. Changes the character from approved to dead and sets `died_at`. It refuses if the character is already dead.
    3. Deletes any pending change for that character.
@@ -285,8 +290,8 @@ There are also three small helpers:
   3. The player can edit or withdraw it until a GM reviews it, and can't start another one in the meantime.
 - **GM review:**
   - The page shows the difference between the current and proposed versions.
-  - Approve runs `approve_change`.
-  - Reject needs a reason, and the player then submits a new change.
+  - Approve runs `approve_change` (with an optional note to the player).
+  - Reject runs `reject_change` and needs a reason, and the player then submits a new change.
 - **Installing a bionic:** this is just an edit. The player adds the bionic's ID and subtracts its manna cost in the same change. The GM checks the cost, the mod points, and that any swap is "similar".
 - **Death:** the player confirms, or a GM clicks, and `mark_dead` runs. The character moves to the Dead tab, and the player can make a new one (a flash clone).
 - **GMs' own characters:** GMs create them as approved and edit them directly.

@@ -1,5 +1,5 @@
-import { computed, ref, shallowRef } from 'vue'
-import { session } from './auth'
+import { computed, ref, shallowRef, watch } from 'vue'
+import { isGm, session } from './auth'
 import { parseEntries, type Entry } from './entries'
 import type { Json, Tables, TablesUpdate } from './lib/database.types'
 import { supabase } from './lib/supabaseClient'
@@ -12,6 +12,8 @@ import type { GmFields } from './rules'
 // it's that pilot, read-only; the database only hands over the private sheet to its player, GMs and owners,
 // and "canSeePrivate" says whether it did. Every save returns an error message, or null if it worked.
 // Saves run one at a time, in order, so quick autosaves can't overtake each other and undo a newer change.
+// With an id and options.gmEdit on (a GM's edit mode, from the url), a GM or owner edits that living pilot directly:
+// the same editable page and the same save path as a pending pilot of your own, with no approval.
 
 export type Character = Tables<'characters'>
 // A mech's private details, kept in the sheet under its id. "frame" is a frame id; "mounts" holds the weapon
@@ -57,7 +59,7 @@ export type PendingChange = Tables<'pending_changes'>
 // whole proposed card and sheet). While it's a draft (not submitted), the page shows it and every save goes
 // into it instead of the pilot, so pilot_management and the mech pages edit it unchanged. Submitting puts it
 // in the GM queue (pending_changes); until a GM reviews it you can take it back to a draft or withdraw it.
-export function useMyPilot(pilotId?: number) {
+export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean } = {}) {
   // Shallow: these are replaced as a whole on every reload, so Vue doesn't need to track inside them.
   const character = shallowRef<Character | null>(null)
   const sheet = shallowRef<Sheet>({})
@@ -70,14 +72,22 @@ export function useMyPilot(pilotId?: number) {
   const canSeePrivate = ref(false)
   const loading = ref(true)
   const loadError = ref('')
-  // Your approved pilot's latest change (any status), and when its sheet last changed (for "based_on").
+  // Your approved pilot's latest change (any status).
   const change = shallowRef<PendingChange | null>(null)
-  let sheetUpdatedAt = ''
-  // The change being written or waiting on a GM.
-  const draft = computed(() => (change.value?.status === 'pending' ? change.value : null))
+  // When the sheet last changed, as loaded with the page (the raw string): with the card's updated_at it says what
+  // this page is showing, for "based_on" below and for a GM's approve_pilot.
+  const sheetUpdatedAt = ref('')
+  // The change being written or waiting on a GM. "draft" is only ever your own (it redirects your saves); a GM in
+  // edit mode sees "waiting" instead, to warn that editing directly stops the change from being approved.
+  const waiting = computed(() => (change.value?.status === 'pending' ? change.value : null))
+  const draft = computed(() => (pilotId ? null : waiting.value))
+  // A GM's edit mode: never for players, dead pilots (they can't change) or anyone's own pilot.
+  const gmEditing = computed(() => !!pilotId && !!options.gmEdit?.() && isGm.value && !!character.value && character.value.status !== 'dead')
 
   const editable = computed(
-    () => !pilotId && (!character.value || character.value.status === 'pending' || (!!draft.value && !draft.value.submitted_at)),
+    () =>
+      gmEditing.value ||
+      (!pilotId && (!character.value || character.value.status === 'pending' || (!!draft.value && !draft.value.submitted_at))),
   )
   // The mechs column is plain JSON to the database; we always save it in the PublicMech shape.
   const mechs = computed(() => {
@@ -85,6 +95,17 @@ export function useMyPilot(pilotId?: number) {
     return (Array.isArray(list) ? list : []) as unknown as PublicMech[]
   })
   const traits = computed(() => parseEntries(character.value?.traits))
+
+  async function latestChange(characterId: number) {
+    const { data } = await supabase
+      .from('pending_changes')
+      .select('*')
+      .eq('character_id', characterId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    return data
+  }
 
   async function load() {
     const query = supabase.from('characters').select('*, player:profiles(display_name)')
@@ -105,21 +126,15 @@ export function useMyPilot(pilotId?: number) {
       sheet.value = (privateRow?.sheet ?? {}) as unknown as Sheet
       gm.value = { level: privateRow?.level ?? 0, manna: privateRow?.manna ?? 0 }
       reviewNote.value = privateRow?.review_note ?? ''
-      sheetUpdatedAt = privateRow?.updated_at ?? ''
+      sheetUpdatedAt.value = privateRow?.updated_at ?? ''
       // Your own sheet may not exist yet (the first save creates it), but it's still yours to fill in.
       canSeePrivate.value = !pilotId || !!privateRow
       change.value = null
-      if (!pilotId && data.status === 'approved') {
-        const { data: latest } = await supabase
-          .from('pending_changes')
-          .select('*')
-          .eq('character_id', data.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+      if (data.status === 'approved' && (!pilotId || gmEditing.value)) {
+        const latest = await latestChange(data.id)
         change.value = latest
-        // Show the change in progress instead of the approved pilot.
-        if (latest?.status === 'pending') {
+        // Show the change in progress instead of the approved pilot (your own only).
+        if (!pilotId && latest?.status === 'pending') {
           character.value = { ...character.value!, ...(latest.proposed_public as object) }
           sheet.value = latest.proposed_sheet as unknown as Sheet
         }
@@ -179,22 +194,28 @@ export function useMyPilot(pilotId?: number) {
     sheet.value = { ...sheet.value, ...changes }
     if (draft.value) return saveDraft({ proposed_sheet: sheet.value as unknown as NonNullable<Json> })
     return queued(async () => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('character_sheets')
         .upsert({ character_id: character.value!.id, sheet: sheet.value as unknown as NonNullable<Json> })
+        .select('updated_at')
+        .single()
+      // Keeps "what this page is showing" current, so a GM approving after editing isn't refused as stale.
+      if (data) sheetUpdatedAt.value = data.updated_at
       return error?.message ?? null
     })
   }
 
   // --- Changes to your approved pilot ---
 
-  // A new draft: a copy of the pilot as it is, and when it last changed, so approving can tell if a GM has
-  // edited it since (approve_change refuses then).
+  // A new draft: a copy of the pilot as this page loaded it, and when it last changed then (based_on), so approving
+  // can tell if a GM has edited it since (approve_change refuses then). The strings are sent as they came (a Date
+  // would drop the microseconds); Date.parse only picks the later one. The database clamps a value later than the
+  // pilot's real last change.
   const proposeChange = () =>
     queued(async () => {
       const c = character.value!
       const card = Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, c[column]]))
-      const basedOn = [c.updated_at, sheetUpdatedAt].filter(Boolean).sort().at(-1)!
+      const basedOn = [c.updated_at, sheetUpdatedAt.value].reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a))
       const { error } = await supabase.from('pending_changes').insert({
         character_id: c.id,
         submitted_by: session.value!.user.id,
@@ -256,17 +277,24 @@ export function useMyPilot(pilotId?: number) {
     })
 
   load()
+  // Entering edit mode on a record (or the profile arriving late): is the player's change open?
+  watch(gmEditing, async (on) => {
+    if (on) change.value = character.value!.status === 'approved' ? await latestChange(character.value!.id) : null
+  })
 
   return {
     character,
     sheet,
     gm,
     reviewNote,
+    sheetUpdatedAt,
     playerName,
     canSeePrivate,
     loading,
     loadError,
     editable,
+    gmEditing,
+    waiting,
     mechs,
     traits,
     change,

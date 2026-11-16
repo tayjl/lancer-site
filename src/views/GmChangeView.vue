@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { isGm, profile, session } from '../auth'
+import { isGm, profile } from '../auth'
 import { confirmAction } from '../confirm'
 import { changeDiff, PUBLIC_COLUMNS, type PublicCard, type DiffLine } from '../changeDiff'
 import Icon from '../components/Icon.vue'
@@ -19,7 +19,9 @@ import { since } from '../time'
 // One pending change (opened from gm: changes): what it changes, in plain words, against the approved
 // pilot; what it costs in manna; the rule check on the proposed sheet; then approve or reject. GMs approve
 // or reject the whole change. Approving runs approve_change (all-or-nothing, in the database), which refuses
-// if the pilot changed since the change was started. Rejecting needs a reason the player sees.
+// if the pilot changed since the change was started or the player edited and resubmitted it since this page loaded it
+// (expected_submitted_at, sent back as it came). Rejecting runs reject_change and needs a reason. Either way the
+// note is what the player sees.
 
 const route = useRoute()
 const router = useRouter()
@@ -138,34 +140,35 @@ const problems = computed(() =>
 )
 const stale = computed(() => {
   if (!change.value || !pilot.value) return false
-  const last = [pilot.value.updated_at, approved.value?.updated_at ?? ''].sort().at(-1)!
-  return new Date(last) > new Date(change.value.based_on)
+  const last = Math.max(Date.parse(pilot.value.updated_at), Date.parse(approved.value?.updated_at ?? pilot.value.updated_at))
+  return last > Date.parse(change.value.based_on)
 })
 
 // --- The decision ---
-const reason = ref('')
+const note = ref('')
 const busy = ref(false)
 
 async function approve() {
   const warning = problems.value.length ? ` The rule check lists ${problems.value.length} ${problems.value.length === 1 ? 'problem' : 'problems'}.` : ''
   if (!(await confirmAction(`Approve this change to ${name.value}? It goes live straight away.${warning}`, { confirmLabel: 'Approve change' }))) return
   busy.value = true
-  const { error: approveError } = await supabase.rpc('approve_change', { change_id: change.value!.id })
+  const { error: approveError } = await supabase.rpc('approve_change', {
+    change_id: change.value!.id,
+    expected_submitted_at: change.value!.submitted_at!,
+    note: note.value,
+  })
   busy.value = false
   error.value = approveError?.message ?? ''
   if (!error.value) router.push({ name: 'gm-changes' })
 }
 
 async function reject() {
-  if (!reason.value.trim()) {
+  if (!note.value.trim()) {
     error.value = 'Write a reason first, so the player knows what to fix.'
     return
   }
   busy.value = true
-  const { error: rejectError } = await supabase
-    .from('pending_changes')
-    .update({ status: 'rejected', review_reason: reason.value.trim(), reviewed_by: session.value!.user.id, reviewed_at: new Date().toISOString() })
-    .eq('id', change.value!.id)
+  const { error: rejectError } = await supabase.rpc('reject_change', { change_id: change.value!.id, reason: note.value })
   busy.value = false
   error.value = rejectError?.message ?? ''
   if (!error.value) router.push({ name: 'gm-changes' })
@@ -254,9 +257,9 @@ async function reject() {
         <h2 id="decision-title" class="sheet-label">Decision<span class="private">GM only</span></h2>
         <div class="decision">
           <label class="field">
-            <span>Reason</span>
-            <textarea v-model="reason" rows="3"></textarea>
-            <span class="hint">Needed to reject. The player sees it.</span>
+            <span>Note to the player</span>
+            <textarea v-model="note" rows="3"></textarea>
+            <span class="hint">Optional when approving, required when rejecting.</span>
           </label>
           <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
           <div class="actions">

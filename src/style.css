@@ -402,6 +402,30 @@ label.field .error {
   background: var(--panel);
 }
 
+/* A panel for an irreversible action (mark dead, scrap, delete): .panel.danger-zone, a sentence and a .danger button in
+   .danger-body, any error as a .notice.warn under it. */
+.danger-zone {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.danger-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-l);
+}
+
+.danger-body p {
+  flex: 1 1 14rem;
+  max-width: none;
+  margin: 0;
+  font-size: var(--fs-s);
+}
+
+.danger-zone > [role='alert'] {
+  margin: var(--space-s) 0 0;
+}
+
 /* A panel's heading with a line of explanation (the gm pages): <header class="panel-head"><h2>title
    <span class="badge">3</span></h2><p class="dim">what it is</p></header>. */
 .panel-head {

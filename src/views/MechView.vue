@@ -2,6 +2,7 @@
 import { computed, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAction } from '../confirm'
+import GmEditBar from '../components/GmEditBar.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import MechLoadout from '../components/MechLoadout.vue'
@@ -38,7 +39,10 @@ const route = useRoute()
 const router = useRouter()
 const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
-const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId)
+// ?edit=1 is a GM's edit mode on someone else's pilot (src/myPilot.ts): everything saves straight to the pilot.
+const { character, sheet, canSeePrivate, loading, loadError, editable, gmEditing, waiting, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId, {
+  gmEdit: () => route.query.edit === '1',
+})
 
 // The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
 const list = computed(() =>
@@ -50,7 +54,11 @@ const list = computed(() =>
 )
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'record-mech') watchEffect(() => (sectionOverride.value = list.value.name))
-const hangar = own ? { name: 'pilot', query: { tab: 'mechs' } } : { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs' } }
+const hangar = computed(() =>
+  own
+    ? { name: 'pilot', query: { tab: 'mechs' } }
+    : { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs', edit: gmEditing.value ? '1' : undefined } },
+)
 
 // The sections, one at a time, remembered as ?tab= like the pilot sheet. Without the private sheet there's only
 // the public profile, and no tab row.
@@ -219,7 +227,7 @@ async function scrap() {
     (await updateCharacter({ mechs: mechs.value.filter((m) => m.id !== mechId.value) })) ??
     (await updateSheet({ mechs: rest })) ??
     ''
-  if (!scrapError.value) router.push({ name: 'pilot' })
+  if (!scrapError.value) router.push(hangar.value)
 }
 </script>
 
@@ -243,7 +251,7 @@ async function scrap() {
 
     <div v-else class="sheet">
       <!-- The registration plate. The manufacturer's colour is only the logo and the 3px top border (--mf). -->
-      <header class="plate" :class="{ joined: own && draft }" :style="maker ? { '--mf': makerColour(maker) } : undefined">
+      <header class="plate" :class="{ joined: (own && draft) || gmEditing }" :style="maker ? { '--mf': makerColour(maker) } : undefined">
         <Icon v-if="logo" :src="logo" class="plate-logo" />
         <span v-else-if="baseFrame?.source" class="plate-code code">{{ baseFrame.source }}</span>
         <Icon v-else name="frame" class="plate-logo neutral" />
@@ -308,6 +316,8 @@ async function scrap() {
         </dl>
       </header>
 
+      <GmEditBar v-if="gmEditing" :name="character?.callsign ?? character?.pilot_name ?? ''" :waiting="waiting" :status="status" :error="saveError" @done="router.replace({ query: { ...route.query, edit: undefined } })" />
+
       <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
       <div v-if="own && draft" class="next">
         <span class="badge" :class="draft.submitted_at ? 'pending' : 'draft'">{{ draft.submitted_at ? 'Change submitted' : 'Draft change' }}</span>
@@ -336,7 +346,7 @@ async function scrap() {
         <section v-if="editable" class="panel danger-zone">
           <h2 class="sheet-label">Danger zone</h2>
           <div class="danger-body">
-            <p class="dim">Scrapping {{ mech.name }} removes it and its loadout from your hangar for good.</p>
+            <p class="dim">Scrapping {{ mech.name }} removes it and its loadout from {{ own ? 'your' : 'the' }} hangar for good.</p>
             <button type="button" class="danger" @click="scrap">Scrap mech</button>
           </div>
           <p v-if="scrapError" class="notice warn" role="alert">{{ scrapError }}</p>
@@ -649,28 +659,6 @@ async function scrap() {
 .upload {
   margin: var(--space-s) 0 0;
   font-size: var(--fs-s);
-}
-
-.danger-zone {
-  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
-}
-
-.danger-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-l);
-}
-
-.danger-body p {
-  flex: 1 1 14rem;
-  max-width: none;
-  margin: 0;
-  font-size: var(--fs-s);
-}
-
-.danger-zone [role='alert'] {
-  margin-top: var(--space-s);
 }
 
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */

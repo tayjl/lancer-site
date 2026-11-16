@@ -77,7 +77,7 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
                 <th scope="col">Status</th>
                 <th scope="col">Reviewer</th>
                 <th scope="col">When</th>
-                <th scope="col">Reason</th>
+                <th scope="col">Note</th>
               </tr>
             </thead>
             <tbody>

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { isOwner } from '../auth'
 import { confirmAction } from '../confirm'
 import { supabase } from '../lib/supabaseClient'
 import type { Character } from '../myPilot'
@@ -10,8 +12,10 @@ import RuleCheck from './RuleCheck.vue'
 // Approving moves the pilot to the registry; refusing leaves it pending. Either decision saves the note
 // the player sees on their sheet. "problems" is the rule check, shown above the buttons; approving with
 // problems asks first. The database enforces who can do this; the page only hides it from players.
-const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name'>; problems: string[] }>()
+// "sheetUpdatedAt" is the sheet's updated_at from the same load as the pilot on the page (what the GM is looking at).
+const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name' | 'updated_at'>; sheetUpdatedAt: string; problems: string[] }>()
 const emit = defineEmits<{ reviewed: [] }>()
+const router = useRouter()
 
 const level = ref(0)
 const manna = ref(0)
@@ -60,6 +64,19 @@ async function markDead() {
   if (!error.value) emit('reviewed')
 }
 
+// Owners only (the database enforces it): deleting a character also deletes its sheet, changes and reputation. The
+// returned row proves something was deleted, since RLS turns a refused delete into "0 rows" rather than an error.
+const deleteError = ref('')
+
+async function deletePilot() {
+  if (!(await confirmAction(`Delete ${name.value} permanently? This removes the pilot, their sheet, mechs and every change. It can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
+  busy.value = true
+  const { data, error: removeError } = await supabase.from('characters').delete().eq('id', props.pilot.id).select('id')
+  busy.value = false
+  deleteError.value = removeError?.message ?? (data?.length ? '' : 'Nothing was deleted. Only owners can delete pilots.')
+  if (!deleteError.value) router.push({ name: 'gm-pilots' })
+}
+
 async function saveNumbers() {
   error.value = numbersProblem()
   if (error.value) return
@@ -75,15 +92,17 @@ async function approve() {
   const warning = props.problems.length ? ` The rule check lists ${props.problems.length} ${props.problems.length === 1 ? 'problem' : 'problems'}.` : ''
   if (!(await confirmAction(`Approve ${name.value}? They'll appear in the pilot registry.${warning}`, { confirmLabel: 'Approve pilot' }))) return
   busy.value = true
-  const sheetError = await saveSheet({ review_note: note.value.trim() || null })
-  const { error: statusError } = sheetError
-    ? { error: sheetError }
-    : await supabase
-        .from('characters')
-        .update({ status: 'approved', approved_at: new Date().toISOString() })
-        .eq('id', props.pilot.id)
+  // approve_pilot saves the note and approves together, and refuses if the pilot changed since it was loaded. It
+  // compares the later of the card's and the sheet's updated_at; the strings are sent back as they came (a Date
+  // would drop the microseconds), and Date.parse only picks the later one.
+  const expected = [props.pilot.updated_at, props.sheetUpdatedAt].reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a))
+  const { error: approveError } = await supabase.rpc('approve_pilot', {
+    target_character_id: props.pilot.id,
+    expected_updated_at: expected,
+    note: note.value,
+  })
   busy.value = false
-  error.value = statusError?.message ?? ''
+  error.value = approveError?.message ?? ''
   if (!error.value) emit('reviewed')
 }
 
@@ -131,6 +150,15 @@ async function sendBack() {
         <button type="button" class="danger" :disabled="busy" @click="markDead">Mark pilot dead</button>
       </div>
     </form>
+  </section>
+
+  <section v-if="isOwner" class="panel danger-zone">
+    <h2 class="sheet-label">Danger zone<span class="private">Owner only</span></h2>
+    <div class="danger-body">
+      <p class="dim">Deleting {{ name }} removes the pilot, their sheet, mechs and every change. It can't be undone.</p>
+      <button type="button" class="danger" :disabled="busy" @click="deletePilot">Delete pilot permanently</button>
+    </div>
+    <p v-if="deleteError" class="notice warn" role="alert">{{ deleteError }}</p>
   </section>
 </template>
 

@@ -63,7 +63,7 @@ select lives_ok(
 select throws_ok(
   $$ insert into public.characters (player_id, pilot_name)
      values ('11111111-1111-1111-1111-111111111111', 'One Again') $$,
-  '42501', null, 'players cannot have two living characters');
+  'P0001', null, 'players cannot have two living characters');
 
 select lives_ok(
   $$ insert into public.character_sheets (character_id, sheet)
@@ -108,7 +108,7 @@ select throws_ok(
   $$ select public.mark_dead(100) $$,
   'P0001', null, 'players cannot mark someone else''s character dead');
 select throws_ok(
-  $$ select public.approve_change(1) $$,
+  $$ select public.approve_change(1, now()) $$,
   'P0001', null, 'players cannot run approve_change');
 select throws_ok(
   $$ select public.dismiss_approval_note(100, 'Approval note') $$,
@@ -166,7 +166,8 @@ select lives_ok(
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select throws_ok(
   $$ select public.approve_change(
-       (select id from public.pending_changes where character_id = 100 and status = 'pending')) $$,
+       (select id from public.pending_changes where character_id = 100 and status = 'pending'),
+       (select submitted_at from public.pending_changes where character_id = 100 and status = 'pending')) $$,
   'P0001', null, 'GMs cannot approve a draft change');
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 select lives_ok(
@@ -176,10 +177,11 @@ select lives_ok(
 select throws_ok(
   $$ update public.pending_changes set status = 'approved'
      where character_id = 100 and status = 'pending' $$,
-  '42501', null, 'players cannot approve their own change');
+  'P0001', null, 'players cannot approve their own change');
 select throws_ok(
   $$ select public.approve_change(
-       (select id from public.pending_changes where character_id = 100 and status = 'pending')) $$,
+       (select id from public.pending_changes where character_id = 100 and status = 'pending'),
+       (select submitted_at from public.pending_changes where character_id = 100 and status = 'pending')) $$,
   'P0001', null, 'players cannot approve their own change through approve_change');
 
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
@@ -206,7 +208,8 @@ select throws_ok(
   '42501', null, 'GMs cannot approve with a plain update');
 select lives_ok(
   $$ select public.approve_change(
-       (select id from public.pending_changes where character_id = 100 and status = 'pending')) $$,
+       (select id from public.pending_changes where character_id = 100 and status = 'pending'),
+       (select submitted_at from public.pending_changes where character_id = 100 and status = 'pending')) $$,
   'GMs can approve a change');
 select is((select callsign from public.characters where id = 100), 'Deuce Prime', 'approving updates the public card');
 select is((select sheet ->> 'manna' from public.character_sheets where character_id = 100), '30',
@@ -216,19 +219,27 @@ select is((select level from public.character_sheets where character_id = 100), 
 select is((select status::text from public.pending_changes where character_id = 100), 'approved',
   'the approved change is kept as history');
 
--- A change based on an old version of the character must be refused.
+-- A change made before the character last changed must be refused. The database clamps based_on to the
+-- character's last change when the change is created, so the character is changed afterwards (as the database owner, with moddatetime paused
+-- so updated_at can be set to a later time, since now() doesn't move inside a test).
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 select lives_ok(
-  $$ insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, based_on)
+  $$ insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet)
      values (100, '22222222-2222-2222-2222-222222222222',
-             '{"pilot_name": "Two", "callsign": "Stale", "mechs": []}', '{"manna": 0}', now() - interval '1 hour') $$,
+             '{"pilot_name": "Two", "callsign": "Stale", "mechs": []}', '{"manna": 0}') $$,
   'players can propose another change once the last one is reviewed');
 update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending';
 
+reset role;
+alter table public.characters disable trigger characters_updated_at;
+update public.characters set updated_at = now() + interval '1 hour' where id = 100;
+alter table public.characters enable trigger characters_updated_at;
+set local role authenticated;
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select throws_ok(
   $$ select public.approve_change(
-       (select id from public.pending_changes where character_id = 100 and status = 'pending')) $$,
+       (select id from public.pending_changes where character_id = 100 and status = 'pending'),
+       (select submitted_at from public.pending_changes where character_id = 100 and status = 'pending')) $$,
   'P0001', null, 'approve_change refuses a change made before the character last changed');
 select throws_ok(
   $$ update public.pending_changes set status = 'rejected'

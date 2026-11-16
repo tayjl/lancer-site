@@ -403,23 +403,6 @@ async function remove() {
   height: 14px;
 }
 
-.danger-zone {
-  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
-}
-
-.danger-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-l);
-}
-
-.danger-body p {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-}
-
 /* Phones: an even two-column grid, each button filling its cell; an odd last one sits centred across both (as
    HomeView's options). */
 @media (max-width: 40rem) {
