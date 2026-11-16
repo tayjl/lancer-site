@@ -111,17 +111,12 @@ const blocks = computed(() => {
 // The list's entries in the order they're shown.
 const listed = computed(() => blocks.value.flatMap((block) => block.groups.flatMap((group) => group.sections.flatMap((section) => section.entries))))
 
-// A manufacturer card's counts, each a shortcut to that category. Licences always show, even "0 licences" (GMS
-// sells no licences), so every card has the same row; the rest only when there are some.
+// A manufacturer card's counts, each a shortcut to that category (filtered to the maker). Licences always show,
+// even 0 (GMS sells no licences), so every card has the same rows; the rest only when there are some.
 const MADE: ArchiveCategory[] = ['licences', 'frames', 'mech weapons', 'mech systems', 'core bonuses']
-// The category's name, made singular for one ("1 mech weapon").
-const ONE: Partial<Record<ArchiveCategory, string>> = {
-  licences: 'licence', frames: 'frame', 'mech weapons': 'mech weapon', 'mech systems': 'mech system', 'core bonuses': 'core bonus',
-}
 const counts = (maker: Manufacturer) =>
   MADE.map((made) => ({ made, count: entries.value.filter((entry) => entry.category === made && entry.group === maker.id).length }))
     .filter((c) => c.count || c.made === 'licences')
-    .map((c) => ({ ...c, label: c.count === 1 ? ONE[c.made]! : c.made }))
 
 const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
 
@@ -231,7 +226,11 @@ function step(event: KeyboardEvent) {
           <RulesText v-if="MOTTOS[maker.id] ?? maker.quote" class="motto" :html="MOTTOS[maker.id] ?? maker.quote" />
           <ul class="maker-counts">
             <li v-for="c in counts(maker)" :key="c.made">
-              <button type="button" @click="view = c.made"><b>{{ c.count }}</b> {{ c.label }}</button>
+              <!-- A zero is a plain row: a click would only open an empty list. -->
+              <button v-if="c.count" type="button" class="made" @click="setQuery({ cat: c.made, maker: maker.id })">
+                <span class="made-name">{{ c.made }}</span><span class="num">{{ c.count }}</span>
+              </button>
+              <div v-else class="made"><span class="made-name">{{ c.made }}</span><span class="num">{{ c.count }}</span></div>
             </li>
           </ul>
         </li>
@@ -422,29 +421,53 @@ function step(event: KeyboardEvent) {
   font-style: italic;
 }
 
-/* Even columns, not wrapped flex: every card has the same width and the same five counts, so they all break into the
-   same rows. (Wrapped by text width, GMS's short "0 licences" and "1 frame" fitted on one row fewer, and the
-   auto margin pushing the buttons to the card's foot left a gap under its motto that the other cards didn't have.) */
+/* Rows like the content page's counts: the category's name left in the maker's colour, the number right, a thin
+   rule above each (the first parts the list from the motto). The list sits at the card's foot, so cards in a row line
+   up. A row is a button, except a zero, which looks the same but isn't clickable. */
 .maker-counts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
-  gap: 0.25rem var(--space-s);
   margin: auto 0 0;
   padding: var(--space-s) var(--space-m) var(--space-m);
   list-style: none;
 }
 
-.maker-counts button {
-  width: 100%;
-  white-space: nowrap;
-  min-height: 2rem;
-  padding: 0.3rem 0.65rem;
-  color: var(--maker);
-  font-size: 0.875rem;
+.maker-counts li {
+  border-top: 1px solid color-mix(in srgb, var(--maker) 30%, var(--rule));
 }
 
-.maker-counts button:hover,
-.maker-counts button:focus-visible {
+.made {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-m);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-xs) var(--space-s);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.made-name {
+  color: var(--maker);
+  font-size: var(--fs-s);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.made .num {
+  font-weight: 700;
+}
+
+button.made:hover,
+button.made:focus-visible {
+  background: color-mix(in srgb, var(--lilac) 8%, transparent);
+}
+
+button.made:hover .made-name,
+button.made:focus-visible .made-name {
   color: var(--lilac);
 }
 

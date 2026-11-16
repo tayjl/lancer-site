@@ -73,6 +73,13 @@ async function uplink() {
   visibility: hidden;
 }
 
+/* Narrow column: a comfortable tap height, like the home buttons. */
+@container (width < 28rem) {
+  .uplink button {
+    min-height: var(--tap);
+  }
+}
+
 .error {
   margin: 0;
   color: var(--rose);

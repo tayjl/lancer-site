@@ -279,6 +279,7 @@ a:hover {
   font: 600 1rem / 1.5 var(--mono);
   letter-spacing: normal;
   text-transform: none;
+  white-space: nowrap; /* an option never breaks inside its brackets */
 }
 
 /* The "/ ''" part stops screen readers announcing the brackets. */

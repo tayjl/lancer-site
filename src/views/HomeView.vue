@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isGm, isOwner } from '../auth'
 import BootSequence from '../components/BootSequence.vue'
-import ThirdPartyNotice from '../components/ThirdPartyNotice.vue'
 
 // Home (/, and the logo in the top bar): the login screen's boot scrawl again, inside the logged-in layout,
 // with buttons to every tab where the login screen has [ uplink with discord ].
@@ -40,13 +39,11 @@ function onBooted() {
     <BootSequence @done="onBooted" />
 
     <nav class="links" aria-label="Pages">
-      <!-- Only the buttons wait for the log; the disclaimer is visible immediately. -->
       <div v-for="(group, i) in pages" :key="i" class="row" :class="{ waiting: !booted }">
         <button v-for="page in group" :key="page.name" type="button" class="option" @click="router.push({ name: page.name })">
           {{ page.label }}
         </button>
       </div>
-      <ThirdPartyNotice />
     </nav>
   </main>
 </template>
@@ -88,6 +85,35 @@ function onBooted() {
 
 .waiting {
   visibility: hidden;
+}
+
+/* Narrow column (the same 28rem break as the art in BootSequence): each group is an even two-column grid, the
+   button filling its cell so the whole cell is the tap target. It's four half-width tracks so an odd last
+   option can sit across the middle two, centred, at the same width as the others. 15px is the largest size
+   at which "[ gm: changes ]" (15 characters) fits a cell at 320px wide; every option shares it. */
+@container (width < 28rem) {
+  /* Less padding, to give back some of the log the taller buttons take. */
+  .links {
+    padding-block: 0.5rem 0.75rem;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    width: 100%;
+  }
+
+  .links button {
+    grid-column: span 2;
+    min-height: var(--tap);
+    padding-inline: 0.25rem;
+    font-size: 0.9375rem;
+  }
+
+  .links button:last-child:nth-child(odd) {
+    grid-column: 2 / span 2;
+  }
 }
 
 /* Too short to pin anything (e.g. a phone held sideways): the page just scrolls normally. */
