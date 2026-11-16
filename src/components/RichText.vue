@@ -12,7 +12,7 @@ function draw(node: SafeNode): VNode | string {
   if (node.type === 'hardBreak') return h('br')
   if (node.type !== 'text') return h(TAGS[node.type], node.content.map(draw))
   let out: VNode | string = node.text
-  if (node.colour || node.size) out = h('span', { style: { color: node.colour, fontSize: node.size } }, out)
+  if (node.size) out = h('span', { style: { fontSize: node.size } }, out)
   if (node.underline) out = h('u', out)
   if (node.italic) out = h('em', out)
   if (node.bold) out = h('strong', out)

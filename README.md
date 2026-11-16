@@ -16,7 +16,7 @@ LANCER is by Massif Press. The login screen's boot text and h0r_os ASCII art com
 The stat, range, damage, action, size, rank and item-type symbols in `src/assets/icons/` are COMP/CON's cci icons (same repo and licence),
 except the hp heart, armour shield and speed arrow, which are from [Material Design Icons](https://pictogrammers.com/library/mdi/) (Apache-2.0),
 as COMP/CON uses them. The status, privacy and interface symbols there (lock, draft, pending, approved, rejected, dead, info, warning, check,
-close, plus, minus) and the HASE and personal-stat symbols (hull, agility, systems, engineering, physicality, dexterity, perception, acuity,
+close, plus, minus, and the writing toolbar's list and heading) and the HASE and personal-stat symbols (hull, agility, systems, engineering, physicality, dexterity, perception, acuity,
 techfluency) are from [Lucide](https://lucide.dev) (ISC licence, Copyright (c) Lucide Contributors).
 The manufacturer logos in `src/assets/logos/` (GMS, HA, HORUS, IPS-N, SSC) are Massif Press's, from COMP/CON's `public/img/logo/`
 (same repo and licence), cleaned down to their shapes.

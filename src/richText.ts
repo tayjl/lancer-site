@@ -1,12 +1,41 @@
 // Formatted text from the rich-text editor is stored as TipTap's JSON document format.
 // Text written by other players comes out of the database, where anyone could have stored anything
 // through the API (not just through our editor), so it's never shown as it is. sanitiseDoc() rebuilds
-// it from an allowlist of block types, formatting, colours and sizes, and drops everything else.
+// it from an allowlist of block types, formatting and sizes, and drops everything else.
 // RichText.vue then draws the result with ordinary Vue elements, never raw HTML.
+import { Extension, type Extensions } from '@tiptap/vue-3'
+import StarterKit from '@tiptap/starter-kit'
+import { FontSize, TextStyle } from '@tiptap/extension-text-style'
 
-// The values the editor stores for colours and sizes. Only these are ever shown.
-export const COLOURS = ['var(--lilac)', 'var(--rose)', 'var(--sky)'] as const
+// The values the editor stores for sizes. Only these are ever shown.
 export const SIZES = { small: '0.875em', large: '1.25em' } as const
+
+// Text colour is no longer offered: each colour has one meaning site-wide. Colour saved before then stays in the
+// document (the attribute is kept, so the editor doesn't drop it on the next save) but is drawn as normal text.
+const SavedColour = Extension.create({
+  name: 'savedColour',
+  addGlobalAttributes: () => [
+    { types: ['textStyle'], attributes: { color: { default: null, parseHTML: () => null, renderHTML: () => ({}) } } },
+  ],
+})
+
+// The editor's extensions (RichTextEditor.vue): bold, italic, underline, three sizes, bullet lists and small
+// headings. Everything else StarterKit offers is off, so the editor can only produce what RichText.vue shows.
+export const EDITOR_EXTENSIONS: Extensions = [
+  StarterKit.configure({
+    heading: { levels: [3] },
+    blockquote: false,
+    code: false,
+    codeBlock: false,
+    horizontalRule: false,
+    link: false,
+    orderedList: false,
+    strike: false,
+  }),
+  TextStyle,
+  FontSize,
+  SavedColour,
+]
 
 const SIZE_VALUES: readonly string[] = Object.values(SIZES)
 const BLOCKS = ['paragraph', 'heading', 'bulletList', 'listItem'] as const
@@ -18,7 +47,6 @@ export type SafeText = {
   bold?: true
   italic?: true
   underline?: true
-  colour?: string
   size?: string
 }
 export type SafeBlock = { type: (typeof BLOCKS)[number]; content: SafeNode[] }
@@ -52,8 +80,7 @@ function sanitiseText(text: string, marks: unknown): SafeText {
     if (mark.type === 'italic') safe.italic = true
     if (mark.type === 'underline') safe.underline = true
     if (mark.type === 'textStyle' && isObject(mark.attrs)) {
-      const { color, fontSize } = mark.attrs
-      if (COLOURS.some((allowed) => allowed === color)) safe.colour = color as string
+      const { fontSize } = mark.attrs
       if (SIZE_VALUES.includes(fontSize as string)) safe.size = fontSize as string
     }
   }

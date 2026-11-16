@@ -689,6 +689,7 @@ label.field .error {
 /* The gap spaces the lines, so paragraphs inside don't add their own margin. */
 .notice > p,
 .notice > :last-child {
+  max-width: none;
   margin: 0;
 }
 

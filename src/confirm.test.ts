@@ -4,7 +4,7 @@ import { answerConfirm, confirmAction, shownConfirm } from './confirm'
 describe('confirmAction', () => {
   it('resolves true when confirmed and false when cancelled', async () => {
     const yes = confirmAction('scrap this mech?', { danger: true })
-    expect(shownConfirm.value).toMatchObject({ message: 'scrap this mech?', danger: true, confirmLabel: 'confirm' })
+    expect(shownConfirm.value).toMatchObject({ message: 'scrap this mech?', danger: true, confirmLabel: 'Confirm' })
     answerConfirm(true)
     expect(await yes).toBe(true)
     expect(shownConfirm.value).toBeNull()

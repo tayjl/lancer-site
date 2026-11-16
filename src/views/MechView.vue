@@ -329,7 +329,7 @@ async function scrap() {
           </div>
           <section class="panel">
             <h2 class="sheet-label">Image</h2>
-            <Portrait class="mech-portrait" :src="mech.image" :alt="`Image of ${mech.name}`" />
+            <Portrait class="mech-portrait" :src="mech.image" icon="frame" :alt="`Image of ${mech.name}`" />
             <p v-if="own" class="dim upload">Image upload isn't available yet.</p>
           </section>
         </div>
@@ -644,7 +644,6 @@ async function scrap() {
 .mech-portrait {
   width: 100%;
   max-width: 160px;
-  border-radius: var(--radius);
 }
 
 .upload {

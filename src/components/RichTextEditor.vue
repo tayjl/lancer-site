@@ -1,37 +1,19 @@
 <script setup lang="ts">
-import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style'
-import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { COLOURS, SIZES } from '../richText'
+import { EDITOR_EXTENSIONS, SIZES } from '../richText'
+import Icon from './Icon.vue'
 
-// The paragraph editor: bold, italic, underline, three sizes, the palette's accent colours, bullet lists
-// and small headings. Everything else StarterKit offers is switched off, so the editor can only produce
-// what RichText.vue will show. The value is TipTap's JSON document, or null when empty.
+// The paragraph editor (extensions in src/richText.ts). The value is TipTap's JSON document, or null when empty.
 const doc = defineModel<unknown>()
 const props = defineProps<{ label: string }>()
 
 const editor = useEditor({
   content: (doc.value as object | null) ?? '',
-  extensions: [
-    StarterKit.configure({
-      heading: { levels: [3] },
-      blockquote: false,
-      code: false,
-      codeBlock: false,
-      horizontalRule: false,
-      link: false,
-      orderedList: false,
-      strike: false,
-    }),
-    TextStyle,
-    Color,
-    FontSize,
-  ],
+  extensions: EDITOR_EXTENSIONS,
   editorProps: { attributes: { 'aria-label': props.label, 'aria-multiline': 'true', role: 'textbox' } },
   onUpdate: ({ editor }) => (doc.value = editor.isEmpty ? null : editor.getJSON()),
 })
 
-const colourNames = { 'var(--lilac)': 'lilac', 'var(--rose)': 'rose', 'var(--sky)': 'sky' } as const
 const SMALL = SIZES.small
 const LARGE = SIZES.large
 
@@ -43,44 +25,29 @@ const toggleUnderline = () => chain()?.toggleUnderline().run()
 const toggleList = () => chain()?.toggleBulletList().run()
 const toggleHeading = () => chain()?.toggleHeading({ level: 3 }).run()
 const setSize = (size?: string) => (size ? chain()?.setFontSize(size) : chain()?.unsetFontSize())?.run()
-const setColour = (colour?: string) => (colour ? chain()?.setColor(colour) : chain()?.unsetColor())?.run()
 
 // Which buttons show as pressed, for the text where the cursor is.
 const is = (name: string, attrs?: Record<string, unknown>) => editor.value?.isActive(name, attrs) ?? false
 const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textStyle', { fontSize: LARGE })
-const isPlainColour = () => !COLOURS.some((colour) => is('textStyle', { color: colour }))
 </script>
 
 <template>
+  <!-- One field: the toolbar is its header strip, the writing area right under it. -->
   <div class="editor">
     <div class="toolbar" role="toolbar" :aria-label="`${label} formatting`">
       <span class="group">
-        <button type="button" class="tool" aria-label="bold" :aria-pressed="is('bold')" @click="toggleBold"><strong>b</strong></button>
-        <button type="button" class="tool" aria-label="italic" :aria-pressed="is('italic')" @click="toggleItalic"><em>i</em></button>
-        <button type="button" class="tool" aria-label="underline" :aria-pressed="is('underline')" @click="toggleUnderline"><u>u</u></button>
+        <button type="button" class="tool mark" aria-label="Bold" title="Bold" :aria-pressed="is('bold')" @click="toggleBold"><strong>B</strong></button>
+        <button type="button" class="tool mark" aria-label="Italic" title="Italic" :aria-pressed="is('italic')" @click="toggleItalic"><em>I</em></button>
+        <button type="button" class="tool mark" aria-label="Underline" title="Underline" :aria-pressed="is('underline')" @click="toggleUnderline"><u>U</u></button>
       </span>
       <span class="group">
-        <button type="button" class="tool" :aria-pressed="is('textStyle', { fontSize: SMALL })" @click="setSize(SMALL)">small</button>
-        <button type="button" class="tool" :aria-pressed="isNormalSize()" @click="setSize()">normal</button>
-        <button type="button" class="tool" :aria-pressed="is('textStyle', { fontSize: LARGE })" @click="setSize(LARGE)">large</button>
+        <button type="button" class="tool" aria-label="Small text" title="Small text" :aria-pressed="is('textStyle', { fontSize: SMALL })" @click="setSize(SMALL)">S</button>
+        <button type="button" class="tool" aria-label="Normal text" title="Normal text" :aria-pressed="isNormalSize()" @click="setSize()">M</button>
+        <button type="button" class="tool" aria-label="Large text" title="Large text" :aria-pressed="is('textStyle', { fontSize: LARGE })" @click="setSize(LARGE)">L</button>
       </span>
       <span class="group">
-        <button type="button" class="tool" :aria-pressed="isPlainColour()" @click="setColour()">plain</button>
-        <button
-          v-for="colour in COLOURS"
-          :key="colour"
-          type="button"
-          class="tool"
-          :style="{ color: colour }"
-          :aria-pressed="is('textStyle', { color: colour })"
-          @click="setColour(colour)"
-        >
-          {{ colourNames[colour] }}
-        </button>
-      </span>
-      <span class="group">
-        <button type="button" class="tool" :aria-pressed="is('bulletList')" @click="toggleList">list</button>
-        <button type="button" class="tool" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading">heading</button>
+        <button type="button" class="tool" aria-label="Bullet list" title="Bullet list" :aria-pressed="is('bulletList')" @click="toggleList"><Icon name="list" /></button>
+        <button type="button" class="tool" aria-label="Heading" title="Heading" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading"><Icon name="heading" /></button>
       </span>
     </div>
     <EditorContent :editor="editor" />
@@ -88,66 +55,91 @@ const isPlainColour = () => !COLOURS.some((colour) => is('textStyle', { color: c
 </template>
 
 <style scoped>
+/* A form field: --edge outline, lilac while anything inside has focus. */
+.editor {
+  overflow: hidden;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--void);
+}
+
+.editor:focus-within {
+  border-color: var(--lilac);
+  box-shadow: 0 0 0 1px var(--lilac);
+}
+
+/* The header strip: one row, scrolling sideways if a phone is too narrow for it. */
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 1rem;
-  margin-bottom: 0.5rem;
+  gap: var(--space-s);
+  overflow-x: auto;
+  padding: var(--space-xs);
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
+  scrollbar-width: none; /* the cut-off button at the edge shows there is more */
 }
 
-/* Each group is one joined strip of buttons. */
+/* A segmented group: joined buttons parted by thin rules. */
 .group {
   display: flex;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
 }
 
-.group .tool + .tool {
-  margin-left: -1px;
-}
-
-/* Toggle buttons. Pressed ones are raised, with a lilac outline and underline bar. */
 .tool {
-  position: relative;
-  min-height: 2rem;
-  padding: 0.2rem 0.6rem;
-  color: var(--text-dim);
-  font-size: 0.875rem;
-  font-weight: 400;
+  min-width: var(--tap);
+  padding: 0 var(--space-s);
+  border: 0;
+  border-radius: 0;
+  color: var(--text);
+  font-size: var(--fs-s);
+  text-transform: none;
 }
 
-.tool:hover,
+.tool + .tool {
+  border-left: 1px solid var(--rule);
+}
+
+/* Phones: narrower buttons (still 44px tall) so the whole strip fits one row. */
+@media (max-width: 30rem) {
+  .toolbar { gap: var(--space-xs); }
+  .tool { min-width: 34px; padding: 0; }
+}
+
 .tool:focus-visible {
-  z-index: 1;
-  color: var(--text);
+  outline-offset: -2px; /* inside the group, which clips anything outside */
+}
+
+.tool .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.tool.mark {
+  font-size: var(--fs-m);
 }
 
 .tool[aria-pressed='true'] {
-  z-index: 1;
-  border-color: var(--lilac);
-  background: var(--raised);
-  box-shadow: inset 0 -2px 0 var(--lilac);
+  background: color-mix(in srgb, var(--lilac) 12%, transparent);
   color: var(--lilac);
 }
 
 /* An empty editor (one empty paragraph) shows a quiet hint where the text goes. */
 .editor :deep(.ProseMirror > p:only-child:has(> br.ProseMirror-trailingBreak:only-child))::before {
-  content: 'write here...';
+  content: 'Write here…';
   float: left;
   height: 0;
   color: var(--text-dim);
   pointer-events: none;
 }
 
-/* The writing area: the readable font, like the text it becomes. */
+/* The writing area, in the readable font of the text it becomes. */
 .editor :deep(.ProseMirror) {
   min-height: 6rem;
-  padding: 0.75rem;
-  border: 1px solid var(--rule);
-  background: var(--void);
-  font: 400 1.0625rem/1.55 var(--sans);
-}
-
-.editor :deep(.ProseMirror:focus) {
-  border-color: var(--lilac);
+  padding: var(--space-m);
+  font: 400 var(--fs-m) / 1.55 var(--sans);
   outline: none;
 }
 

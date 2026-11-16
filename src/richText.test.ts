@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sanitiseDoc } from './richText'
+import { getSchema } from '@tiptap/vue-3'
+import { EDITOR_EXTENSIONS, sanitiseDoc } from './richText'
 
 const doc = (...content: unknown[]) => ({ type: 'doc', content })
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks })
@@ -12,10 +13,10 @@ describe('sanitiseDoc', () => {
         {
           type: 'paragraph',
           content: [
-            text('bold, purple and big', [
+            text('bold and big', [
               { type: 'bold' },
               { type: 'underline' },
-              { type: 'textStyle', attrs: { color: 'var(--lilac)', fontSize: '1.25em' } },
+              { type: 'textStyle', attrs: { fontSize: '1.25em' } },
             ]),
           ],
         },
@@ -27,7 +28,7 @@ describe('sanitiseDoc', () => {
       {
         type: 'paragraph',
         content: [
-          { type: 'text', text: 'bold, purple and big', bold: true, underline: true, colour: 'var(--lilac)', size: '1.25em' },
+          { type: 'text', text: 'bold and big', bold: true, underline: true, size: '1.25em' },
         ],
       },
       {
@@ -35,6 +36,18 @@ describe('sanitiseDoc', () => {
         content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] }],
       },
     ])
+  })
+
+  it('keeps colour saved before the colour buttons were removed, but never draws it', () => {
+    const coloured = doc({ type: 'paragraph', content: [text('purple', [{ type: 'textStyle', attrs: { color: 'var(--lilac)', fontSize: null } }])] })
+    // The editor's schema keeps the colour, so saving the field again doesn't drop it...
+    const schema = getSchema(EDITOR_EXTENSIONS)
+    const loaded = schema.nodeFromJSON(coloured)
+    expect(loaded.toJSON()).toEqual(coloured)
+    // ...but draws the mark without it, in the editor and in the read-only view.
+    const mark = loaded.firstChild!.firstChild!.marks[0]
+    expect(JSON.stringify(mark.type.spec.toDOM!(mark, true))).not.toContain('color')
+    expect(sanitiseDoc(coloured)).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: 'purple' }] }])
   })
 
   it('drops colours and sizes that are not on the list, including attempts to sneak in extra CSS', () => {

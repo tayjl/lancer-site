@@ -18,35 +18,45 @@ watch(shownConfirm, async (request) => {
 
 <template>
   <!-- Escape, cancel and a click on the backdrop all close it, which answers "no" unless already answered. -->
-  <dialog ref="dialog" class="dialog confirm" aria-labelledby="confirm-message" @close="answerConfirm(false)" @click.self="answerConfirm(false)">
-    <div v-if="shownConfirm" class="dialog-body">
-      <p id="confirm-message">{{ shownConfirm.message }}</p>
-      <div class="actions">
-        <button ref="cancelButton" type="button" @click="answerConfirm(false)">cancel</button>
+  <dialog ref="dialog" class="dialog confirm" aria-labelledby="confirm-title" aria-describedby="confirm-message" @close="answerConfirm(false)" @click.self="answerConfirm(false)">
+    <template v-if="shownConfirm">
+      <header class="dialog-head"><h2 id="confirm-title">Are you sure?</h2></header>
+      <p id="confirm-message" class="dialog-body">{{ shownConfirm.message }}</p>
+      <footer class="foot">
+        <button ref="cancelButton" type="button" class="quiet" @click="answerConfirm(false)">Cancel</button>
         <button ref="confirmButton" type="button" :class="shownConfirm.danger ? 'danger' : 'primary'" @click="answerConfirm(true)">
           {{ shownConfirm.confirmLabel }}
         </button>
-      </div>
-    </div>
+      </footer>
+    </template>
   </dialog>
 </template>
 
 <style scoped>
-/* The frame is style.css's .dialog, narrower for a question. Its body fills it, so a click on the dialog itself
-   is a click on the backdrop. */
+/* The frame is style.css's .dialog, narrower for a question. Its parts fill it, so a click on the dialog itself is a
+   click on the backdrop. */
 .confirm {
   width: min(32rem, calc(100vw - 2rem));
 }
 
-p {
-  margin: 0 0 1.25rem;
+.dialog-body {
+  max-width: none;
+  margin: 0;
   white-space: pre-line;
 }
 
-.actions {
+.foot {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--space-s);
+  padding: var(--space-m) var(--space-l);
+  border-top: 1px solid var(--rule);
+}
+
+@media (max-width: 40rem) {
+  .foot {
+    padding-inline: var(--space-m);
+  }
 }
 </style>

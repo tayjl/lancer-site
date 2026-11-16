@@ -9,7 +9,7 @@ export const shownConfirm = shallowRef<ConfirmRequest | null>(null)
 export function confirmAction(message: string, options: { confirmLabel?: string; danger?: boolean } = {}): Promise<boolean> {
   shownConfirm.value?.resolve(false)
   return new Promise((resolve) => {
-    shownConfirm.value = { message, confirmLabel: options.confirmLabel ?? 'confirm', danger: !!options.danger, resolve }
+    shownConfirm.value = { message, confirmLabel: options.confirmLabel ?? 'Confirm', danger: !!options.danger, resolve }
   })
 }
 

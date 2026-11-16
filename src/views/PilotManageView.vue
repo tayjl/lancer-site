@@ -834,7 +834,6 @@ async function createMech() {
 .identity-portrait {
   width: 100%;
   max-width: 160px;
-  border-radius: var(--radius);
 }
 
 .upload {
