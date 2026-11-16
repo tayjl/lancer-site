@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, useTemplateRef, watch, watchEffect } from 'vue'
+import { computed, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAction } from '../confirm'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -10,21 +10,22 @@ import RuleCheck from '../components/RuleCheck.vue'
 import InfoButton from '../components/InfoButton.vue'
 import RulesText from '../components/RulesText.vue'
 import Icon from '../components/Icon.vue'
+import ActionChip from '../components/ActionChip.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { frameInfo } from '../info'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { useGameData } from '../gameData'
-import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData } from '../mechData'
+import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData, type ReminderKind } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { sectionOverride } from '../router'
 import { isLicensed, mechProblems } from '../rules'
 
-// One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: a summary strip (the
-// manufacturer's registration plate: name, manufacturer id, pilot, frame), then section tabs (profile, stats,
-// loadout), each a stack of panels. Everything is edited in place and saves itself. The name, manufacturer id,
+// One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
+// maker's logo and a thin top border in its colour, the name, manufacturer id, frame and class, then pilot, size and
+// system points), then a slim sticky row of section tabs (profile, stats, loadout), each a stack of panels. Everything is edited in place and saves itself. The name, manufacturer id,
 // appearance and image are public (on the pilot's card); history, the frame, the stats and the loadout are
 // private. The frame is chosen in the strip; its mounts and system points shape the loadout, and the stats are
 // worked out from it. Quirks are off the page for now, like the pilot's traits (still in the sheet).
@@ -57,16 +58,6 @@ const tab = computed({
   set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
 })
 
-// The tabs stick just under the summary strip, so they need its height.
-const glance = useTemplateRef<HTMLElement>('glance')
-const glanceHeight = ref(0)
-const glanceObserver = new ResizeObserver(([entry]) => (glanceHeight.value = entry.borderBoxSize[0].blockSize))
-watch(glance, (el, old) => {
-  if (old) glanceObserver.unobserve(old)
-  if (el) glanceObserver.observe(el)
-})
-onBeforeUnmount(() => glanceObserver.disconnect())
-
 const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
@@ -83,8 +74,9 @@ const catalogue = computed(() => ({
   gear: gear.value,
 }))
 const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
-// The page takes its manufacturer's colour and logo, from the packs, so new manufacturers just work. A frame is
-// private: other players get no sheet, so no frame, and the neutral look gives nothing away.
+// The plate shows its manufacturer as the logo and a thin top border in its colour (nothing else), from the packs, so
+// new manufacturers just work. A frame is private: other players get no sheet, so no frame, and the neutral plate
+// gives nothing away.
 const manufacturers = useManufacturers()
 const maker = computed(() => manufacturers.value.find((m) => m.id === baseFrame.value?.source))
 const logo = computed(() => makerLogo(maker.value))
@@ -110,15 +102,38 @@ function capacityFor(changes: Partial<MechPrivate>) {
   return { sp: stats.find(stat => stat.id === 'system_points')?.value ?? 0, ai: mechResources(sheet.value, bonuses).aiCap }
 }
 const spTotal = computed(() => stats.value.find((stat) => stat.id === 'system_points')!.value)
+const size = computed(() => stats.value.find((stat) => stat.id === 'size')!.value)
+// System points used, for the plate (counted as MechLoadout counts them).
+const spUsed = computed(() => {
+  const weaponsById = new Map(availableWeapons.value.map((item) => [item.id, item]))
+  const systemsById = new Map(availableSystems.value.map((item) => [item.id, item]))
+  return (
+    (details.value.mounts ?? []).flat().reduce((sum, id) => sum + (id ? (weaponsById.get(id)?.sp ?? 0) : 0), 0) +
+    (details.value.systems ?? []).reduce((sum, id) => sum + (systemsById.get(id)?.sp ?? 0), 0)
+  )
+})
+// The rule check speaks to whoever can fix it: you, on your own editable mech.
+const ruleFix = computed(() => (own && editable.value ? (draft.value ? 'draft' : 'own') : undefined))
+// Each kind of "other effect": its symbol and its uppercase label.
+const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }> = {
+  frame: { icon: 'frame', label: 'Frame' },
+  trait: { icon: 'trait', label: 'Frame trait' },
+  core: { icon: 'corebonus', label: 'Core system' },
+  'core-power': { icon: 'corebonus', label: 'Core power' },
+  'core-bonus': { icon: 'corebonus', label: 'Core bonus' },
+  talent: { icon: 'talent', label: 'Talent' },
+  item: { icon: 'system', label: 'Equipment' },
+  missing: { icon: 'warning', label: 'Unavailable' },
+}
 
-// --- The save status shown in the top strip, for the one-line fields ---
+// --- The save status shown on the plate, for the one-line fields ---
 const status = ref('')
 const saveError = ref('')
 
 async function track(save: Promise<string | null>) {
-  status.value = 'saving...'
+  status.value = 'Saving…'
   saveError.value = (await save) ?? ''
-  status.value = saveError.value ? '' : 'saved'
+  status.value = saveError.value ? '' : 'Saved'
 }
 
 // Public changes replace this mech in the pilot's mech list.
@@ -143,11 +158,8 @@ const frameOptions = computed(() =>
       return {
         id: f.id,
         name: `${f.source} ${f.name}`,
-        meta: [f.mechtype.join('/'), `mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? 'licence rank II' : 'gms']
-          .filter(Boolean)
-          .join(', ')
-          .toLowerCase(),
-        blocked: licensed ? '' : 'needs licence II',
+        meta: [f.mechtype.join('/'), `Mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? 'Licence rank II' : 'GMS'].filter(Boolean),
+        blocked: licensed ? '' : 'Needs licence II',
         info: () => frameInfo(f, frames.value),
         licensed,
       }
@@ -157,7 +169,7 @@ const frameOptions = computed(() =>
 
 async function chooseFrame(id: string) {
   const armed = (details.value.mounts ?? []).flat().some(Boolean)
-  if (armed && !(await confirmAction("a new frame has different mounts, so this mech's weapons come off. go ahead?", { confirmLabel: 'change frame', danger: true })))
+  if (armed && !(await confirmAction("A new frame has different mounts, so this mech's weapons come off. Go ahead?", { confirmLabel: 'Change frame', danger: true })))
     return
   await track(savePrivate({ frame: id, mounts: [], core_mounts: {}, weapon_options: {} }))
   if (!saveError.value) framePicker.value?.close()
@@ -182,7 +194,7 @@ function saveText(field: 'name' | 'manufacturer_id', event: Event) {
 const scrapError = ref('')
 
 async function scrap() {
-  if (!(await confirmAction(`scrap ${mech.value!.name}? this can't be undone.`, { confirmLabel: 'scrap mech', danger: true }))) return
+  if (!(await confirmAction(`Scrap ${mech.value!.name}? This can't be undone.`, { confirmLabel: 'Scrap mech', danger: true }))) return
   const rest = { ...sheet.value.mechs }
   delete rest[mechId.value]
   scrapError.value =
@@ -195,10 +207,10 @@ async function scrap() {
 
 
 <template>
-  <main class="page mech-page" :style="{ '--maker': makerColour(maker) }">
+  <main class="page mech-page">
     <nav v-if="character" aria-label="Breadcrumb" class="crumbs">
       <ol>
-        <li v-if="own"><RouterLink :to="hangar">my pilot</RouterLink></li>
+        <li v-if="own"><RouterLink :to="hangar">My pilot</RouterLink></li>
         <template v-else>
           <li><RouterLink :to="{ name: list.name }">{{ list.label }}</RouterLink></li>
           <li><RouterLink :to="hangar">{{ character.callsign ?? character.pilot_name }}</RouterLink></li>
@@ -207,126 +219,146 @@ async function scrap() {
       </ol>
     </nav>
 
-    <p v-if="loading" class="dim">loading mech record...</p>
+    <p v-if="loading" class="dim">Loading mech record…</p>
     <p v-else-if="loadError" class="notice warn" role="alert">{{ loadError }}</p>
-    <p v-else-if="!mech" class="notice warn" role="alert">no mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
+    <p v-else-if="!mech" class="notice warn" role="alert">No mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
 
-    <div v-else class="sheet" :style="{ '--glance-h': `${glanceHeight}px` }">
-      <!-- The summary strip: a registration plate in the manufacturer's colour. Sticks under the top bar on wide screens. -->
-      <header ref="glance" class="glance">
+    <div v-else class="sheet">
+      <!-- The registration plate. The manufacturer's colour is only the logo and the 3px top border (--mf). -->
+      <header class="plate" :class="{ joined: own && draft }" :style="maker ? { '--mf': makerColour(maker) } : undefined">
         <Icon v-if="logo" :src="logo" class="plate-logo" />
-        <span v-else-if="baseFrame?.source" class="plate-code">{{ baseFrame.source }}</span>
-        <div class="names">
+        <span v-else-if="baseFrame?.source" class="plate-code code">{{ baseFrame.source }}</span>
+        <Icon v-else name="frame" class="plate-logo neutral" />
+        <div class="who">
           <!-- While editable the name is a field, so the page's heading is for screen readers only. -->
-          <h1 v-if="editable" class="sr-only">{{ mech.name || 'mech' }}</h1>
+          <h1 v-if="editable" class="sr-only">{{ mech.name || 'Mech' }}</h1>
           <input
             v-if="editable"
             class="inline mech-name"
             type="text"
-            aria-label="mech name"
-            placeholder="mech name"
+            aria-label="Mech name"
+            placeholder="Mech name"
             :value="mech.name"
             @change="saveText('name', $event)"
           />
           <h1 v-else class="mech-name">{{ mech.name }}</h1>
-          <div class="id-line">
-            <input
-              v-if="editable"
-              class="inline maker-id"
-              type="text"
-              aria-label="manufacturer id (XXXX-XXXX-XXXX)"
-              placeholder="XXXX-XXXX-XXXX"
-              :value="mech.manufacturer_id"
-              @change="saveText('manufacturer_id', $event)"
-            />
-            <p v-else class="maker-id">{{ mech.manufacturer_id }}</p>
-            <p v-if="own" class="save-status" role="status">
-              <span v-if="saveError" class="rose">not saved: {{ saveError }}</span>
-              <span v-else-if="status" class="dim">{{ status }}</span>
-            </p>
-          </div>
-        </div>
-        <dl class="glance-facts">
-          <div>
-            <dt>pilot</dt>
-            <dd>{{ character?.callsign ?? character?.pilot_name }}</dd>
-          </div>
-          <div v-if="baseFrame?.mechtype.length">
-            <dt>class</dt>
-            <dd class="class-name">{{ baseFrame.mechtype.join(' / ').toLowerCase() }}</dd>
-          </div>
-          <div v-if="canSeePrivate">
-            <dt>frame</dt>
-            <dd>
+          <div class="subline sep">
+            <span>
+              <input
+                v-if="editable"
+                class="inline maker-id code"
+                type="text"
+                aria-label="Manufacturer ID (XXXX-XXXX-XXXX)"
+                placeholder="XXXX-XXXX-XXXX"
+                :value="mech.manufacturer_id"
+                @change="saveText('manufacturer_id', $event)"
+              />
+              <span v-else class="maker-id code">{{ mech.manufacturer_id }}</span>
+            </span>
+            <span v-if="canSeePrivate">
               <button v-if="editable" type="button" class="small" @click="framePicker?.open()">
-                {{ frame ? `${frame.source} ${frame.name}` : 'choose frame' }}
+                {{ baseFrame ? `${baseFrame.source} ${baseFrame.name}` : 'Choose frame' }}
               </button>
               <InfoButton v-else-if="baseFrame" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`" />
-              <template v-else>none</template>
-              <InfoButton v-if="editable && baseFrame" class="frame-info" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`">frame details</InfoButton>
-            </dd>
+              <template v-else>No frame</template>
+            </span>
+            <span v-if="editable && baseFrame">
+              <InfoButton class="frame-info" :info="() => frameInfo(baseFrame!, frames)" :label="`${baseFrame.source} ${baseFrame.name}`">Frame details</InfoButton>
+            </span>
+            <span v-if="baseFrame?.mechtype.length">{{ baseFrame.mechtype.join(' / ') }}</span>
           </div>
-        </dl>
-
-        <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
-        <div v-if="own && draft" class="next">
-          <p v-if="!draft.submitted_at">you're drafting a change: edits here go into it. submit it from <RouterLink :to="{ name: 'pilot' }">my pilot</RouterLink>.</p>
-          <p v-else>change submitted, waiting on a gm, so this mech is read-only. to edit it, choose edit change on <RouterLink :to="{ name: 'pilot' }">my pilot</RouterLink>.</p>
+          <p v-if="own && (saveError || status)" class="save-status" role="status">
+            <span v-if="saveError" class="error">Not saved: {{ saveError }}</span>
+            <span v-else class="dim">{{ status }}</span>
+          </p>
         </div>
+        <dl class="facts">
+          <div class="fact">
+            <dt class="label">Pilot</dt>
+            <dd class="pilot">{{ character?.callsign ?? character?.pilot_name }}</dd>
+          </div>
+          <template v-if="frame">
+            <div class="fact">
+              <dt class="label">Size</dt>
+              <dd class="fact-value num">{{ size === 0.5 ? '½' : size }}</dd>
+            </div>
+            <div class="fact">
+              <dt class="label">System points</dt>
+              <dd class="fact-value num" :class="{ over: spUsed > (spTotal ?? 0) }">{{ spUsed }} / {{ spTotal }}</dd>
+            </div>
+          </template>
+        </dl>
       </header>
 
-      <RuleCheck v-if="canSeePrivate" :problems="problems" />
+      <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
+      <div v-if="own && draft" class="next">
+        <span class="badge" :class="draft.submitted_at ? 'pending' : 'draft'">{{ draft.submitted_at ? 'Change submitted' : 'Draft change' }}</span>
+        <p v-if="!draft.submitted_at">Edits to this mech go into your draft change. Submit it from <RouterLink :to="{ name: 'pilot' }">My pilot</RouterLink>.</p>
+        <p v-else>Change submitted, waiting on a GM, so this mech is read-only. To edit it, choose Edit change on <RouterLink :to="{ name: 'pilot' }">My pilot</RouterLink>.</p>
+      </div>
 
-      <!-- One section at a time; v-show keeps every panel mounted, so switching never loses an open picker. -->
-      <SheetTabs v-if="tabs.length > 1" v-model="tab" :tabs="tabs" label="mech sections" class="tabs" />
+      <RuleCheck v-if="canSeePrivate" :problems="problems" :fix="ruleFix" />
 
-      <div v-show="tab === 'profile'" class="tab-panel profile">
-        <!-- Right on wide screens; first on phones. -->
-        <aside class="side panel">
-          <Portrait :src="mech.image" :alt="`Image of ${mech.name}`">
-            <Icon v-if="logo" :src="logo" class="portrait-logo" />
-          </Portrait>
-          <p v-if="own" class="dim note">image upload: module offline</p>
-        </aside>
+      <!-- One section at a time; v-show keeps every panel mounted, so switching never loses an open picker. Only this
+           slim row sticks (under the top bar). -->
+      <SheetTabs v-if="tabs.length > 1" v-model="tab" :tabs="tabs" label="Mech sections" class="sheet-tabs" />
 
-        <div class="writing">
-          <SheetField class="panel" title="appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-          <SheetField v-if="canSeePrivate" class="panel" title="history" tag="Private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
-          <section v-if="editable" class="panel danger-zone">
-            <h2 class="sheet-label">danger zone</h2>
-            <div class="danger-body">
-              <p class="dim">removes this mech from your hangar for good.</p>
-              <button type="button" class="danger" @click="scrap">scrap mech</button>
-            </div>
-            <p v-if="scrapError" class="notice warn" role="alert">{{ scrapError }}</p>
+      <div v-show="tab === 'profile'" class="tab-panel">
+        <div class="profile">
+          <div class="writing">
+            <SheetField class="panel" title="Appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
+            <SheetField v-if="canSeePrivate" class="panel" title="History" tag="Private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+          </div>
+          <section class="panel">
+            <h2 class="sheet-label">Image</h2>
+            <Portrait class="mech-portrait" :src="mech.image" :alt="`Image of ${mech.name}`" />
+            <p v-if="own" class="dim upload">Image upload isn't available yet.</p>
           </section>
         </div>
+        <section v-if="editable" class="panel danger-zone">
+          <h2 class="sheet-label">Danger zone</h2>
+          <div class="danger-body">
+            <p class="dim">Scrapping {{ mech.name }} removes it and its loadout from your hangar for good.</p>
+            <button type="button" class="danger" @click="scrap">Scrap mech</button>
+          </div>
+          <p v-if="scrapError" class="notice warn" role="alert">{{ scrapError }}</p>
+        </section>
       </div>
 
       <template v-if="canSeePrivate">
         <div v-show="tab === 'stats'" class="tab-panel">
-          <StatRow class="panel" title="mech stats" tag="Private" :stats="stats" :editable="false" :min="0" :max="0" />
-          <section v-if="frame" class="panel readout">
-            <h2 class="sheet-label">resources<span class="private">Private</span></h2>
-            <dl>
-              <div><dt>ai capacity</dt><dd>{{ resources.aiCap }}</dd></div>
-              <div v-if="resources.limited"><dt>limited items</dt><dd>{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }} uses</dd></div>
-              <div><dt>repairing structure</dt><dd>{{ resources.structureRepairs }} repairs</dd></div>
-              <div><dt>overcharge heat</dt><dd>{{ resources.overcharge }}</dd></div>
-            </dl>
-            <p v-for="(check, index) in resources.checks" :key="index"><strong>{{ check.source }}:</strong> {{ check.text }}</p>
+          <StatRow class="panel mech-stats" title="Mech stats" tag="Private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <section v-if="frame" class="panel">
+            <h2 class="sheet-label">Resources<span class="private">Private</span></h2>
+            <ul class="resources">
+              <li><span class="value num">{{ resources.aiCap }}</span><span class="name">AI capacity</span></li>
+              <li v-if="resources.limited">
+                <span class="value num">{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }}</span><span class="name">Limited uses</span>
+              </li>
+              <li><span class="value num">{{ resources.structureRepairs }}</span><span class="name">Structure repair cost</span></li>
+              <li><span class="value num long">{{ resources.overcharge }}</span><span class="name">Overcharge heat</span></li>
+            </ul>
+            <p v-for="(check, index) in resources.checks" :key="index" class="check"><b>{{ check.source }}:</b> {{ check.text }}</p>
           </section>
-          <section v-if="frame && effects.reminders.length" class="panel effect-reminders">
-            <h2 class="sheet-label">other effects and conditions<span class="private">Private</span></h2>
-            <p class="dim note">Only modifiers listed under stat sources are included automatically. Conditional effects, unsupported bonuses and other rules below need player or GM interpretation.</p>
-            <ul>
+          <section v-if="frame && effects.reminders.length" class="panel">
+            <h2 class="sheet-label">Other effects and conditions<span class="private">Private</span></h2>
+            <p class="dim intro">Only the modifiers listed under the stats' sources are counted. These need you or the GM to apply them.</p>
+            <ul class="effects">
               <li v-for="(reminder, index) in effects.reminders" :key="index">
-                <strong>{{ reminder.source }}</strong>
-                <RulesText :html="reminder.text" />
+                <Icon :name="EFFECT_KINDS[reminder.kind].icon" />
+                <div class="effect">
+                  <p class="label">{{ EFFECT_KINDS[reminder.kind].label }}{{ reminder.from ? `: ${reminder.from}` : '' }}</p>
+                  <p class="effect-head">
+                    <ActionChip :activation="reminder.activation" />
+                    <b>{{ reminder.name }}</b>
+                  </p>
+                  <RulesText :html="reminder.text" />
+                  <p v-if="reminder.uncounted" class="dim uncounted">Not counted in the stats above.</p>
+                </div>
               </li>
             </ul>
           </section>
-          <p v-if="!frame" class="empty">choose a frame to work out this mech's stats.</p>
+          <p v-if="!frame" class="empty">Choose a frame to work out this mech's stats.</p>
         </div>
 
         <div v-show="tab === 'loadout'" class="tab-panel">
@@ -354,7 +386,7 @@ async function scrap() {
       <ItemPicker
         v-if="editable"
         ref="framePicker"
-        title="choose a frame"
+        title="Choose a frame"
         :options="frameOptions"
         :current="details.frame"
         :error="saveError"
@@ -373,63 +405,47 @@ async function scrap() {
   gap: var(--space-m);
 }
 
-.note {
-  font-size: 0.8125rem;
-}
-
-/* --- The manufacturer's look: --maker (set on the page) colours the labels and cards below. Tinted, not filled,
-   so it stays calm; the content's own colours (tags, combat rules) keep their meaning. --- */
-.sheet :deep(.sheet-label) {
-  color: var(--maker);
-}
-
-.side :deep(.portrait) {
-  border-color: color-mix(in srgb, var(--maker) 45%, var(--rule));
-}
-
-.portrait-logo {
-  display: block;
-  margin: 0 auto 0.75rem;
-  color: var(--maker);
-  font-size: 5rem;
-  opacity: 0.45;
-}
-
-/* --- Summary strip: a registration plate in the manufacturer's colour, with its logo, or its code as a stamp if
-   the pack has no logo for it. --- */
-.glance {
-  display: flex;
-  flex-wrap: wrap;
+/* --- The registration plate (the prototype's .plate): no tint, the maker only as the logo and the top border --- */
+.plate {
+  --mf: var(--rule);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
+  gap: var(--space-l);
+  padding: var(--space-l);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--mf);
+  border-radius: var(--radius);
+  background: var(--panel);
   overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
-  gap: 0.5rem 2.5rem;
-  --pad-y: 0.9rem; /* the draft bar's negative margin reads it, to sit flush with the bottom edge */
-  padding: var(--pad-y) 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--maker) 45%, var(--rule));
-  border-top: 4px solid var(--maker);
-  background: color-mix(in srgb, var(--maker) 10%, var(--panel));
+}
+
+/* With the draft bar under it, the two read as one block. */
+.plate.joined {
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 .plate-logo {
-  color: var(--maker);
-  font-size: 3.5rem;
+  width: 56px;
+  height: 56px;
+  color: var(--mf);
 }
 
+.plate-logo.neutral {
+  color: var(--text-dim);
+}
+
+/* A maker with no bundled logo: its code as a stamp, in the text colour (the colour stays on the border). */
 .plate-code {
-  padding: 0.35rem 0.6rem;
-  border: 2px solid var(--maker);
-  color: var(--maker);
-  font-size: 1.25rem;
+  padding: 6px 8px;
+  border: 2px solid var(--edge);
+  border-radius: var(--radius);
+  font-size: var(--fs-l);
   font-weight: 700;
 }
 
-.class-name {
-  color: var(--rose);
-}
-
-.names {
+.who {
   display: flex;
-  flex: 1 1 18rem;
   flex-direction: column;
   align-items: flex-start; /* don't stretch the fields: they size to their text */
   min-width: 0;
@@ -437,27 +453,42 @@ async function scrap() {
 
 .mech-name {
   margin: 0;
-  color: var(--maker);
-  font: 700 2rem/1.15 var(--mono);
+  color: var(--text);
+  font: 800 var(--fs-xl) / 1.1 var(--sans);
+  letter-spacing: 0.02em;
+}
+
+.subline {
+  align-self: stretch;
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
 }
 
 .maker-id {
-  margin: 0;
   color: var(--text-dim);
-  font-size: 1rem;
-  letter-spacing: 0.05em;
+  font-size: var(--fs-s);
+  letter-spacing: 0.08em;
+}
+
+/* The frame button sits in the line at text height. */
+.subline button {
+  min-height: 26px;
+}
+
+.frame-info {
+  color: var(--lilac);
 }
 
 /* Name and manufacturer id: plain text with a faint underline that says they can be edited (as my pilot). */
 .inline {
   min-height: 0;
-  margin-left: -0.35rem;
-  padding: 0.1rem 0.35rem;
+  margin-left: -6px;
+  padding: 1px 6px;
   border-color: transparent;
   border-bottom-color: var(--rule);
   background: none;
-  /* Hug the text, so the save status sits right after it. shortcut: Firefox has no field-sizing and keeps its
-     default ~20ch width; fine until Firefox ships it. */
+  /* Hug the text. shortcut: Firefox has no field-sizing and keeps its default ~20ch width; fine until Firefox ships it. */
   width: auto;
   min-width: 8ch;
   max-width: 100%;
@@ -468,54 +499,73 @@ async function scrap() {
   border-color: var(--rule);
 }
 
-.glance-facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-  margin: 0;
+/* The id's item in the dot-separated line keeps the field's full width; no percentage cap, which would clip it. */
+.subline > :first-child {
+  flex-shrink: 0;
+  max-width: 100%;
 }
 
-.glance-facts dt {
-  color: var(--text-dim);
-  font-size: 0.8125rem;
-}
-
-.glance-facts dd {
-  margin: 0;
-  font-size: 1.0625rem;
-}
-
-.frame-info {
-  display: block;
-  color: var(--text-dim);
-  font-size: 0.875rem;
-}
-
-/* The manufacturer id, then the save status on the same line (as my pilot's name line). */
-.id-line {
-  display: flex;
-  align-self: stretch; /* the column's width, so a long name shrinks its field instead of overflowing */
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 0.75rem;
+.inline.maker-id {
+  max-width: none;
 }
 
 .save-status {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin: 0;
-  font-size: 0.8125rem;
+  margin: 4px 0 0;
+  font-size: var(--fs-xs);
 }
 
-/* The draft bar: a neutral band flush with the plate's bottom and sides (as my pilot's next-step bar). */
+.save-status .error {
+  color: var(--danger);
+}
+
+.facts {
+  display: grid;
+  grid-template-rows: auto auto;
+  grid-auto-flow: column;
+  gap: 2px var(--space-xl);
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  align-content: start;
+}
+
+.fact dd {
+  margin: 0;
+}
+
+.pilot {
+  align-self: end;
+  font-weight: 700;
+}
+
+.fact-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Red only when over: the maker's red never means that. */
+.fact-value.over {
+  color: var(--danger);
+}
+
+/* --- The draft bar, joined to the plate's foot (as my pilot's next-step bar) --- */
 .next {
-  flex-basis: calc(100% + 2.5rem); /* the full row plus the side padding it reaches into */
-  align-self: stretch;
-  margin: 0.35rem -1.25rem calc(-1 * var(--pad-y));
-  padding: 0.5rem 1.25rem;
-  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+  margin-top: calc(-1 * var(--space-m)); /* joined to the plate: cancels the sheet's gap */
+  padding: var(--space-s) var(--space-l);
+  border: 1px solid var(--rule);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
   background: var(--void);
-  font-size: 0.875rem;
+  font-size: var(--fs-s);
 }
 
 .next p {
@@ -523,212 +573,210 @@ async function scrap() {
   margin: 0;
 }
 
-.tabs {
-  padding-top: 0.6rem;
+/* --- Tabs: the only thing that sticks, under the top bar --- */
+.sheet-tabs {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 2;
+  background: var(--void);
 }
 
-/* Sticky only where there's room: wide and tall screens. The tabs stick just under the strip. */
-@media (min-width: 48rem) and (min-height: 40rem) {
-  .glance {
-    position: sticky;
-    top: var(--topbar-h);
-    z-index: 2;
-  }
-
-  .tabs {
-    position: sticky;
-    top: calc(var(--topbar-h) + var(--glance-h));
-    z-index: 2;
-    background: var(--void);
-  }
-
-  /* Anything focused (tabbing through fields) scrolls clear of the stuck strip and tabs. */
-  .tab-panel * {
-    scroll-margin-top: calc(var(--topbar-h) + var(--glance-h) + 4rem);
-  }
+.tab-panel * {
+  scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-l));
 }
 
-/* Shorter screens (laptops at 768 or 720 tall): a tighter strip, so the stuck stack stays about a third of the screen. */
-@media (min-width: 48rem) and (min-height: 40rem) and (max-height: 52rem) {
-  .glance {
-    --pad-y: 0.5rem;
-  }
-
-  .mech-name {
-    font-size: 1.5rem;
-  }
-
-  .next {
-    margin-top: 0.15rem;
-    padding-block: 0.35rem;
-  }
-
-  .plate-logo {
-    font-size: 2.5rem;
-  }
-
-  .tabs {
-    padding-top: 0.25rem;
-  }
-}
-
-/* --- Profile: writing on the left, the image on the right --- */
+/* --- Profile: writing on the left, the image on the right; one column on phones (below) --- */
 .profile {
   display: grid;
-  grid-template-areas: 'writing side';
-  grid-template-columns: minmax(0, 1fr) clamp(16rem, 24vw, 22rem);
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
   align-items: start;
+  gap: var(--space-m);
 }
 
-.writing {
-  grid-area: writing;
+.mech-portrait {
+  width: 100%;
+  max-width: 160px;
+  border-radius: var(--radius);
 }
 
-.side {
-  grid-area: side;
-}
-
-.side p {
-  margin: 0.35rem 0 0;
+.upload {
+  margin: var(--space-s) 0 0;
+  font-size: var(--fs-s);
 }
 
 .danger-zone {
-  border-color: var(--rose);
-}
-
-.sheet .danger-zone :deep(.sheet-label) {
-  color: var(--rose);
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 }
 
 .danger-body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
+  gap: var(--space-s) var(--space-l);
 }
 
-.danger-zone p {
+.danger-body p {
+  flex: 1 1 14rem;
+  max-width: none;
   margin: 0;
+  font-size: var(--fs-s);
 }
 
 .danger-zone [role='alert'] {
-  margin-top: 0.5rem;
+  margin-top: var(--space-s);
 }
-
-/* --- Stats: the numbers that aren't stats, as tiles to match the stats above them; then the reminders --- */
-.readout dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 0.6rem;
-  margin: 0;
-}
-
-.readout dl div {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--maker) 35%, var(--rule));
-  background: color-mix(in srgb, var(--maker) 6%, transparent);
-  text-align: center;
-}
-
-.readout dt {
-  color: var(--text-dim);
-  font-size: 0.8125rem;
-}
-
-.readout dd {
-  margin: 0;
-  color: var(--maker);
-  font-weight: 700;
-}
-
-.readout p {
-  max-width: none;
-  margin: 0.5rem 0 0;
-  font-size: 0.8125rem;
-  text-align: center;
-}
-
-.readout p strong {
-  color: var(--sky);
-  font-weight: 400;
-}
-
-.effect-reminders {
-  font-size: 0.875rem;
-}
-
-.effect-reminders > p {
-  max-width: none;
-}
-
-.effect-reminders ul { margin: 0; padding: 0; list-style: none; }
-.effect-reminders li { padding: 0.75rem 0; border-top: 1px solid var(--rule); }
-.effect-reminders strong { color: var(--maker); }
-.effect-reminders li .rules-text { margin-top: 0.25rem; }
 
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */
 @media (min-width: 56rem) {
-  .sheet :deep(.stat-row ul) {
+  .mech-stats :deep(.stats) {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
-/* --- Narrow screens: one column, with the image first --- */
+/* --- Resources: the numbers that aren't stats, as tiles like the stat tiles above them --- */
+.resources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-s);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resources li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-s) 6px var(--space-m);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--void);
+  text-align: center;
+}
+
+.resources .value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+/* The overcharge ladder is a sequence ("1 → 1d3 → 1d6 → 1d6+4"), not one number. */
+.resources .value.long {
+  font-size: var(--fs-m);
+  line-height: 1.5;
+}
+
+.resources .name {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.check {
+  max-width: none;
+  margin: var(--space-s) 0 0;
+  font-size: var(--fs-s);
+}
+
+/* --- Other effects and conditions (the prototype's .effects): symbol, uppercase kind, bold name, plain rules --- */
+.intro {
+  max-width: none;
+  margin: 0 0 var(--space-s);
+  font-size: var(--fs-s);
+}
+
+.effects {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.effects li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-s);
+  padding: var(--space-m) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.effects li:last-child {
+  padding-bottom: 0;
+}
+
+.effects li > .icon {
+  width: 22px;
+  height: 22px;
+  color: var(--text-dim);
+}
+
+.effect {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.effect p {
+  max-width: none;
+  margin: 0;
+}
+
+.effect-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s);
+}
+
+.uncounted {
+  font-size: var(--fs-s);
+}
+
 @media (max-width: 56rem) {
   .profile {
-    grid-template-areas: 'side' 'writing';
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .side :deep(.portrait) {
-    width: min(100%, 14rem);
-    margin-inline: auto;
-  }
-
-  .side p {
-    text-align: center;
   }
 }
 
-/* --- Phones: the strip stacked and centred --- */
+/* --- Phones: the compact plate (smaller logo, the figures on a row under a rule) --- */
 @media (max-width: 48rem) {
-  .crumbs ol {
-    justify-content: center;
+  .plate {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-s) var(--space-m);
+    padding: var(--space-m);
   }
 
-  .glance {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .names {
-    flex: none;
-    align-items: center;
-    width: 100%;
-  }
-
-  .names input {
-    margin-left: 0;
-    text-align: center;
+  .plate-logo {
+    width: 40px;
+    height: 40px;
   }
 
   .mech-name {
-    font-size: 1.75rem;
+    font-size: 22px;
   }
 
-  .glance-facts {
-    justify-content: center;
+  .facts {
+    grid-column: 1 / -1;
+    justify-content: start;
+    gap: 0 var(--space-l);
+    padding-top: var(--space-s);
+    border-top: 1px solid var(--rule);
   }
 
-  .id-line {
-    justify-content: center;
+  .facts .label {
+    letter-spacing: 0.04em;
   }
 
-  /* Its own line on phones, so the centred field stays centred; reserved, so the first save doesn't grow the strip. */
-  .save-status {
-    flex-basis: 100%;
-    min-height: 1lh;
+  .fact-value {
+    font-size: 18px;
+  }
+
+  .next {
+    padding: var(--space-s) var(--space-m);
   }
 }
 </style>

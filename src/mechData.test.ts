@@ -86,7 +86,7 @@ describe('mechStats', () => {
     expect(stats.find(stat => stat.id === 'hp')!.contributors).toEqual([
       'Blackbeard: 12', 'hull: +4', 'Personalizations: +2', 'Reinforced Frame: +5', 'Test talent 2: Second: +3',
     ])
-    expect(effects.reminders).toContainEqual({ source: 'Superior by Design', text: 'Immunity to Impaired; +2 Heat Cap.' })
+    expect(effects.reminders).toContainEqual(expect.objectContaining({ source: 'Superior by Design', text: 'Immunity to Impaired; +2 Heat Cap.' }))
     const reduced = mechEffects({}, { talents: { test: 1 } }, catalogue)
     expect(value(mechStats(blackbeard, undefined, reduced.modifiers), 'hp')).toBe(12)
     expect(value(mechStats(blackbeard, undefined, reduced.modifiers), 'repair')).toBe(6)
@@ -117,7 +117,7 @@ describe('mechStats', () => {
       { stat: 'heat', source: 'Conditional', value: 2, replace: false, overwrite: false },
     ])
     expect(effects.reminders).toHaveLength(6)
-    expect(effects.reminders[0].text).toBe('+10 hp, only when exposed: not counted in the stats above.')
+    expect(effects.reminders[0]).toMatchObject({ kind: 'item', name: 'Conditional', text: '+10 hp, only when exposed.', uncounted: true })
   })
 
   it('leaves pilot gear and equipped items’ own rules out of the reminders', () => {
@@ -135,7 +135,7 @@ describe('mechStats', () => {
       weapons: new Map([['weapon', weapon]]), integrated: new Map([['builtin', builtIn]]),
     })
     expect(value(mechStats(blackbeard, undefined, effects.modifiers), 'hp')).toBe(15)
-    expect(effects.reminders).toContainEqual({ source: 'missing', text: 'Content unavailable; its bonuses are not included.' })
+    expect(effects.reminders).toContainEqual(expect.objectContaining({ kind: 'missing', source: 'missing', text: 'Content unavailable; its bonuses are not included.' }))
   })
 
   it('handles replacement and overwrite precedence without crediting discarded bonuses', () => {

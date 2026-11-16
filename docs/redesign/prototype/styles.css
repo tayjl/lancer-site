@@ -390,15 +390,16 @@ a:hover { text-decoration-thickness: 2px; }
 .rules ul { margin: 4px 0; padding-left: 1.2em; }
 .rules b { color: var(--text); }
 
-/* An action or deployable inside a card. */
-.ability { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--void); }
-.ability-head { display: flex; align-items: center; gap: var(--space-s); flex-wrap: wrap; padding: 6px var(--space-s); border-bottom: 1px solid var(--rule); }
+/* An action or deployable inside a card: no box of its own (no dark inset panels), it sits on the card's surface.
+   A thin rule above it, then the action chip and bold name mark where it starts. */
+.ability { display: grid; gap: var(--space-s); padding-top: var(--space-m); border-top: 1px solid var(--rule); }
+.ability-head { display: flex; align-items: center; gap: var(--space-s); flex-wrap: wrap; }
 .ability-name { font-weight: 700; }
-.ability-body { padding: var(--space-s) var(--space-m); display: grid; gap: var(--space-s); }
+.ability-body { display: grid; gap: var(--space-s); }
 
 /* ───────────────────────── Rank ladder (licences) and tiers (talents) ───────────────────────── */
 .ladder { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-s); }
-.rank { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--void); padding: var(--space-s) var(--space-m) var(--space-m); }
+.rank { border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--space-s) var(--space-m) var(--space-m); }
 .rank-head { display: flex; align-items: center; gap: var(--space-s); margin-bottom: var(--space-s); }
 .rank-num { font: 800 18px var(--sans); }
 .rank.locked { opacity: 0.6; }
@@ -407,8 +408,11 @@ a:hover { text-decoration-thickness: 2px; }
 .unlocks { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-s); }
 .unlocks li { display: flex; align-items: center; gap: 6px; }
 .unlocks .icon { width: 18px; height: 18px; color: var(--text-dim); }
-.tiers { display: grid; gap: var(--space-s); }
-.tier { display: grid; grid-template-columns: 40px 1fr; gap: var(--space-m); border: 1px solid var(--rule); border-radius: var(--radius); background: var(--void); padding: var(--space-m); }
+.tiers { display: grid; }
+.tier { display: grid; grid-template-columns: 40px 1fr; gap: var(--space-m); padding: var(--space-m) 0; }
+.tier + .tier { border-top: 1px solid var(--rule); }
+.tier:first-child { padding-top: 0; }
+.tier:last-child { padding-bottom: 0; }
 .tier .rank-num { font-size: 22px; text-align: center; }
 .tier-name { font-weight: 700; margin-bottom: 2px; }
 .tier.locked { opacity: 0.6; }

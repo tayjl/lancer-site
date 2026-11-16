@@ -62,11 +62,13 @@ const rules = computed(() => cardRules(props.item))
   font-size: var(--fs-s);
 }
 
-/* An action or deployable inside the card: its chip and name, then its numbers and rules. */
+/* An action or deployable inside the card: no box of its own, it sits on the card's surface. A thin rule above it,
+   then its chip and name mark where it starts; its numbers and rules follow. */
 .ability {
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--void);
+  display: grid;
+  gap: var(--space-s);
+  padding-top: var(--space-m);
+  border-top: 1px solid var(--rule);
 }
 
 .ability-head {
@@ -75,8 +77,6 @@ const rules = computed(() => cardRules(props.item))
   align-items: center;
   gap: var(--space-s);
   margin: 0;
-  padding: 6px var(--space-s);
-  border-bottom: 1px solid var(--rule);
   font-size: var(--fs-m);
 }
 
@@ -88,7 +88,6 @@ const rules = computed(() => cardRules(props.item))
 .ability-body {
   display: grid;
   gap: var(--space-s);
-  padding: var(--space-s) var(--space-m);
 }
 
 .sources {

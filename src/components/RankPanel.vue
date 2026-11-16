@@ -165,14 +165,8 @@ async function buy(id: string) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.rank {
-  border: 1px solid var(--edge);
-  border-radius: var(--radius);
-  background: var(--void);
-}
-
+/* No dark fill: the ranks sit on the card's own surface. */
 .rank.locked {
-  border-color: var(--rule);
   opacity: 0.6;
 }
 
@@ -219,13 +213,20 @@ async function buy(id: string) {
   font-size: var(--fs-s);
 }
 
-/* A licence rank: the numeral and its status on one line, then its unlocks. */
+/* A licence rank: a thin outlined column (brighter while held), the numeral and its status on one line, then its
+   unlocks. */
 .ladder .rank {
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-content: start;
   gap: var(--space-s);
   padding: var(--space-s) var(--space-m) var(--space-m);
+}
+
+.ladder .rank.locked {
+  border-color: var(--rule);
 }
 
 .ladder .numeral {
@@ -267,12 +268,29 @@ async function buy(id: string) {
   color: var(--text-dim);
 }
 
-/* A talent rank: a big numeral in its own column, then the rank's name and rules, left-aligned. */
+/* A talent rank: a big numeral in its own column, then the rank's name and rules, left-aligned. Ranks are parted by a
+   thin rule, not boxed. */
+.tiers {
+  gap: 0;
+}
+
 .tiers .rank {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   gap: var(--space-m);
-  padding: var(--space-m);
+  padding: var(--space-m) 0;
+}
+
+.tiers .rank + .rank {
+  border-top: 1px solid var(--rule);
+}
+
+.tiers .rank:first-child {
+  padding-top: 0;
+}
+
+.tiers .rank:last-child {
+  padding-bottom: 0;
 }
 
 .tiers .numeral {

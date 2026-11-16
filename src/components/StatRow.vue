@@ -202,15 +202,22 @@ const raiseBlocked = (value: number | null) =>
 }
 
 @media (max-width: 40rem) {
+  /* Four tiles to a row (three on the narrowest phones, so "Structure" still fits a tile). */
   .stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
     gap: 6px;
   }
 
+  .stat {
+    padding-inline: 2px;
+  }
+
+  /* A two-word name ("System points") wraps onto a second line, centred, rather than running out of its tile; words
+     never break. Never below the label size. */
   .name {
-    font-size: 11px;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-align: center;
   }
 
   /* Budgeted stats become rows: symbol, name (modifier under it), number, - / +. */

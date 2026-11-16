@@ -2,7 +2,7 @@ import { shallowRef } from 'vue'
 import { averageDamageText } from './damage'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, itemDetails, itemRules } from './itemDetails'
-import { licenceNames, mechStats, type Frame } from './mechData'
+import { licenceNames, mechStats, sameName, type Frame } from './mechData'
 import { PRICES, rankName } from './rules'
 
 // Everything about one thing a pilot can buy or equip, for the full-information dialog (InfoDialog.vue, opened by
@@ -55,6 +55,17 @@ const merged = (html: string) => html.replace(/\s*<br\s*\/?>\s*/gi, ' ')
 const when = (rule: InfoCard) => {
   const parts = [rule.activation?.toLowerCase(), rule.frequency].filter(Boolean)
   return parts.length ? ` (${parts.join(', ')})` : ''
+}
+// An action named like the trait or core power it belongs to repeats it (COMP/CON's data often has both): show it
+// once, under the parent's heading, with the action's chip, numbers and text (the more detailed version); every
+// same-named action goes. Differently named actions stay, in "rest".
+function absorb(parent: InfoCard, name: string, actions: InfoCard[]) {
+  const twins = actions.filter((action) => sameName(action.heading, name))
+  const twin = twins.find((action) => action.activation || action.stats?.length) ?? twins.sort((a, b) => b.html.length - a.html.length)[0]
+  return {
+    card: twin ? { ...twin, heading: parent.heading, tone: parent.tone } : parent,
+    rest: actions.filter((action) => !twins.includes(action)),
+  }
 }
 const half = (value: number | null) => (value === 0.5 ? '½' : String(value ?? '-'))
 
@@ -120,20 +131,38 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     }),
     groups: groups(
       // One card per trait, its actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
-      { cards: traits.flatMap((trait) => card(text(trait.name) || 'trait', [text(trait.description), ...rules(trait).map((rule) => `<p><b>${rule.heading}${when(rule)}</b><br>${rule.html}</p>`)].join(''), TONES.trait)) },
+      { cards: traits.flatMap((trait) => {
+        const name = text(trait.name) || 'trait'
+        const { card: main, rest } = absorb({ heading: name, html: averageDamageText(text(trait.description)), tone: TONES.trait }, name, rules(trait))
+        const html = [main.html, ...rest.map((rule) => `<p><b>${rule.heading}${when(rule)}</b><br>${rule.html}</p>`)].join('')
+        return html ? [{ ...main, html }] : []
+      }) },
       {
         title: text(core.name) || 'core system',
         tone: TONES.power,
         lore: paragraphs(text(core.description)),
-        cards: [
-          ...card(`passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, core.passive_effect),
-          // No "core power:" label: its place under the core system and its rose header say so.
-          ...card(text(core.active_name) || text(core.name), core.active_effect, TONES.power).map((power) => ({ ...power, ...(activationOf(core.activation) ? { activation: text(core.activation) } : {}) })),
-          ...rules({ actions: [...list(core.passive_actions), ...list(core.active_actions)], deployables: core.deployables }),
-        ],
+        cards: coreCards(core),
       },
     ),
   }
+}
+
+// A core system's passive and its power (no "core power:" label: its place under the core system says so), each
+// with a same-named action folded in, then its other actions and deployables.
+function coreCards(core: Record<string, unknown>): InfoCard[] {
+  let actions = rules({ actions: [...list(core.passive_actions), ...list(core.active_actions)], deployables: core.deployables })
+  const fold = (parent: InfoCard, name: string) => {
+    if (!name) return parent
+    const { card, rest } = absorb(parent, name, actions)
+    actions = rest
+    return card
+  }
+  const passive = fold({ heading: `passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, html: averageDamageText(text(core.passive_effect)), tone: TONES.rules }, text(core.passive_name))
+  const powerName = text(core.active_name) || text(core.name)
+  const power = text(core.active_effect)
+    ? [fold({ heading: powerName, html: averageDamageText(text(core.active_effect)), tone: TONES.power, ...(activationOf(core.activation) ? { activation: text(core.activation) } : {}) }, powerName)]
+    : []
+  return [passive, ...power, ...actions].filter((entry) => entry.html)
 }
 
 export function talentInfo(talent: Talent): Info {

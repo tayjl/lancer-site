@@ -57,6 +57,25 @@ describe('complete core character builds', () => {
     expect(equipmentDetails(weapons.get('mw_assault_rifle')!, {}, death.bonuses).sources).toContain('attack roll bonus: +1')
     expect(death.reminders.some(entry => entry.text.includes('first ranged attack'))).toBe(true)
   })
+  it('adds the check supplement only when the frame’s data lacks it', () => {
+    const blackbeard = frame('mf_blackbeard')
+    const traits = blackbeard.raw!.traits as Record<string, unknown>[]
+    const structured = { ...blackbeard, raw: { ...blackbeard.raw, traits: traits.map(trait => trait.name === 'Exposed Reactor' ? { ...trait, bonuses: [{ id: 'engineering', accuracy: -1 }] } : trait) } }
+    for (const built of [blackbeard, structured]) {
+      const effects = mechEffects({ frame: built.id }, {}, { ...catalogue, frames: [built] })
+      expect(mechResources({}, effects).checks.filter(check => check.text.includes('engineering'))).toHaveLength(1)
+    }
+  })
+  it('lists a trait or core power and its same-named action once, with the action’s chip and text', () => {
+    const base = frame('mf_blackbeard')
+    const custom = { ...base, raw: { ...base.raw,
+      traits: [{ name: 'Lock/Kill', description: 'Short.', active_effects: [{ name: 'Lock/Kill', detail: 'The longer, fuller text.' }] }],
+      core_system: { name: 'Assault Grapples', active_name: 'Omni-harpoon', active_effect: 'Fires harpoons.', active_actions: [{ name: 'Omni-harpoon', activation: 'Quick', trigger: 'You fire.', detail: 'Hull save.' }] },
+    } }
+    const { reminders } = mechEffects({ frame: custom.id }, {}, { ...catalogue, frames: [custom] })
+    expect(reminders.filter(entry => entry.name === 'Lock/Kill')).toEqual([expect.objectContaining({ kind: 'trait', text: 'The longer, fuller text.' })])
+    expect(reminders.filter(entry => entry.name === 'Omni-harpoon')).toEqual([expect.objectContaining({ kind: 'core-power', activation: 'Quick', text: '<b>Trigger:</b> You fire.<br><b>Effect:</b> Hull save.' })])
+  })
   it('increases drone HP from Hydra and Drone Commander without increasing the mech HP', () => {
     const sheet: Sheet = { talents: { t_drone_commander: 1 } }
     const effects = mechEffects({ frame: 'mf_hydra', systems: ['ms_turret_drones'] }, sheet, catalogue)

@@ -24,14 +24,14 @@ let timer: ReturnType<typeof setTimeout> | undefined
 async function flush() {
   clearTimeout(timer)
   timer = undefined
-  status.value = 'saving...'
+  status.value = 'Saving…'
   error.value = (await props.save(draft.value)) ?? ''
-  status.value = error.value ? '' : 'saved'
+  status.value = error.value ? '' : 'Saved'
 }
 
 watch(draft, () => {
   clearTimeout(timer)
-  status.value = 'unsaved'
+  status.value = 'Not saved yet'
   timer = setTimeout(flush, DELAY)
 })
 
@@ -46,11 +46,11 @@ onBeforeUnmount(() => {
     <h2 class="sheet-label">
       {{ title }}<span v-if="tag" class="private">{{ tag }}</span>
       <span class="status" role="status">{{ status }}</span>
-      <span v-if="error" class="status rose" role="alert">not saved: {{ error }}</span>
+      <span v-if="error" class="status error" role="alert">Not saved: {{ error }}</span>
     </h2>
     <RichTextEditor v-if="editable" v-model="draft" :label="title" />
-    <RichText v-else-if="doc" :doc="doc" class="readonly" />
-    <p v-else class="dim readonly">nothing on file.</p>
+    <RichText v-else-if="doc" :doc="doc" class="readonly prose" />
+    <p v-else class="dim readonly">Nothing on file.</p>
   </section>
 </template>
 
@@ -58,8 +58,10 @@ onBeforeUnmount(() => {
 .status {
   margin-left: 0.5rem;
   color: var(--text-dim);
-  font-size: 0.8125rem;
+  font-size: var(--fs-xs);
   font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 /* A taller writing area than the default, with the toolbar tucked above it. */
@@ -69,6 +71,10 @@ onBeforeUnmount(() => {
 
 .field :deep(.ProseMirror) {
   min-height: 11rem;
+}
+
+.status.error {
+  color: var(--danger);
 }
 
 .readonly {

@@ -244,13 +244,13 @@ const logo = computed(() => makerLogo(maker.value))
   margin: 0;
 }
 
-/* Rules, actions and traits: a box each, its name (after the action's chip) over its rules. Side by side unless the
-   group reads in order ("stack"). */
+/* Rules, actions and traits: no box each, they sit on the dialog's surface, a thin rule above each one, then its name
+   (after the action's chip) over its rules. Side by side unless the group reads in order ("stack"). */
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   align-items: start;
-  gap: var(--space-s);
+  gap: var(--space-m) var(--space-xl);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -261,9 +261,10 @@ const logo = computed(() => makerLogo(maker.value))
 }
 
 .card {
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--void);
+  display: grid;
+  gap: var(--space-s);
+  padding-top: var(--space-s);
+  border-top: 1px solid var(--rule);
 }
 
 .card-head {
@@ -272,8 +273,6 @@ const logo = computed(() => makerLogo(maker.value))
   align-items: center;
   gap: var(--space-s);
   margin: 0;
-  padding: 6px var(--space-s);
-  border-bottom: 1px solid var(--rule);
   font-size: var(--fs-m);
 }
 
@@ -290,7 +289,6 @@ const logo = computed(() => makerLogo(maker.value))
 .card-body {
   display: grid;
   gap: var(--space-s);
-  padding: var(--space-s) var(--space-m);
 }
 
 /* Tags: the chip, then what it means. */

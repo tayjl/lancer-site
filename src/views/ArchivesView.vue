@@ -439,10 +439,12 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
   font-style: italic;
 }
 
+/* Even columns, not wrapped flex: every card has the same width and the same five counts, so they all break into the
+   same rows. (Wrapped by text width, GMS's short "0 licences" and "1 frame" fitted on one row fewer, and the
+   auto margin pushing the buttons to the card's foot left a gap under its motto that the other cards didn't have.) */
 .maker-counts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
   gap: 0.25rem var(--space-s);
   margin: auto 0 0;
   padding: var(--space-s) var(--space-m) var(--space-m);
@@ -450,6 +452,8 @@ watch(shownInfo, (info) => { if (!info && route.query.item) setQuery({ item: und
 }
 
 .maker-counts button {
+  width: 100%;
+  white-space: nowrap;
   min-height: 2rem;
   padding: 0.3rem 0.65rem;
   color: var(--maker);

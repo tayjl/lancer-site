@@ -70,10 +70,44 @@ describe('full information', () => {
     expect(info.stats.find(stat => stat.label === 'size')).toMatchObject({ value: '½', range: { min: 0.5, max: 1, at: 0.5 } })
     expect(info.groups[0].title).toBeUndefined()
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['Liturgicode', 'Reactive Code', 'Fragile'])
-    expect(info.groups[0].cards[1].html).toContain('<b>Reactive Code (reaction, 1/round)</b>')
+    // Reactive Code's own reaction is the trait: shown once, with its chip.
+    expect(info.groups[0].cards[1]).toMatchObject({ activation: 'Reaction', frequency: '1/round' })
+    expect(info.groups[0].cards[1].html).toContain('<b>Trigger:</b>')
     const core = info.groups[1]
     expect(core.title).toBe('INSTINCT Rig')
     expect(core.cards.find(card => card.heading === 'Symbiosis')?.activation).toBe('Quick')
+  })
+
+  it('shows an action named like its trait or core power once, with the action’s chip and numbers', () => {
+    const base = frame('mf_blackbeard')
+    const raw = {
+      ...base.raw,
+      traits: [{
+        name: 'Grapple Cable',
+        description: 'The Blackbeard can Grapple.',
+        active_effects: [{ name: 'Grapple cable', detail: 'You can Grapple targets within Range 5.' }],
+        actions: [{ name: 'Reel In', activation: 'Quick', detail: 'Pull.' }],
+      }],
+      core_system: {
+        name: 'Assault Grapples',
+        active_name: 'Omni-harpoon',
+        active_effect: 'Fires harpoons.',
+        activation: 'Quick',
+        active_actions: [{ name: 'Omni-harpoon', activation: 'Quick', trigger: 'You fire.', detail: 'Hull save or take 2d6 Kinetic.', range: [{ type: 'Burst', val: 5 }] }],
+      },
+    }
+    const info = frameInfo({ ...base, raw })
+    const [trait] = info.groups[0].cards
+    expect(trait.heading).toBe('Grapple Cable')
+    expect(trait.html).toContain('You can Grapple targets within Range 5.')
+    expect(trait.html).not.toContain('The Blackbeard can Grapple.')
+    expect(trait.html).toContain('<b>Reel In (quick)</b>')
+    const core = info.groups[1].cards
+    expect(core.map(card => card.heading)).toEqual(['Omni-harpoon'])
+    expect(core[0]).toMatchObject({ activation: 'Quick' })
+    expect(core[0].html).toContain('<b>Trigger:</b> You fire.')
+    expect(core[0].html).not.toContain('Fires harpoons.')
+    expect(core[0].stats?.length).toBeGreaterThan(0)
   })
 
   it('shows every talent rank and core bonus text, with their summaries and lore', () => {
