@@ -54,7 +54,7 @@ export const router = createRouter({
       path: '/registry',
       name: 'registry',
       component: RegistryView,
-      meta: { title: 'pilot registry', summary: 'every approved pilot.', status: 'approved', empty: 'no approved pilots yet.' },
+      meta: { title: 'Pilot registry', summary: 'Every approved pilot.', status: 'approved', empty: 'No approved pilots yet.' },
     },
     // A pilot's record: the pilot sheet, read-only (and its mechs' pages).
     {
@@ -76,17 +76,17 @@ export const router = createRouter({
       name: 'pending',
       component: RegistryView,
       meta: {
-        title: 'pending pilots',
-        summary: 'new pilots waiting on a gm.',
+        title: 'Pending pilots',
+        summary: 'New pilots waiting on a GM.',
         status: 'pending',
-        empty: 'nothing waiting on a gm.',
+        empty: 'Nothing waiting on a GM.',
       },
     },
     {
       path: '/memorial',
       name: 'memorial',
       component: RegistryView,
-      meta: { title: 'memorial', summary: 'pilots who died. their records are kept.', status: 'dead', empty: 'no one has died yet.' },
+      meta: { title: 'Memorial', summary: 'Pilots who died. Their records are kept.', status: 'dead', empty: 'No one has died yet.' },
     },
     // Every piece of game content, browsable and searchable (ArchivesView.vue).
     {

@@ -18,8 +18,8 @@ const waiting = shallowRef<Waiting[]>([])
 const reviewed = shallowRef<Reviewed[]>([])
 const queueCards = computed(() => waiting.value.map(item => ({
   id: item.id, callsign: item.character?.callsign ?? null,
-  name: item.character?.pilot_name ?? 'a deleted pilot', image: item.character?.pilot_image ?? null,
-  player: item.character?.player?.display_name ?? '-', submittedAt: item.submitted_at,
+  name: item.character?.pilot_name ?? 'A deleted pilot', image: item.character?.pilot_image ?? null,
+  player: item.character?.player?.display_name ?? '–', submittedAt: item.submitted_at,
   to: { name: 'gm-change', params: { id: item.id } },
 })))
 const loading = ref(true)
@@ -49,44 +49,44 @@ async function load() {
 // The profile (and so the role) can arrive just after the page opens.
 watch(isGm, (gm) => gm && load(), { immediate: true })
 
-const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'a deleted pilot'
+const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A deleted pilot'
 </script>
 
 <template>
   <main class="page">
-    <PageHeader title="gm: changes" summary="changes players want to make to their approved pilots." />
+    <PageHeader title="GM changes" summary="Changes players want to make to their approved pilots." />
 
-    <p v-if="!profile" class="dim">loading...</p>
-    <p v-else-if="!isGm" class="notice warn" role="alert">access denied. gm clearance required.</p>
+    <p v-if="!profile" class="dim">Loading…</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
     <template v-else>
-      <p v-if="loading" class="empty">loading queue...</p>
+      <p v-if="loading" class="dim">Loading changes…</p>
       <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
-      <ReviewQueue v-else :items="queueCards" description="changes to approved pilots, oldest submission first. open a pilot to review the full change." />
+      <ReviewQueue v-else :items="queueCards" description="Changes to approved pilots, oldest first. Open one to review it." />
 
       <section v-if="!loading && !error" class="panel" aria-labelledby="history-title">
         <header class="panel-head">
-          <h2 id="history-title">reviewed</h2>
-          <p class="dim">the latest reviewed changes.</p>
+          <h2 id="history-title">Reviewed</h2>
+          <p class="dim">The latest reviewed changes.</p>
         </header>
-        <p v-if="!reviewed.length" class="empty">no changes reviewed yet.</p>
+        <p v-if="!reviewed.length" class="empty">No changes reviewed yet.</p>
         <div v-else class="table-window" role="region" aria-label="Reviewed changes" tabindex="0">
           <table class="table">
             <thead>
               <tr>
-                <th scope="col">pilot</th>
-                <th scope="col">status</th>
-                <th scope="col">reviewer</th>
-                <th scope="col">when</th>
-                <th scope="col">reason</th>
+                <th scope="col">Pilot</th>
+                <th scope="col">Status</th>
+                <th scope="col">Reviewer</th>
+                <th scope="col">When</th>
+                <th scope="col">Reason</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in reviewed" :key="item.id">
                 <td><RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="callsign">{{ nameOf(item.character) }}</RouterLink></td>
                 <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'rejected'">{{ item.status }}</span></td>
-                <td>{{ item.reviewer?.display_name ?? '-' }}</td>
-                <td class="dim">{{ item.reviewed_at ? `${since(item.reviewed_at)} ago` : '' }}</td>
-                <td class="dim reason" :title="item.review_reason ?? ''">{{ item.review_reason ?? '-' }}</td>
+                <td>{{ item.reviewer?.display_name ?? '–' }}</td>
+                <td class="dim"><template v-if="item.reviewed_at">{{ since(item.reviewed_at) }} ago</template></td>
+                <td class="dim reason" :title="item.review_reason ?? ''">{{ item.review_reason ?? '–' }}</td>
               </tr>
             </tbody>
           </table>

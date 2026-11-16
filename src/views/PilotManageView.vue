@@ -83,12 +83,12 @@ async function withdraw() {
 // Records' breadcrumb leads back to the queue, or to the list the pilot is in.
 const back = computed(() =>
   reviewing
-    ? { name: 'gm-pilots', label: 'gm: pilots' }
+    ? { name: 'gm-pilots', label: 'GM pilots' }
     : character.value?.status === 'pending'
-      ? { name: 'pending', label: 'pending' }
+      ? { name: 'pending', label: 'Pending' }
       : character.value?.status === 'dead'
-        ? { name: 'memorial', label: 'memorial' }
-        : { name: 'registry', label: 'registry' },
+        ? { name: 'memorial', label: 'Memorial' }
+        : { name: 'registry', label: 'Registry' },
 )
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'pilot-record') watchEffect(() => (sectionOverride.value = back.value.name))

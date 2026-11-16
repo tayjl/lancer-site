@@ -29,39 +29,43 @@ watch(
 <template>
   <main class="page">
     <PageHeader :title="String(route.meta.title)" :summary="route.meta.summary">
-      <span v-if="!loading && !error && pilots.length" class="dim">{{ pilots.length }} {{ pilots.length === 1 ? 'pilot' : 'pilots' }}</span>
+      <span v-if="!loading && !error && pilots.length" class="dim"><span class="num">{{ pilots.length }}</span> {{ pilots.length === 1 ? 'pilot' : 'pilots' }}</span>
     </PageHeader>
 
-    <p v-if="loading" class="dim loading">loading records...</p>
-    <p v-else-if="error" class="notice warn" role="alert">couldn't load the pilots: {{ error }}</p>
+    <p v-if="loading" class="dim">Loading pilots…</p>
+    <p v-else-if="error" class="notice warn" role="alert">Couldn't load the pilots: {{ error }}</p>
     <p v-else-if="!pilots.length" class="empty">{{ route.meta.empty }}</p>
     <template v-else>
       <div class="search">
         <label class="field">
-          <span>search pilots</span>
-          <input v-model="query" type="search" placeholder="callsign, name, player or mech" @keydown.esc="query = ''" />
+          <span>Search</span>
+          <input v-model="query" type="search" placeholder="Callsign, name, player or mech" @keydown.esc="query = ''" />
         </label>
-        <p v-if="query.trim()" class="count" role="status">{{ shown.length }} of {{ pilots.length }} pilots</p>
+        <p v-if="query.trim()" class="dim" role="status"><span class="num">{{ shown.length }}</span> of <span class="num">{{ pilots.length }}</span> pilots</p>
       </div>
-      <p v-if="!shown.length" class="empty">no pilots match that search.</p>
-      <ul v-else class="grid">
-        <li v-for="pilot in shown" :key="pilot.id"><PilotCard :pilot="pilot" /></li>
+      <p v-if="!shown.length" class="empty">No pilots match that search.</p>
+      <ul v-else class="card-grid">
+        <li v-for="pilot in shown" :key="pilot.id">
+          <PilotCard
+            :to="{ name: 'pilot-record', params: { id: pilot.id } }"
+            :image="pilot.pilot_image"
+            :callsign="pilot.callsign"
+            :name="pilot.pilot_name"
+            :mechs="pilot.mechs.map((mech) => mech.name).join(', ')"
+            :player="pilot.player?.display_name"
+            :dead="pilot.status === 'dead'"
+          />
+        </li>
       </ul>
     </template>
   </main>
 </template>
 
 <style scoped>
-.loading {
-  max-width: none;
-  text-align: center;
-}
-
 .search {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: center;
   gap: var(--space-s) var(--space-m);
   margin-bottom: var(--space-l);
 }
@@ -70,31 +74,8 @@ watch(
   flex: 0 1 28rem;
 }
 
-.search input {
-  width: 100%;
-}
-
-.count {
+.search p {
   margin: 0;
   padding-bottom: var(--space-s);
-  color: var(--sky);
-}
-
-/* Cards as many to a row as fit, centred, so a short list sits in the middle. Two to a row on phones. */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 13rem));
-  justify-content: center;
-  gap: var(--space-m);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-@media (max-width: 30rem) {
-  .grid {
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 11rem));
-    gap: 0.75rem;
-  }
 }
 </style>

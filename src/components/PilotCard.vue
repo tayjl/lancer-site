@@ -1,66 +1,60 @@
 <script setup lang="ts">
-import type { PublicPilot } from '../pilots'
+import type { RouteLocationRaw } from 'vue-router'
 import Portrait from './Portrait.vue'
 
-// A small registry card: portrait, callsign, pilot name, mechs and player. Clicking it opens the pilot's record.
-defineProps<{ pilot: PublicPilot }>()
+// A pilot's showcase card (the registry, pending, memorial and the GM review queues): portrait, callsign, pilot name,
+// mechs and player, centred. The slot adds a line (the queues' waiting time). The whole card is the link.
+defineProps<{ to: RouteLocationRaw; image: string | null; callsign: string | null; name: string; mechs?: string; player?: string; dead?: boolean }>()
 </script>
 
 <template>
-  <RouterLink :to="{ name: 'pilot-record', params: { id: pilot.id } }" class="card" :class="{ dead: pilot.status === 'dead' }">
-    <Portrait :src="pilot.pilot_image" :alt="`Portrait of ${pilot.callsign ?? pilot.pilot_name}`" />
-    <p class="callsign">{{ pilot.callsign ?? pilot.pilot_name }}</p>
-    <p>{{ pilot.pilot_name }}</p>
-    <p v-if="pilot.mechs.length" class="dim">{{ pilot.mechs.map((mech) => mech.name).join(', ') }}</p>
-    <p v-if="pilot.player" class="dim player">{{ pilot.player.display_name }}</p>
-    <span v-if="pilot.status === 'dead'" class="badge dead">dead</span>
+  <RouterLink :to="to" class="pilot-card" :class="{ dead }">
+    <Portrait :src="image" :alt="`Portrait of ${callsign || name}`" />
+    <span class="callsign">{{ callsign || name }}</span>
+    <span>{{ name }}</span>
+    <span v-if="mechs" class="dim">{{ mechs }}</span>
+    <span v-if="player" class="dim">Player: {{ player }}</span>
+    <slot />
+    <span v-if="dead" class="badge dead">Dead</span>
   </RouterLink>
 </template>
 
 <style scoped>
-.card {
+.pilot-card {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  gap: 2px;
   height: 100%;
-  padding: 0.75rem;
+  padding: var(--space-m);
   border: 1px solid var(--rule);
+  border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
-  font-size: 0.875rem;
+  font-size: var(--fs-s);
   text-align: center;
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
-.card:hover,
-.card:focus-visible {
+.pilot-card:hover,
+.pilot-card:focus-visible {
   border-color: var(--lilac);
-  background: var(--raised);
   color: var(--text);
 }
 
-.card p {
-  max-width: none;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.pilot-card :deep(.portrait) {
+  align-self: stretch;
+  margin-bottom: var(--space-s);
 }
 
-.card .callsign {
-  margin-top: 0.5rem;
-  color: var(--lilac);
-  font-size: 1.0625rem;
+.callsign {
+  font-size: 17px;
   font-weight: 700;
 }
 
-.player {
-  font-size: 0.8125rem;
-}
-
-.card .badge {
-  align-self: center;
-  margin-top: 0.35rem;
+.badge {
+  margin-top: var(--space-xs);
 }
 
 /* The memorial: the portrait fades, the callsign dims. */

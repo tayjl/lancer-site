@@ -41,7 +41,7 @@ load()
 
 function numbersProblem() {
   const whole = (n: number) => Number.isInteger(n) && n >= 0
-  return whole(level.value) && whole(manna.value) ? '' : 'level and manna should be whole numbers, 0 or more.'
+  return whole(level.value) && whole(manna.value) ? '' : 'Level and manna must be whole numbers, 0 or more.'
 }
 
 async function saveSheet(changes: { level?: number; manna?: number; review_note?: string | null }) {
@@ -52,7 +52,7 @@ async function saveSheet(changes: { level?: number; manna?: number; review_note?
 // Level and manna save on their own button only; approving and sending back never need them.
 // GMs can mark an approved pilot dead too (mark_dead in the database). It can't be undone.
 async function markDead() {
-  if (!(await confirmAction(`mark ${name.value} dead? this can't be undone. they move to the memorial.`, { confirmLabel: 'mark dead', danger: true }))) return
+  if (!(await confirmAction(`Mark ${name.value} dead? This can't be undone. They move to the memorial.`, { confirmLabel: 'Mark dead', danger: true }))) return
   busy.value = true
   const { error: deathError } = await supabase.rpc('mark_dead', { target_character_id: props.pilot.id })
   busy.value = false
@@ -66,14 +66,14 @@ async function saveNumbers() {
   busy.value = true
   error.value = (await saveSheet({ level: level.value, manna: manna.value }))?.message ?? ''
   busy.value = false
-  message.value = error.value ? '' : 'saved.'
+  message.value = error.value ? '' : 'Saved.'
   if (!error.value) emit('reviewed')
 }
 
 async function approve() {
   error.value = ''
-  const warning = props.problems.length ? ` the rule check lists ${props.problems.length} problem(s).` : ''
-  if (!(await confirmAction(`approve ${name.value}? they'll appear in the pilot registry.${warning}`, { confirmLabel: 'approve' }))) return
+  const warning = props.problems.length ? ` The rule check lists ${props.problems.length} ${props.problems.length === 1 ? 'problem' : 'problems'}.` : ''
+  if (!(await confirmAction(`Approve ${name.value}? They'll appear in the pilot registry.${warning}`, { confirmLabel: 'Approve pilot' }))) return
   busy.value = true
   const sheetError = await saveSheet({ review_note: note.value.trim() || null })
   const { error: statusError } = sheetError
@@ -88,46 +88,47 @@ async function approve() {
 }
 
 async function sendBack() {
-  error.value = note.value.trim() ? '' : 'write a note first, so the player knows what to change.'
+  error.value = note.value.trim() ? '' : 'Write a note first, so the player knows what to change.'
   if (error.value) return
   busy.value = true
   error.value = (await saveSheet({ review_note: note.value.trim() }))?.message ?? ''
   busy.value = false
-  message.value = error.value ? '' : 'sent back. the player sees your note on their sheet.'
+  message.value = error.value ? '' : 'Sent back. The player sees your note on their sheet.'
 }
 </script>
 
 <template>
-  <section class="decision panel">
-    <h2 class="sheet-label">{{ pending ? 'decision' : 'gm controls' }}<span class="private">GM only</span></h2>
-    <p v-if="loading" class="dim">loading...</p>
-    <form v-else class="decision-body" @submit.prevent>
+  <section class="panel">
+    <h2 class="sheet-label">{{ pending ? 'Decision' : 'GM controls' }}<span class="private">GM only</span></h2>
+    <p v-if="loading" class="dim">Loading…</p>
+    <form v-else class="decision" @submit.prevent>
       <div v-if="!pending" class="numbers">
         <label class="field">
-          <span>level (gained narratively)</span>
+          <span>Level</span>
           <input v-model.number="level" type="number" min="0" step="1" />
         </label>
         <label class="field">
-          <span>manna received (in total)</span>
+          <span>Manna received</span>
           <input v-model.number="manna" type="number" min="0" step="1" />
         </label>
-        <button type="button" :disabled="busy" @click="saveNumbers">save level and manna</button>
+        <button type="button" :disabled="busy" @click="saveNumbers">Save level and manna</button>
       </div>
       <template v-if="pending">
         <label class="field">
-          <span>note to the player (sent with either decision; required to refuse)</span>
+          <span>Note to the player</span>
           <textarea v-model="note" rows="3"></textarea>
+          <span class="hint">Sent with either decision. Needed to refuse.</span>
         </label>
         <RuleCheck :problems="problems" />
       </template>
       <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
-      <p v-else-if="message" class="dim" role="status">{{ message }}</p>
+      <p v-else-if="message" class="notice ok" role="status">{{ message }}</p>
       <div v-if="pending" class="actions">
-        <button type="button" class="primary" :disabled="busy" @click="approve">approve pilot</button>
-        <button type="button" class="danger" :disabled="busy" @click="sendBack">refuse pilot</button>
+        <button type="button" class="primary" :disabled="busy" @click="approve">Approve pilot</button>
+        <button type="button" class="danger" :disabled="busy" @click="sendBack">Refuse pilot</button>
       </div>
       <div v-else-if="pilot.status === 'approved'" class="actions">
-        <button type="button" class="danger" :disabled="busy" @click="markDead">mark pilot dead</button>
+        <button type="button" class="danger" :disabled="busy" @click="markDead">Mark pilot dead</button>
       </div>
     </form>
   </section>
@@ -135,16 +136,12 @@ async function sendBack() {
 
 <style scoped>
 .decision {
-  border-color: var(--lilac);
-}
-
-.decision-body {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-m);
 }
 
-.decision-body p {
+.decision p {
   margin: 0;
 }
 
@@ -161,12 +158,12 @@ input[type='number'] {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.75rem 1.5rem;
+  gap: var(--space-m) var(--space-xl);
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  gap: var(--space-s) var(--space-m);
 }
 </style>

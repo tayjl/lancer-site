@@ -839,6 +839,24 @@ label.field .error {
   background: var(--raised);
 }
 
+/* A grid of pilot cards (PilotCard.vue: the registry and the GM queues): showcase cards, so the group is centred.
+   Two to a row on phones. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 13rem));
+  justify-content: center;
+  gap: var(--space-m);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 30rem) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 10.5rem));
+  }
+}
+
 /* A grid of item cards (SlotCard.vue, ItemCard.vue): as many 20rem columns as fit, one on phones. */
 .slot-grid {
   display: grid;

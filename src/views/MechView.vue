@@ -43,10 +43,10 @@ const { character, sheet, canSeePrivate, loading, loadError, editable, mechs, dr
 // The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
 const list = computed(() =>
   character.value?.status === 'pending'
-    ? { name: 'pending', label: 'pending' }
+    ? { name: 'pending', label: 'Pending' }
     : character.value?.status === 'dead'
-      ? { name: 'memorial', label: 'memorial' }
-      : { name: 'registry', label: 'registry' },
+      ? { name: 'memorial', label: 'Memorial' }
+      : { name: 'registry', label: 'Registry' },
 )
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'record-mech') watchEffect(() => (sectionOverride.value = list.value.name))

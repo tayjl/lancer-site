@@ -37,12 +37,12 @@ export type Names = {
   system: (id: string) => string
 }
 
+// Each line says what happened to one thing: added (new), raised or lowered (a number or rank went up or down),
+// removed (gone) or updated (anything else). The text names the thing without repeating the verb: "Acuity 2 → 3".
 export type DiffLine = {
   section: string
   text: string
-  kind: 'addition' | 'removal' | 'edit'
-  display?: string
-  increase?: number
+  kind: 'added' | 'raised' | 'removed' | 'lowered' | 'updated'
   doc?: Json | null
 }
 
@@ -67,39 +67,41 @@ export function changeDiff(
   names: Names,
 ): DiffLine[] {
   const lines: DiffLine[] = []
-  const add = (section: string, text: string, kind: DiffLine['kind'] = 'edit', extra: Pick<DiffLine, 'display' | 'doc' | 'increase'> = {}) =>
-    lines.push({ section, text, kind, ...extra })
+  // Sentence case: the first letter is a capital, whatever the name or id starts with.
+  const add = (section: string, text: string, kind: DiffLine['kind'] = 'updated', doc?: Json | null) =>
+    lines.push({ section, text: text.charAt(0).toUpperCase() + text.slice(1), kind, ...(doc !== undefined ? { doc } : {}) })
   const listChanges = <T>(section: string, from: T[] | undefined, to: T[] | undefined, name: (item: T) => string) => {
     const { added, removed } = listDiff(from, to)
-    added.forEach((item) => add(section, `added ${name(item)}`, 'addition'))
-    removed.forEach((item) => add(section, `removed ${name(item)}`, 'removal'))
+    added.forEach((item) => add(section, name(item), 'added'))
+    removed.forEach((item) => add(section, name(item), 'removed'))
   }
+  // Before → after for a field: added when it was empty, removed when it's emptied, otherwise updated.
+  const field = (section: string, label: string, a: unknown, b: unknown) =>
+    add(section, `${label}: ${shown(a)} → ${shown(b)}`, shown(a) === '-' ? 'added' : shown(b) === '-' ? 'removed' : 'updated')
   const ranks = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, name: (id: string) => string) => {
     for (const id of new Set([...Object.keys(from), ...Object.keys(to)])) {
       const [a, b] = [from[id] ?? 0, to[id] ?? 0]
-      if (a !== b) add(section, a === 0 ? `${name(id)}: new at rank ${rankName(b)}` : b === 0 ? `${name(id)}: dropped` : `${name(id)}: rank ${rankName(a)} → ${rankName(b)}`,
-        b > a ? 'addition' : 'removal', { display: b > a ? `${name(id)}: rank ${rankName(b)}` : undefined, increase: b > a ? b - a : undefined })
+      if (a === b) continue
+      if (a === 0) add(section, `${name(id)}, rank ${rankName(b)}`, 'added')
+      else if (b === 0) add(section, `${name(id)}, rank ${rankName(a)}`, 'removed')
+      else add(section, `${name(id)}, rank ${rankName(a)} → ${rankName(b)}`, b > a ? 'raised' : 'lowered')
     }
   }
   const stats = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, start: number) => {
     for (const id of new Set([...Object.keys(from), ...Object.keys(to)])) {
       const [a, b] = [from[id] ?? start, to[id] ?? start]
-      if (a !== b) add(section, `${names.stat(id)} ${a} → ${b}`, b > a ? 'addition' : 'removal',
-        { display: b > a ? `${names.stat(id)}: ${b}` : undefined, increase: b > a ? b - a : undefined })
+      if (a !== b) add(section, `${names.stat(id)} ${a} → ${b}`, b > a ? 'raised' : 'lowered')
     }
   }
 
   // Public card.
   for (const column of ['pilot_name', 'callsign', 'age', 'gender', 'sexuality', 'height', 'weight', 'eye_colour', 'hair_colour'] as const)
-    if (!same(before.card[column], after.card[column]))
-      add('identity', `${column.replace('_', ' ')}: ${shown(before.card[column])} → ${shown(after.card[column])}`,
-        shown(before.card[column]) === '-' ? 'addition' : shown(after.card[column]) === '-' ? 'removal' : 'edit',
-        { display: `${column.replace('_', ' ')}: ${shown(after.card[column])}` })
+    if (!same(before.card[column], after.card[column])) field('identity', column.replace('_', ' '), before.card[column], after.card[column])
   if (!same(before.card.pilot_image, after.card.pilot_image))
-    add('identity', 'portrait changed', before.card.pilot_image ? 'edit' : 'addition')
+    add('identity', 'portrait', !before.card.pilot_image ? 'added' : !after.card.pilot_image ? 'removed' : 'updated')
   for (const column of ['appearance', 'personality', 'traits'] as const)
-    if (!same(before.card[column], after.card[column])) add(column, `${column} updated`, before.card[column] ? 'edit' : 'addition', { doc: after.card[column] })
-  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'backstory updated', before.sheet.backstory ? 'edit' : 'addition', { doc: after.sheet.backstory })
+    if (!same(before.card[column], after.card[column])) add(column, column, before.card[column] ? 'updated' : 'added', after.card[column])
+  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'backstory', before.sheet.backstory ? 'updated' : 'added', after.sheet.backstory)
 
   // Stats and what manna buys.
   stats('personal stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 2)
@@ -111,24 +113,24 @@ export function changeDiff(
   const mechsOf = (card: PublicCard) => (Array.isArray(card.mechs) ? (card.mechs as unknown as PublicMech[]) : [])
   const fromMechs = new Map(mechsOf(before.card).map((m) => [m.id, m]))
   const toMechs = new Map(mechsOf(after.card).map((m) => [m.id, m]))
-  for (const [id, mech] of fromMechs) if (!toMechs.has(id)) add('mech hangar', `scrapped ${mech.name}`, 'removal')
+  for (const [id, mech] of fromMechs) if (!toMechs.has(id)) add('mech hangar', mech.name, 'removed')
   for (const [id, mech] of toMechs) {
     const old = fromMechs.get(id)
     const section = `mech: ${mech.name}`
     if (!old) {
-      add('mech hangar', `new mech ${mech.name} (${mech.manufacturer_id})`, 'addition')
-      if (mech.appearance) add(`${section} / appearance`, 'appearance', 'addition', { doc: mech.appearance })
+      add('mech hangar', `${mech.name} (${mech.manufacturer_id})`, 'added')
+      if (mech.appearance) add(`${section} / appearance`, 'appearance', 'added', mech.appearance)
     }
     else {
-      if (old.name !== mech.name) add(`${section} / identity`, `renamed from ${old.name}`)
-      if (old.manufacturer_id !== mech.manufacturer_id) add(`${section} / identity`, `manufacturer id: ${old.manufacturer_id} → ${mech.manufacturer_id}`)
-      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'appearance updated', 'edit', { doc: mech.appearance })
-      if (!same(old.image, mech.image)) add(`${section} / appearance`, 'image changed')
+      if (old.name !== mech.name) field(`${section} / identity`, 'name', old.name, mech.name)
+      if (old.manufacturer_id !== mech.manufacturer_id) field(`${section} / identity`, 'manufacturer ID', old.manufacturer_id, mech.manufacturer_id)
+      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'appearance', old.appearance ? 'updated' : 'added', mech.appearance)
+      if (!same(old.image, mech.image)) add(`${section} / appearance`, 'image', !old.image ? 'added' : !mech.image ? 'removed' : 'updated')
     }
     const a: MechPrivate = before.sheet.mechs?.[id] ?? {}
     const b: MechPrivate = after.sheet.mechs?.[id] ?? {}
     if ((a.frame ?? null) !== (b.frame ?? null))
-      add(`${section} / frame`, `frame: ${a.frame ? names.frame(a.frame) : '-'} → ${b.frame ? names.frame(b.frame) : '-'}`, a.frame ? 'edit' : 'addition', { display: `frame: ${b.frame ? names.frame(b.frame) : '-'}` })
+      field(`${section} / frame`, 'frame', a.frame && names.frame(a.frame), b.frame && names.frame(b.frame))
     const weapons = (m: MechPrivate) => (m.mounts ?? []).flat().filter((x): x is string => !!x)
     listChanges(`${section} / weapon mounts`, weapons(a), weapons(b), names.weapon)
     const mountChanges = listDiff(weapons(a), weapons(b))
@@ -156,7 +158,7 @@ export function changeDiff(
         const label = key.startsWith('integrated:') ? names.weapon(key.slice('integrated:'.length)) : `mount ${mount + 1}, weapon ${place + 1}`
         add(`${section} / weapon mounts`, `${label} configuration: ${configuration(a.weapon_options?.[key])} → ${configuration(b.weapon_options?.[key])}`)
       }
-    if (!same(a.history, b.history)) add(`${section} / history`, 'history updated', a.history ? 'edit' : 'addition', { doc: b.history })
+    if (!same(a.history, b.history)) add(`${section} / history`, 'history', a.history ? 'updated' : 'added', b.history)
   }
   ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)
   listChanges('core bonuses', before.sheet.core_bonuses, after.sheet.core_bonuses, names.coreBonus)

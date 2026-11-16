@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { isGm, profile, session } from '../auth'
 import { confirmAction } from '../confirm'
 import { changeDiff, PUBLIC_COLUMNS, type PublicCard, type DiffLine } from '../changeDiff'
+import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import RichText from '../components/RichText.vue'
@@ -34,7 +35,7 @@ const { frames, weapons, systems, integrated } = useMechData()
 async function load() {
   const { data: row, error: loadError } = await supabase.from('pending_changes').select('*').eq('id', Number(route.params.id)).maybeSingle()
   change.value = row
-  error.value = loadError?.message ?? (row ? '' : 'no change with that id.')
+  error.value = loadError?.message ?? (row ? '' : 'No change with that ID.')
   if (row) {
     const [card, sheetRow] = await Promise.all([
       supabase.from('characters').select('*, player:profiles(display_name)').eq('id', row.character_id).maybeSingle(),
@@ -44,7 +45,7 @@ async function load() {
     approved.value = sheetRow.data
       ? { ...sheetRow.data, sheet: sheetRow.data.sheet as unknown as Sheet }
       : null
-    error.value = card.error?.message ?? sheetRow.error?.message ?? (!card.data || !sheetRow.data ? 'could not load the complete pilot record. reload before reviewing.' : '')
+    error.value = card.error?.message ?? sheetRow.error?.message ?? (!card.data || !sheetRow.data ? 'Could not load the complete pilot record. Reload before reviewing.' : '')
   }
   loading.value = false
 }
@@ -54,7 +55,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
 const proposedSheet = computed(() => (change.value?.proposed_sheet ?? {}) as unknown as Sheet)
 const proposedCard = computed(() => (change.value?.proposed_public ?? {}) as PublicCard)
 const pending = computed(() => change.value?.status === 'pending')
-const name = computed(() => pilot.value?.callsign ?? pilot.value?.pilot_name ?? 'a pilot')
+const name = computed(() => pilot.value?.callsign ?? pilot.value?.pilot_name ?? 'A pilot')
 const waiting = computed(() => change.value?.status === 'pending' && !!change.value.submitted_at)
 
 // --- What changes, grouped by section in the order changeDiff gives ---
@@ -66,7 +67,7 @@ const lines = computed(() => {
     { card, sheet: approved.value.sheet },
     { card: { ...card, ...proposedCard.value }, sheet: proposedSheet.value },
     {
-      stat: (id) => find(pilotStats.value, id).toLowerCase(),
+      stat: (id) => find(pilotStats.value, id),
       licence: (id) => licenceName(frames.value, id),
       talent: (id) => find(talents.value, id),
       coreBonus: (id) => find(coreBonuses.value, id),
@@ -92,10 +93,18 @@ const sections = computed(() => {
   }
   return grouped(lines.value).sort(([a], [b]) => order(a) - order(b))
 })
-const changeKinds = [
-  { kind: 'addition', label: 'added / increased', symbol: '+' },
-  { kind: 'removal', label: 'removed / reduced', symbol: '−' },
-  { kind: 'edit', label: 'updated', symbol: '~' },
+// Each kind's word, symbol and tone (up = --ok, down = --danger, info = --info); the key line counts them by tone.
+const KINDS = {
+  added: { label: 'Added', icon: 'plus', tone: 'up' },
+  raised: { label: 'Raised', icon: 'plus', tone: 'up' },
+  removed: { label: 'Removed', icon: 'minus', tone: 'down' },
+  lowered: { label: 'Lowered', icon: 'minus', tone: 'down' },
+  updated: { label: 'Updated', icon: '', tone: 'info' },
+} as const satisfies Record<DiffLine['kind'], { label: string; icon: string; tone: string }>
+const tones = [
+  { tone: 'up', icon: 'plus', key: 'added or raised' },
+  { tone: 'down', icon: 'minus', key: 'removed or lowered' },
+  { tone: 'info', icon: '', key: 'updated' },
 ] as const
 
 // --- Manna: what the change costs, and what's left after it ---
@@ -103,6 +112,7 @@ const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}))
 const spentAfter = computed(() => mannaSpent(proposedSheet.value))
 const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
+const amount = (n: number) => n.toLocaleString('en-GB')
 
 // --- The rule check on the proposed sheet, and whether the pilot changed since the change was started ---
 const problems = computed(() =>
@@ -137,8 +147,8 @@ const reason = ref('')
 const busy = ref(false)
 
 async function approve() {
-  const warning = problems.value.length ? ` the rule check lists ${problems.value.length} problem(s).` : ''
-  if (!(await confirmAction(`approve this change to ${name.value}? it goes live straight away.${warning}`, { confirmLabel: 'approve change' }))) return
+  const warning = problems.value.length ? ` The rule check lists ${problems.value.length} ${problems.value.length === 1 ? 'problem' : 'problems'}.` : ''
+  if (!(await confirmAction(`Approve this change to ${name.value}? It goes live straight away.${warning}`, { confirmLabel: 'Approve change' }))) return
   busy.value = true
   const { error: approveError } = await supabase.rpc('approve_change', { change_id: change.value!.id })
   busy.value = false
@@ -148,7 +158,7 @@ async function approve() {
 
 async function reject() {
   if (!reason.value.trim()) {
-    error.value = 'write a reason first, so the player knows what to fix.'
+    error.value = 'Write a reason first, so the player knows what to fix.'
     return
   }
   busy.value = true
@@ -164,70 +174,73 @@ async function reject() {
 
 <template>
   <main class="page">
-    <PageHeader :title="`change: ${name}`" :crumbs="[{ label: 'gm: changes', to: { name: 'gm-changes' } }, { label: name }]" />
+    <PageHeader :title="`Change to ${name}`" :crumbs="[{ label: 'GM changes', to: { name: 'gm-changes' } }, { label: name }]" />
 
-    <p v-if="!profile" class="dim">loading change...</p>
-    <p v-else-if="!isGm" class="notice warn" role="alert">access denied. gm clearance required.</p>
-    <p v-else-if="loading" class="empty">loading change...</p>
+    <p v-if="!profile" class="dim">Loading change…</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
+    <p v-else-if="loading" class="dim">Loading change…</p>
     <p v-else-if="!change || !pilot || !approved" class="notice warn" role="alert">{{ error }}</p>
     <template v-else>
       <!-- The summary strip: whose change, and the manna. Sticks under the top bar on wide, tall screens. -->
       <section class="strip panel" aria-label="Change summary">
-        <div class="who">
-          <p class="pilot-name">{{ pilot?.pilot_name }}</p>
-          <p class="dim">
-            played by <span class="rose">{{ pilot?.player?.display_name ?? '-' }}</span>.
-            <template v-if="waiting">submitted {{ since(change.submitted_at!) }} ago.</template>
-            <template v-else-if="change.status === 'pending'">still a draft: the player hasn't submitted it.</template>
-            <template v-else>{{ change.status }}{{ change.reviewed_at ? ` ${since(change.reviewed_at)} ago` : '' }}.</template>
+        <div>
+          <p class="pilot-name">{{ pilot.pilot_name }}</p>
+          <p class="sep dim">
+            <span>Player: {{ pilot.player?.display_name ?? '–' }}</span>
+            <span v-if="waiting">Submitted {{ since(change.submitted_at!) }} ago</span>
+            <span v-else-if="pending">Draft: not submitted yet</span>
+            <span v-else><span class="badge" :class="change.status">{{ change.status }}</span></span>
           </p>
-          <RouterLink v-if="pilot" :to="{ name: 'gm-review', params: { id: pilot.id } }">approved record and gm controls</RouterLink>
+          <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }">Open the record and GM controls</RouterLink>
         </div>
-        <div class="manna" aria-label="Manna summary">
-          <dl class="manna-figures">
+        <div>
+          <dl class="figures">
             <div v-if="pending">
-              <dt>balance before</dt>
-              <dd>{{ approved.manna - spentBefore }}</dd>
+              <dt class="label">Balance before</dt>
+              <dd class="num">{{ amount(approved.manna - spentBefore) }}</dd>
             </div>
             <div>
-              <dt>{{ !pending ? 'proposal spending' : cost < 0 ? 'manna refunded' : 'cost of change' }}</dt>
-              <dd :class="{ spending: (pending ? cost : spentAfter) > 0, gain: pending && cost < 0 }">{{ pending ? Math.abs(cost) : spentAfter }}</dd>
+              <dt class="label">{{ !pending ? 'Proposal spending' : cost < 0 ? 'Manna refunded' : 'Cost of change' }}</dt>
+              <dd class="num" :class="{ 'tone-down': (pending ? cost : spentAfter) > 0, 'tone-up': pending && cost < 0 }">
+                {{ pending ? (cost < 0 ? '+' : cost > 0 ? '−' : '') + amount(Math.abs(cost)) : amount(spentAfter) }}
+              </dd>
             </div>
             <div>
-              <dt>{{ pending ? 'balance after' : 'manna left' }}</dt>
-              <dd :class="left < 0 ? 'spending' : 'balance'">{{ left }}</dd>
+              <dt class="label">{{ pending ? 'Balance after' : 'Manna left' }}</dt>
+              <dd class="num" :class="left < 0 ? 'tone-down' : 'tone-info'">{{ amount(left) }}</dd>
             </div>
           </dl>
-          <p class="dim">{{ approved.manna }} received · <span class="spending">{{ spentAfter }}</span> total spent on the proposed sheet</p>
+          <p class="dim figures-note"><span class="num">{{ amount(approved.manna) }}</span> received · <span class="num">{{ amount(spentAfter) }}</span> spent on the proposed sheet</p>
         </div>
       </section>
 
       <p v-if="stale && pending" class="notice warn" role="alert">
-        this pilot changed after submission. approval is blocked so the player's proposal cannot overwrite newer edits.
+        This pilot changed after the change was made. Approval is blocked, so the proposal can't overwrite newer edits.
       </p>
       <RuleCheck v-if="pending" :problems="problems" />
 
-      <section v-if="pending" class="changes" aria-label="Proposed changes">
-        <div class="change-key" aria-label="Change summary">
-          <span v-for="kind in changeKinds" :key="kind.kind" :class="kind.kind">
-            {{ kind.symbol }} {{ lines.filter(line => line.kind === kind.kind).length }} {{ kind.label }}
+      <section v-if="pending" aria-label="Proposed changes">
+        <p class="change-key">
+          <span v-for="t in tones" :key="t.tone" :class="`tone-${t.tone}`">
+            <Icon v-if="t.icon" :name="t.icon" /><span v-else aria-hidden="true">~</span>
+            <span class="num">{{ lines.filter((line) => KINDS[line.kind].tone === t.tone).length }}</span> {{ t.key }}
           </span>
-        </div>
-        <p v-if="!lines.length" class="empty">no changes to the approved record.</p>
+        </p>
+        <p v-if="!lines.length" class="empty">No changes to the approved record.</p>
         <div v-else class="change-groups">
-          <section v-for="[section, items] in sections" :key="section" class="change-group panel">
+          <section v-for="[section, items] in sections" :key="section" class="panel">
             <h2 class="sheet-label">{{ section }}</h2>
             <ul>
-              <li v-for="(line, i) in items" :key="i" :class="line.kind">
-                <span class="change-kind">
-                  {{ changeKinds.find(kind => kind.kind === line.kind)!.symbol }}
-                  {{ changeKinds.find(kind => kind.kind === line.kind)!.label }}
+              <li v-for="(line, i) in items" :key="i">
+                <span class="change-kind" :class="`tone-${KINDS[line.kind].tone}`">
+                  <Icon v-if="KINDS[line.kind].icon" :name="KINDS[line.kind].icon" /><span v-else aria-hidden="true">~</span>
+                  {{ KINDS[line.kind].label }}
                 </span>
                 <div class="change-content">
-                  <p class="item-name">{{ line.text }}</p>
+                  <p>{{ line.text }}</p>
                   <details v-if="line.doc" class="writing-preview">
-                    <summary>view proposed text</summary>
-                    <RichText :doc="line.doc" class="new-writing prose" />
+                    <summary>View proposed text</summary>
+                    <RichText :doc="line.doc" class="prose" />
                   </details>
                 </div>
               </li>
@@ -235,25 +248,28 @@ async function reject() {
           </section>
         </div>
       </section>
-      <p v-if="!pending" class="notice info">this change has been reviewed. its original comparison and cost were not stored; the figures above use the proposal and the current manna received.</p>
+      <p v-if="!pending" class="notice info">This change has been reviewed. Its original comparison and cost weren't stored, so the figures above use the proposal and the current manna received.</p>
 
-      <section v-if="waiting" class="decision panel" aria-labelledby="decision-title">
-        <h2 id="decision-title" class="sheet-label">decision<span class="private">GM only</span></h2>
-        <div class="decision-body">
+      <section v-if="waiting" class="panel" aria-labelledby="decision-title">
+        <h2 id="decision-title" class="sheet-label">Decision<span class="private">GM only</span></h2>
+        <div class="decision">
           <label class="field">
-            <span>reason (needed to reject)</span>
+            <span>Reason</span>
             <textarea v-model="reason" rows="3"></textarea>
+            <span class="hint">Needed to reject. The player sees it.</span>
           </label>
-          <p v-if="stale" class="rose">approve is off: this pilot changed after the change was submitted.</p>
           <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
           <div class="actions">
-            <button type="button" class="primary" :disabled="busy || stale" @click="approve">approve change</button>
-            <button type="button" class="danger" :disabled="busy" @click="reject">reject with reason</button>
+            <span class="blocked">
+              <button type="button" class="primary" :disabled="busy || stale" :aria-describedby="stale ? 'approve-why' : undefined" @click="approve">Approve change</button>
+              <span v-if="stale" id="approve-why" class="blocked-reason">The pilot changed after this change was made.</span>
+            </span>
+            <button type="button" class="danger" :disabled="busy" @click="reject">Reject change</button>
           </div>
         </div>
       </section>
       <section v-else-if="change.status === 'rejected'" class="panel">
-        <h2 class="sheet-label">rejected</h2>
+        <h2 class="sheet-label">Reason for rejecting</h2>
         <p class="prose">{{ change.review_reason }}</p>
       </section>
     </template>
@@ -263,7 +279,7 @@ async function reject() {
 <style scoped>
 main > * + * { margin-top: var(--space-l); }
 
-/* --- The summary strip --- */
+/* --- The summary strip: whose change, then the manna as labels over numbers, like the pilot sheet's header --- */
 .strip {
   display: flex;
   flex-wrap: wrap;
@@ -273,61 +289,54 @@ main > * + * { margin-top: var(--space-l); }
   overflow-wrap: anywhere;
 }
 
-.who p { max-width: none; margin: 0; }
-.pilot-name { color: var(--lilac); font: 700 1.25rem/1.3 var(--mono); }
-.manna p { max-width: none; margin: 0.35rem 0 0; font-size: 0.8125rem; }
+.strip p { max-width: none; margin: 0 0 var(--space-xs); }
+.pilot-name { font-size: var(--fs-l); font-weight: 700; }
+.sep { font-size: var(--fs-s); }
 
-.manna-figures {
+.figures {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 2.5rem;
+  gap: var(--space-s) var(--space-xl);
   margin: 0;
 }
 
-.manna-figures > div { display: flex; flex-direction: column; }
-.manna-figures dt { color: var(--text-dim); font-size: 0.8125rem; }
-.manna-figures dd { margin: 0; color: var(--lilac); font: 600 1.375rem/1.3 var(--mono); }
-.gain, .manna-figures dd.gain { color: var(--mint); }
-.spending, .manna-figures dd.spending { color: var(--rose); }
-.balance, .manna-figures dd.balance { color: var(--sky); }
+.figures dd { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.1; }
+.figures-note { margin-top: var(--space-xs); font-size: var(--fs-xs); }
 
 /* Sticky only where there's room: wide and tall screens, as on the pilot sheet. */
 @media (min-width: 48rem) and (min-height: 40rem) {
   .strip { position: sticky; top: var(--topbar-h); z-index: 2; }
 }
 
-/* --- What changes --- */
-.change-key { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem 2rem; margin-bottom: var(--space-m); font-size: 0.875rem; }
-.addition { color: var(--mint); }
-.removal { color: var(--rose); }
-.edit { color: var(--sky); }
+/* --- What changes. Colour is never alone: every line keeps its symbol and word. --- */
+.tone-up { color: var(--ok); }
+.tone-down { color: var(--danger); }
+.tone-info { color: var(--info); }
+.change-key { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-xl); max-width: none; margin: 0 0 var(--space-m); font-size: var(--fs-s); }
+.change-key > span, .change-kind { display: inline-flex; align-items: center; gap: var(--space-xs); }
 .change-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-m); align-items: start; }
-.change-group { min-width: 0; }
-.change-group ul { margin: 0; padding: 0; list-style: none; }
-.change-group li { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 0.75rem; padding: 0.75rem 0; border-top: 1px solid var(--rule); }
-.change-kind { font-size: 0.8125rem; padding-top: 0.125rem; }
-.change-content { min-width: 0; }
-.item-name { max-width: none; margin: 0; color: var(--text); overflow-wrap: anywhere; }
-.writing-preview { margin-top: 0.5rem; }
-/* A boxed disclosure, so it reads as something to open. */
-.writing-preview summary { display: inline-block; padding: 0.2rem 0.6rem; border: 1px solid var(--rule); color: var(--lilac); font-size: 0.875rem; cursor: pointer; }
+.change-groups ul { margin: 0; padding: 0; list-style: none; }
+.change-groups li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--space-m); padding: var(--space-s) 0; border-top: 1px solid var(--rule); }
+.change-kind { align-self: start; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; line-height: 1.6; text-transform: uppercase; }
+.change-content { min-width: 0; overflow-wrap: anywhere; }
+.change-content p { max-width: none; margin: 0; }
+.writing-preview { margin-top: var(--space-s); }
+/* A disclosure drawn as a small button, so it reads as something to open. */
+.writing-preview summary { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--edge); border-radius: var(--radius); color: var(--lilac); font: 700 var(--fs-xs) / 1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
 .writing-preview summary:hover { border-color: var(--lilac); }
-.writing-preview[open] summary { margin-bottom: 0.5rem; }
-.new-writing { color: var(--text); }
+.writing-preview[open] summary { margin-bottom: var(--space-s); }
 
 /* --- The decision --- */
-.decision { border-color: var(--lilac); }
-.decision-body { display: flex; flex-direction: column; gap: 0.75rem; }
-.decision-body p { margin: 0; }
+.decision { display: flex; flex-direction: column; gap: var(--space-m); }
+.decision p { margin: 0; }
 textarea { width: 100%; resize: vertical; }
-.actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-s) var(--space-m); }
 
 @media (max-width: 70rem) {
   .change-groups { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 35rem) {
-  .change-group li { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
-  .manna-figures { gap: 0.5rem 1.5rem; }
+  .change-groups li { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
 }
 </style>
