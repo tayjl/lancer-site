@@ -1,0 +1,10 @@
+// Cloudflare Workers config: serves the built site (static files only, no server code).
+{
+  "name": "lancer-site",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    // Clean URLs like /registry/42 have no file, so send them to index.html and let Vue Router handle them.
+    "not_found_handling": "single-page-application"
+  }
+}

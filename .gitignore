@@ -19,7 +19,6 @@ dist-ssr
 
 # Local tool output
 graphify-out/
-.vercel
 
 # Editor directories and files
 .vscode/*

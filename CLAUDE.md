@@ -17,7 +17,12 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 ## Tech stack (decided)
 - **Frontend:** Vue + Vite (I already know Vue), with **TypeScript**.
 - **Database, logins and security rules:** Supabase (free tier).
-- **Hosting:** Cloudflare (decided by the developer, 2026-11-16, replacing Vercel). The move isn't done yet: `vercel.json` is still in the repo, and whether it's Cloudflare Pages or Workers static assets isn't decided. **Cloudflare builds and deploys from the GitHub repo on every push**, so pushing is going live: ask before pushing.
+- **Hosting:** Cloudflare (decided by the developer, 2026-11-16). **Cloudflare builds and deploys from the GitHub repo on every push**, so pushing is going live: ask before pushing.
+  - **Set up as a Cloudflare Worker serving static files** (Workers & Pages → Create → Import a repository). `wrangler.jsonc` serves `dist/` and sends unknown paths to `index.html` (`not_found_handling: "single-page-application"`); `.node-version` pins Node 24 for the build (Vite 8 needs 20.19+).
+  - **Build settings in the dashboard:** build command `npm run build`, deploy command `npx wrangler deploy` (the default).
+  - **Build variables:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` must be set under the Worker's Settings → Build → Variables and secrets (build-time, not runtime: Vite bakes them into the files). Never the secret key.
+  - **Discord login:** the login sends people back to the page's own address (`redirectTo: window.location.origin`), so add the Cloudflare address (`https://lancer-site.<account>.workers.dev`, and any custom domain) to Supabase → Authentication → URL Configuration (Site URL and Redirect URLs). Otherwise login returns to the old address or fails.
+  - After the first deploy: refresh a deep link like `/registry` (should not 404) and log in once.
 - **No custom backend API.** The Vue app talks straight to Supabase using `supabase-js`. Keep it simple.
 
 ## How the pieces fit
@@ -138,9 +143,9 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 
 ## Gotchas
 - **Vite environment variables:** only variables starting with `VITE_` reach the browser, and those are public. Only the public Supabase key goes in a `VITE_` variable. Keep `.env` files out of git.
-- **Hosting + Vue Router:** with clean URLs like `/characters/42`, refreshing the page can show a 404 unless the host sends every unknown path to `index.html`. On Vercel that was the rewrite in `vercel.json`. Cloudflare needs its own equivalent (single-page-app fallback); check it works after the move.
+- **Hosting + Vue Router:** with clean URLs like `/characters/42`, refreshing the page can show a 404 unless the host sends every unknown path to `index.html`. That's `not_found_handling` in `wrangler.jsonc`.
 - **Supabase free tier pauses projects after 1 week of inactivity.** No data is lost, and you restore it from the dashboard. Expect this during campaign breaks. Limits: 2 active free projects and a 500 MB database, which is plenty for this.
-- **Don't charge players or add ads** (this rule came from Vercel Hobby's non-commercial terms; keep it unless the developer says otherwise).
+- **Don't charge players or add ads.**
 - **New tables may not be reachable from the app automatically.** Depending on the project's Data API settings, each new table needs an explicit `grant` to the `authenticated` role, on top of RLS. Every migration that creates a table should enable RLS and grant only what's needed.
 
 ## LANCER game data
@@ -289,7 +294,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 - **Discord login is built.**
   - `src/auth.ts` holds the session and the logged-in user's profile.
   - `src/router.ts` sends anyone who isn't logged in to `/login`.
-  - The pages are in `src/views/`, and `vercel.json` has the rewrite for clean URLs (Vercel only; needs a Cloudflare equivalent).
+  - The pages are in `src/views/`, and `wrangler.jsonc` sends clean URLs to `index.html`.
   - Checked up to Discord's login page. A real login hasn't been tested yet.
 - A real Discord login works: the hosted database has the first profile.
 - TypeScript types are generated into `src/lib/database.types.ts`. Run `npm run types` after any database change.
