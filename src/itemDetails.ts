@@ -28,7 +28,7 @@ import { plainText } from './rulesText'
 const BONUSES: Record<string, [string, string | null]> = {
   pilot_armor: ['armour', armourIcon],
   pilot_hp: ['hp', hpIcon],
-  pilot_edef: ['e-defense', eDefIcon],
+  pilot_edef: ['e-defence', eDefIcon],
   pilot_speed: ['speed', speedIcon],
 }
 // Weapon range and damage types, lower case.

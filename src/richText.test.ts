@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { getSchema } from '@tiptap/vue-3'
-import { EDITOR_EXTENSIONS, docText, editorExtensions, sanitiseDoc } from './richText'
+import { setBlockType } from '@tiptap/pm/commands'
+import { wrapInList } from '@tiptap/pm/schema-list'
+import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
+import { EDITOR_EXTENSIONS, docText, editorExtensions, sanitiseDoc, splitAroundSelection } from './richText'
 
 const doc = (...content: unknown[]) => ({ type: 'doc', content })
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks })
@@ -137,5 +140,106 @@ describe('links to lore entries', () => {
 
   it('reads plain text for search', () => {
     expect(docText(linked(`/lore/${ID}`))).toBe('the station')
+  })
+})
+
+describe('splitAroundSelection', () => {
+  const schema = getSchema(EDITOR_EXTENSIONS)
+  const para = (value: string) => ({ type: 'paragraph', content: [text(value)] })
+  const heading = (value: string) => ({ type: 'heading', attrs: { level: 3 }, content: [text(value)] })
+  // Selects the first occurrence of `from` (a word) through the end of `to` (the same word when left out), across blocks.
+  const select = (document: unknown, from: string, to = from) => {
+    const node = schema.nodeFromJSON(document)
+    let start = 0
+    let end = 0
+    node.descendants((child, pos) => {
+      if (!child.isText) return
+      if (!start && child.text!.includes(from)) start = pos + child.text!.indexOf(from)
+      if (!end && child.text!.includes(to) && pos + child.text!.indexOf(to) >= start) end = pos + child.text!.indexOf(to) + to.length
+    })
+    return EditorState.create({ doc: node, selection: start === end ? undefined : TextSelection.create(node, start, end) })
+  }
+  const split = (state: EditorState) => state.apply(splitAroundSelection(state.tr))
+  const apply = (state: EditorState, command: Command) => {
+    let result = state
+    command(state, (tr) => (result = state.apply(tr)))
+    return result
+  }
+  const toHeading = (state: EditorState) => apply(state, setBlockType(schema.nodes.heading, { level: 3 }))
+  const toParagraph = (state: EditorState) => apply(state, setBlockType(schema.nodes.paragraph))
+  const toList = (state: EditorState) => apply(state, wrapInList(schema.nodes.bulletList))
+  // The blocks as "type:text".
+  const blocks = (state: EditorState) => state.doc.content.content.map((block) => `${block.type.name}:${block.textContent}`)
+  const selected = (state: EditorState) => state.doc.textBetween(state.selection.from, state.selection.to, '|')
+
+  it('cuts a paragraph around the selected words, dropping the space at each cut', () => {
+    const state = split(select(doc(para('alpha beta gamma')), 'beta'))
+    expect(blocks(state)).toEqual(['paragraph:alpha', 'paragraph:beta', 'paragraph:gamma'])
+    expect(selected(state)).toBe('beta')
+    expect(blocks(toHeading(state))).toEqual(['paragraph:alpha', 'heading:beta', 'paragraph:gamma'])
+    expect(blocks(toList(state))).toEqual(['paragraph:alpha', 'bulletList:beta', 'paragraph:gamma'])
+  })
+
+  it('leaves the space a double-click selects outside the cut', () => {
+    const state = split(select(doc(para('alpha beta gamma')), 'beta '))
+    expect(blocks(state)).toEqual(['paragraph:alpha', 'paragraph:beta', 'paragraph:gamma'])
+    expect(selected(state)).toBe('beta')
+  })
+
+  it('cuts only the end when the selection starts at the paragraph start', () => {
+    const state = split(select(doc(para('alpha beta gamma')), 'alpha', 'beta'))
+    expect(blocks(state)).toEqual(['paragraph:alpha beta', 'paragraph:gamma'])
+    expect(blocks(toHeading(state))).toEqual(['heading:alpha beta', 'paragraph:gamma'])
+  })
+
+  it('cuts only the start when the selection runs to the paragraph end', () => {
+    const state = split(select(doc(para('alpha beta gamma')), 'beta', 'gamma'))
+    expect(blocks(state)).toEqual(['paragraph:alpha', 'paragraph:beta gamma'])
+    expect(blocks(toList(state))).toEqual(['paragraph:alpha', 'bulletList:beta gamma'])
+  })
+
+  it('leaves a whole paragraph alone, making no empty blocks', () => {
+    const state = select(doc(para('alpha beta gamma')), 'alpha', 'gamma')
+    const result = split(state)
+    expect(result.doc.eq(state.doc)).toBe(true)
+    expect(blocks(toHeading(result))).toEqual(['heading:alpha beta gamma'])
+  })
+
+  it('cuts only at the first and last block when the selection spans paragraphs', () => {
+    const state = split(select(doc(para('one two three'), para('four'), para('five six seven')), 'two', 'six'))
+    expect(blocks(state)).toEqual(['paragraph:one', 'paragraph:two three', 'paragraph:four', 'paragraph:five six', 'paragraph:seven'])
+    expect(selected(state)).toBe('two three|four|five six')
+    expect(blocks(toHeading(state))).toEqual(['paragraph:one', 'heading:two three', 'heading:four', 'heading:five six', 'paragraph:seven'])
+  })
+
+  it('does nothing for a cursor, so the buttons still change the whole block', () => {
+    const state = select(doc(para('alpha beta gamma')), 'beta', 'beta')
+    const cursor = EditorState.create({ doc: state.doc, selection: TextSelection.create(state.doc, 9) })
+    const result = split(cursor)
+    expect(result.doc.eq(cursor.doc)).toBe(true)
+    expect(blocks(toHeading(result))).toEqual(['heading:alpha beta gamma'])
+  })
+
+  it('turns a heading off for just the selected part', () => {
+    const state = split(select(doc(heading('alpha beta gamma')), 'beta'))
+    expect(blocks(state)).toEqual(['heading:alpha', 'heading:beta', 'heading:gamma'])
+    expect(blocks(toParagraph(state))).toEqual(['heading:alpha', 'paragraph:beta', 'heading:gamma'])
+  })
+
+  it('does not split list items', () => {
+    const list = { type: 'bulletList', content: [{ type: 'listItem', content: [para('alpha beta gamma')] }] }
+    const state = select(doc(list), 'beta')
+    expect(split(state).doc.eq(state.doc)).toBe(true)
+  })
+
+  it('does not drop a space when that would leave an empty block', () => {
+    const state = split(select(doc(para(' beta ')), 'beta'))
+    expect(blocks(state)).toEqual(['paragraph: ', 'paragraph:beta', 'paragraph: '])
+  })
+
+  it('keeps marks on each side of the cut', () => {
+    const bold = doc({ type: 'paragraph', content: [text('alpha beta gamma', [{ type: 'bold' }])] })
+    const result = split(select(bold, 'beta'))
+    expect(result.doc.content.content.every((block) => block.firstChild!.marks.some((mark) => mark.type.name === 'bold'))).toBe(true)
   })
 })

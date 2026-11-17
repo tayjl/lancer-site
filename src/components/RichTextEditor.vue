@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { useTemplateRef } from 'vue'
-import { editorExtensions, loreHref, SIZES } from '../richText'
+import { editorExtensions, loreHref, SIZES, splitAroundSelection } from '../richText'
 import Icon from './Icon.vue'
 import ItemPicker from './ItemPicker.vue'
 
@@ -25,8 +25,10 @@ const chain = () => editor.value?.chain().focus()
 const toggleBold = () => chain()?.toggleBold().run()
 const toggleItalic = () => chain()?.toggleItalic().run()
 const toggleUnderline = () => chain()?.toggleUnderline().run()
-const toggleList = () => chain()?.toggleBulletList().run()
-const toggleHeading = () => chain()?.toggleHeading({ level: 3 }).run()
+// Lists and headings are block-level: split the paragraph around the selection first, so only the selected text changes.
+const split = () => chain()?.command(({ tr }) => !!splitAroundSelection(tr))
+const toggleList = () => split()?.toggleBulletList().run()
+const toggleHeading = () => split()?.toggleHeading({ level: 3 }).run()
 const setSize = (size?: string) => (size ? chain()?.setFontSize(size) : chain()?.unsetFontSize())?.run()
 
 // The link button: on plain selected text it asks which entry to link to; on a link it takes the link off.

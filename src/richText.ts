@@ -6,6 +6,8 @@
 import { Extension, type Extensions } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { FontSize, TextStyle } from '@tiptap/extension-text-style'
+import { TextSelection, type Transaction } from '@tiptap/pm/state'
+import type { ResolvedPos } from '@tiptap/pm/model'
 
 // The values the editor stores for sizes. Only these are ever shown.
 export const SIZES = { small: '0.875em', large: '1.25em' } as const
@@ -39,6 +41,40 @@ export const editorExtensions = (links = false): Extensions => [
   SavedColour,
 ]
 export const EDITOR_EXTENSIONS = editorExtensions()
+
+// The heading and list buttons change whole blocks, so with part of a paragraph selected this first cuts the block(s)
+// at the selection's edges (dropping the one space left at each cut), and the buttons then change only the selected
+// part. A cursor, a cut at a block's very start or end, and list items are left alone. Edits `tr` and returns it.
+export function splitAroundSelection(tr: Transaction): Transaction {
+  const { selection } = tr
+  if (!(selection instanceof TextSelection) || selection.empty) return tr
+  let { from, to } = selection
+  // A double-click on Windows selects the word and the space after it: cut around the word, not the space.
+  while (to > from && tr.doc.textBetween(to - 1, to) === ' ') to--
+  while (from < to && tr.doc.textBetween(from, from + 1) === ' ') from++
+  if (from === to) return tr
+  const first = tr.steps.length
+  const canCut = ($pos: ResolvedPos) => {
+    if (!$pos.parent.isTextblock || $pos.parentOffset === 0 || $pos.parentOffset === $pos.parent.content.size) return false
+    for (let depth = $pos.depth; depth > 0; depth--) if ($pos.node(depth).type.name === 'listItem') return false
+    return true
+  }
+  // The later edge first, so the earlier position is still where it was.
+  const $to = tr.doc.resolve(to)
+  if (canCut($to)) {
+    tr.split(to)
+    if ($to.parent.content.size - $to.parentOffset > 1 && tr.doc.textBetween(to + 2, to + 3) === ' ') tr.delete(to + 2, to + 3)
+  }
+  const $from = tr.doc.resolve(from)
+  if (canCut($from)) {
+    const space = $from.parentOffset > 1 && tr.doc.textBetween(from - 1, from) === ' ' ? 1 : 0
+    if (space) tr.delete(from - 1, from)
+    tr.split(from - space)
+  }
+  if (tr.steps.length === first) return tr
+  const map = tr.mapping.slice(first)
+  return tr.setSelection(TextSelection.create(tr.doc, map.map(from, 1), map.map(to, -1)))
+}
 
 // The only link text may have: to one lore entry, written exactly /lore/<uuid>.
 const LORE_HREF = /^\/lore\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
