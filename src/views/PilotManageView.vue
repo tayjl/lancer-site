@@ -5,6 +5,7 @@ import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
+import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
 import GmReview from '../components/GmReview.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
@@ -52,6 +53,8 @@ const {
   canSeePrivate,
   loading,
   loadError,
+  conflict,
+  retry,
   editable,
   gmEditing,
   waiting,
@@ -181,8 +184,8 @@ async function register() {
 }
 
 // --- Long writing ---
-const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) => updateCharacter({ [column]: doc })
-const saveBackstory = (doc: Json | null) => updateSheet({ backstory: doc })
+const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) => track(updateCharacter({ [column]: doc }))
+const saveBackstory = (doc: Json | null) => track(updateSheet({ backstory: doc }))
 
 // --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
 // Bionics for their box, each opening its full information.
@@ -270,8 +273,8 @@ function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value:
 }
 
 // --- Bionics and the loadout (1 armour, 2 weapons, 3 gear): picked from the catalogues, stored as ids ---
-const saveBionics = (ids: (string | number)[]) => updateSheet({ bionics: ids as number[] })
-const saveGear = (ids: string[]) => updateSheet({ pilot_gear: ids })
+const saveBionics = (ids: (string | number)[]) => track(updateSheet({ bionics: ids as number[] }))
+const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
 
 // --- Hangar: a new mech starts with just a name and manufacturer id, then opens its own page ---
 const addingMech = ref(false)
@@ -398,6 +401,8 @@ async function createMech() {
         :waiting="waiting"
         :status="saving ? 'Saving…' : saved ? 'Saved' : ''"
         :error="saveError"
+        :can-retry="!conflict"
+        @retry="track(retry())"
         @done="setEdit(false)"
       />
 
@@ -427,7 +432,10 @@ async function createMech() {
         </template>
 
         <p v-if="own" class="save-status" role="status">
-          <span v-if="saveError" class="error">Not saved: {{ saveError }}</span>
+          <template v-if="saveError">
+            <span class="error">Not saved: {{ saveError }}</span>
+            <button v-if="!conflict" type="button" class="small quiet" @click="track(retry())">Retry</button>
+          </template>
           <span v-else-if="saving" class="dim">Saving…</span>
           <span v-else-if="saved" class="dim">Saved</span>
         </p>
@@ -445,6 +453,8 @@ async function createMech() {
           </template>
         </div>
       </div>
+
+      <ConflictNotice v-if="conflict" />
 
       <!-- Long notes and the rule check sit under the header. -->
       <div v-if="own && reviewNote && character.status === 'pending'" class="notice warn" role="note">

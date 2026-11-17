@@ -2,13 +2,15 @@
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm, profile } from '../auth'
+import ConflictNotice from '../components/ConflictNotice.vue'
 import Icon from '../components/Icon.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SheetField from '../components/SheetField.vue'
 import { confirmAction } from '../confirm'
 import type { Json } from '../lib/database.types'
-import { KIND_INFO, LORE_KINDS, deleteLore, entries, isDraft, isKind, loadLore, loaded, saveLore, type LoreEntry, type LoreKind } from '../lore'
+import { CHANGED_ELSEWHERE } from '../lib/supabaseClient'
+import { KIND_INFO, LORE_KINDS, deleteLore, entries, isDraft, isKind, loadLore, saveLore, type LoreEntry, type LoreKind } from '../lore'
 
 // The GM's editor for one lore entry. Every field saves itself (title, summary and related entries when you leave
 // them or pick, the body a moment after you stop typing); saves run in order (src/lore.ts). Publishing makes it
@@ -17,8 +19,14 @@ const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
 
+// The fields are taken once the entry has been fetched afresh (not from the shared list's older copy), so the version
+// saves are guarded with (src/lore.ts) is the one on screen.
 const loadError = ref('')
-onMounted(async () => (loadError.value = await loadLore()))
+const fresh = ref(false)
+onMounted(async () => {
+  loadError.value = await loadLore()
+  fresh.value = !loadError.value
+})
 const entry = computed(() => entries.value.find((other) => other.id === id))
 
 // The fields keep what you typed, taken from the entry once it has loaded (saving doesn't overwrite them).
@@ -26,10 +34,13 @@ const title = ref('')
 const summary = ref('')
 const kind = ref<LoreKind>('story')
 const related = ref<string[]>([])
+// The body lives in its editor; this is the latest of it, for Retry.
+let body: Json | null = null
 watch(
-  () => entry.value?.id,
+  () => fresh.value && entry.value?.id,
   () => {
-    if (!entry.value) return
+    if (!fresh.value || !entry.value) return
+    body = entry.value.body
     title.value = entry.value.title
     summary.value = entry.value.summary
     kind.value = entry.value.kind
@@ -42,26 +53,31 @@ watch(
 const saving = ref(0)
 const saved = ref(false)
 const error = ref('')
-async function save(fields: Parameters<typeof saveLore>[1]) {
+// Set when someone else saved the entry first: every save stops until the page is reloaded.
+const conflict = ref(false)
+// Every save sends the whole entry as it is on screen (plus "extra", the publish state), so a later save also carries
+// an earlier one that failed, and "Saved" means everything is.
+async function save(extra: { published_at?: string | null } = {}) {
   saving.value++
   saved.value = false
-  const failed = await saveLore(id, fields)
+  const name = title.value.trim()
+  const fields = { title: name, kind: kind.value, summary: summary.value, body, related: related.value, ...extra }
+  const failed = !name ? 'a title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await saveLore(id, fields)
   saving.value--
   error.value = failed ?? ''
   saved.value = !failed
+  if (failed === CHANGED_ELSEWHERE) conflict.value = true
   return failed
 }
 
 function saveTitle() {
-  const name = title.value.trim()
-  if (!name) return (error.value = 'a title is needed.')
-  title.value = name
-  if (name !== entry.value?.title) save({ title: name })
+  title.value = title.value.trim()
+  if (title.value !== entry.value?.title) save()
 }
-const saveSummary = () => summary.value !== entry.value?.summary && save({ summary: summary.value })
-const saveKind = (next: LoreKind) => ((kind.value = next), save({ kind: next }))
+const saveSummary = () => summary.value !== entry.value?.summary && save()
+const saveKind = (next: LoreKind) => ((kind.value = next), save())
 // The body is never empty in the database: an empty editor saves an empty document.
-const saveBody = (doc: Json | null) => save({ body: doc ?? { type: 'doc', content: [] } })
+const saveBody = (doc: Json | null) => ((body = doc ?? { type: 'doc', content: [] }), save())
 
 const draft = computed(() => (entry.value ? isDraft(entry.value) : false))
 const publish = () => save({ published_at: new Date().toISOString() })
@@ -84,7 +100,7 @@ const relatedEntries = computed(() => related.value.map((relatedId) => ({ id: re
 const relatedPicker = useTemplateRef('relatedPicker')
 function setRelated(next: string[]) {
   related.value = next
-  save({ related: next })
+  save()
 }
 function addRelated(relatedId: string) {
   setRelated([...related.value, relatedId])
@@ -104,7 +120,7 @@ async function remove() {
     <p v-if="!profile" class="dim">Loading…</p>
     <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
     <p v-else-if="loadError" class="notice warn" role="alert">Lore didn't load: {{ loadError }}</p>
-    <p v-else-if="!loaded" class="dim">Loading…</p>
+    <p v-else-if="!fresh" class="dim">Loading…</p>
     <p v-else-if="!entry" class="empty" role="status">
       <span>This entry isn't available.</span>
       <RouterLink :to="{ name: 'lore' }">Back to Lore</RouterLink>
@@ -128,7 +144,10 @@ async function remove() {
           <p class="next-text">Everyone can read it.</p>
         </template>
         <p class="save-status" role="status">
-          <span v-if="error" class="error">Not saved: {{ error }}</span>
+          <template v-if="error">
+            <span class="error">Not saved: {{ error }}</span>
+            <button v-if="!conflict" type="button" class="small quiet" @click="save()">Retry</button>
+          </template>
           <span v-else-if="saving" class="dim">Saving…</span>
           <span v-else-if="saved" class="dim">Saved</span>
         </p>
@@ -138,6 +157,8 @@ async function remove() {
           <button v-else type="button" class="small" @click="unpublish">Unpublish</button>
         </div>
       </div>
+
+      <ConflictNotice v-if="conflict" />
 
       <div class="grid">
         <div class="stack">

@@ -1,6 +1,6 @@
 import { ref, shallowRef } from 'vue'
 import type { Tables, TablesUpdate } from './lib/database.types'
-import { supabase } from './lib/supabaseClient'
+import { checkWrite, supabase } from './lib/supabaseClient'
 import { docText } from './richText'
 
 // Lore: stories, places, factions, people and events the GMs write (the lore_entries table). Everyone logged in
@@ -71,22 +71,27 @@ export async function createDraft() {
   return { id: data?.id ?? '', error: error?.message ?? '' }
 }
 
-// Saves some fields of one entry (in order, after earlier saves), keeping the shared list current. Returns an error
-// message, or null.
+// Saves some fields of one entry (in order, after earlier saves), keeping the shared list current. It only writes if the
+// entry is still the version the list holds (loaded or last saved here): if someone else saved it since, nothing is
+// written and the error is CHANGED_ELSEWHERE. Returns an error message, or null.
 export function saveLore(id: string, fields: Pick<TablesUpdate<'lore_entries'>, 'title' | 'kind' | 'summary' | 'body' | 'related' | 'published_at'>) {
   return queued(async () => {
-    const { data, error } = await supabase.from('lore_entries').update(fields).eq('id', id).select().single()
+    const seen = entries.value.find((entry) => entry.id === id)?.updated_at ?? ''
+    const result = await checkWrite(await supabase.from('lore_entries').update(fields).eq('id', id).eq('updated_at', seen).select('*'), {
+      seen,
+      recheck: () => supabase.from('lore_entries').select('updated_at').eq('id', id).maybeSingle(),
+    })
     // The author never changes, so the entry keeps the one it has.
-    const row = data as unknown as Omit<LoreEntry, 'author'> | null
+    const row = result.row as unknown as Omit<LoreEntry, 'author'> | null
     if (row) entries.value = sorted(entries.value.map((entry) => (entry.id === id ? { ...entry, ...row } : entry)))
-    return error?.message ?? null
+    return result.error
   })
 }
 
 export function deleteLore(id: string) {
   return queued(async () => {
-    const { error } = await supabase.from('lore_entries').delete().eq('id', id)
+    const { error } = await checkWrite(await supabase.from('lore_entries').delete().eq('id', id).select('id'))
     if (!error) entries.value = entries.value.filter((entry) => entry.id !== id)
-    return error?.message ?? null
+    return error
   })
 }

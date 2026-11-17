@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
-import { isGm, isOwner, profile } from './auth'
+import { isGm, isOwner, loadProfile, profile, profileError, session } from './auth'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import InfoDialog from './components/InfoDialog.vue'
 import { supabase } from './lib/supabaseClient'
@@ -36,6 +36,11 @@ const current = (name: string) => (isCurrent(name) ? 'page' : undefined)
 // Narrow screens: the tabs move into a drawer under the bar, opened by Menu. It closes when you pick a page.
 const menuOpen = ref(false)
 watch(() => route.fullPath, () => (menuOpen.value = false))
+
+// The session ended while the site was open (signed out in another tab, expired): back to the login page.
+watch(session, (now, before) => {
+  if (before && !now && !route.meta.public) router.replace({ name: 'login' })
+})
 
 async function disconnect() {
   await supabase.auth.signOut()
@@ -93,7 +98,16 @@ async function disconnect() {
 
     <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. The lore
          list and its entries are one page (the list keeps its place and search as you read). -->
-    <RouterView :key="route.meta.section === 'lore' ? 'lore' : route.path" />
+    <main v-if="profileError" class="page">
+      <div class="notice warn" role="alert">
+        <div class="notice-head">
+          <p class="notice-title">Couldn't load your profile</p>
+          <button type="button" class="small" @click="loadProfile">Retry</button>
+        </div>
+        <p>Can't reach the database. If the site has had a quiet week, the free Supabase project may be paused: an owner can restore it from the Supabase dashboard.</p>
+      </div>
+    </main>
+    <RouterView v-else :key="route.meta.section === 'lore' ? 'lore' : route.path" />
   </div>
   <!-- The full information on any item (src/info.ts), opened from cards and pickers anywhere. -->
   <InfoDialog />

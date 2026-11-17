@@ -4,7 +4,7 @@ import { isGm, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
 import type { PublicPilot } from '../pilots'
-import { supabase } from '../lib/supabaseClient'
+import { checkWrite, supabase } from '../lib/supabaseClient'
 import type { Sheet } from '../myPilot'
 import { licenceLevel, mannaSpent } from '../rules'
 
@@ -45,6 +45,9 @@ async function load() {
 const saving = reactive<Record<number, boolean>>({})
 const rowError = reactive<Record<number, string>>({})
 const saved = reactive<Record<number, boolean>>({})
+// Numbers typed but not saved yet (a failed save keeps them on screen for Retry), by pilot.
+const typed = reactive<Record<number, { level?: number; manna?: number }>>({})
+const shown = (pilot: Pilot, field: 'level' | 'manna') => typed[pilot.id]?.[field] ?? pilot.sheet?.[field] ?? 0
 const spent = (pilot: Pilot) => mannaSpent((pilot.sheet?.sheet ?? {}) as Sheet)
 const left = (pilot: Pilot) => (pilot.sheet?.manna ?? 0) - spent(pilot)
 const amount = (n: number) => n.toLocaleString('en-GB')
@@ -54,16 +57,15 @@ async function save(pilot: Pilot, changes: { level?: number; manna?: number }) {
   if (saving[pilot.id]) return
   saving[pilot.id] = true
   saved[pilot.id] = false
-  const { data, error: saveError } = await supabase
-    .from('character_sheets')
-    .update(changes)
-    .eq('character_id', pilot.id)
-    .select('review_note, level, manna, sheet')
-    .single()
+  typed[pilot.id] = { ...typed[pilot.id], ...changes }
+  const { row, error: saveError } = await checkWrite(
+    await supabase.from('character_sheets').update(typed[pilot.id]).eq('character_id', pilot.id).select('review_note, level, manna, sheet'),
+  )
   saving[pilot.id] = false
-  rowError[pilot.id] = saveError?.message ?? ''
-  if (data) {
-    items.value = items.value.map((item) => item.id === pilot.id ? { ...item, sheet: data } : item)
+  rowError[pilot.id] = saveError ?? ''
+  if (row) {
+    items.value = items.value.map((item) => item.id === pilot.id ? { ...item, sheet: row } : item)
+    delete typed[pilot.id]
     saved[pilot.id] = true
   }
 }
@@ -73,11 +75,10 @@ async function saveNumber(pilot: Pilot, field: 'level' | 'manna', event: Event) 
   const value = input.valueAsNumber
   if (!Number.isSafeInteger(value) || value < 0) {
     rowError[pilot.id] = 'Level and manna must be whole numbers, 0 or more.'
-    input.value = String(pilot.sheet?.[field] ?? 0)
+    input.value = String(shown(pilot, field))
     return
   }
   await save(pilot, { [field]: value })
-  if (rowError[pilot.id]) input.value = String(pilot.sheet?.[field] ?? 0)
 }
 
 // The profile (and so the role) can arrive just after the page opens.
@@ -141,7 +142,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                   <input
                     class="level"
                     type="number" min="0" step="1"
-                    :value="pilot.sheet?.level ?? 0"
+                    :value="shown(pilot, 'level')"
                     :disabled="saving[pilot.id] || !pilot.sheet"
                     :aria-label="`Level for ${pilot.callsign || pilot.pilot_name}`"
                     @change="saveNumber(pilot, 'level', $event)"
@@ -151,7 +152,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <td class="number">
                   <input
                     type="number" min="0" step="1"
-                    :value="pilot.sheet?.manna ?? 0"
+                    :value="shown(pilot, 'manna')"
                     :disabled="saving[pilot.id] || !pilot.sheet"
                     :aria-label="`Manna received for ${pilot.callsign || pilot.pilot_name}`"
                     @change="saveNumber(pilot, 'manna', $event)"
@@ -167,7 +168,10 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <td>
                   <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }" class="link-button">Open sheet</RouterLink>
                   <span v-if="!pilot.sheet" class="save-message error">Private sheet missing</span>
-                  <span v-if="rowError[pilot.id]" class="save-message error" role="alert">Not saved: {{ rowError[pilot.id] }}</span>
+                  <span v-if="rowError[pilot.id]" class="save-message error" role="alert">
+                    Not saved: {{ rowError[pilot.id] }}
+                    <button v-if="typed[pilot.id]" type="button" class="small quiet" @click="save(pilot, {})">Retry</button>
+                  </span>
                   <span v-else-if="saving[pilot.id]" class="save-message dim" role="status">Saving…</span>
                   <span v-else-if="saved[pilot.id]" class="save-message dim" role="status">Saved</span>
                 </td>

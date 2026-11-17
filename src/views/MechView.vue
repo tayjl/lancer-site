@@ -2,6 +2,7 @@
 import { computed, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAction } from '../confirm'
+import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import ItemPicker from '../components/ItemPicker.vue'
@@ -40,7 +41,7 @@ const router = useRouter()
 const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
 // ?edit=1 is a GM's edit mode on someone else's pilot (src/myPilot.ts): everything saves straight to the pilot.
-const { character, sheet, canSeePrivate, loading, loadError, editable, gmEditing, waiting, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId, {
+const { character, sheet, canSeePrivate, loading, loadError, conflict, retry, editable, gmEditing, waiting, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId, {
   gmEdit: () => route.query.edit === '1',
 })
 
@@ -160,6 +161,7 @@ async function track(save: Promise<string | null>) {
   status.value = 'Saving…'
   saveError.value = (await save) ?? ''
   status.value = saveError.value ? '' : 'Saved'
+  return saveError.value || null
 }
 
 // Public changes replace this mech in the pilot's mech list.
@@ -170,9 +172,9 @@ const savePublic = (changes: Partial<PublicMech>) =>
 const savePrivate = (changes: MechPrivate) =>
   updateSheet({ mechs: { ...sheet.value.mechs, [mechId.value]: { ...details.value, ...changes } } })
 
-const saveAppearance = (doc: Json | null) => savePublic({ appearance: doc })
-const saveHistory = (doc: Json | null) => savePrivate({ history: doc })
-const saveLoadout = (changes: Partial<MechPrivate>) => savePrivate(changes)
+const saveAppearance = (doc: Json | null) => track(savePublic({ appearance: doc }))
+const saveHistory = (doc: Json | null) => track(savePrivate({ history: doc }))
+const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes))
 
 // --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
 // A licensed frame needs rank II in its own licence; GMS frames need none.
@@ -294,7 +296,10 @@ async function scrap() {
             <span v-if="baseFrame?.mechtype.length">{{ baseFrame.mechtype.join(' / ') }}</span>
           </div>
           <p v-if="own && (saveError || status)" class="save-status" role="status">
-            <span v-if="saveError" class="error">Not saved: {{ saveError }}</span>
+            <template v-if="saveError">
+              <span class="error">Not saved: {{ saveError }}</span>
+              <button v-if="!conflict" type="button" class="small quiet" @click="track(retry())">Retry</button>
+            </template>
             <span v-else class="dim">{{ status }}</span>
           </p>
         </div>
@@ -316,7 +321,9 @@ async function scrap() {
         </dl>
       </header>
 
-      <GmEditBar v-if="gmEditing" :name="character?.callsign ?? character?.pilot_name ?? ''" :waiting="waiting" :status="status" :error="saveError" @done="router.replace({ query: { ...route.query, edit: undefined } })" />
+      <GmEditBar v-if="gmEditing" :name="character?.callsign ?? character?.pilot_name ?? ''" :waiting="waiting" :status="status" :error="saveError" :can-retry="!conflict" @retry="track(retry())" @done="router.replace({ query: { ...route.query, edit: undefined } })" />
+
+      <ConflictNotice v-if="conflict" />
 
       <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
       <div v-if="own && draft" class="next">

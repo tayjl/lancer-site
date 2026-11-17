@@ -5,8 +5,8 @@ import type { PendingChange } from '../myPilot'
 // like the "what happens next" bar, saying saves skip approval, with the save status and a Done button. If the
 // player has a change open, a warning under it: a direct edit blocks that change from being approved
 // (approve_change refuses a pilot that changed since the change was made).
-defineProps<{ name: string; waiting: PendingChange | null; status: string; error: string }>()
-defineEmits<{ done: [] }>()
+defineProps<{ name: string; waiting: PendingChange | null; status: string; error: string; canRetry: boolean }>()
+defineEmits<{ done: []; retry: [] }>()
 </script>
 
 <template>
@@ -15,7 +15,10 @@ defineEmits<{ done: [] }>()
       <span class="badge">GM edit</span>
       <p>Changes save straight to this pilot, without approval.</p>
       <p class="save-status" role="status">
-        <span v-if="error" class="error">Not saved: {{ error }}</span>
+        <template v-if="error">
+          <span class="error">Not saved: {{ error }}</span>
+          <button v-if="canRetry" type="button" class="small quiet" @click="$emit('retry')">Retry</button>
+        </template>
         <span v-else class="dim">{{ status }}</span>
       </p>
       <button type="button" class="small done" @click="$emit('done')">Done</button>

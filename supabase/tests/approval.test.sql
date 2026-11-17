@@ -59,6 +59,18 @@ select throws_ok(
 select lives_ok(
   $$ update public.pending_changes set proposed_sheet = '{"manna": 30}' where character_id = 100 $$,
   'players can edit their draft');
+-- updated_at moves on every edit (the site uses it to spot a draft saved from another tab). The triggers are
+-- switched off just long enough to backdate it, since now() doesn't move inside one transaction.
+reset role;
+set local session_replication_role = replica;
+update public.pending_changes set updated_at = '2000-01-01' where character_id = 100;
+set local session_replication_role = origin;
+set local role authenticated;
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+update public.pending_changes set proposed_sheet = '{"manna": 20}' where character_id = 100;
+select cmp_ok((select updated_at from public.pending_changes where character_id = 100), '>', '2000-01-01'::timestamptz,
+  'editing a change moves its updated_at');
+
 select throws_ok(
   $$ update public.pending_changes set status = 'approved' where character_id = 100 $$,
   'P0001', 'Only GMs can change who a change belongs to or how it was reviewed.', 'players cannot set status');

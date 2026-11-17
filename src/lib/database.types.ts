@@ -360,6 +360,7 @@ export type Database = {
           status: Database["public"]["Enums"]["change_status"]
           submitted_at: string | null
           submitted_by: string
+          updated_at: string
         }
         Insert: {
           based_on?: string
@@ -374,6 +375,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["change_status"]
           submitted_at?: string | null
           submitted_by: string
+          updated_at?: string
         }
         Update: {
           based_on?: string
@@ -388,6 +390,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["change_status"]
           submitted_at?: string | null
           submitted_by?: string
+          updated_at?: string
         }
         Relationships: [
           {

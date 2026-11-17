@@ -2,7 +2,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { isGm, session } from './auth'
 import { parseEntries, type Entry } from './entries'
 import type { Json, Tables, TablesUpdate } from './lib/database.types'
-import { supabase } from './lib/supabaseClient'
+import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
 import { PUBLIC_COLUMNS } from './changeDiff'
 import type { PublicMech } from './pilots'
 import type { GmFields } from './rules'
@@ -11,7 +11,9 @@ import type { GmFields } from './rules'
 // (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
 // it's that pilot, read-only; the database only hands over the private sheet to its player, GMs and owners,
 // and "canSeePrivate" says whether it did. Every save returns an error message, or null if it worked.
-// Saves run one at a time, in order, so quick autosaves can't overtake each other and undo a newer change.
+// Saves run one at a time, in order, and each sends the whole card or sheet as it is on screen when it runs, so a quick
+// second edit can't undo the first. A failed save keeps the edit on screen (and "retry" sends it again); a save refused
+// because the row was saved somewhere else sets "conflict" and stops all further saves (guarded by updated_at).
 // With an id and options.gmEdit on (a GM's edit mode, from the url), a GM or owner edits that living pilot directly:
 // the same editable page and the same save path as a pending pilot of your own, with no approval.
 
@@ -108,6 +110,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   }
 
   async function load() {
+    conflict.value = false
+    unsaved.clear()
     const query = supabase.from('characters').select('*, player:profiles(display_name)')
     const { data, error } = await (pilotId
       ? query.eq('id', pilotId)
@@ -157,52 +161,88 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   }
 
   let queue: Promise<unknown> = Promise.resolve()
-  // Runs a save after the ones before it. On failure it reloads, so the page shows what's really saved.
+  // Runs an action after the saves before it.
   function queued(save: () => Promise<string | null>) {
-    const result = queue.then(save).then(async (error) => {
-      if (error) await load()
-      return error
-    })
+    const result = queue.then(save)
     queue = result
     return result
   }
 
-  // Saves into the draft change instead of the pilot (see above).
-  const saveDraft = (fields: Pick<TablesUpdate<'pending_changes'>, 'proposed_public' | 'proposed_sheet'>) =>
-    queued(async () => {
-      const { data, error } = await supabase.from('pending_changes').update(fields).eq('id', draft.value!.id).select().single()
-      if (data) change.value = data
-      return error?.message ?? null
-    })
+  // What's been edited on screen but isn't in the database yet: the card, the sheet, or (in a draft) the draft.
+  type Kind = 'card' | 'sheet' | 'draft'
+  const unsaved = new Set<Kind>()
+  // Set when a save found the row had been saved somewhere else (another tab, a GM): the page shows a notice.
+  const conflict = ref(false)
+  const unsavedError = () => (unsaved.size ? 'your last edit is not saved yet. Retry saving it first.' : null)
 
-  // Changes only the given columns, then keeps the row the database sends back.
-  function updateCharacter(changes: TablesUpdate<'characters'>) {
-    if (draft.value) {
-      character.value = { ...character.value!, ...changes }
-      return saveDraft({ proposed_public: { ...(draft.value.proposed_public as object), ...changes } as NonNullable<Json> })
+  // The card as it is now (only the public columns, which is all a draft holds).
+  const card = () => Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, character.value![column]])) as NonNullable<Json>
+
+  async function write(kind: Kind) {
+    const c = character.value!
+    if (kind === 'draft') {
+      const seen = draft.value!.updated_at
+      const result = await checkWrite(
+        await supabase
+          .from('pending_changes')
+          .update({ proposed_public: card(), proposed_sheet: sheet.value as unknown as NonNullable<Json> })
+          .eq('id', draft.value!.id)
+          .eq('updated_at', seen)
+          .select(),
+        { seen, recheck: () => supabase.from('pending_changes').select('updated_at').eq('id', draft.value!.id).maybeSingle() },
+      )
+      if (result.row) change.value = result.row
+      return result.error
     }
-    return queued(async () => {
-      const { data, error } = await supabase.from('characters').update(changes).eq('id', character.value!.id).select().single()
-      if (data) character.value = data
-      return error?.message ?? null
-    })
+    if (kind === 'card') {
+      const result = await checkWrite(
+        await supabase.from('characters').update(card() as TablesUpdate<'characters'>).eq('id', c.id).eq('updated_at', c.updated_at).select('updated_at'),
+        { seen: c.updated_at, recheck: () => supabase.from('characters').select('updated_at').eq('id', c.id).maybeSingle() },
+      )
+      // Only the new updated_at: the card on screen may have newer edits that are still waiting their turn.
+      if (result.row) character.value = { ...character.value!, updated_at: result.row.updated_at }
+      return result.error
+    }
+    // The first save of a sheet creates it; after that it's an update, guarded by when this page last saw it.
+    const body = sheet.value as unknown as NonNullable<Json>
+    const seen = sheetUpdatedAt.value
+    const result = seen
+      ? await checkWrite(await supabase.from('character_sheets').update({ sheet: body }).eq('character_id', c.id).eq('updated_at', seen).select('updated_at'), {
+          seen,
+          recheck: () => supabase.from('character_sheets').select('updated_at').eq('character_id', c.id).maybeSingle(),
+        })
+      : await checkWrite(await supabase.from('character_sheets').upsert({ character_id: c.id, sheet: body }).select('updated_at'))
+    // Keeps "what this page is showing" current, so a GM approving after editing isn't refused as stale.
+    if (result.row) sheetUpdatedAt.value = result.row.updated_at
+    return result.error
   }
 
-  // Merges changes into the private sheet straight away (so quick clicks build on each other), then saves it.
-  // Upsert, so it also works if the sheet row was never created.
+  // Queues a save of the card, sheet or draft. It sends what's on screen when its turn comes, and skips itself if an
+  // earlier save already sent it. A failure keeps the edit marked unsaved, for retry().
+  function save(kind: Kind) {
+    unsaved.add(kind)
+    return queued(async () => {
+      if (conflict.value) return CHANGED_ELSEWHERE
+      if (!unsaved.delete(kind)) return null
+      const error = await write(kind)
+      if (error) unsaved.add(kind)
+      if (error === CHANGED_ELSEWHERE) conflict.value = true
+      return error
+    })
+  }
+  // Sends everything still unsaved again.
+  const retry = async () => (await Promise.all([...unsaved].map(save))).find(Boolean) ?? null
+
+  // Changes only the given card columns, on screen straight away (so quick edits build on each other), then saves.
+  function updateCharacter(changes: TablesUpdate<'characters'>) {
+    character.value = { ...character.value!, ...changes }
+    return save(draft.value ? 'draft' : 'card')
+  }
+
+  // Merges changes into the private sheet straight away, then saves it.
   function updateSheet(changes: Partial<Sheet>) {
     sheet.value = { ...sheet.value, ...changes }
-    if (draft.value) return saveDraft({ proposed_sheet: sheet.value as unknown as NonNullable<Json> })
-    return queued(async () => {
-      const { data, error } = await supabase
-        .from('character_sheets')
-        .upsert({ character_id: character.value!.id, sheet: sheet.value as unknown as NonNullable<Json> })
-        .select('updated_at')
-        .single()
-      // Keeps "what this page is showing" current, so a GM approving after editing isn't refused as stale.
-      if (data) sheetUpdatedAt.value = data.updated_at
-      return error?.message ?? null
-    })
+    return save(draft.value ? 'draft' : 'sheet')
   }
 
   // --- Changes to your approved pilot ---
@@ -227,25 +267,32 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       return error?.message ?? null
     })
 
-  // Submitting puts the draft in the GM queue; taking it back makes it a draft again (and leaves the queue).
+  // Submitting puts the draft in the GM queue; taking it back makes it a draft again (and leaves the queue). It won't
+  // send a draft whose latest edits didn't save.
   const setSubmitted = (submitted: boolean) =>
     queued(async () => {
-      const { data, error } = await supabase
-        .from('pending_changes')
-        .update({ submitted_at: submitted ? new Date().toISOString() : null })
-        .eq('id', draft.value!.id)
-        .select()
-        .single()
-      if (data) change.value = data
-      return error?.message ?? null
+      if (submitted && unsaved.size) return unsavedError()
+      const seen = draft.value!.updated_at
+      const result = await checkWrite(
+        await supabase
+          .from('pending_changes')
+          .update({ submitted_at: submitted ? new Date().toISOString() : null })
+          .eq('id', draft.value!.id)
+          .eq('updated_at', seen)
+          .select(),
+        { seen, recheck: () => supabase.from('pending_changes').select('updated_at').eq('id', draft.value!.id).maybeSingle() },
+      )
+      if (result.row) change.value = result.row
+      if (result.error === CHANGED_ELSEWHERE) conflict.value = true
+      return result.error
     })
 
   // Withdrawing deletes the change; the approved pilot shows again.
   const withdrawChange = () =>
     queued(async () => {
-      const { error } = await supabase.from('pending_changes').delete().eq('id', draft.value!.id)
+      const { error } = await checkWrite(await supabase.from('pending_changes').delete().eq('id', draft.value!.id).select('id'))
       if (!error) await load()
-      return error?.message ?? null
+      return error
     })
 
   // Marking your approved pilot dead (mark_dead in the database): it moves to the memorial for good, any
@@ -260,9 +307,10 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // After a GM sends the pilot back: clearing their note puts it back in the GM review queue.
   const resubmit = () =>
     queued(async () => {
-      const { error } = await supabase.from('character_sheets').update({ review_note: null }).eq('character_id', character.value!.id)
+      if (unsaved.size) return unsavedError()
+      const { error } = await checkWrite(await supabase.from('character_sheets').update({ review_note: null }).eq('character_id', character.value!.id).select('character_id'))
       if (!error) reviewNote.value = ''
-      return error?.message ?? null
+      return error
     })
 
   // This clears only the approval message, including while a proposed edit is open.
@@ -292,6 +340,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     canSeePrivate,
     loading,
     loadError,
+    conflict,
+    retry,
     editable,
     gmEditing,
     waiting,

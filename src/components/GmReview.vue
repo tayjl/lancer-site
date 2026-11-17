@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isOwner } from '../auth'
 import { confirmAction } from '../confirm'
-import { supabase } from '../lib/supabaseClient'
+import { checkWrite, supabase } from '../lib/supabaseClient'
 import type { Character } from '../myPilot'
 import RuleCheck from './RuleCheck.vue'
 
@@ -49,8 +49,8 @@ function numbersProblem() {
 }
 
 async function saveSheet(changes: { level?: number; manna?: number; review_note?: string | null }) {
-  const { error: saveError } = await supabase.from('character_sheets').update(changes).eq('character_id', props.pilot.id)
-  return saveError
+  const { error } = await checkWrite(await supabase.from('character_sheets').update(changes).eq('character_id', props.pilot.id).select('character_id'))
+  return error
 }
 
 // Level and manna save on their own button only; approving and sending back never need them.
@@ -81,7 +81,7 @@ async function saveNumbers() {
   error.value = numbersProblem()
   if (error.value) return
   busy.value = true
-  error.value = (await saveSheet({ level: level.value, manna: manna.value }))?.message ?? ''
+  error.value = (await saveSheet({ level: level.value, manna: manna.value })) ?? ''
   busy.value = false
   message.value = error.value ? '' : 'Saved.'
   if (!error.value) emit('reviewed')
@@ -110,7 +110,7 @@ async function sendBack() {
   error.value = note.value.trim() ? '' : 'Write a note first, so the player knows what to change.'
   if (error.value) return
   busy.value = true
-  error.value = (await saveSheet({ review_note: note.value.trim() }))?.message ?? ''
+  error.value = (await saveSheet({ review_note: note.value.trim() })) ?? ''
   busy.value = false
   message.value = error.value ? '' : 'Sent back. The player sees your note on their sheet.'
 }

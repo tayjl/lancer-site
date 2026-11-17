@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { Json } from '../lib/database.types'
+import { CHANGED_ELSEWHERE } from '../lib/supabaseClient'
 import RichText from './RichText.vue'
 import RichTextEditor from './RichTextEditor.vue'
 
@@ -49,6 +50,7 @@ onBeforeUnmount(() => {
       {{ title }}<span v-if="tag" class="private">{{ tag }}</span>
       <span v-if="!quiet" class="status" role="status">{{ status }}</span>
       <span v-if="error && !quiet" class="status error" role="alert">Not saved: {{ error }}</span>
+      <button v-if="error && !quiet && error !== CHANGED_ELSEWHERE" type="button" class="small quiet" @click="flush">Retry</button>
     </h2>
     <RichTextEditor v-if="editable" v-model="draft" :label="title" :links="links" />
     <RichText v-else-if="doc" :doc="doc" class="readonly prose" />
