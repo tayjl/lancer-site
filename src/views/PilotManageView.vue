@@ -5,6 +5,7 @@ import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
+import CatalogueNotice from '../components/CatalogueNotice.vue'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
 import GmReview from '../components/GmReview.vue'
@@ -455,6 +456,7 @@ async function createMech() {
       </div>
 
       <ConflictNotice v-if="conflict" />
+      <CatalogueNotice />
 
       <!-- Long notes and the rule check sit under the header. -->
       <div v-if="own && reviewNote && character.status === 'pending'" class="notice warn" role="note">

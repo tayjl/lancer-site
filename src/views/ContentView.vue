@@ -2,9 +2,9 @@
 import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { isOwner, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
-import { supabase } from '../lib/supabaseClient'
+import { fetchAll, supabase } from '../lib/supabaseClient'
 import type { Json } from '../lib/database.types'
-import { invalidateTagNames } from '../gameData'
+import { invalidateCatalogues } from '../gameData'
 import { LCP_KINDS, MAX_LCP_BYTES, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
 
 // Preview locally, then save the complete pack with one owner-only database call.
@@ -56,16 +56,11 @@ async function load() {
     ])
     if (packRows.error) throw packRows.error
     if (modRows.error) throw modRows.error
-    const all: InstalledItem[] = []
     // Catalogue metadata can exceed the API's 1,000-row response limit.
-    for (let from = 0; ; from += 1000) {
-      const page = await supabase.from('content_items').select('id, pack_id, kind').order('id').range(from, from + 999)
-      if (page.error) throw page.error
-      all.push(...(page.data ?? []))
-      if ((page.data?.length ?? 0) < 1000) break
-    }
+    const all = await fetchAll((from, to) => supabase.from('content_items').select('id, pack_id, kind').order('id').range(from, to))
+    if (all.error) throw new Error(all.error)
     packs.value = packRows.data ?? []
-    items.value = all
+    items.value = all.rows
     biomods.value = modRows.count ?? 0
   } catch (error) {
     loadError.value = `Could not load installed content. ${error instanceof Error ? error.message : String((error as { message?: string }).message ?? error)}`
@@ -145,7 +140,7 @@ async function importPack() {
     if (error) throw error
     const counts = data as { added: number; updated: number; retained: number }
     result.value = { name: pack.manifest.name, version: pack.manifest.version, ...counts }
-    invalidateTagNames()
+    invalidateCatalogues()
     candidate.value = null
     filename.value = ''
     await load()

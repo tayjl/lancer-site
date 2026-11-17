@@ -26,3 +26,22 @@ export async function checkWrite<T>(
   const now = guard && (await guard.recheck()).data
   return { row: null, error: now && now.updated_at !== guard.seen ? CHANGED_ELSEWHERE : NOT_ALLOWED }
 }
+
+// Supabase returns at most 1,000 rows a request (max_rows in supabase/config.toml), so a long list is read a page at a time.
+const PAGE_SIZE = 1000
+
+// Reads every row of a list. "page" builds the query for one slice, e.g.
+//   fetchAll((from, to) => supabase.from('content_items').select('id').order('id').range(from, to))
+// and must sort by something unique, or rows can repeat or go missing between pages. Returns all the rows, or the
+// error message (and no rows) if any page fails, so a half-loaded list is never shown as the whole.
+export async function fetchAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<{ rows: T[]; error: null } | { rows: never[]; error: string }> {
+  const rows: T[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1)
+    if (error) return { rows: [], error: OFFLINE_MESSAGES.test(error.message) ? OFFLINE : error.message }
+    rows.push(...(data ?? []))
+    if ((data?.length ?? 0) < PAGE_SIZE) return { rows, error: null }
+  }
+}

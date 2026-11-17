@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import { supabase } from './lib/supabaseClient'
+import { loadKind } from './catalogue'
 import type { CoreBonus, Item, Talent } from './gameData'
 import { averageDamageText } from './damage'
 import { coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
@@ -191,8 +191,7 @@ export function useManufacturers() {
 }
 
 export async function loadManufacturers(): Promise<Manufacturer[]> {
-  const { data } = await supabase.from('content_items').select('id, data').eq('kind', 'manufacturers')
-  return (data ?? [])
+  return (await loadKind('manufacturers')).rows
     .map(({ id, data }) => {
       const m = (data ?? {}) as Partial<Manufacturer>
       const extra = m as { dark?: unknown; logo?: unknown }

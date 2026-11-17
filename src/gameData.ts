@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue'
-import { supabase } from './lib/supabaseClient'
+import { cached, clearCatalogues, loadKind } from './catalogue'
+import { fetchAll, supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
 import hpIcon from './assets/icons/hp.svg'
 import armourIcon from './assets/icons/armour.svg'
@@ -87,11 +88,15 @@ export const hiddenTags = shallowRef(new Set<string>())
 // What each tag means (e.g. "This weapon or system can only be used {VAL} times..."), for the full-information dialog.
 export const tagDescriptions = shallowRef(new Map<string, string>())
 let tagsLoading: Promise<void> | undefined
-// New packs may add tags; the next character sheet should fetch their names again.
-export const invalidateTagNames = () => { tagsLoading = undefined }
+// A new or updated pack changes the game content: the next page should read all of it again.
+export const invalidateCatalogues = () => {
+  clearCatalogues()
+  tagsLoading = undefined
+}
 export function loadTagNames() {
   tagsLoading ??= (async () => {
-    const { data } = await supabase.from('content_items').select('id, data').eq('kind', 'tags')
+    const { rows: data, error } = await loadKind('tags')
+    if (error) tagsLoading = undefined // not kept, so the next page tries again
     tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
     tagDescriptions.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { description?: unknown } | null)?.description ?? '')]))
     hiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hidden?: unknown } | null)?.hidden === true).map(({ id }) => id))
@@ -231,26 +236,26 @@ export function useGameData() {
 
   async function load() {
     loadTagNames()
-    const [contentRows, bionicRows, statRows] = await Promise.all([
-      supabase.from('content_items').select('id, kind, data').in('kind', ['pilot_gear', 'talents', 'core_bonuses']),
-      supabase.from('bionics').select('*, bonuses:bionic_bonuses(stat_id, amount)').order('name'),
-      supabase.from('pilot_stats').select('id, name').order('sort_order'),
+    const [gearRows, talentRows, coreRows, bionicRows, statRows] = await Promise.all([
+      loadKind('pilot_gear'),
+      loadKind('talents'),
+      loadKind('core_bonuses'),
+      cached('bionics', () => fetchAll((from, to) => supabase.from('bionics').select('*, bonuses:bionic_bonuses(stat_id, amount)').order('name').order('id').range(from, to))),
+      cached('pilot_stats', () => fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))),
     ])
-    const rows = contentRows.data ?? []
-    const of = (kind: string) => rows.filter((row) => row.kind === kind)
-    gear.value = of('pilot_gear')
+    gear.value = gearRows.rows
       .map(({ id, data }) => toItem(id, data))
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
-    bionics.value = bionicRows.data ?? []
-    pilotStats.value = statRows.data ?? []
-    talents.value = of('talents')
+    bionics.value = bionicRows.rows
+    pilotStats.value = statRows.rows
+    talents.value = talentRows.rows
       .map(({ id, data }) => {
         const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: TalentRank[] }
         const ranks = (talent.ranks ?? []).map((rank) => ({ ...rank, name: String(rank.name ?? ''), description: averageDamageText(String(rank.description ?? '')), bonuses: Array.isArray(rank.bonuses) ? rank.bonuses : [] }))
         return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks }
       })
       .sort((a, b) => a.name.localeCompare(b.name))
-    coreBonuses.value = of('core_bonuses')
+    coreBonuses.value = coreRows.rows
       .map(({ id, data }) => {
         const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string; bonuses?: Bonus[] }
         return { ...((data ?? {}) as object), id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: averageDamageText(String(bonus.effect ?? '')), bonuses: Array.isArray(bonus.bonuses) ? bonus.bonuses : [] }

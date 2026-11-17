@@ -15,7 +15,7 @@ import size1Icon from './assets/icons/size-1.svg'
 import size2Icon from './assets/icons/size-2.svg'
 import size3Icon from './assets/icons/size-3.svg'
 import { loadoutSlots, loadTagNames, toItem, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
-import { supabase } from './lib/supabaseClient'
+import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
 import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
 import { averageDamageText } from './damage'
@@ -391,8 +391,7 @@ export function useMechData() {
 
   async function load() {
     loadTagNames()
-    const { data } = await supabase.from('content_items').select('id, kind, data').in('kind', ['frames', 'weapons', 'systems', 'talents'])
-    const rows = data ?? []
+    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'talents'].map(loadKind))).flatMap((result) => result.rows)
     const frameRows = rows.filter((row) => row.kind === 'frames')
     // Built-in and talent-only items can't be picked: they come with a frame or a talent.
     const talentEquipment = rows.filter(row => row.kind === 'talents').flatMap(row => {

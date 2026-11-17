@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vu
 import { useRoute, useRouter } from 'vue-router'
 import InfoBody from '../components/InfoBody.vue'
 import InfoButton from '../components/InfoButton.vue'
+import CatalogueNotice from '../components/CatalogueNotice.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -185,6 +186,7 @@ function step(event: KeyboardEvent) {
     <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, piece of gear, talent and core bonus in the loaded content packs.">
       <span class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
     </PageHeader>
+    <CatalogueNotice />
 
     <div class="search">
       <label class="field">

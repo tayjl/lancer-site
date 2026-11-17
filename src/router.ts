@@ -2,18 +2,7 @@ import { ref } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
 import type { Tables } from './lib/database.types'
-import ArchivesView from './views/ArchivesView.vue'
-import ContentView from './views/ContentView.vue'
-import GmChangesView from './views/GmChangesView.vue'
-import GmChangeView from './views/GmChangeView.vue'
-import GmPilotsView from './views/GmPilotsView.vue'
-import HomeView from './views/HomeView.vue'
-import LoreEditView from './views/LoreEditView.vue'
-import LoreView from './views/LoreView.vue'
 import LoginView from './views/LoginView.vue'
-import MechView from './views/MechView.vue'
-import PilotManageView from './views/PilotManageView.vue'
-import RegistryView from './views/RegistryView.vue'
 
 // The site is character management only: your pilot, the pilot lists, and the GM side of approving and
 // levelling them, plus the game content they're built from. The top bar's tabs are in App.vue.
@@ -36,41 +25,42 @@ declare module 'vue-router' {
 
 const LORE_META = { title: 'Lore', summary: 'Stories, places and people of the campaign, written by the GMs.', section: 'lore' }
 
+// Every page but the login screen loads its code when first visited, so the first paint downloads less.
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     // Home: the login screen's boot scrawl, with buttons to every tab. The logo in the top bar links here.
-    { path: '/', name: 'home', component: HomeView, meta: { title: 'Home' } },
+    { path: '/', name: 'home', component: () => import('./views/HomeView.vue'), meta: { title: 'Home' } },
     {
       path: '/pilot',
       name: 'pilot',
-      component: PilotManageView,
+      component: () => import('./views/PilotManageView.vue'),
       meta: { title: 'My pilot' },
     },
     // One of your mechs.
     {
       path: '/pilot/mechs/:mechId',
       name: 'mech',
-      component: MechView,
+      component: () => import('./views/MechView.vue'),
       meta: { title: 'Mech', section: 'pilot' },
     },
     {
       path: '/registry',
       name: 'registry',
-      component: RegistryView,
+      component: () => import('./views/RegistryView.vue'),
       meta: { title: 'Pilot registry', summary: 'Every approved pilot.', status: 'approved', empty: 'No approved pilots yet.' },
     },
     // A pilot's record: the pilot sheet, read-only (and its mechs' pages).
     {
       path: '/registry/:id',
       name: 'pilot-record',
-      component: PilotManageView,
+      component: () => import('./views/PilotManageView.vue'),
       meta: { title: 'Pilot record', section: 'registry' },
     },
     {
       path: '/registry/:id/mechs/:mechId',
       name: 'record-mech',
-      component: MechView,
+      component: () => import('./views/MechView.vue'),
       meta: { title: 'Mech', section: 'registry' },
     },
     // New pilots waiting on a GM, for everyone to read. GMs review them from the gm pilots tab. Changes to
@@ -78,7 +68,7 @@ export const router = createRouter({
     {
       path: '/pending',
       name: 'pending',
-      component: RegistryView,
+      component: () => import('./views/RegistryView.vue'),
       meta: {
         title: 'Pending pilots',
         summary: 'New pilots waiting on a GM.',
@@ -89,52 +79,52 @@ export const router = createRouter({
     {
       path: '/memorial',
       name: 'memorial',
-      component: RegistryView,
+      component: () => import('./views/RegistryView.vue'),
       meta: { title: 'Memorial', summary: 'Pilots who died. Their records are kept.', status: 'dead', empty: 'No one has died yet.' },
     },
     // Every piece of game content, browsable and searchable (ArchivesView.vue).
     {
       path: '/archives',
       name: 'archives',
-      component: ArchivesView,
+      component: () => import('./views/ArchivesView.vue'),
       meta: { title: 'Archives' },
     },
     // Lore the GMs write: the list with the newest entry (or the one in the url) beside it. /lore/:id urls are shared on Discord.
-    { path: '/lore', name: 'lore', component: LoreView, meta: LORE_META },
-    { path: '/lore/:id', name: 'lore-entry', component: LoreView, meta: LORE_META },
-    { path: '/lore/:id/edit', name: 'lore-edit', component: LoreEditView, meta: { ...LORE_META, gm: true } },
+    { path: '/lore', name: 'lore', component: () => import('./views/LoreView.vue'), meta: LORE_META },
+    { path: '/lore/:id', name: 'lore-entry', component: () => import('./views/LoreView.vue'), meta: LORE_META },
+    { path: '/lore/:id/edit', name: 'lore-edit', component: () => import('./views/LoreEditView.vue'), meta: { ...LORE_META, gm: true } },
     // GM tabs. /gm opens the first one.
     { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },
     {
       path: '/gm/pilots',
       name: 'gm-pilots',
-      component: GmPilotsView,
+      component: () => import('./views/GmPilotsView.vue'),
       meta: { title: 'GM pilots', summary: 'Review new pilots, and level up or pay any pilot.', gm: true },
     },
     // A pilot's record with the GM controls and, while pending, the decision. Opened from gm: pilots.
     {
       path: '/gm/pilots/:id',
       name: 'gm-review',
-      component: PilotManageView,
+      component: () => import('./views/PilotManageView.vue'),
       meta: { title: 'GM review', gm: true, section: 'gm-pilots' },
     },
     {
       path: '/gm/changes',
       name: 'gm-changes',
-      component: GmChangesView,
+      component: () => import('./views/GmChangesView.vue'),
       meta: { title: 'GM changes', summary: 'Changes players want to make to their approved pilots.', gm: true },
     },
     // One change: what it changes, then approve or reject.
     {
       path: '/gm/changes/:id',
       name: 'gm-change',
-      component: GmChangeView,
+      component: () => import('./views/GmChangeView.vue'),
       meta: { title: 'GM change', gm: true, section: 'gm-changes' },
     },
     {
       path: '/gm/content',
       name: 'gm-content',
-      component: ContentView,
+      component: () => import('./views/ContentView.vue'),
       meta: { title: 'GM content', summary: 'The packs behind your pilots, mechs and equipment.', gm: true, owner: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },

@@ -5,6 +5,7 @@ import { isGm, profile } from '../auth'
 import { confirmAction } from '../confirm'
 import { changeDiff, PUBLIC_COLUMNS, type PublicCard, type DiffLine } from '../changeDiff'
 import Icon from '../components/Icon.vue'
+import CatalogueNotice from '../components/CatalogueNotice.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import RichText from '../components/RichText.vue'
@@ -217,6 +218,7 @@ async function reject() {
         </div>
       </section>
 
+      <CatalogueNotice />
       <p v-if="stale && pending" class="notice warn" role="alert">
         This pilot changed after the change was made. Approval is blocked, so the proposal can't overwrite newer edits.
       </p>
