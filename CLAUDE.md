@@ -23,6 +23,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
   - **Build variables:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` must be set under the Worker's Settings → Build → Variables and secrets (build-time, not runtime: Vite bakes them into the files). Never the secret key.
   - **Discord login:** the login sends people back to the page's own address (`redirectTo: window.location.origin`), so add the Cloudflare address (`https://lancer-site.<account>.workers.dev`, and any custom domain) to Supabase → Authentication → URL Configuration (Site URL and Redirect URLs). Otherwise login returns to the old address or fails.
   - After the first deploy: refresh a deep link like `/registry` (should not 404) and log in once.
+  - **The site's domain is `hor-os.party`** (the developer, 2026-11-17), attached to the Worker as a custom domain (Settings → Domains & Routes). Supabase's Site URL is `https://hor-os.party`, and its Redirect URLs list `https://hor-os.party` and `https://hor-os.party/**` (plus localhost for local testing).
 - **No custom backend API.** The Vue app talks straight to Supabase using `supabase-js`. Keep it simple.
 
 ## How the pieces fit
@@ -33,7 +34,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 ## Users and roles (decided)
 - **No campaigns table.** Everything belongs to the one campaign.
 - Anyone can sign up, using **"Log in with Discord"** through Supabase Auth. New accounts need no GM approval (decided by the developer, 2026-11-17); email signup should be off in the hosted dashboard so Discord is the only way in.
-- A **profiles** table holds one row per user: Discord name and role. New users are players. GMs and owners are set by hand in the Supabase dashboard.
+- A **profiles** table holds one row per user: Discord name and role. New users are players. The name is the first non-blank of Discord's display name, username and name, else "Unknown pilot" (`private.discord_name()`, migration `20261117155935_profile_names.sql`, tested in `supabase/tests/profiles.test.sql`): Discord sends an empty display name for accounts without one. GMs and owners are set by hand in the Supabase dashboard.
 - **Three roles:**
   - **Player:** manages their own character through pending changes.
   - **GM:** everything except managing LCP content. Edits any character, approves or rejects changes, and can have their own characters, which they edit directly without approval. GMs can't delete characters.
