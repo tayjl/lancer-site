@@ -266,6 +266,13 @@ a:hover {
   font-size: var(--fs-s);
 }
 
+/* Which pack a thing comes from: the last line of an item card and of the full information. Never coloured. */
+.pack-source {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
 /* The old terminal option, [ like this ], only for the login and home screens. When hovered or selected, the
    brackets turn into arrows, > like this <, the way a terminal menu points at the chosen option. It resets every
    part of the button look above, so it stays exactly as it was. */

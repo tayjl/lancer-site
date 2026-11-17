@@ -7,8 +7,9 @@ import InfoButton from './InfoButton.vue'
 // The one card for a game thing (weapon, system, frame or licence, pilot gear or bionic, talent, core bonus): a header
 // bar in its type's colour (the --type-* tokens) with its symbol, its name (opening its full information with "info")
 // and, at the right, "meta" (system points, mod points, a rank; "unit" after a number). Then the body and the card's
-// buttons ("foot"). "integrated": built into the frame or granted, so it can't be removed.
-defineProps<{ type: CardType; icon: string; name: string; info?: () => Info; meta?: string; unit?: string; integrated?: boolean }>()
+// buttons ("foot"). "integrated": built into the frame or granted, so it can't be removed. "source": the pack it comes
+// from, as the last line of the body.
+defineProps<{ type: CardType; icon: string; name: string; info?: () => Info; meta?: string; unit?: string; integrated?: boolean; source?: string }>()
 </script>
 
 <template>
@@ -20,7 +21,10 @@ defineProps<{ type: CardType; icon: string; name: string; info?: () => Info; met
         <slot name="meta"><span :class="{ num: unit }">{{ meta }}</span><span v-if="unit" class="unit">{{ unit }}</span></slot>
       </span>
     </header>
-    <div v-if="$slots.default" class="body"><slot /></div>
+    <div v-if="$slots.default || source" class="body">
+      <slot />
+      <p v-if="source" class="pack-source">Source: {{ source }}</p>
+    </div>
     <div v-if="$slots.foot" class="foot"><slot name="foot" /></div>
   </article>
 </template>

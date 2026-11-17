@@ -83,6 +83,13 @@ export function toItem(id: string, data: unknown): Item {
 
 // Tag names by id (lancer-data's tags, e.g. "Limited {VAL}"), shared by every page. Loaded once.
 export const tagNames = shallowRef(new Map<string, string>())
+// Which pack each item came from (item id → pack name), for the "Source:" lines. Read once, like the catalogues.
+export const packNames = shallowRef(new Map<string, string>())
+export const sourceOf = (id: string) => packNames.value.get(id) ?? ''
+export async function loadSources() {
+  const { rows } = await cached('sources', () => fetchAll((from, to) => supabase.from('content_items').select('id, content_packs(name)').order('id').range(from, to)))
+  packNames.value = new Map(rows.map(({ id, content_packs }) => [id, content_packs?.name ?? '']))
+}
 // Tags the data marks hidden: notes for the app (e.g. "Set Max Uses"), not something a player reads.
 export const hiddenTags = shallowRef(new Set<string>())
 // What each tag means (e.g. "This weapon or system can only be used {VAL} times..."), for the full-information dialog.
@@ -236,6 +243,7 @@ export function useGameData() {
 
   async function load() {
     loadTagNames()
+    loadSources()
     const [gearRows, talentRows, coreRows, bionicRows, statRows] = await Promise.all([
       loadKind('pilot_gear'),
       loadKind('talents'),

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { tagNames, type Item } from '../gameData'
+import { sourceOf, tagNames, type Item } from '../gameData'
 import { cardRules, itemCard, itemDetails, itemFacts } from '../itemDetails'
 import { itemInfo } from '../info'
 import ActionChip from './ActionChip.vue'
@@ -28,6 +28,7 @@ const rules = computed(() => cardRules(props.item))
     :meta="item.sp ? String(item.sp) : ''"
     unit="SP"
     :integrated="integrated"
+    :source="sourceOf(item.id)"
   >
     <slot />
     <p v-if="itemFacts(item).length" class="facts sep"><span v-for="fact in itemFacts(item)" :key="fact">{{ fact }}</span></p>

@@ -5,11 +5,14 @@ import PageHeader from '../components/PageHeader.vue'
 import { fetchAll, supabase } from '../lib/supabaseClient'
 import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
+import { confirmAction } from '../confirm'
 import { LCP_KINDS, MAX_LCP_BYTES, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
 
 // Preview locally, then save the complete pack with one owner-only database call.
 const packs = shallowRef<InstalledPack[]>([])
 const items = shallowRef<InstalledItem[]>([])
+const usage = shallowRef<{ pack_id: number; pilot: string }[]>([])
+const usageError = ref('')
 const biomods = ref(0)
 const loading = ref(true)
 const loadError = ref('')
@@ -25,6 +28,7 @@ const coreInstalled = computed(() => hasCoreContent(items.value))
 const fileError = ref('')
 const saveError = ref('')
 const result = shallowRef<{ name: string; version: string; added: number; updated: number; retained: number } | null>(null)
+const removal = shallowRef<{ ok: boolean; text: string } | null>(null)
 const plan = computed(() => candidate.value ? planLcp(candidate.value, packs.value, items.value) : null)
 const filteredPacks = computed(() => {
   const query = search.value.trim().toLocaleLowerCase()
@@ -38,6 +42,12 @@ const totals = computed(() => Object.entries(LCP_KINDS).map(([kind, label]) => (
 const blocker = computed(() => plan.value?.conflicts.length ? 'Fix the item IDs above first.'
   : loadError.value ? 'Installed content failed to load.' : loading.value ? 'Loading installed content…' : '')
 const packCount = (id: number) => items.value.filter(item => item.pack_id === id).length
+// Pilots using items from a pack, each named once: it can't be removed while there are any.
+const usersOf = (id: number) => [...new Set(usage.value.filter(row => row.pack_id === id).map(row => row.pilot))]
+function usedBy(id: number) {
+  const names = usersOf(id)
+  return `Used by ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` and ${names.length - 3} more` : ''}`
+}
 function authorOf(pack: InstalledPack) {
   const manifest = pack.manifest as Record<string, Json> | null
   return typeof manifest?.author === 'string' ? manifest.author : ''
@@ -50,9 +60,10 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const [packRows, modRows] = await Promise.all([
+    const [packRows, modRows, usageRows] = await Promise.all([
       supabase.from('content_packs').select('*').order('name'),
       supabase.from('bionics').select('id', { count: 'exact', head: true }),
+      supabase.rpc('pack_usage'),
     ])
     if (packRows.error) throw packRows.error
     if (modRows.error) throw modRows.error
@@ -61,6 +72,9 @@ async function load() {
     if (all.error) throw new Error(all.error)
     packs.value = packRows.data ?? []
     items.value = all.rows
+    // A failed check only blocks removing, never importing.
+    usage.value = usageRows.data ?? []
+    usageError.value = usageRows.error ? "Couldn't check which pilots use it." : ''
     biomods.value = modRows.count ?? 0
   } catch (error) {
     loadError.value = `Could not load installed content. ${error instanceof Error ? error.message : String((error as { message?: string }).message ?? error)}`
@@ -77,6 +91,7 @@ async function inspect(file: File) {
   reading.value = true
   candidate.value = null
   result.value = null
+  removal.value = null
   fileError.value = ''
   saveError.value = ''
   filename.value = file.name
@@ -108,6 +123,7 @@ async function loadCoreContent() {
   reading.value = true
   candidate.value = null
   result.value = null
+  removal.value = null
   fileError.value = ''
   saveError.value = ''
   filename.value = 'Official core content'
@@ -150,6 +166,23 @@ async function importPack() {
     await load()
   } finally { saving.value = false }
 }
+async function removePack(pack: InstalledPack) {
+  if (loading.value || loadError.value || reading.value || saving.value) return
+  const count = packCount(pack.id)
+  const ok = await confirmAction(`Remove ${pack.name} and its ${count} ${count === 1 ? 'item' : 'items'}? This can't be undone. Importing the pack again brings them back.`, { confirmLabel: 'Remove pack', danger: true })
+  if (!ok) return
+  saving.value = true
+  result.value = null
+  try {
+    const { error } = await supabase.rpc('remove_pack', { target_pack_id: pack.id })
+    if (error) throw error
+    removal.value = { ok: true, text: `Removed ${pack.name}.` }
+    invalidateCatalogues()
+  } catch (error) {
+    removal.value = { ok: false, text: `Not removed: ${String((error as { message?: string }).message ?? error)}` }
+  } finally { saving.value = false }
+  await load()
+}
 </script>
 
 <template>
@@ -176,6 +209,7 @@ async function importPack() {
         <p>Version <span class="num">{{ result.version }}</span> imported: <span class="num">{{ result.added }}</span> new, <span class="num">{{ result.updated }}</span> updated, <span class="num">{{ result.retained }}</span> older items kept.</p>
         <p>Its content is now in the pilot and mech pickers.</p>
       </div>
+      <p v-if="removal" class="notice" :class="removal.ok ? 'ok' : 'warn'" :role="removal.ok ? 'status' : 'alert'">{{ removal.text }}</p>
       <p v-if="fileError" class="notice warn" role="alert">{{ fileError }}</p>
       <p v-if="reading" role="status" class="dim">Checking {{ filename }}…</p>
 
@@ -244,7 +278,14 @@ async function importPack() {
               <td class="num">{{ pack.version ?? '–' }}</td>
               <td class="number num">{{ packCount(pack.id) }}</td>
               <td class="dim">{{ dateOf(pack.imported_at) }}</td>
-              <td><button type="button" class="small" :disabled="loading || !!loadError || reading || saving" :aria-label="`Update ${pack.name}`" @click="chooseFile(pack)">Update</button></td>
+              <td class="row-actions-cell"><div class="row-actions">
+                <button type="button" class="small" :disabled="loading || !!loadError || reading || saving" :aria-label="`Update ${pack.name}`" @click="chooseFile(pack)">Update</button>
+                <span v-if="usageError || usersOf(pack.id).length" class="blocked">
+                  <button type="button" class="small danger" disabled :aria-label="`Remove ${pack.name}`" :aria-describedby="`used-${pack.id}`">Remove</button>
+                  <span :id="`used-${pack.id}`" class="blocked-reason">{{ usageError || usedBy(pack.id) }}</span>
+                </span>
+                <button v-else type="button" class="small danger" :disabled="loading || !!loadError || reading || saving" :aria-label="`Remove ${pack.name}`" @click="removePack(pack)">Remove</button>
+              </div></td>
             </tr></tbody>
           </table>
         </div>
@@ -295,6 +336,9 @@ main > * + * { margin-top: var(--space-l); }
 .table th, .table td { white-space: nowrap; vertical-align: middle; }
 .table .number { text-align: right; }
 .author { display: block; font-size: var(--fs-xs); }
+/* The reason a pack can't be removed wraps beside its button instead of widening the table. */
+.table td.row-actions-cell { min-width: 14rem; white-space: normal; }
+.row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-s); }
 
 /* --- Counts per kind of content (the preview and the library): the label, then the number at the right. --- */
 .counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: 0 var(--space-xl); margin: 0; padding: 0; list-style: none; }

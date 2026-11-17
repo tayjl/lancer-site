@@ -563,10 +563,20 @@ export type Database = {
       is_gm: { Args: never; Returns: boolean }
       is_owner: { Args: never; Returns: boolean }
       mark_dead: { Args: { target_character_id: number }; Returns: undefined }
+      pack_usage: {
+        Args: never
+        Returns: {
+          character_id: number
+          item_name: string
+          pack_id: number
+          pilot: string
+        }[]
+      }
       reject_change: {
         Args: { change_id: number; reason: string }
         Returns: undefined
       }
+      remove_pack: { Args: { target_pack_id: number }; Returns: undefined }
     }
     Enums: {
       change_status: "pending" | "approved" | "rejected"

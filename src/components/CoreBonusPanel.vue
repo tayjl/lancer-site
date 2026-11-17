@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { confirmAction } from '../confirm'
-import type { CoreBonus } from '../gameData'
+import { sourceOf, type CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
 import { coreBonusProblems } from '../rules'
 import { plainText } from '../rulesText'
@@ -74,7 +74,7 @@ async function choose(id: string) {
 
     <ul v-if="taken.length || editable" class="slot-grid">
       <li v-for="id in taken" :key="id">
-        <ItemCard type="core" icon="corebonus" :name="byId.get(id)?.name ?? id" :info="byId.get(id) ? () => coreBonusInfo(byId.get(id)!) : undefined" :meta="byId.get(id)?.source">
+        <ItemCard type="core" icon="corebonus" :name="byId.get(id)?.name ?? id" :info="byId.get(id) ? () => coreBonusInfo(byId.get(id)!) : undefined" :meta="byId.get(id)?.source" :source="sourceOf(id)">
           <RulesText :html="byId.get(id)?.effect ?? ''" />
           <template v-if="editable" #foot>
             <button type="button" class="small quiet" :disabled="saving" @click="remove(id)">Remove</button>

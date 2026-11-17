@@ -24,7 +24,8 @@ export type InfoFact = { text: string; tone?: Tone }
 // "kind" is an item stat's (itemDetails): range, damage, bonus or sp.
 export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string; range?: { min: number; max: number; at: number } }
 // "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
-export type Info = { kind: string; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
+// "id": the thing's own id in the packs, for the "Source:" line (not for bionics, which aren't pack content).
+export type Info = { kind: string; id?: string; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
 
 // The one dialog's contents; null while it's closed.
 export const shownInfo = shallowRef<Info | null>(null)
@@ -84,6 +85,7 @@ export function itemInfo(item: Item): Info {
   const effect = text(item.effect)
   return {
     kind: pilot ? PILOT_KINDS[item.type] : item.mount ? `${item.mount} ${item.type} weapon`.toLowerCase() : (item.type || 'system').toLowerCase(),
+    id: item.id,
     name: item.name,
     source: text(raw.source),
     facts: facts(
@@ -108,6 +110,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
   const others = frames.map((other) => mechStats(other, undefined, []))
   return {
     kind: `${frame.source} frame`.trim(),
+    id: frame.id,
     name: frame.name,
     source: frame.source,
     facts: facts(
@@ -165,6 +168,7 @@ function coreCards(core: Record<string, unknown>): InfoCard[] {
 export function talentInfo(talent: Talent): Info {
   return {
     kind: 'talent',
+    id: talent.id,
     name: talent.name,
     facts: [],
     lore: text(talent.terse),
@@ -176,6 +180,7 @@ export function talentInfo(talent: Talent): Info {
 export function coreBonusInfo(bonus: CoreBonus): Info {
   return {
     kind: `${bonus.source} core bonus`.trim(),
+    id: bonus.id,
     name: bonus.name,
     source: bonus.source,
     facts: [],
@@ -204,6 +209,7 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
   const made = frames.filter((frame) => frame.source === manufacturer.id)
   return {
     kind: 'manufacturer',
+    id: manufacturer.id,
     name: manufacturer.name,
     source: manufacturer.id,
     facts: facts(manufacturer.id !== manufacturer.name ? manufacturer.id : '', made.length ? `${made.length} frames` : ''),
@@ -225,6 +231,7 @@ export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] 
   const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, level).map((unlock) => `<li><b>${unlock.kind[0].toUpperCase()}${unlock.kind.slice(1)}:</b> ${unlock.name}</li>`)
   return {
     kind: `${frame.source} licence`.trim(),
+    id: frame.id,
     name: frame.name,
     source: frame.source,
     facts: facts({ text: frame.mechtype.join(' / '), tone: TONES.classification }, `${PRICES.licenceRank} manna per rank`),

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { sourceOf } from '../gameData'
 import { MAX_LICENCE_RANK, rankName } from '../rules'
 import type { Info } from '../info'
 import Icon from './Icon.vue'
@@ -89,7 +90,7 @@ async function buy(id: string) {
     </header>
 
     <div v-if="ranks.length" class="list">
-      <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info">
+      <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
         <template #meta>Rank {{ rankName(rank) }}</template>
         <ol :class="columns ? 'ladder' : 'tiers'">
           <li v-for="(step, i) in details(id).slice(0, MAX_LICENCE_RANK)" :key="i" class="rank" :class="{ locked: i >= rank }">

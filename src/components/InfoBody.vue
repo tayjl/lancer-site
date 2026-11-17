@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { sourceOf } from '../gameData'
 import type { Info, InfoCard } from '../info'
 import Icon from './Icon.vue'
 import InfoRule from './InfoRule.vue'
@@ -27,6 +28,7 @@ const summary = computed(() => `Stats compared with every frame: ${radar.value.m
 // A card's parts as InfoRule draws them (not its tone, nor a trait's actions, which are drawn separately).
 const rule = ({ heading, activation, frequency, stats, html }: InfoCard) => ({ heading, activation, frequency, stats, html })
 const sp = computed(() => props.info.stats.find((stat) => stat.kind === 'sp'))
+const source = computed(() => sourceOf(props.info.id ?? ''))
 </script>
 
 <template>
@@ -83,6 +85,7 @@ const sp = computed(() => props.info.stats.find((stat) => stat.kind === 'sp'))
     </template>
 
     <p v-if="!info.stats.length && !info.groups.length && !info.lore" class="dim">No further information.</p>
+    <p v-if="source" class="pack-source">Source: {{ source }}</p>
   </div>
 </template>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { coreContent } from './coreContent'
-import { tagDescriptions, tagNames, toItem, type Bionic, type CoreBonus, type Talent } from './gameData'
+import { packNames, sourceOf, tagDescriptions, tagNames, toItem, type Bionic, type CoreBonus, type Talent } from './gameData'
 import { bionicInfo, coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
 import { licenceNames, type Frame } from './mechData'
 
@@ -20,6 +20,7 @@ describe('full information', () => {
   it('shows a weapon with its licence, lore, actions and explained tags', () => {
     const info = itemInfo(toItem('mw_autopod', data('mw_autopod')))
     expect(info.kind).toBe('main launcher weapon')
+    expect(info.id).toBe('mw_autopod')
     expect(info.facts).toEqual([{ text: 'HORUS' }, { text: 'Licence: HORUS Goblin I', tone: 'sky' }])
     expect(info.lore).toContain('antipersonnel weapon')
     expect(headings(info, 'rules')).toEqual(['effect', 'Autonomous Assault'])
@@ -131,6 +132,14 @@ describe('full information', () => {
   })
 })
 
+describe('pack names', () => {
+  it('gives the pack an item came from, and nothing for an unknown id', () => {
+    packNames.value = new Map([['mw_autopod', 'LANCER Core']])
+    expect(sourceOf('mw_autopod')).toBe('LANCER Core')
+    expect(sourceOf('nope')).toBe('')
+  })
+})
+
 describe('archive information', () => {
   const frame = (id: string): Frame => {
     const raw = data(id)
@@ -140,7 +149,7 @@ describe('archive information', () => {
     const goblin = frame('mf_goblin')
     const items = (kind: string) => coreContent.items.filter(item => item.kind === kind).map(item => toItem(item.id, item.data))
     const info = licenceInfo(goblin, items('weapons'), items('systems'))
-    expect(info).toMatchObject({ kind: 'HORUS licence', name: 'Goblin' })
+    expect(info).toMatchObject({ kind: 'HORUS licence', id: 'mf_goblin', name: 'Goblin' })
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['rank I', 'rank II', 'rank III'])
     expect(info.groups[0].cards[0].html).toContain('<b>Weapon:</b> Autopod')
     expect(info.groups[0].cards[1].html).toContain('<b>Frame:</b> Goblin')
@@ -149,7 +158,7 @@ describe('archive information', () => {
   it('shows a manufacturer’s motto, history and frames', () => {
     const ipsn = data('IPS-N') as unknown as Manufacturer
     const info = manufacturerInfo(ipsn, [frame('mf_blackbeard'), frame('mf_goblin')])
-    expect(info).toMatchObject({ kind: 'manufacturer', name: 'IPS-NORTHSTAR' })
+    expect(info).toMatchObject({ kind: 'manufacturer', id: 'IPS-N', name: 'IPS-NORTHSTAR' })
     expect(info.lore).toContain('Your friend in an unfriendly sea')
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['Blackbeard'])
   })
