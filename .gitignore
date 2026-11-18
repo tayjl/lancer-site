@@ -30,3 +30,7 @@ graphify-out/
 *.njsproj
 *.sln
 *.sw?
+
+# One-off browser-test scratch output
+output/
+.playwright-cli/
