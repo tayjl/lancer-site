@@ -80,6 +80,7 @@ export type Database = {
           mod_point_cost: number
           name: string
           retired: boolean
+          updated_at: string
         }
         Insert: {
           description?: string | null
@@ -88,6 +89,7 @@ export type Database = {
           mod_point_cost?: number
           name: string
           retired?: boolean
+          updated_at?: string
         }
         Update: {
           description?: string | null
@@ -96,6 +98,7 @@ export type Database = {
           mod_point_cost?: number
           name?: string
           retired?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
@@ -217,21 +220,30 @@ export type Database = {
       content_items: {
         Row: {
           data: Json
+          draft: boolean
+          edited: Json | null
           id: string
           kind: string
           pack_id: number
+          updated_at: string
         }
         Insert: {
           data: Json
+          draft?: boolean
+          edited?: Json | null
           id: string
           kind: string
           pack_id: number
+          updated_at?: string
         }
         Update: {
           data?: Json
+          draft?: boolean
+          edited?: Json | null
           id?: string
           kind?: string
           pack_id?: number
+          updated_at?: string
         }
         Relationships: [
           {
@@ -421,16 +433,19 @@ export type Database = {
           id: string
           name: string
           sort_order: number
+          updated_at: string
         }
         Insert: {
           id: string
           name: string
           sort_order?: number
+          updated_at?: string
         }
         Update: {
           id?: string
           name?: string
           sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -547,6 +562,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_content_item: { Args: { target_id: string }; Returns: undefined }
       dismiss_approval_note: {
         Args: { expected_note: string; target_character_id: number }
         Returns: undefined
@@ -563,6 +579,13 @@ export type Database = {
       is_gm: { Args: never; Returns: boolean }
       is_owner: { Args: never; Returns: boolean }
       mark_dead: { Args: { target_character_id: number }; Returns: undefined }
+      item_usage: {
+        Args: { is_bionic?: boolean; item_id: string }
+        Returns: {
+          character_id: number
+          pilot: string
+        }[]
+      }
       pack_usage: {
         Args: never
         Returns: {
@@ -577,6 +600,18 @@ export type Database = {
         Returns: undefined
       }
       remove_pack: { Args: { target_pack_id: number }; Returns: undefined }
+      save_bionic: {
+        Args: {
+          expected_updated_at?: string
+          new_bonuses: Json
+          new_description: string
+          new_mod_cost: number
+          new_name: string
+          new_retired: boolean
+          target_id?: number
+        }
+        Returns: Json
+      }
     }
     Enums: {
       change_status: "pending" | "approved" | "rejected"

@@ -35,6 +35,7 @@ export type Names = {
   frame: (id: string) => string
   weapon: (id: string) => string
   system: (id: string) => string
+  mod: (id: string) => string
 }
 
 // Each line says what happened to one thing: added (new), raised or lowered (a number or rank went up or down),
@@ -158,6 +159,17 @@ export function changeDiff(
         const label = key.startsWith('integrated:') ? names.weapon(key.slice('integrated:'.length)) : `mount ${mount + 1}, weapon ${place + 1}`
         add(`${section} / weapon mounts`, `${label} configuration: ${configuration(a.weapon_options?.[key])} → ${configuration(b.weapon_options?.[key])}`)
       }
+    // A mod sits on a weapon's place: "Mod on Assault Rifle: Nanocomposite Adaptation".
+    for (const key of new Set([...Object.keys(a.weapon_mods ?? {}), ...Object.keys(b.weapon_mods ?? {})])) {
+      const [from, to] = [a.weapon_mods?.[key], b.weapon_mods?.[key]]
+      if (from === to) continue
+      const [mount, place] = key.split(':').map(Number)
+      const weapon = (to ? b : a).mounts?.[mount]?.[place]
+      const label = `mod on ${weapon ? names.weapon(weapon) : `mount ${mount + 1}, weapon ${place + 1}`}`
+      if (!from) add(`${section} / weapon mounts`, `${label}: ${names.mod(to!)}`, 'added')
+      else if (!to) add(`${section} / weapon mounts`, `${label}: ${names.mod(from)}`, 'removed')
+      else add(`${section} / weapon mounts`, `${label}: ${names.mod(from)} → ${names.mod(to)}`)
+    }
     if (!same(a.history, b.history)) add(`${section} / history`, 'history', a.history ? 'updated' : 'added', b.history)
   }
   ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)

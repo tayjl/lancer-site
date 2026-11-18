@@ -1,7 +1,7 @@
 import { shallowRef } from 'vue'
 import { loadKind } from './catalogue'
 import type { CoreBonus, Item, Talent } from './gameData'
-import { averageDamageText } from './damage'
+import { flatDamageText } from './damage'
 import { coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
 import { itemDetails } from './itemDetails'
 import type { Frame } from './mechData'
@@ -9,8 +9,8 @@ import { licenceName, rankName } from './rules'
 import { plainText } from './rulesText'
 
 // The archives page (ArchivesView.vue): every manufacturer, licence, core bonus, frame, mech weapon, mech system,
-// pilot gear and talent in the loaded packs, each opening its full information, with one search across all of them.
-export const ARCHIVE_CATEGORIES = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'pilot gear', 'talents'] as const
+// weapon mod, pilot gear and talent in the loaded packs, each opening its full information, with one search across all of them.
+export const ARCHIVE_CATEGORIES = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'pilot gear', 'talents'] as const
 export type ArchiveCategory = (typeof ARCHIVE_CATEGORIES)[number]
 // "search" is everything the search looks through: name, facts, group and rules text, lower case. "group" is what the
 // entry is listed under: its manufacturer's id (or "other"), a pilot gear type, or "" for no grouping (talents).
@@ -37,6 +37,7 @@ export type ArchiveContent = {
   frames: Frame[]
   weapons: Item[]
   systems: Item[]
+  mods: Item[]
   gear: Item[]
   talents: Talent[]
   coreBonuses: CoreBonus[]
@@ -60,10 +61,10 @@ const sourceOf = (item: Item) => String(item.raw?.source ?? '') || 'other'
 const firstDetail = (list: unknown) =>
   String((Array.isArray(list) ? (list as { detail?: unknown }[]).find((entry) => entry?.detail)?.detail : '') ?? '')
 const summaryOf = (item: Item) =>
-  plainText(itemDetails(item, new Map()).text) || plainText(averageDamageText(firstDetail(item.raw?.actions) || firstDetail(item.raw?.deployables)))
+  plainText(itemDetails(item, new Map()).text) || plainText(flatDamageText(firstDetail(item.raw?.actions) || firstDetail(item.raw?.deployables)))
 
 export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
-  const { manufacturers, frames, weapons, systems, gear, talents, coreBonuses } = content
+  const { manufacturers, frames, weapons, systems, mods, gear, talents, coreBonuses } = content
   const item = (category: ArchiveCategory, i: Item, group = sourceOf(i)) =>
     entry(
       {
@@ -79,7 +80,7 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
     ...frames.filter((f) => f.licenceLevel > 0).map((f) =>
       entry(
         {
-          category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => licenceInfo(f, weapons, systems),
+          category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => licenceInfo(f, weapons, systems, mods),
         },
         f.mechtype,
         [],
@@ -90,6 +91,7 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
       entry({ category: 'frames', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => frameInfo(f, frames) }, f.mechtype, [f.description])),
     ...weapons.map((w) => item('mech weapons', w)),
     ...systems.map((s) => item('mech systems', s)),
+    ...mods.map((m) => item('weapon mods', m)),
     ...gear.map((g) => item('pilot gear', g, g.type)),
     ...talents.map((t) =>
       entry({ category: 'talents', group: '', id: t.id, name: t.name, summary: t.terse, info: () => talentInfo(t) }, [], t.ranks.flatMap((r) => [r.name, r.description]))),
@@ -97,14 +99,14 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
 }
 
 // The one or two key facts a row in the archives' list shows after the name (its full information is in the detail
-// pane): a weapon's rank and mount and type, a system's rank and system points, a frame's or licence's role, a
+// pane): a weapon's rank and mount and type, a system's or mod's rank and system points, a frame's or licence's role, a
 // manufacturer's code. Nothing for the rest: their group (maker, gear type) already says enough.
 export function listFacts(entry: ArchiveEntry): string[] {
   const { item, frame } = entry
   const rank = entry.level ? `Rank ${rankName(entry.level)}` : ''
   const facts =
     entry.category === 'mech weapons' && item ? [rank, `${item.mount} ${item.type}`.trim()]
-    : entry.category === 'mech systems' && item ? [rank, item.sp ? `${item.sp} SP` : '']
+    : (entry.category === 'mech systems' || entry.category === 'weapon mods') && item ? [rank, item.sp ? `${item.sp} SP` : '']
     : frame ? [frame.mechtype.join(' / ')]
     : entry.category === 'manufacturers' && entry.id !== entry.name ? [entry.id]
     : []
@@ -118,6 +120,8 @@ export const makerColour = (maker?: Manufacturer) =>
 // Massif's manufacturer logos (from COMP/CON, GPL-3.0; cleaned down to their shapes), by the packs' "logo" name.
 // Single-colour shapes, drawn in the manufacturer's colour with Icon.vue. Homebrew manufacturers have none.
 const LOGOS = import.meta.glob('./assets/logos/*.svg', { eager: true, import: 'default' }) as Record<string, string>
+// The bundled logo names, for the content editor's choice.
+export const LOGO_NAMES = Object.keys(LOGOS).map((path) => path.replace(/^.*\/(.+)\.svg$/, '$1')).sort()
 export const makerLogo = (maker?: Manufacturer) => (maker?.logo ? LOGOS[`./assets/logos/${maker.logo}.svg`] : undefined) ?? null
 
 // How a category's entries are listed: one group per manufacturer (in the manufacturers' order, then any unknown
@@ -129,7 +133,7 @@ export const makerLogo = (maker?: Manufacturer) => (maker?.logo ? LOGOS[`./asset
 export type ArchiveSection = { licence: string; entries: ArchiveEntry[] }
 export type ArchiveGroup = { key: string; title: string; colour: string; logo: string | null; entries: ArchiveEntry[]; sections: ArchiveSection[] }
 const GEAR_TYPES: Record<string, string> = { Armor: 'pilot armour', Weapon: 'pilot weapons', Gear: 'pilot gear' }
-const BY_LICENCE: ArchiveCategory[] = ['mech weapons', 'mech systems']
+const BY_LICENCE: ArchiveCategory[] = ['mech weapons', 'mech systems', 'weapon mods']
 const grouped = <T>(list: T[], keyOf: (item: T) => string) => {
   const groups = new Map<string, T[]>()
   for (const item of list) groups.set(keyOf(item), [...(groups.get(keyOf(item)) ?? []), item])
@@ -168,7 +172,7 @@ export function searchArchive(entries: ArchiveEntry[], query: string): ArchiveEn
 
 // The manufacturer filter (?maker=GMS,IPS-N): known manufacturers' ids only, so a stale or made-up id does nothing.
 // Pilot gear and talents have no manufacturer, so the filter leaves them alone.
-export const MAKER_CATEGORIES: ArchiveCategory[] = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems']
+export const MAKER_CATEGORIES: ArchiveCategory[] = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods']
 export const parseMakers = (value: unknown, manufacturers: Manufacturer[]) =>
   String(value ?? '').split(',').filter((id) => manufacturers.some((m) => m.id === id))
 export const filterByMakers = (entries: ArchiveEntry[], makers: string[]) =>
@@ -191,11 +195,12 @@ export function useManufacturers() {
 }
 
 export async function loadManufacturers(): Promise<Manufacturer[]> {
-  return (await loadKind('manufacturers')).rows
-    .map(({ id, data }) => {
-      const m = (data ?? {}) as Partial<Manufacturer>
-      const extra = m as { dark?: unknown; logo?: unknown }
-      return { id, name: String(m.name ?? id), quote: String(m.quote ?? ''), description: String(m.description ?? ''), colour: String(extra.dark ?? ''), logo: String(extra.logo ?? '') }
-    })
-    .sort((a, b) => a.name.localeCompare(b.name))
+  return (await loadKind('manufacturers')).rows.map(({ id, data }) => toManufacturer(id, data)).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// A manufacturer from its pack data (also the content editor's preview).
+export function toManufacturer(id: string, data: unknown): Manufacturer {
+  const m = (data ?? {}) as Partial<Manufacturer>
+  const extra = m as { dark?: unknown; logo?: unknown }
+  return { id, name: String(m.name ?? id), quote: String(m.quote ?? ''), description: String(m.description ?? ''), colour: String(extra.dark ?? ''), logo: String(extra.logo ?? '') }
 }

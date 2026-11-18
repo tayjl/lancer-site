@@ -3,15 +3,18 @@ import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { isGm, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
-import type { PublicPilot } from '../pilots'
+import type { Json } from '../lib/database.types'
+import { PILOT_FIELDS, type PublicPilot } from '../pilots'
 import { checkWrite, supabase } from '../lib/supabaseClient'
 import type { Sheet } from '../myPilot'
-import { licenceLevel, mannaSpent } from '../rules'
+import { formatAmount, licenceLevel, mannaSpent } from '../rules'
 
 // Waiting pilots are ordered by submission time. The searchable roster includes every pilot,
 // including sent-back and dead records. GM edits save directly; database policies enforce the role.
+// The sheet is read only for what the roster's numbers use: the licences, talents and bionics that manna is spent on.
+const SHEET_FIELDS = 'review_note, level, manna, licences:sheet->licences, talents:sheet->talents, bionics:sheet->bionics'
 type Pilot = PublicPilot & {
-  sheet: { review_note: string | null; level: number; manna: number; sheet: unknown } | null
+  sheet: { review_note: string | null; level: number; manna: number; licences: Json; talents: Json; bionics: Json } | null
 }
 
 const items = shallowRef<Pilot[]>([])
@@ -35,7 +38,7 @@ async function load() {
   loading.value = true
   const { data, error: loadError } = await supabase
     .from('characters')
-    .select('*, player:profiles(display_name), sheet:character_sheets(review_note, level, manna, sheet)')
+    .select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS})`)
     .order('created_at')
   items.value = (data ?? []).map((pilot) => ({ ...pilot, mechs: Array.isArray(pilot.mechs) ? pilot.mechs : [] })) as Pilot[]
   error.value = loadError?.message ?? ''
@@ -48,10 +51,9 @@ const saved = reactive<Record<number, boolean>>({})
 // Numbers typed but not saved yet (a failed save keeps them on screen for Retry), by pilot.
 const typed = reactive<Record<number, { level?: number; manna?: number }>>({})
 const shown = (pilot: Pilot, field: 'level' | 'manna') => typed[pilot.id]?.[field] ?? pilot.sheet?.[field] ?? 0
-const spent = (pilot: Pilot) => mannaSpent((pilot.sheet?.sheet ?? {}) as Sheet)
+const spent = (pilot: Pilot) => mannaSpent((pilot.sheet ?? {}) as Sheet)
 const left = (pilot: Pilot) => (pilot.sheet?.manna ?? 0) - spent(pilot)
-const amount = (n: number) => n.toLocaleString('en-GB')
-const licenceRanks = (pilot: Pilot) => licenceLevel((pilot.sheet?.sheet ?? {}) as Sheet)
+const licenceRanks = (pilot: Pilot) => licenceLevel((pilot.sheet ?? {}) as Sheet)
 
 async function save(pilot: Pilot, changes: { level?: number; manna?: number }) {
   if (saving[pilot.id]) return
@@ -59,7 +61,7 @@ async function save(pilot: Pilot, changes: { level?: number; manna?: number }) {
   saved[pilot.id] = false
   typed[pilot.id] = { ...typed[pilot.id], ...changes }
   const { row, error: saveError } = await checkWrite(
-    await supabase.from('character_sheets').update(typed[pilot.id]).eq('character_id', pilot.id).select('review_note, level, manna, sheet'),
+    await supabase.from('character_sheets').update(typed[pilot.id]).eq('character_id', pilot.id).select(SHEET_FIELDS),
   )
   saving[pilot.id] = false
   rowError[pilot.id] = saveError ?? ''
@@ -159,8 +161,8 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                   />
                 </td>
                 <td class="number" :title="`${spent(pilot)} spent`">
-                  <span class="num balance" :class="{ over: left(pilot) < 0 }">{{ amount(left(pilot)) }}</span>
-                  <span class="spent"><span class="num">{{ amount(spent(pilot)) }}</span> spent</span>
+                  <span class="num balance" :class="{ over: left(pilot) < 0 }">{{ formatAmount(left(pilot)) }}</span>
+                  <span class="spent"><span class="num">{{ formatAmount(spent(pilot)) }}</span> spent</span>
                 </td>
                 <td class="mech-names" :title="pilot.mechs.map((mech) => mech.name).join(', ')">
                   {{ pilot.mechs.map((mech) => mech.name).join(', ') || '–' }}

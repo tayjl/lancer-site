@@ -7,6 +7,7 @@ import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
 import { confirmAction } from '../confirm'
 import { LCP_KINDS, MAX_LCP_BYTES, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
+import { formatDate } from '../time'
 
 // Preview locally, then save the complete pack with one owner-only database call.
 const packs = shallowRef<InstalledPack[]>([])
@@ -52,9 +53,6 @@ function authorOf(pack: InstalledPack) {
   const manifest = pack.manifest as Record<string, Json> | null
   return typeof manifest?.author === 'string' ? manifest.author : ''
 }
-function dateOf(value: string) {
-  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value))
-}
 
 async function load() {
   loading.value = true
@@ -68,10 +66,11 @@ async function load() {
     if (packRows.error) throw packRows.error
     if (modRows.error) throw modRows.error
     // Catalogue metadata can exceed the API's 1,000-row response limit.
-    const all = await fetchAll((from, to) => supabase.from('content_items').select('id, pack_id, kind').order('id').range(from, to))
+    // "edited_id" is only there to say whether the campaign has edited the item (the edit itself is big).
+    const all = await fetchAll((from, to) => supabase.from('content_items').select('id, pack_id, kind, edited_id:edited->>id').order('id').range(from, to))
     if (all.error) throw new Error(all.error)
     packs.value = packRows.data ?? []
-    items.value = all.rows
+    items.value = all.rows.map((row) => ({ id: row.id, pack_id: row.pack_id, kind: row.kind, edited: (row as unknown as { edited_id: string | null }).edited_id !== null }))
     // A failed check only blocks removing, never importing.
     usage.value = usageRows.data ?? []
     usageError.value = usageRows.error ? "Couldn't check which pilots use it." : ''
@@ -191,6 +190,7 @@ async function removePack(pack: InstalledPack) {
       <div v-if="isOwner" class="actions">
         <button v-if="!loading && !loadError && !coreInstalled" type="button" :class="{ primary: !candidate }" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'Loading core content…' : 'Load core content' }}</button>
         <button type="button" :class="{ primary: coreInstalled && !candidate }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">Import a pack</button>
+        <RouterLink :to="{ name: 'gm-content-editor' }" class="link-button">Open editor</RouterLink>
       </div>
     </PageHeader>
     <p v-if="!profile" class="dim">Loading…</p>
@@ -233,6 +233,9 @@ async function removePack(pack: InstalledPack) {
           <li v-for="row in previewKinds" :key="row.kind"><span class="label">{{ row.label }}</span><span class="num">{{ row.count }}</span></li>
         </ul>
         <div class="checks">
+          <p v-if="plan.edited" class="notice">
+            <span><span class="num">{{ plan.edited }}</span> of this pack's {{ plan.edited === 1 ? 'items has' : 'items have' }} campaign edits (made in the content editor). The update keeps them.</span>
+          </p>
           <p v-if="plan.retained" class="dim">Older items missing from this update stay available, so existing pilots keep their equipment.</p>
           <p v-for="warning in candidate.warnings" :key="warning" class="notice">{{ warning }}</p>
           <details v-if="candidate.ignored.length" class="ignored">
@@ -277,7 +280,7 @@ async function removePack(pack: InstalledPack) {
               <td><strong>{{ pack.name }}</strong><span v-if="authorOf(pack)" class="author dim">{{ authorOf(pack) }}</span></td>
               <td class="num">{{ pack.version ?? '–' }}</td>
               <td class="number num">{{ packCount(pack.id) }}</td>
-              <td class="dim">{{ dateOf(pack.imported_at) }}</td>
+              <td class="dim">{{ formatDate(pack.imported_at) }}</td>
               <td class="row-actions-cell"><div class="row-actions">
                 <button type="button" class="small" :disabled="loading || !!loadError || reading || saving" :aria-label="`Update ${pack.name}`" @click="chooseFile(pack)">Update</button>
                 <span v-if="usageError || usersOf(pack.id).length" class="blocked">

@@ -6,7 +6,8 @@ import type { NamedBonus } from '../bonuses'
 import { itemDetails, itemFacts, statLine } from '../itemDetails'
 import { itemInfo } from '../info'
 import { plainText } from '../rulesText'
-import { allowedSizes, mountSize, type Frame } from '../mechData'
+import { modBlockedBy, modsRefused } from '../equipment'
+import { allowedSizes, fittedMods, MOUNT_HINTS, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { bracingMount, isLicensed, licenceName, rankName, superheavyMount } from '../rules'
 import ItemPicker from './ItemPicker.vue'
@@ -19,13 +20,15 @@ import Icon from './Icon.vue'
 // Weapons and systems both cost system points; the total comes from the frame and the pilot's Systems skill,
 // and the pickers won't go over it. The pickers also follow LANCER's other rules (src/rules.ts): licences,
 // a Superheavy weapon bracing against a second empty mount, one of each Unique item, one AI. Weapons and
-// systems built into the frame show as their own cards and can't be removed.
+// systems built into the frame show as their own cards and can't be removed. A weapon on a mount can carry one mod
+// (in its own card, stored by the weapon's place); it costs system points too and goes with its weapon.
 const props = defineProps<{
   frame: Frame | null
   frames: Frame[]
   licences: Record<string, number>
   weapons: Item[]
   systems: Item[]
+  mods: Item[]
   integrated: Map<string, Item>
   mounts: (string | null)[][]
   installed: string[]
@@ -41,6 +44,7 @@ const props = defineProps<{
 
 const weaponsById = computed(() => new Map(props.weapons.map((item) => [item.id, item])))
 const systemsById = computed(() => new Map(props.systems.map((item) => [item.id, item])))
+const modsById = computed(() => new Map(props.mods.map((item) => [item.id, item])))
 // An id missing from the catalogue (e.g. its pack was removed) still shows, by its id.
 const find = (byId: Map<string, Item>, id: string) => byId.get(id) ?? props.integrated.get(id) ?? toItem(id, { name: `unknown item (${id})` })
 
@@ -71,10 +75,19 @@ const builtIn = computed(() => (props.frame?.integrated ?? []).map((id) => props
 const builtInWeapons = computed(() => builtIn.value.filter((item) => item.mount))
 const builtInSystems = computed(() => builtIn.value.filter((item) => !item.mount))
 
+// The mods on weapons that are there ("mount:place" → mod id); the rest are stray (see below).
+const liveMods = computed(() => Object.fromEntries(fittedMods(props.details, props.frame)))
+const modOn = (m: number, i: number) => {
+  const id = liveMods.value[`${m}:${i}`]
+  return id ? find(modsById.value, id) : undefined
+}
+const withoutMod = (key: string) => Object.fromEntries(Object.entries(props.details.weapon_mods ?? {}).filter(([place]) => place !== key))
+
 const spUsed = computed(
   () =>
     props.mounts.flat().reduce((sum, id) => sum + (id ? (weaponsById.value.get(id)?.sp ?? 0) : 0), 0) +
-    props.installed.reduce((sum, id) => sum + (systemsById.value.get(id)?.sp ?? 0), 0),
+    props.installed.reduce((sum, id) => sum + (systemsById.value.get(id)?.sp ?? 0), 0) +
+    Object.values(liveMods.value).reduce((sum, id) => sum + (modsById.value.get(id)?.sp ?? 0), 0),
 )
 
 // --- Saving ---
@@ -95,8 +108,13 @@ const withWeapon = (m: number, i: number, id: string | null) =>
   )
 
 async function unequip(m: number, i: number, id: string) {
-  if (await confirmAction(`Remove ${find(weaponsById.value, id).name}?`, { confirmLabel: 'Remove', danger: true }))
-    store({ mounts: withWeapon(m, i, null) })
+  const mod = modOn(m, i)
+  if (await confirmAction(`Remove ${find(weaponsById.value, id).name}${mod ? ` and its mod, ${mod.name}` : ''}?`, { confirmLabel: 'Remove', danger: true }))
+    store({ mounts: withWeapon(m, i, null), weapon_mods: withoutMod(`${m}:${i}`) })
+}
+
+async function removeMod(m: number, i: number) {
+  if (await confirmAction(`Remove ${modOn(m, i)!.name}?`, { confirmLabel: 'Remove', danger: true })) store({ weapon_mods: withoutMod(`${m}:${i}`) })
 }
 
 async function uninstall(index: number) {
@@ -104,51 +122,66 @@ async function uninstall(index: number) {
     store({ systems: props.installed.filter((_, k) => k !== index) })
 }
 
-// --- The picker: weapons that fit a place, or systems ---
+// --- The picker: weapons that fit a place, systems, or mods that fit a weapon ---
 const picker = useTemplateRef('picker')
-type Target = { kind: 'weapon'; m: number; i: number; id: string | null; allowed: string[]; label: string } | { kind: 'system' }
+type Target = { kind: 'weapon'; m: number; i: number; id: string | null; allowed: string[]; label: string } | { kind: 'system' } | { kind: 'mod'; m: number; i: number; id: string | null; weapon: Item }
 const target = ref<Target | null>(null)
 
 const options = computed(() => {
   const t = target.value
   if (!t) return []
-  const list = t.kind === 'weapon' ? props.weapons.filter((item) => t.allowed.includes(item.mount)) : props.systems
-  const onMech = [...props.installed, ...props.mounts.flat().filter((id): id is string => !!id), ...builtIn.value.map(item => item.id)]
-  if (t.kind === 'weapon' && t.id) onMech.splice(onMech.indexOf(t.id), 1)
-  const aiCount = onMech.filter(id => (systemsById.value.get(id) ?? weaponsById.value.get(id) ?? props.integrated.get(id))?.tags.some(tag => tag.id === 'tg_ai')).length
+  const list = t.kind === 'weapon' ? props.weapons.filter((item) => t.allowed.includes(item.mount)) : t.kind === 'mod' ? props.mods : props.systems
+  const key = t.kind === 'system' ? '' : `${t.m}:${t.i}`
+  const onMech = [...props.installed, ...props.mounts.flat().filter((id): id is string => !!id), ...builtIn.value.map(item => item.id), ...Object.values(liveMods.value)]
+  // What this choice replaces leaves the mech: the weapon (and its mod), or the mod.
+  const leaving = t.kind === 'weapon' ? [t.id, liveMods.value[key]] : t.kind === 'mod' ? [t.id] : []
+  for (const id of leaving) if (id && onMech.includes(id)) onMech.splice(onMech.indexOf(id), 1)
+  const aiCount = onMech.filter(id => (systemsById.value.get(id) ?? weaponsById.value.get(id) ?? modsById.value.get(id) ?? props.integrated.get(id))?.tags.some(tag => tag.id === 'tg_ai')).length
   const blockedBy = (item: Item) => {
     const has = (tag: string) => item.tags.some((t) => t.id === tag)
-    const changes = t.kind === 'weapon' ? { mounts: withWeapon(t.m, t.i, item.id), weapon_options: { ...props.details.weapon_options, [`${t.m}:${t.i}`]: {} } } : { systems: [...props.installed, item.id] }
+    const changes = t.kind === 'weapon' ? { mounts: withWeapon(t.m, t.i, item.id), weapon_options: { ...props.details.weapon_options, [key]: {} }, weapon_mods: withoutMod(key) }
+      : t.kind === 'mod' ? { weapon_mods: { ...props.details.weapon_mods, [key]: item.id } } : { systems: [...props.installed, item.id] }
     const capacity = props.capacityFor(changes)
-    const swapped = t.kind === 'weapon' && t.id ? find(weaponsById.value, t.id).sp : 0
+    const swapped = leaving.reduce((sum, id) => sum + (id ? (weaponsById.value.get(id) ?? modsById.value.get(id))?.sp ?? 0 : 0), 0)
     if (!isLicensed(item, props.licences)) return `Needs ${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}`
+    if (t.kind === 'mod') { const why = modBlockedBy(item, t.weapon, props.frame?.mounts[t.m] ?? '', props.details.weapon_options?.[key]); if (why) return why }
     if (has('tg_unique') && onMech.includes(item.id)) return 'Unique: already on this mech'
     if (has('tg_ai') && aiCount >= capacity.ai) return `AI capacity ${capacity.ai}`
     if (item.mount === 'Superheavy' && t.kind === 'weapon' && !props.superheavyMounting && !canBrace(t.m)) return 'Needs an empty mount to brace it'
     if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough SP'
     return ''
   }
-  // Licensed items first, then the rest (shown, so players can see what a licence would unlock).
+  // Licensed items first (for a mod, ones that fit), then the rest (shown, so players can see what a licence would unlock).
   return list
     .map((item) => {
       const details = itemDetails(item, tagNames.value)
+      const blocked = blockedBy(item)
       return {
         id: item.id,
         name: item.name,
         meta: [...itemFacts(item), statLine(details)].filter(Boolean),
         text: plainText(details.text),
         info: () => itemInfo(item),
-        blocked: blockedBy(item),
-        licensed: isLicensed(item, props.licences),
+        blocked,
+        licensed: t.kind === 'mod' ? !blocked : isLicensed(item, props.licences),
       }
     })
     .sort((a, b) => Number(b.licensed) - Number(a.licensed))
 })
 
-const pickerTitle = computed(() => (target.value?.kind === 'weapon' ? `Choose ${target.value.label}` : 'Add a system'))
+const pickerTitle = computed(() => {
+  const t = target.value
+  return t?.kind === 'weapon' ? `Choose ${t.label}` : t?.kind === 'mod' ? `Choose a mod for ${t.weapon.name}` : 'Add a system'
+})
 
 function openWeapon(m: number, i: number, id: string | null, allowed: string[]) {
   target.value = { kind: 'weapon', m, i, id, allowed, label: placeLabel(allowed) }
+  error.value = ''
+  picker.value?.open()
+}
+
+function openMod(m: number, i: number, weapon: Item) {
+  target.value = { kind: 'mod', m, i, id: liveMods.value[`${m}:${i}`] ?? null, weapon }
   error.value = ''
   picker.value?.open()
 }
@@ -164,20 +197,15 @@ async function choose(id: string) {
   const offered = options.value.find(option => option.id === id)
   if (!offered || offered.blocked) { error.value = offered?.blocked ?? 'Item unavailable'; return }
   const t = target.value!
-  const saved = t.kind === 'weapon' ? await store({ mounts: withWeapon(t.m, t.i, id), weapon_options: { ...props.details.weapon_options, [`${t.m}:${t.i}`]: {} } }) : await store({ systems: [...props.installed, id] })
+  const key = t.kind === 'system' ? '' : `${t.m}:${t.i}`
+  const saved = t.kind === 'weapon' ? await store({ mounts: withWeapon(t.m, t.i, id), weapon_options: { ...props.details.weapon_options, [key]: {} }, weapon_mods: withoutMod(key) })
+    : t.kind === 'mod' ? await store({ weapon_mods: { ...props.details.weapon_mods, [key]: id } }) : await store({ systems: [...props.installed, id] })
   if (saved) picker.value?.close()
 }
 
 // "main or auxiliary weapon"; a Heavy mount takes any size, so it just says so.
 const placeLabel = (allowed: string[]) => (allowed.length >= 4 ? 'any weapon' : `${allowed.join(' or ').toLowerCase()} weapon`)
 // What an empty mount takes, in its empty state; one not listed says what its first place takes.
-const MOUNT_HINTS: Record<string, string> = {
-  Main: 'Takes one Main or Auxiliary weapon.',
-  Heavy: 'Takes one weapon of any size.',
-  Flex: 'Takes one Main or two Auxiliary weapons.',
-  'Main/Aux': 'Takes one Main and one Auxiliary weapon.',
-  'Aux/Aux': 'Takes two Auxiliary weapons.',
-}
 const placeHint = (allowed: string[]) => `Empty. Takes ${allowed.length >= 4 ? 'a weapon of any size' : `one ${allowed.join(' or ')} weapon`}.`
 const mountHint = (mount: string, allowed: string[]) => (MOUNT_HINTS[mount] ? `Empty. ${MOUNT_HINTS[mount]}` : placeHint(allowed))
 // The system points meter: how full, and what's left.
@@ -200,8 +228,10 @@ async function setCore(id: string, event: Event) {
   if (!props.editable || !targets(id).some(target => target.value === value)) return
   await store({ core_mounts: { ...props.details.core_mounts, [id]: value } })
 }
+// Mods whose weapon is gone (the rule check says so too): they count for nothing, and can be cleared like unfitted weapons.
+const strayMods = computed(() => Object.entries(props.details.weapon_mods ?? {}).filter(([key]) => !(key in liveMods.value)))
 const orphaned = computed(() => props.mounts.flatMap((places, index) => places.slice(props.frame?.mounts[index] ? mountSize(props.frame.mounts[index]) : 0)).filter((id): id is string => !!id))
-const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((mount, index) => (props.mounts[index] ?? []).slice(0, mountSize(mount))) })
+const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((mount, index) => (props.mounts[index] ?? []).slice(0, mountSize(mount))), weapon_mods: liveMods.value })
 </script>
 
 <template>
@@ -226,10 +256,13 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
         </select>
       </div>
     </section>
-    <div v-if="orphaned.length" class="notice warn">
+    <div v-if="orphaned.length || strayMods.length" class="notice warn">
       <div class="notice-head">
-        <p>Unfitted weapons: {{ orphaned.map(id => find(weaponsById, id).name).join(', ') }}.</p>
-        <button v-if="editable" type="button" class="small" :disabled="saving" @click="clearOrphans">Clear unfitted mounts</button>
+        <div>
+          <p v-if="orphaned.length">Unfitted weapons: {{ orphaned.map(id => find(weaponsById, id).name).join(', ') }}.</p>
+          <p v-if="strayMods.length">Mods without a weapon: {{ strayMods.map(([, id]) => find(modsById, id).name).join(', ') }}.</p>
+        </div>
+        <button v-if="editable" type="button" class="small" :disabled="saving" @click="clearOrphans">Clear unfitted</button>
       </div>
     </div>
     <section class="panel">
@@ -260,6 +293,11 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
                 :location="{ mount: card.m, position: place.index, integrated: card.mount === 'Integrated Auxiliary' }"
                 :editable="editable"
                 :save="save"
+                moddable
+                :mod="modOn(card.m, place.index)"
+                :mod-refusal="modsRefused(find(weaponsById, place.id), card.mount)"
+                @pick-mod="openMod(card.m, place.index, find(weaponsById, place.id))"
+                @remove-mod="removeMod(card.m, place.index)"
               >
                 <template v-if="editable" #foot>
                   <button type="button" class="small" :disabled="saving" @click="openWeapon(card.m, place.index, place.id, place.allowed)">Swap</button>
@@ -303,7 +341,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       ref="picker"
       :title="pickerTitle"
       :options="options"
-      :current="target?.kind === 'weapon' ? target.id : null"
+      :current="target && 'id' in target ? target.id : null"
       :saving="saving"
       :error="error"
       @choose="choose"

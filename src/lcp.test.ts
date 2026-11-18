@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
-import { planLcp, readLcp, type InstalledPack } from './lcp'
+import { planLcp, readLcp, writeLcp, type InstalledPack } from './lcp'
 
 const manifest = { name: 'Test pack', author: 'Test author', version: '1.0.0', description: 'Test content.' }
 const archive = (files: Record<string, unknown> = {}) => zipSync(Object.fromEntries(Object.entries({
@@ -59,9 +59,32 @@ describe('LCP preview', () => {
     ])).toMatchObject({ added: 1, updated: 1, retained: 1, conflicts: [] })
   })
 
+  it("counts the updated items the campaign has edited, which the update keeps", async () => {
+    const pack = await readLcp(archive({ 'weapons.json': [{ id: 'edited_weapon', name: 'Weapon' }, { id: 'plain_weapon', name: 'Weapon' }] }))
+    expect(planLcp(pack, packs, [
+      { id: 'test_frame', kind: 'frames', pack_id: 1, edited: true },
+      { id: 'edited_weapon', kind: 'weapons', pack_id: 1, edited: true },
+      { id: 'plain_weapon', kind: 'weapons', pack_id: 1, edited: false },
+      { id: 'old_weapon', kind: 'weapons', pack_id: 1, edited: true },
+    ])).toMatchObject({ updated: 3, edited: 2 })
+  })
+
   it('blocks IDs owned by another pack and existing IDs changing type', async () => {
     const pack = await readLcp(archive())
     expect(planLcp(pack, packs, [{ id: 'test_frame', kind: 'frames', pack_id: 2 }]).conflicts[0]?.reason).toContain('Other pack')
     expect(planLcp(pack, packs, [{ id: 'test_frame', kind: 'weapons', pack_id: 1 }]).conflicts[0]?.reason).toContain('change the item type')
+  })
+})
+
+describe('writeLcp', () => {
+  it('makes a pack the importer reads back, item for item', async () => {
+    const items = [
+      { kind: 'weapons' as const, data: { id: 'hb_mw_lance', name: 'Lance', mount: 'Main', range: [{ type: 'Range', val: 10 }] } },
+      { kind: 'tags' as const, data: { id: 'hb_tg_hot', name: 'Hot', description: '<p>Burns.</p>' } },
+    ]
+    const pack = await readLcp(writeLcp(manifest, items))
+    expect(pack.manifest).toMatchObject(manifest)
+    expect(pack.items.map(({ kind, data }) => ({ kind, data }))).toEqual(items)
+    expect(pack.ignored).toEqual([])
   })
 })

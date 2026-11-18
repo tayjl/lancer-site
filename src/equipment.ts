@@ -1,5 +1,5 @@
 import { bonusValue, resolveBonuses, type NamedBonus } from './bonuses'
-import { averageDamage } from './damage'
+import { flatDamage } from './damage'
 import { toItem, type Item } from './gameData'
 import type { MechPrivate, Sheet } from './myPilot'
 
@@ -8,6 +8,28 @@ export function selectWeaponProfile(item: Item, index = 0): Item {
   if (!profile) return item
   const selected = toItem(item.id, { ...item.raw, ...profile, name: `${item.name} · ${profile.name ?? `profile ${index + 1}`}`, profiles: [] })
   return { ...selected, profiles: item.profiles, raw: item.raw, bonuses: [...item.bonuses, ...(Array.isArray(profile.bonuses) ? profile.bonuses : [])] }
+}
+
+type WeaponOptions = NonNullable<MechPrivate['weapon_options']>[string]
+
+// Weapon mods (lancer-data's mods.json, docs/lancer-rules.md): one per weapon, never on a weapon that refuses mods or sits
+// in an integrated mount. Why a weapon takes no mod at all ("" when it does).
+export const modsRefused = (weapon: Item, mount: string) =>
+  mount === 'Integrated Auxiliary' ? "An integrated mount can't be modified" : weapon.raw?.no_mods ? `${weapon.name} can't take mods` : ''
+
+// Why this mod can't go on this weapon ("" when it can): the weapon refuses mods, or its type or size isn't one the mod
+// allows (a list left empty allows everything). A Prototype weapon counts as the type its player chose.
+export function modBlockedBy(mod: Item, weapon: Item, mount: string, options?: WeaponOptions) {
+  const refused = modsRefused(weapon, mount)
+  if (refused) return refused
+  const list = (key: string) => (Array.isArray(mod.raw?.[key]) ? mod.raw[key].map(String) : [])
+  const type = weapon.id.startsWith('mw_prototype_') ? options?.type ?? 'Rifle' : weapon.type
+  const [types, sizes] = [list('allowed_types'), list('allowed_sizes')]
+  if (types.length && !types.includes(type)) return `Fits ${types.join(', ')} weapons only`
+  if (sizes.length && !sizes.includes(weapon.mount)) return `Fits ${sizes.join(', ')} weapons only`
+  if (list('restricted_types').includes(type)) return `Can't go on ${type} weapons`
+  if (list('restricted_sizes').includes(weapon.mount)) return `Can't go on ${weapon.mount} weapons`
+  return ''
 }
 
 function matches(entry: NamedBonus, item: Item, rangeType?: string, damageType?: string) {
@@ -20,7 +42,7 @@ function matches(entry: NamedBonus, item: Item, rangeType?: string, damageType?:
   return true
 }
 
-export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[], options?: NonNullable<MechPrivate['weapon_options']>[string], location?: { mount: number; position: number; integrated?: boolean }, coreMounts: Record<string, number> = {}) {
+export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[], options?: NonNullable<MechPrivate['weapon_options']>[string], location?: { mount: number; position: number; integrated?: boolean }, coreMounts: Record<string, number> = {}, mod?: Item) {
   let selected = selectWeaponProfile(item, options?.profile)
   if (item.id.startsWith('mw_prototype_')) {
     const type = options?.type ?? 'Rifle', damageType = options?.damageType ?? 'Kinetic'
@@ -50,12 +72,24 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
     const entries = bonuses.filter(entry => entry.bonus.id === 'damage' && matches(entry, selected, undefined, damage.type)).flatMap(entry => {
       const numeric = bonusValue(entry.bonus.val, variables)
       const expression = numeric === null ? String(entry.bonus.val) : String(numeric)
-      return typeof averageDamage(expression) === 'number' ? [{ source: entry.source, expression }] : []
+      return typeof flatDamage(expression) === 'number' ? [{ source: entry.source, expression }] : []
     })
-    for (const entry of entries) sources.push(`${entry.source}: ${entry.expression.startsWith('-') ? '' : '+'}${entry.expression} ${damage.type.toLowerCase()} damage (before averaging)`)
+    for (const entry of entries) sources.push(`${entry.source}: ${entry.expression.startsWith('-') ? '' : '+'}${entry.expression} ${damage.type.toLowerCase()} damage (added before the flat conversion)`)
     // Round once after summing the complete dice expression and its modifiers.
-    return { ...damage, val: averageDamage(`${damage.val}${entries.map(entry => `${entry.expression.startsWith('-') ? '' : '+'}${entry.expression}`).join('')}`) }
+    return { ...damage, val: flatDamage(`${damage.val}${entries.map(entry => `${entry.expression.startsWith('-') ? '' : '+'}${entry.expression}`).join('')}`) }
   })
+  // The mod's added range joins the weapon's range of that type (or is a new one) and its tags join the weapon's. A
+  // weapon with a mod is "Modded". Added damage isn't counted: it's conditional (Thermal Charge needs a hit and a
+  // charge), so it stays in the mod's own rules text, like every conditional effect.
+  const added = (key: string) => (Array.isArray(mod?.raw?.[key]) ? mod!.raw![key] as { type: string; id: string; val: number | string }[] : [])
+  for (const entry of added('added_range')) {
+    const extra = bonusValue(entry.val, variables)
+    const at = range.findIndex(item => item.type === entry.type)
+    const base = at >= 0 ? bonusValue(range[at].val, variables) : 0
+    if (extra === null || base === null) continue
+    range[at >= 0 ? at : range.length] = { type: entry.type, val: base + extra }
+    sources.push(`${mod!.name}: +${extra} ${entry.type.toLowerCase()}`)
+  }
   const already = selected.range.find(range => range.type === 'Thrown')
   if (already) {
     const added = range.find(range => range.type === 'Thrown')
@@ -78,6 +112,7 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
   const optics = item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && options?.accuracy !== false ? 1 : 0
   if (accuracy + (auto || 0) + optics) sources.push(`attack accuracy: +${accuracy + (auto || 0) + optics}${auto ? ' (Auto-Stabilizing Hardpoints)' : ''}${optics ? ' (Tweaked Optics)' : ''}`)
   if (options?.smart !== false && item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2) tags.push({ id: 'tg_smart' })
+  if (mod) for (const tag of [...added('added_tags'), { id: 'tg_modded' }]) if (!tags.some(have => have.id === tag.id)) tags.push(tag)
   if (item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && (options?.accuracy === false || options?.smart === false)) sources.push('Stripped reactor shielding: spend 2 Heat when attacking to use the alternate area pattern (conditional).')
   if (location && sheet.core_bonuses?.includes('cb_overpower_caliber') && coreMounts.cb_overpower_caliber === location.mount * 2 + location.position)
     sources.push('Overpower Caliber: +4 bonus damage on hit, once per round (not included in base damage).')

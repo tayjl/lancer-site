@@ -3,6 +3,7 @@
 import frames from '@massif/lancer-data/lib/frames.json'
 import weapons from '@massif/lancer-data/lib/weapons.json'
 import systems from '@massif/lancer-data/lib/systems.json'
+import mods from '@massif/lancer-data/lib/mods.json'
 import pilot_gear from '@massif/lancer-data/lib/pilot_gear.json'
 import talents from '@massif/lancer-data/lib/talents.json'
 import core_bonuses from '@massif/lancer-data/lib/core_bonuses.json'
@@ -18,7 +19,7 @@ export const coreContent: LcpPack = {
     description: 'Official LANCER core pilot and mech content.',
     source: '@massif/lancer-data', core: true,
   },
-  items: Object.entries({ frames, weapons, systems, pilot_gear, talents, core_bonuses, tags, manufacturers }).flatMap(([kind, rows]) =>
+  items: Object.entries({ frames, weapons, systems, mods, pilot_gear, talents, core_bonuses, tags, manufacturers }).flatMap(([kind, rows]) =>
     (rows as unknown as Record<string, Json>[])
       // COMP/CON's missing-data placeholders are not playable equipment.
       .filter(row => typeof row.id === 'string' && !row.id.startsWith('missing_'))

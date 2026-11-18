@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isOwner } from '../auth'
 import { confirmAction } from '../confirm'
+import { cardImages, deleteImage } from '../images'
 import { checkWrite, supabase } from '../lib/supabaseClient'
 import type { Character } from '../myPilot'
 import RuleCheck from './RuleCheck.vue'
@@ -71,9 +72,10 @@ const deleteError = ref('')
 async function deletePilot() {
   if (!(await confirmAction(`Delete ${name.value} permanently? This removes the pilot, their sheet, mechs and every change. It can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
   busy.value = true
-  const { data, error: removeError } = await supabase.from('characters').delete().eq('id', props.pilot.id).select('id')
+  const { data, error: removeError } = await supabase.from('characters').delete().eq('id', props.pilot.id).select('id, pilot_image, mechs')
   busy.value = false
   deleteError.value = removeError?.message ?? (data?.length ? '' : 'Nothing was deleted. Only owners can delete pilots.')
+  if (data?.length) cardImages(data[0]).forEach(deleteImage)
   if (!deleteError.value) router.push({ name: 'gm-pilots' })
 }
 

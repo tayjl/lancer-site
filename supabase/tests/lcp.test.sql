@@ -65,6 +65,15 @@ select throws_ok($$select public.import_lcp(
     {"id":"__lcp_duplicate","kind":"frames","data":{"id":"__lcp_duplicate","name":"Two"}}]')$$,
   'P0001', 'Duplicate item IDs in this pack.', 'duplicate IDs refused by database as well as browser');
 
+select lives_ok($$select public.import_lcp(
+  '{"name":"__LCP_TEST_MODS","author":"Test","version":"1.0.0","description":"Mods"}',
+  '[{"id":"__lcp_test_mod","kind":"mods","data":{"id":"__lcp_test_mod","name":"Test mod"}}]')$$, 'weapon mods can be imported');
+select is((select kind from public.content_items where id='__lcp_test_mod'), 'mods', 'the mod is saved as a weapon mod');
+select throws_ok($$select public.import_lcp(
+  '{"name":"__LCP_TEST_KIND","author":"Test","version":"1.0.0","description":"Kind"}',
+  '[{"id":"__lcp_test_kind","kind":"nonsense","data":{"id":"__lcp_test_kind","name":"Nope"}}]')$$,
+  'P0001', 'Every item needs a valid ID, supported type, matching data ID and name.', 'other kinds are still refused');
+
 reset role;
 select * from finish();
 rollback;

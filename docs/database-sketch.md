@@ -64,10 +64,10 @@ The dotted lines are links the database can't check: they're IDs stored inside t
 | `callsign` | text | |
 | `age`, `gender`, `sexuality` | text | Free text, so answers like "34 (subjective)" work. |
 | `height`, `weight`, `eye_colour`, `hair_colour` | text | Free text, so any units work. |
-| `appearance` | text | The appearance description. |
+| `appearance` | JSON | The appearance description (the rich-text editor's document). |
 | `pilot_image` | text | Path to the appearance image in Storage. |
-| `personality` | text | |
-| `traits` | text | Narrative: what the character is good at. |
+| `personality` | JSON | Rich text, like `appearance`. |
+| `traits` | JSON | Narrative: what the character is good at. Not shown on the site for now. |
 | `mechs` | JSON list | Public info for each mech: `id`, `name`, `appearance`, `image`, `manufacturer_id`. The `id` matches the mech in the private sheet. The site checks `manufacturer_id` against the `XXXX-XXXX-XXXX` format, and warns if another mech already uses it. |
 | `created_at`, `approved_at`, `died_at` | date-time | |
 | `updated_at` | date-time | Kept up to date automatically. |
@@ -89,7 +89,6 @@ The dotted lines are links the database can't check: they're IDs stored inside t
 |---|---|---|
 | `character_id` | → `characters` | Primary key: exactly one sheet per character. |
 | `sheet` | JSON | Everything the player can propose. See the example below. |
-| `mod_points` | number | The pilot's mod-point total. Not part of any pending change, so after approval only GMs can change it. |
 | `review_note` | text | The GM's note on a new character that isn't approved yet. |
 | `updated_at` | date-time | Kept up to date automatically. |
 
@@ -166,7 +165,7 @@ The database allows **at most one pending change per character**.
 | `id` | number (automatic) | |
 | `name`, `version` | text | From the pack's `lcp_manifest.json`. |
 | `manifest` | JSON | The whole manifest. |
-| `enabled` | yes / no | "Removing" a pack switches this off. |
+| `enabled` | yes / no | Not used by the site: removing a pack deletes it (`remove_pack`, below). |
 | `imported_by` | → `profiles` | |
 | `imported_at` | date-time | |
 
@@ -181,9 +180,8 @@ The database allows **at most one pending change per character**.
 
 - **See (both tables):** every logged-in user.
 - **Add / change:** owners only.
-- **Delete:** nobody. Characters store item IDs inside the sheet's JSON, so the database can't tell whether an item is in use.
+- **Delete:** only through `remove_pack(pack_id)` (owners), which refuses while any pilot, or open change, uses one of the pack's items (`pack_usage()` lists who). Characters store item IDs inside the sheet's JSON, so the function looks for the ids there.
   - Re-importing a pack updates its items in place.
-  - Switching a pack off hides its items from new choices, but characters that already use them still display properly.
 - If two packs use the same item ID, the import fails with a clear message instead of quietly overwriting.
 
 ### `pilot_stats`: the custom pilot stats

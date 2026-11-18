@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { NamedBonus } from '../bonuses'
-import type { Item } from '../gameData'
+import { sourceOf, type Item } from '../gameData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { equipmentDetails } from '../equipment'
 import ItemDetails from './ItemDetails.vue'
+import ModSection from './ModSection.vue'
 
 const props = defineProps<{
   item: Item; sheet: Sheet; details: MechPrivate; bonuses: NamedBonus[]; itemKey: string
@@ -12,9 +13,15 @@ const props = defineProps<{
   editable: boolean; save: (changes: Partial<MechPrivate>) => Promise<string | null>
   // Built into the frame or granted by a talent: marked on the card (ItemDetails).
   integrated?: boolean
+  // A weapon on a mount of its own can have a mod ("moddable"): its mod, if any, and why it takes none (empty: it takes
+  // one). Adding, swapping and removing it is MechLoadout's.
+  moddable?: boolean; mod?: Item; modRefusal?: string
 }>()
+const emit = defineEmits<{ pickMod: []; removeMod: [] }>()
 const options = computed(() => props.details.weapon_options?.[props.itemKey] ?? {})
-const displayed = computed(() => equipmentDetails(props.item, props.sheet, props.bonuses, options.value, props.location, props.details.core_mounts))
+const displayed = computed(() => equipmentDetails(props.item, props.sheet, props.bonuses, options.value, props.location, props.details.core_mounts, props.mod))
+// Only the Limited bonus applies to a mod itself (more uses), so the weapon's attack bonuses aren't listed on it.
+const shownMod = computed(() => props.mod && equipmentDetails(props.mod, props.sheet, props.bonuses.filter(entry => entry.bonus.id === 'limited_bonus')))
 const prototype = computed(() => props.item.id.startsWith('mw_prototype_'))
 const error = ref(''), saving = ref(false)
 async function set(key: string, value: string) {
@@ -50,6 +57,9 @@ async function set(key: string, value: string) {
       </template>
     </div>
     <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
+    <template v-if="moddable && (mod || editable)" #mod>
+      <ModSection :mod="shownMod" :editable="editable" :refusal="modRefusal" :weapon-source="sourceOf(item.id)" @pick="emit('pickMod')" @remove="emit('removeMod')" />
+    </template>
     <template v-if="$slots.foot" #foot><slot name="foot" /></template>
   </ItemDetails>
 </template>

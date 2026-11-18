@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
@@ -9,23 +8,28 @@ import CatalogueNotice from '../components/CatalogueNotice.vue'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
 import GmReview from '../components/GmReview.vue'
+import ImageUpload from '../components/ImageUpload.vue'
+import MechHangar from '../components/MechHangar.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RankPanel, { type RankStep } from '../components/RankPanel.vue'
+import SaveStatus from '../components/SaveStatus.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import Icon from '../components/Icon.vue'
 import StatRow from '../components/StatRow.vue'
+import { imageUrl } from '../images'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { useMechData } from '../mechData'
 import { bionicInfo, frameInfo, itemInfo, talentInfo } from '../info'
-import { mechProblem, useMyPilot, type Sheet } from '../myPilot'
+import { useMyPilot, type Sheet } from '../myPilot'
+import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
-import { sectionOverride } from '../router'
-import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints } from '../rules'
+import { pilotList, sectionOverride } from '../router'
+import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
 
 // my pilot: your pilot as one sheet. A compact header (portrait, callsign, name, player, status, then level, licence
 // level and manna), the "what happens next" bar under it, any notes and the rule check, then a slim sticky row of
@@ -111,15 +115,7 @@ async function withdraw() {
 }
 
 // Records' breadcrumb leads back to the queue, or to the list the pilot is in.
-const back = computed(() =>
-  reviewing
-    ? { name: 'gm-pilots', label: 'GM pilots' }
-    : character.value?.status === 'pending'
-      ? { name: 'pending', label: 'Pending' }
-      : character.value?.status === 'dead'
-        ? { name: 'memorial', label: 'Memorial' }
-        : { name: 'registry', label: 'Registry' },
-)
+const back = computed(() => (reviewing ? { name: 'gm-pilots', label: 'GM pilots' } : pilotList(character.value?.status)))
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'pilot-record') watchEffect(() => (sectionOverride.value = back.value.name))
 // Your own mechs open for editing; anyone else's open read-only under their record (editable in a GM's edit mode, kept in the url).
@@ -147,17 +143,7 @@ const STAT_MIN = 0
 const STAT_MAX = 6
 
 // --- The save status shown in the next-step bar, for the one-line fields, stats and loadouts ---
-const saving = ref(false)
-const saved = ref(false)
-const saveError = ref('')
-
-async function track(save: Promise<string | null>) {
-  saving.value = true
-  saveError.value = (await save) ?? ''
-  saving.value = false
-  saved.value = !saveError.value
-  return saveError.value || null
-}
+const { saving, saved, error: saveError, track } = useSaveStatus()
 
 // One-line fields save when you leave them (or press enter). A pilot can't lose its name.
 function saveText(column: TextColumn, event: Event) {
@@ -186,6 +172,7 @@ async function register() {
 
 // --- Long writing ---
 const saveColumn = (column: 'appearance' | 'personality') => (doc: Json | null) => track(updateCharacter({ [column]: doc }))
+const saveImage = (path: string | null) => track(updateCharacter({ pilot_image: path }))
 const saveBackstory = (doc: Json | null) => track(updateSheet({ backstory: doc }))
 
 // --- Stats: personal stats come from the pilot_stats table, piloting stats are LANCER's HASE ---
@@ -198,7 +185,8 @@ const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.v
 const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
 
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
-const { frames, weapons, systems, integrated } = useMechData()
+const { frames, weapons, systems, mods } = useMechData()
+const catalogue = useCatalogue()
 const balance = computed(() => gm.value.manna - mannaSpent(sheet.value))
 
 // Licences: one per licensed frame. Each rank unlocks the frame and gear of that licence level.
@@ -213,13 +201,12 @@ const licenceDetails = (id: string): RankStep[] =>
       ...frames.value.filter((f) => f.id === id && f.licenceLevel === level).map((f) => ({ kind: 'frame', name: f.name, info: () => frameInfo(f, frames.value) })),
       ...weapons.value.filter((w) => w.licenceId === id && w.licenceLevel === level).map((w) => ({ kind: 'weapon', name: w.name, info: () => itemInfo(w) })),
       ...systems.value.filter((s) => s.licenceId === id && s.licenceLevel === level).map((s) => ({ kind: 'system', name: s.name, info: () => itemInfo(s) })),
+      ...mods.value.filter((m) => m.licenceId === id && m.licenceLevel === level).map((m) => ({ kind: 'mod', name: m.name, info: () => itemInfo(m) })),
     ],
   }))
-// Hangar cards show their frame's manufacturer as its logo and a thin top border, nothing more. Frames are private:
-// without the sheet there's no frame, so other players' view of the card stays neutral.
-const manufacturers = useManufacturers()
-const frameOf = (mechId: string) => frames.value.find((f) => f.id === sheet.value.mechs?.[mechId]?.frame)
-const makerOf = (mechId: string) => manufacturers.value.find((m) => m.id === frameOf(mechId)?.source)
+// The hangar: a mech's frame is private, and a new mech joins the card's list.
+const frameId = (mechId: string) => sheet.value.mechs?.[mechId]?.frame
+const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
 // Talents: each rank's name and rules.
@@ -232,8 +219,6 @@ const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids
 
 // The rule check speaks to whoever can fix it: you, on your own editable sheet (a draft: before you submit it).
 const ruleFix = computed(() => (!own || !editable.value ? undefined : draft.value ? 'draft' : 'own'))
-// Manna in the header, with thousands separators ("2,900 of 3,000 spent").
-const amount = (n: number) => n.toLocaleString('en-GB')
 // Your own sheet (and any dead pilot's) has the next-step bar under the header; GMs on a record get a link to review.
 const hasNext = computed(() => own || character.value?.status === 'dead')
 const gmLink = computed(() => isGm.value && !own && !reviewing)
@@ -249,21 +234,7 @@ const tab = computed({
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
   frames.value.length
-    ? pilotProblems(
-        sheet.value,
-        gm.value,
-        {
-          frames: frames.value,
-          weapons: new Map(weapons.value.map((w) => [w.id, w])),
-          systems: new Map(systems.value.map((s) => [s.id, s])),
-          integrated: integrated.value,
-          bionicCosts: new Map(bionics.value.map((b) => [b.id, b.mod_point_cost])),
-          coreBonuses: coreBonuses.value,
-          talents: talents.value,
-          gear: gear.value,
-        },
-        Object.fromEntries(mechs.value.map((m) => [m.id, m.name])),
-      )
+    ? pilotProblems(sheet.value, gm.value, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])))
     : personalStatProblems(sheet.value.pilot_stats),
 )
 
@@ -276,28 +247,6 @@ function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value:
 // --- Bionics and the loadout (1 armour, 2 weapons, 3 gear): picked from the catalogues, stored as ids ---
 const saveBionics = (ids: (string | number)[]) => track(updateSheet({ bionics: ids as number[] }))
 const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
-
-// --- Hangar: a new mech starts with just a name and manufacturer id, then opens its own page ---
-const addingMech = ref(false)
-const newMech = reactive({ name: '', manufacturerId: '' })
-const mechError = ref('')
-
-function openNewMech() {
-  Object.assign(newMech, { name: '', manufacturerId: '' })
-  mechError.value = ''
-  addingMech.value = true
-}
-
-async function createMech() {
-  const name = newMech.name.trim()
-  const manufacturerId = newMech.manufacturerId.trim().toUpperCase()
-  mechError.value = mechProblem(name, manufacturerId) ?? ''
-  if (mechError.value) return
-  // shortcut: duplicate manufacturer ids aren't checked yet. Warn about them once the registry reads real pilots.
-  const mech: PublicMech = { id: crypto.randomUUID(), name, manufacturer_id: manufacturerId, appearance: null, image: null }
-  mechError.value = (await updateCharacter({ mechs: [...mechs.value, mech] })) ?? ''
-  if (!mechError.value) router.push(mechLink(mech.id))
-}
 </script>
 
 <template>
@@ -335,7 +284,7 @@ async function createMech() {
       <!-- The header: who this is and the figures that matter (the prototype's compact header). -->
       <header class="header" :class="{ joined: hasNext || gmEditing }">
         <div class="thumb">
-          <img v-if="character.pilot_image" :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
+          <img v-if="imageUrl(character.pilot_image)" :src="imageUrl(character.pilot_image)!" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
           <Icon v-else name="pilot" />
         </div>
         <div class="who">
@@ -383,8 +332,8 @@ async function createMech() {
             </div>
             <div class="fact">
               <dt class="label">Manna left</dt>
-              <dd class="fact-value num" :class="{ over: balance < 0 }">{{ amount(balance) }}</dd>
-              <dd class="fact-sub"><span class="num">{{ amount(mannaSpent(sheet)) }}</span> of <span class="num">{{ amount(gm.manna) }}</span> spent</dd>
+              <dd class="fact-value num" :class="{ over: balance < 0 }">{{ formatAmount(balance) }}</dd>
+              <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
             </div>
           </dl>
           <div v-if="gmLink || (gmCanEdit && !gmEditing)" class="gm-actions">
@@ -400,7 +349,8 @@ async function createMech() {
         v-if="gmEditing"
         :name="character.callsign ?? character.pilot_name"
         :waiting="waiting"
-        :status="saving ? 'Saving…' : saved ? 'Saved' : ''"
+        :saving="saving"
+        :saved="saved"
         :error="saveError"
         :can-retry="!conflict"
         @retry="track(retry())"
@@ -432,14 +382,7 @@ async function createMech() {
           <p class="next-text">Change submitted, waiting on a GM. The sheet shows what you sent.</p>
         </template>
 
-        <p v-if="own" class="save-status" role="status">
-          <template v-if="saveError">
-            <span class="error">Not saved: {{ saveError }}</span>
-            <button v-if="!conflict" type="button" class="small quiet" @click="track(retry())">Retry</button>
-          </template>
-          <span v-else-if="saving" class="dim">Saving…</span>
-          <span v-else-if="saved" class="dim">Saved</span>
-        </p>
+        <SaveStatus v-if="own" :saving="saving" :saved="saved" :error="saveError" :can-retry="!conflict" @retry="track(retry())" />
 
         <div v-if="own && character.status !== 'dead'" class="next-actions">
           <button v-if="character.status === 'pending' && reviewNote" type="button" class="primary small" @click="track(resubmit())">Resubmit for review</button>
@@ -506,7 +449,7 @@ async function createMech() {
           <section class="panel">
             <h2 class="sheet-label">Identity</h2>
             <Portrait class="identity-portrait" :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
-            <p v-if="own" class="dim upload">Portrait upload isn't available yet.</p>
+            <ImageUpload v-if="editable" :path="character.pilot_image" :save="saveImage" />
             <dl class="kv">
               <template v-for="[column, label] in IDENTITY" :key="column">
                 <dt><label v-if="editable" :for="`identity-${column}`">{{ label }}</label><template v-else>{{ label }}</template></dt>
@@ -615,48 +558,7 @@ async function createMech() {
       </template>
 
       <div v-show="tab === 'mechs'" class="tab-panel">
-        <section class="panel">
-          <header class="sheet-head hangar-head">
-            <h2 class="sheet-label">Mech hangar</h2>
-            <button v-if="editable && !addingMech" type="button" class="small" @click="openNewMech"><Icon name="plus" />New mech</button>
-          </header>
-          <ul v-if="mechs.length" class="hangar">
-            <li v-for="mech in mechs" :key="mech.id">
-              <RouterLink :to="mechLink(mech.id)" class="mech-card" :style="makerOf(mech.id) ? { '--mf': makerColour(makerOf(mech.id)) } : undefined">
-                <span class="mech-thumb">
-                  <img v-if="mech.image" :src="mech.image" :alt="`Image of ${mech.name}`" />
-                  <Icon v-else-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
-                  <Icon v-else name="frame" />
-                </span>
-                <span class="mech-about">
-                  <span class="mech-name">{{ mech.name }}</span>
-                  <template v-if="frameOf(mech.id)">
-                    <span class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
-                    <span v-if="frameOf(mech.id)!.mechtype.length" class="mech-class dim">{{ frameOf(mech.id)!.mechtype.join(' / ') }}</span>
-                  </template>
-                  <span class="code dim mech-id">{{ mech.manufacturer_id }}</span>
-                </span>
-              </RouterLink>
-            </li>
-          </ul>
-
-          <form v-if="addingMech" class="new-mech" @submit.prevent="createMech">
-            <label class="field">
-              <span>Mech name (required)</span>
-              <input v-model="newMech.name" type="text" required />
-            </label>
-            <label class="field">
-              <span>Manufacturer ID (XXXX-XXXX-XXXX)</span>
-              <input v-model="newMech.manufacturerId" type="text" required />
-            </label>
-            <p v-if="mechError" class="notice warn" role="alert">{{ mechError }}</p>
-            <div class="actions">
-              <button type="submit" class="primary">Create mech</button>
-              <button type="button" @click="addingMech = false">Cancel</button>
-            </div>
-          </form>
-          <p v-else-if="!mechs.length" class="empty">{{ editable ? 'No mechs yet.' : 'No mechs on file.' }}</p>
-        </section>
+        <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" />
       </div>
 
       <!-- :key resets the decision box after a decision, so it shows the new status. -->
@@ -666,14 +568,6 @@ async function createMech() {
 </template>
 
 <style scoped>
-.sheet,
-.tab-panel,
-.writing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-m);
-}
-
 /* The stats tab is a .section-grid (style.css), not a column. */
 .tab-panel.section-grid {
   display: grid;
@@ -734,13 +628,6 @@ async function createMech() {
   letter-spacing: 0.02em;
 }
 
-.subline {
-  align-self: stretch;
-  margin-top: 4px;
-  color: var(--text-dim);
-  font-size: var(--fs-s);
-}
-
 /* Callsign and name: plain text with a faint underline that says they can be edited. */
 .inline {
   min-height: 0;
@@ -758,12 +645,6 @@ async function createMech() {
 
 .inline:hover {
   border-color: var(--rule);
-}
-
-/* The name's item in the dot-separated line keeps the field's full width (it would shrink and clip it otherwise). */
-.subline > :first-child {
-  flex-shrink: 0;
-  max-width: 100%;
 }
 
 /* No percentage cap here: against its shrink-to-fit item it would clip the last letters. */
@@ -795,20 +676,6 @@ async function createMech() {
   grid-row: span 3;
   grid-template-rows: subgrid;
   align-content: start;
-}
-
-.fact dd {
-  margin: 0;
-}
-
-.fact-value {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.fact-value.over {
-  color: var(--danger);
 }
 
 .fact-sub {
@@ -857,17 +724,8 @@ async function createMech() {
   font-size: var(--fs-s);
 }
 
-.next p {
-  max-width: none;
-  margin: 0;
-}
-
 .next-text {
   flex: 0 1 auto;
-}
-
-.save-status .error {
-  color: var(--danger);
 }
 
 .next-actions {
@@ -880,35 +738,14 @@ async function createMech() {
   white-space: pre-wrap;
 }
 
-/* --- Tabs: the only thing that sticks, under the top bar --- */
-.sheet-tabs {
-  position: sticky;
-  top: var(--topbar-h);
-  z-index: 2;
-  background: var(--void);
-}
-
 /* Anything focused (tabbing through fields) scrolls clear of the top bar and tabs. */
 .tab-panel * {
   scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-l));
 }
 
-/* --- Profile: writing on the left, identity on the right; one column on phones (below) --- */
-.profile {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
-  align-items: start;
-  gap: var(--space-m);
-}
-
 .identity-portrait {
   width: 100%;
   max-width: 160px;
-}
-
-.upload {
-  margin: var(--space-s) 0 0;
-  font-size: var(--fs-s);
 }
 
 .kv {
@@ -952,125 +789,6 @@ async function createMech() {
   align-self: flex-start;
 }
 
-/* --- Hangar: a card per mech, a showcase, so centred: the cards as a group, and the picture, name, frame and class
-   within each. Its maker only as the logo and a thin top border (--mf). --- */
-.hangar-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-m);
-}
-
-.hangar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-m);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.hangar > li {
-  flex: 0 1 15rem;
-}
-
-.mech-card {
-  --mf: var(--rule);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-m);
-  height: 100%;
-  text-align: center;
-  padding: var(--space-m);
-  border: 1px solid var(--rule);
-  border-top: 3px solid var(--mf);
-  border-radius: var(--radius);
-  background: var(--void);
-  color: var(--text);
-  overflow-wrap: anywhere;
-  text-decoration: none;
-}
-
-.mech-card:hover,
-.mech-card:focus-visible {
-  border-color: var(--lilac);
-  border-top-color: var(--mf);
-}
-
-.mech-thumb {
-  display: grid;
-  place-items: center;
-  width: 96px;
-  aspect-ratio: 3 / 4;
-  overflow: hidden;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--raised);
-  color: var(--text-dim);
-}
-
-.mech-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.mech-thumb .icon {
-  width: 36px;
-  height: 36px;
-}
-
-.mech-logo {
-  color: var(--mf);
-}
-
-.mech-about {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-}
-
-.mech-name {
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.mech-frame,
-.mech-class {
-  font-size: var(--fs-s);
-}
-
-.mech-id {
-  margin-top: 2px;
-  font-size: 13px;
-}
-
-.new-mech {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-m);
-  width: min(100%, 24rem);
-}
-
-.new-mech p {
-  margin: 0;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-}
-
-@media (max-width: 56rem) {
-  .profile {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* --- Phones: the compact header (56px portrait, the figures on one tight row under it) --- */
 @media (max-width: 48rem) {
   .header {
@@ -1100,10 +818,6 @@ async function createMech() {
 
   .facts .label {
     letter-spacing: 0.04em;
-  }
-
-  .fact-value {
-    font-size: 18px;
   }
 
   .next {

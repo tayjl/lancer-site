@@ -1168,3 +1168,342 @@ a.lore-link:focus-visible,
 .ProseMirror a[href^='/lore/']:hover {
   text-decoration-color: var(--lilac);
 }
+
+/* --- The pilot sheet and mech page (PilotManageView.vue, MechView.vue): the header's shared pieces. Last in the file so
+   they win ties with the earlier global rules, as their scoped copies did. --- */
+.sheet,
+.tab-panel,
+.writing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+}
+
+.subline {
+  align-self: stretch;
+  margin-top: 4px;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+/* The name's item in the dot-separated line keeps the field's full width (it would shrink and clip it otherwise). */
+.subline > :first-child {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+/* The header's figures (level, licence level, manna, system points). */
+.fact dd {
+  margin: 0;
+}
+
+.fact-value {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.fact-value.over {
+  color: var(--danger);
+}
+
+/* The bar under the header (and the lore editor's): paragraphs sit flush, and a failed save is red. */
+.next p {
+  max-width: none;
+  margin: 0;
+}
+
+.save-status .error {
+  color: var(--danger);
+}
+
+/* The section tabs: the only thing that sticks besides the top bar. */
+.sheet-tabs {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 2;
+  background: var(--void);
+}
+
+/* Profile tab: writing on the left, identity on the right; one column on phones. */
+.profile {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  align-items: start;
+  gap: var(--space-m);
+}
+
+@media (max-width: 56rem) {
+  .profile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 48rem) {
+  .fact-value {
+    font-size: 18px;
+  }
+}
+
+/* --- The archives and the lore page: a search, then a list beside the chosen entry (src/listPane.ts). "list-pane" is
+   on both pages' roots; :where() keeps each rule as specific as its scoped copy was. --- */
+:where(.list-pane) .search {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-s);
+}
+
+:where(.list-pane) .search .field {
+  flex: 0 1 36rem;
+}
+
+:where(.list-pane) .search input {
+  width: 100%;
+  font-size: 1rem;
+}
+
+:where(.list-pane) .list,
+:where(.list-pane) .pane {
+  position: sticky;
+  top: var(--stick);
+  max-height: calc(100dvh - var(--stick) - var(--space-m));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A box in the list (the archives' manufacturer, the lore's kind), with a header and rows. */
+:where(.list-pane) .list .group {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+:where(.list-pane) .list .group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m);
+  border-bottom: 1px solid var(--rule);
+}
+
+:where(.list-pane) .list .rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+:where(.list-pane) .list .rows > li:first-child > .row {
+  border-top: 0;
+}
+
+:where(.list-pane) .list .row:hover {
+  background: var(--raised);
+}
+
+:where(.list-pane) .list .row:focus-visible {
+  outline: 2px solid var(--lilac);
+  outline-offset: -2px;
+}
+
+:where(.list-pane) .list .row[aria-current='true'] {
+  background: color-mix(in srgb, var(--lilac) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--lilac);
+  color: var(--lilac);
+}
+
+:where(.list-pane) .list .row-facts {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+/* --- The content editor (ContentEditorView.vue and src/components/editor/): a small square button for a row's
+   remove and move buttons. --- */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-dim);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.icon-btn.remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.icon-btn:disabled {
+  border: 0;
+  color: var(--rule);
+}
+
+.icon-btn .icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 40rem), (pointer: coarse) {
+  .icon-btn {
+    width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+}
+
+/* The editor's form: panels stacked in one column (the forms in src/components/editor/ each fill a few). */
+.ed-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-m);
+  min-width: 0;
+}
+
+.ed-form .panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-m);
+}
+
+.ed-form .panel > .sheet-label {
+  margin: 0;
+}
+
+.ed-form .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: var(--space-m);
+}
+
+.ed-form .grid > .span2 {
+  grid-column: span 2;
+}
+
+.ed-form .field-block {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.ed-form .label {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ed-form .hint {
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ed-form .code {
+  font-family: var(--mono);
+}
+
+/* An id that can't be edited: dashed, like a field that's only there to read. */
+.ed-form input[readonly] {
+  border-style: dashed;
+  background: var(--panel);
+  color: var(--text-dim);
+}
+
+/* Inputs and selects fill their field, so a long choice ("HA · HARRISON ARMOR") isn't cut short by its own width. */
+.ed-form label.field > :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ed-form textarea {
+  resize: vertical;
+}
+
+/* A field with something wrong in it: the danger outline (Field.vue sets aria-invalid on its input, writing area or radio
+   group). The "Error: …" line under it keeps colour from being the only signal. */
+.ed-form [aria-invalid='true'],
+.ed-form [data-invalid] .editor {
+  border-color: var(--danger);
+}
+
+@media (max-width: 40rem) {
+  .ed-form .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ed-form .grid > .span2 {
+    grid-column: auto;
+  }
+}
+
+/* A link drawn as a button (a page's "Open editor", "Packs and imports"). */
+a.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  font: 700 13px / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+a.link-button:hover,
+a.link-button:focus-visible {
+  border-color: var(--lilac);
+  color: var(--lilac);
+}
+
+/* A folded panel (the raw-data box) is a plain block: a grid on a <details> can't fold. */
+.ed-form details.panel {
+  display: block;
+}
+
+/* A mistake in a field: red, with a warning sign and the word "Error", so colour is never the only signal. */
+.ed-form .err {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: var(--space-s) 0 0;
+  color: var(--danger);
+  font-size: var(--fs-s);
+}
+
+.ed-form .err .icon {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+/* A warning doesn't block saving: the neutral note colour, not red. */
+.ed-form .err.warn {
+  color: var(--info);
+}
+
+/* Under an input in a field, or across the whole row of a list's entry. */
+.ed-form .field > .err,
+.ed-form .field-block > .err {
+  margin: 0;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ed-form .entry > .err {
+  grid-column: 1 / -1;
+  margin: 0;
+}

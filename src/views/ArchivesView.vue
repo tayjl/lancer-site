@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import InfoBody from '../components/InfoBody.vue'
 import InfoButton from '../components/InfoButton.vue'
@@ -14,6 +14,7 @@ import {
 } from '../archive'
 import { useGameData } from '../gameData'
 import { manufacturerInfo, showInfo, shownInfo, type Manufacturer } from '../info'
+import { useListPane } from '../listPane'
 import { useMechData } from '../mechData'
 
 // The archives, like COMP/CON's compendium: pick a category from the sticky row of tabs to browse it, or search
@@ -21,7 +22,7 @@ import { useMechData } from '../mechData'
 // pane: on desktop a slim list of names (grouped by manufacturer, licence or gear type, one or two key facts each) and
 // the chosen entry's full information beside it (InfoBody.vue); on phones the list only, an entry opening the
 // information dialog (InfoDialog.vue).
-const { frames, weapons, systems } = useMechData()
+const { frames, weapons, systems, mods } = useMechData()
 const { gear, talents, coreBonuses } = useGameData()
 const manufacturers = useManufacturers()
 
@@ -31,6 +32,7 @@ const entries = computed(() =>
     frames: frames.value,
     weapons: weapons.value,
     systems: systems.value,
+    mods: mods.value,
     gear: gear.value,
     talents: talents.value,
     coreBonuses: coreBonuses.value,
@@ -114,20 +116,12 @@ const listed = computed(() => blocks.value.flatMap((block) => block.groups.flatM
 
 // A manufacturer card's counts, each a shortcut to that category (filtered to the maker). Licences always show,
 // even 0 (GMS sells no licences), so every card has the same rows; the rest only when there are some.
-const MADE: ArchiveCategory[] = ['licences', 'frames', 'mech weapons', 'mech systems', 'core bonuses']
+const MADE: ArchiveCategory[] = ['licences', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'core bonuses']
 const counts = (maker: Manufacturer) =>
   MADE.map((made) => ({ made, count: entries.value.filter((entry) => entry.category === made && entry.group === maker.id).length }))
     .filter((c) => c.count || c.made === 'licences')
 
 const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
-
-// Desktop (over 56rem, as the CSS) shows the chosen entry in the detail pane; phones and the landing open the dialog.
-const wideQuery = window.matchMedia('not all and (max-width: 56rem)')
-const wide = ref(wideQuery.matches)
-const onWide = (event: MediaQueryListEvent) => (wide.value = event.matches)
-wideQuery.addEventListener('change', onWide)
-onUnmounted(() => wideQuery.removeEventListener('change', onWide))
-const paneMode = computed(() => wide.value && !landing.value)
 
 // The open entry lives in the url (?item=), so it can be linked. On desktop it's the one in the pane (the first listed
 // when there's none, or when it isn't listed any more, e.g. after a filter); elsewhere a link opens the dialog once
@@ -139,6 +133,11 @@ const linked = computed(() => {
   return wanted ? entries.value.find((e) => e.category === wanted.category && e.id === wanted.id) : undefined
 })
 const selected = computed(() => (linked.value && listed.value.includes(linked.value) ? linked.value : listed.value[0]))
+// Desktop shows the chosen entry in the detail pane; phones and the landing open the dialog.
+const pane = useTemplateRef<HTMLElement>('pane')
+const listBox = useTemplateRef<HTMLElement>('listBox')
+const { wide, step } = useListPane({ selected, listed, pane, listBox, active: () => paneMode.value })
+const paneMode = computed(() => wide.value && !landing.value)
 const selectedInfo = computed(() => selected.value?.info())
 const selectedMaker = computed(() => manufacturers.value.find((maker) => maker.id === selectedInfo.value?.source))
 watch(
@@ -152,38 +151,11 @@ watch(
   { immediate: true },
 )
 watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) setQuery({ item: undefined }) })
-// A new entry in the pane starts at its top, and its row is brought into the list's view (a linked one may be far
-// down). Only the list scrolls, never the page.
-const pane = useTemplateRef<HTMLElement>('pane')
-const listBox = useTemplateRef<HTMLElement>('listBox')
-watch(selected, () => pane.value?.scrollTo({ top: 0 }), { flush: 'post' })
-// Again when the list changes around it (the manufacturers arriving reorder the groups; a filter).
-watch([selected, listed], () => {
-  const list = listBox.value
-  const row = list?.querySelector<HTMLElement>('.row[aria-current="true"]')
-  if (!list || !row || !paneMode.value) return
-  // What of the list is on screen: before the page scrolls and it sticks, its foot can be below the window's.
-  const box = list.getBoundingClientRect()
-  const seen = Math.min(box.bottom, window.innerHeight) - box.top
-  const top = row.getBoundingClientRect().top - box.top + list.scrollTop
-  if (top < list.scrollTop || top + row.offsetHeight > list.scrollTop + seen) list.scrollTop = top - seen / 3
-}, { flush: 'post' })
-
-// Arrow keys move through the list (on desktop choosing as they go); Tab and Enter work as for any button.
-function step(event: KeyboardEvent) {
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-  const rows = [...(listBox.value?.querySelectorAll<HTMLButtonElement>('.row') ?? [])]
-  const next = rows[rows.indexOf(document.activeElement as HTMLButtonElement) + (event.key === 'ArrowDown' ? 1 : -1)]
-  if (!rows.includes(document.activeElement as HTMLButtonElement) || !next) return
-  event.preventDefault()
-  next.focus()
-  if (paneMode.value) next.click()
-}
 </script>
 
 <template>
-  <main class="page archives">
-    <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, piece of gear, talent and core bonus in the loaded content packs.">
+  <main class="page archives list-pane">
+    <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, weapon mod, piece of gear, talent and core bonus in the loaded content packs.">
       <span class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
     </PageHeader>
     <CatalogueNotice />
@@ -301,22 +273,6 @@ function step(event: KeyboardEvent) {
 /* The column's gap already spaces the header from the search. */
 .archives > .page-header {
   margin-bottom: 0;
-}
-
-/* The search: a wide field centred above everything, with its clear button level with the box. */
-.search {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-s);
-}
-
-.search .field {
-  flex: 0 1 36rem;
-}
-
-.search input {
-  width: 100%;
-  font-size: 1rem;
 }
 
 /* The categories (SheetTabs, one row that scrolls sideways): sticky under the top bar, with the page's background so
@@ -483,15 +439,6 @@ button.made:focus-visible .made-name {
   gap: var(--space-l);
 }
 
-.list,
-.pane {
-  position: sticky;
-  top: var(--stick);
-  max-height: calc(100dvh - var(--stick) - var(--space-m));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .list {
   display: grid;
   gap: var(--space-l);
@@ -513,23 +460,8 @@ button.made:focus-visible .made-name {
   letter-spacing: 0;
 }
 
-/* A manufacturer's (or gear type's) box: its colour only as the logo and a 3px top border. */
-.group {
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
-}
-
 .group.branded {
   border-top: 3px solid var(--mf);
-}
-
-.group-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-  padding: var(--space-s) var(--space-m);
-  border-bottom: 1px solid var(--rule);
 }
 
 .group-logo {
@@ -554,12 +486,6 @@ button.made:focus-visible .made-name {
   padding: var(--space-s) var(--space-m) var(--space-xs);
 }
 
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* A row: a real button, the name over its facts, a thin rule between rows. The chosen one is lilac with a bar. */
 .row {
   display: grid;
@@ -580,33 +506,9 @@ button.made:focus-visible .made-name {
   text-transform: none;
 }
 
-.rows > li:first-child > .row {
-  border-top: 0;
-}
-
-.row:hover {
-  background: var(--raised);
-}
-
-.row:focus-visible {
-  outline: 2px solid var(--lilac);
-  outline-offset: -2px;
-}
-
-.row[aria-current='true'] {
-  background: color-mix(in srgb, var(--lilac) 14%, transparent);
-  box-shadow: inset 3px 0 0 var(--lilac);
-  color: var(--lilac);
-}
-
 .row-name {
   font-size: var(--fs-s);
   font-weight: 700;
-}
-
-.row-facts {
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
 }
 
 /* The pane: the entry's head (its maker's logo, kind and name) over its full information, on a panel whose top border

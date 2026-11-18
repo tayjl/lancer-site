@@ -3,7 +3,7 @@ import { getSchema } from '@tiptap/vue-3'
 import { setBlockType } from '@tiptap/pm/commands'
 import { wrapInList } from '@tiptap/pm/schema-list'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
-import { EDITOR_EXTENSIONS, docText, editorExtensions, sanitiseDoc, splitAroundSelection } from './richText'
+import { docText, editorExtensions, sanitiseDoc, splitAroundSelection } from './richText'
 
 const doc = (...content: unknown[]) => ({ type: 'doc', content })
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks })
@@ -44,7 +44,7 @@ describe('sanitiseDoc', () => {
   it('keeps colour saved before the colour buttons were removed, but never draws it', () => {
     const coloured = doc({ type: 'paragraph', content: [text('purple', [{ type: 'textStyle', attrs: { color: 'var(--lilac)', fontSize: null } }])] })
     // The editor's schema keeps the colour, so saving the field again doesn't drop it...
-    const schema = getSchema(EDITOR_EXTENSIONS)
+    const schema = getSchema(editorExtensions())
     const loaded = schema.nodeFromJSON(coloured)
     expect(loaded.toJSON()).toEqual(coloured)
     // ...but draws the mark without it, in the editor and in the read-only view.
@@ -144,7 +144,7 @@ describe('links to lore entries', () => {
 })
 
 describe('splitAroundSelection', () => {
-  const schema = getSchema(EDITOR_EXTENSIONS)
+  const schema = getSchema(editorExtensions())
   const para = (value: string) => ({ type: 'paragraph', content: [text(value)] })
   const heading = (value: string) => ({ type: 'heading', attrs: { level: 3 }, content: [text(value)] })
   // Selects the first occurrence of `from` (a word) through the end of `to` (the same word when left out), across blocks.

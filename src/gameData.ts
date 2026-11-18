@@ -15,7 +15,7 @@ import hullIcon from './assets/icons/hull.svg'
 import agilityIcon from './assets/icons/agility.svg'
 import systemsIcon from './assets/icons/systems.svg'
 import engineeringIcon from './assets/icons/engineering.svg'
-import { averageDamageText } from './damage'
+import { flatDamageText } from './damage'
 import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
 
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
@@ -80,6 +80,10 @@ export function toItem(id: string, data: unknown): Item {
     raw: item,
   }
 }
+
+// A weapon mod (lancer-data's mods.json) as an Item of type "Mod". Its allowed and restricted weapon types and sizes,
+// and the range, damage and tags it adds to its weapon, stay in raw (src/equipment.ts reads them).
+export const toMod = (id: string, data: unknown) => toItem(id, { ...(data as object), type: 'Mod' })
 
 // Tag names by id (lancer-data's tags, e.g. "Limited {VAL}"), shared by every page. Loaded once.
 export const tagNames = shallowRef(new Map<string, string>())
@@ -234,6 +238,17 @@ export const bionicItems = (catalogue: Bionic[], price: number) =>
     retired: b.retired,
   }))
 
+// A talent and a core bonus from their pack data (also the content editor's preview).
+export function toTalent(id: string, data: unknown): Talent {
+  const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: TalentRank[] }
+  const ranks = (talent.ranks ?? []).map((rank) => ({ ...rank, name: String(rank.name ?? ''), description: flatDamageText(String(rank.description ?? '')), bonuses: Array.isArray(rank.bonuses) ? rank.bonuses : [] }))
+  return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks }
+}
+export function toCoreBonus(id: string, data: unknown): CoreBonus {
+  const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string; bonuses?: Bonus[] }
+  return { ...((data ?? {}) as object), id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: flatDamageText(String(bonus.effect ?? '')), bonuses: Array.isArray(bonus.bonuses) ? bonus.bonuses : [] }
+}
+
 export function useGameData() {
   const gear = shallowRef<Item[]>([])
   const bionics = shallowRef<Bionic[]>([])
@@ -256,18 +271,9 @@ export function useGameData() {
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
     bionics.value = bionicRows.rows
     pilotStats.value = statRows.rows
-    talents.value = talentRows.rows
-      .map(({ id, data }) => {
-        const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: TalentRank[] }
-        const ranks = (talent.ranks ?? []).map((rank) => ({ ...rank, name: String(rank.name ?? ''), description: averageDamageText(String(rank.description ?? '')), bonuses: Array.isArray(rank.bonuses) ? rank.bonuses : [] }))
-        return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks }
-      })
-      .sort((a, b) => a.name.localeCompare(b.name))
+    talents.value = talentRows.rows.map(({ id, data }) => toTalent(id, data)).sort((a, b) => a.name.localeCompare(b.name))
     coreBonuses.value = coreRows.rows
-      .map(({ id, data }) => {
-        const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string; bonuses?: Bonus[] }
-        return { ...((data ?? {}) as object), id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: averageDamageText(String(bonus.effect ?? '')), bonuses: Array.isArray(bonus.bonuses) ? bonus.bonuses : [] }
-      })
+      .map(({ id, data }) => toCoreBonus(id, data))
       .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))
   }
 

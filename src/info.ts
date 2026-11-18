@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import { averageDamageText } from './damage'
+import { flatDamageText } from './damage'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, itemDetails, itemRules } from './itemDetails'
 import { licenceNames, mechStats, sameName, type Frame } from './mechData'
@@ -9,17 +9,15 @@ import { PRICES, rankName } from './rules'
 // InfoButton.vue from cards, licence ranks and pickers). Every kind has the same layout, from the developer's frame
 // sketch: the name with its lore under it, then its stats, then groups of rule cards (a frame's traits, its core
 // power with the power's own lore, an item's rules, its tags). Rules text stays formatted HTML for RulesText.vue.
-// Each card and group title has a "tone", one of the site's accents, by what it is (TONES), for colour and contrast.
-export type Tone = 'lilac' | 'rose' | 'sky'
 // An action's card also has its activation (ActionChip.vue), frequency and own range and damage (itemRules).
 // "actions": a frame trait's other actions, each drawn inside the trait's card with its own chip.
-export type InfoCard = { heading: string; html: string; tone: Tone; activation?: string; frequency?: string; stats?: InfoStat[]; actions?: InfoCard[] }
+export type InfoCard = { heading: string; html: string; activation?: string; frequency?: string; stats?: InfoStat[]; actions?: InfoCard[] }
 // "stack": cards one above another, for rules read in order (an item's effect, then on attack, on hit...).
 // "tags": tag chips, each with what it means. "look" draws a frame's groups as item cards (ItemCard.vue): "traits"
 // a card per trait in the frame colour, "core" the whole group as one card in the core colour, titled by the group.
-export type InfoGroup = { title?: string; tone?: Tone; lore?: string; stack?: boolean; tags?: boolean; look?: 'traits' | 'core'; cards: InfoCard[] }
-// Facts under the name; "tone" colours the important ones (a frame's classification, the licence).
-export type InfoFact = { text: string; tone?: Tone }
+export type InfoGroup = { title?: string; lore?: string; stack?: boolean; tags?: boolean; look?: 'traits' | 'core'; cards: InfoCard[] }
+// Facts under the name.
+export type InfoFact = { text: string }
 // "range": where the value sits among every frame's (the radar chart).
 // "kind" is an item stat's (itemDetails): range, damage, bonus or sp.
 export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string; range?: { min: number; max: number; at: number } }
@@ -33,21 +31,12 @@ export const showInfo = (info: Info) => { shownInfo.value = info }
 
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 const list = (value: unknown) => (Array.isArray(value) ? value : [])
-// What each colour means here (the developer's rule, 2026-10-31): lilac for descriptions, stats and general rules;
-// sky for tags, frame traits and licences; rose for combat: on attack / hit / crit, actions, summons (drones,
-// grenades, mines, deployables), core powers, and a frame's classification.
-const TONES = { rules: 'lilac', trait: 'sky', tag: 'sky', licence: 'sky', combat: 'rose', power: 'rose', classification: 'rose' } as const
-// Things that summon or throw something (drones, grenades, mines, deployables): their effect is combat, so rose.
-const SUMMON_TYPES = ['Deployable', 'Drone']
-const SUMMON_TAGS = ['tg_grenade', 'tg_mine', 'tg_drone', 'tg_deployable']
-const summons = (item: Item) =>
-  SUMMON_TYPES.includes(item.type) || item.tags.some((tag) => SUMMON_TAGS.includes(tag.id)) || list(item.raw?.deployables).length > 0
 const facts = (...all: (InfoFact | string)[]): InfoFact[] =>
   all.map((fact) => (typeof fact === 'string' ? { text: fact } : fact)).filter((fact) => fact.text)
-const card = (heading: string, html: unknown, tone: Tone = TONES.rules): InfoCard[] => (text(html) ? [{ heading, html: averageDamageText(text(html)), tone }] : [])
-// On attack / hit / crit effects, actions and deployables (itemRules), as combat cards.
+const card = (heading: string, html: unknown): InfoCard[] => (text(html) ? [{ heading, html: flatDamageText(text(html)) }] : [])
+// On attack / hit / crit effects, actions and deployables (itemRules), as cards.
 const rules = (raw: Record<string, unknown>): InfoCard[] =>
-  itemRules(raw).map(({ name, text, ...action }) => ({ heading: name, html: text, tone: TONES.combat, ...action }))
+  itemRules(raw).map(({ name, text, ...action }) => ({ heading: name, html: text, ...action }))
 // Groups with nothing in them are left out.
 const groups = (...all: InfoGroup[]) => all.filter((group) => group.cards.length)
 // Lore separates its paragraphs with single line breaks; as real paragraphs they get space between them.
@@ -61,7 +50,7 @@ function absorb(parent: InfoCard, name: string, actions: InfoCard[]) {
   const twins = actions.filter((action) => sameName(action.heading, name))
   const twin = twins.find((action) => action.activation || action.stats?.length) ?? twins.sort((a, b) => b.html.length - a.html.length)[0]
   return {
-    card: twin ? { ...twin, heading: parent.heading, tone: parent.tone } : parent,
+    card: twin ? { ...twin, heading: parent.heading } : parent,
     rest: actions.filter((action) => !twins.includes(action)),
   }
 }
@@ -72,7 +61,7 @@ function tagCards(tags: Item['tags']): InfoCard[] {
     .filter((tag) => !hiddenTags.value.has(tag.id))
     .map((tag) => {
       const fill = (value: string) => value.replaceAll('{VAL}', String(tag.val ?? 'X'))
-      return { heading: fill(tagNames.value.get(tag.id) ?? tag.id.replace(/^tg_/, '').replaceAll('_', ' ')).toLowerCase(), html: fill(tagDescriptions.value.get(tag.id) ?? ''), tone: TONES.tag }
+      return { heading: fill(tagNames.value.get(tag.id) ?? tag.id.replace(/^tg_/, '').replaceAll('_', ' ')).toLowerCase(), html: fill(tagDescriptions.value.get(tag.id) ?? '') }
     })
 }
 
@@ -84,20 +73,20 @@ export function itemInfo(item: Item): Info {
   const pilot = PILOT_KINDS[item.type] && !item.mount
   const effect = text(item.effect)
   return {
-    kind: pilot ? PILOT_KINDS[item.type] : item.mount ? `${item.mount} ${item.type} weapon`.toLowerCase() : (item.type || 'system').toLowerCase(),
+    kind: pilot ? PILOT_KINDS[item.type] : item.type === 'Mod' ? 'weapon mod' : item.mount ? `${item.mount} ${item.type} weapon`.toLowerCase() : (item.type || 'system').toLowerCase(),
     id: item.id,
     name: item.name,
     source: text(raw.source),
     facts: facts(
       text(raw.source),
-      pilot ? '' : { text: item.licenceLevel > 0 ? `Licence: ${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : 'No licence needed', tone: TONES.licence },
+      pilot ? '' : { text: item.licenceLevel > 0 ? `Licence: ${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : 'No licence needed' },
     ),
     // Pilot gear often has only a description, which then is its rules rather than lore.
     lore: effect ? merged(text(item.description)) : '',
     stats: itemDetails(item, tagNames.value).stats,
     groups: groups(
-      { title: 'rules', stack: true, cards: [...(effect ? card('effect', effect, summons(item) ? TONES.combat : TONES.rules) : card('description', merged(text(item.description)))), ...rules(raw)] },
-      { title: 'tags', tone: TONES.tag, tags: true, cards: tagCards(item.tags) },
+      { title: 'rules', stack: true, cards: [...(effect ? card('effect', effect) : card('description', merged(text(item.description)))), ...rules(raw)] },
+      { title: 'tags', tags: true, cards: tagCards(item.tags) },
     ),
   }
 }
@@ -114,9 +103,9 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     name: frame.name,
     source: frame.source,
     facts: facts(
-      { text: frame.mechtype.join(' / '), tone: TONES.classification },
+      { text: frame.mechtype.join(' / ') },
       `Mounts: ${frame.mounts.join(', ')}`,
-      { text: frame.licenceLevel ? `Licence: ${frame.name} ${rankName(frame.licenceLevel)}` : 'No licence needed', tone: TONES.licence },
+      { text: frame.licenceLevel ? `Licence: ${frame.name} ${rankName(frame.licenceLevel)}` : 'No licence needed' },
     ),
     lore: paragraphs(text(frame.description)),
     // The frame's own numbers, before HASE and bonuses.
@@ -133,12 +122,11 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
       // One card per trait, its other actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
       { look: 'traits', cards: traits.flatMap((trait) => {
         const name = text(trait.name) || 'trait'
-        const { card: main, rest } = absorb({ heading: name, html: averageDamageText(text(trait.description)), tone: TONES.trait }, name, rules(trait))
+        const { card: main, rest } = absorb({ heading: name, html: flatDamageText(text(trait.description)) }, name, rules(trait))
         return main.html || rest.length ? [{ ...main, ...(rest.length ? { actions: rest } : {}) }] : []
       }) },
       {
         title: text(core.name) || 'core system',
-        tone: TONES.power,
         look: 'core',
         lore: paragraphs(text(core.description)),
         cards: coreCards(core),
@@ -157,10 +145,10 @@ function coreCards(core: Record<string, unknown>): InfoCard[] {
     actions = rest
     return card
   }
-  const passive = fold({ heading: `passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, html: averageDamageText(text(core.passive_effect)), tone: TONES.rules }, text(core.passive_name))
+  const passive = fold({ heading: `passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, html: flatDamageText(text(core.passive_effect)) }, text(core.passive_name))
   const powerName = text(core.active_name) || text(core.name)
   const power = text(core.active_effect)
-    ? [fold({ heading: powerName, html: averageDamageText(text(core.active_effect)), tone: TONES.power, ...(activationOf(core.activation) ? { activation: text(core.activation) } : {}) }, powerName)]
+    ? [fold({ heading: powerName, html: flatDamageText(text(core.active_effect)), ...(activationOf(core.activation) ? { activation: text(core.activation) } : {}) }, powerName)]
     : []
   return [passive, ...power, ...actions].filter((entry) => entry.html)
 }
@@ -220,21 +208,22 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
 }
 
 // What rank "level" (1 to 3) of a frame's licence unlocks: the frame itself (at its own level), weapons and systems.
-export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], level: number) => [
+export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], mods: Item[], level: number) => [
   ...(frame.licenceLevel === level ? [{ kind: 'frame', name: frame.name }] : []),
   ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon', name: item.name })),
   ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system', name: item.name })),
+  ...mods.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'mod', name: item.name })),
 ]
 
 // A licence (one per licensed frame): what each of its three ranks unlocks, side by side like the sheet's ladder.
-export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = []): Info {
-  const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, level).map((unlock) => `<li><b>${unlock.kind[0].toUpperCase()}${unlock.kind.slice(1)}:</b> ${unlock.name}</li>`)
+export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = [], mods: Item[] = []): Info {
+  const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, mods, level).map((unlock) => `<li><b>${unlock.kind[0].toUpperCase()}${unlock.kind.slice(1)}:</b> ${unlock.name}</li>`)
   return {
     kind: `${frame.source} licence`.trim(),
     id: frame.id,
     name: frame.name,
     source: frame.source,
-    facts: facts({ text: frame.mechtype.join(' / '), tone: TONES.classification }, `${PRICES.licenceRank} manna per rank`),
+    facts: facts({ text: frame.mechtype.join(' / ') }, `${PRICES.licenceRank} manna per rank`),
     lore: '',
     stats: [],
     groups: groups({ title: 'ranks', cards: [1, 2, 3].flatMap((level) => {

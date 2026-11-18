@@ -18,7 +18,7 @@ import variableIcon from './assets/icons/variable.svg'
 import { hiddenTags, type Item } from './gameData'
 import { licenceNames } from './mechData'
 import { rankName } from './rules'
-import { averageDamage, averageDamageText } from './damage'
+import { flatDamage, flatDamageText } from './damage'
 import { plainText } from './rulesText'
 
 // What an item card shows (ItemDetails.vue, and the pickers' one-line summaries): its stats with LANCER's
@@ -58,7 +58,7 @@ const entryStats = (kind: 'range' | 'damage', entries: Entry[]): ItemStat[] =>
     kind,
     label: String(entry.type ?? '').toLowerCase(),
     icon: ICONS[String(entry.type ?? '').toLowerCase()] ?? null,
-    value: String(kind === 'damage' ? averageDamage(entry.val) : entry.val),
+    value: String(kind === 'damage' ? flatDamage(entry.val) : entry.val),
   }))
 
 // Each stat's "kind" (bonus, range, damage or sp) lets the archives' rows put them in columns.
@@ -83,7 +83,7 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
     })
   // Pilot gear often has no rules text, only flavour, so it falls back to the description.
   // Still formatted HTML: RulesText.vue draws it safely, plainText() flattens it for pickers.
-  const text = averageDamageText(plainText(item.effect) ? item.effect : item.type === 'Gear' ? item.description : '')
+  const text = flatDamageText(plainText(item.effect) ? item.effect : item.type === 'Gear' ? item.description : '')
   return { stats, tags, text }
 }
 
@@ -95,6 +95,7 @@ export const statLine = (details: ReturnType<typeof itemDetails>) =>
 export type CardType = 'weapon' | 'system' | 'frame' | 'pilot' | 'talent' | 'core'
 const PILOT_TYPES = ['Armor', 'Gear']
 export function itemCard(item: Item): { type: CardType; icon: string } {
+  if (item.type === 'Mod') return { type: 'system', icon: 'mod' }
   if (item.mount || item.type === 'Weapon') return { type: 'weapon', icon: item.type === 'Melee' ? 'melee' : 'weapon' }
   const has = (tag: string) => item.tags.some((t) => t.id === tag)
   const icon = has('tg_grenade') ? 'grenade' : has('tg_mine') ? 'mine' : item.type === 'Drone' || has('tg_drone') ? 'drone'
@@ -108,6 +109,7 @@ export function itemFacts(item: Item): string[] {
   if (PILOT_TYPES.includes(item.type) || (item.type === 'Weapon' && !item.mount)) return []
   const source = typeof item.raw?.source === 'string' ? item.raw.source : ''
   const licence = item.licenceLevel > 0 ? `${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : source
+  if (item.type === 'Mod') return [licence, `Mod for ${(Array.isArray(item.raw?.allowed_types) ? item.raw.allowed_types : []).join(', ') || 'any weapon'}`]
   return [licence, item.mount ? `${item.mount} ${item.type}`.trim() : item.type === 'System' ? '' : item.type].filter(Boolean)
 }
 
@@ -150,7 +152,7 @@ export function itemRules(raw: Record<string, unknown>, activeEffects = true): I
     else if (entry.detail || entry.description || stats) result.push({ name: String(entry.name ?? key), text: `${stats}${stats ? '. ' : ''}${entry.detail ?? entry.description ?? ''}`, ...extras(entry) })
     if (Array.isArray(entry.actions)) for (const inner of entry.actions as Record<string, unknown>[]) if (inner?.detail) result.push(action(inner, 'action'))
   }
-  return result.map(rule => ({ ...rule, text: averageDamageText(rule.text) }))
+  return result.map(rule => ({ ...rule, text: flatDamageText(rule.text) }))
 }
 
 // The rules an item card shows: COMP/CON's active effects mostly repeat the rules text, so they're left out, unless

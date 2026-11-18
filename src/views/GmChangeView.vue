@@ -12,7 +12,8 @@ import RichText from '../components/RichText.vue'
 import { useGameData } from '../gameData'
 import type { Character, PendingChange, Sheet } from '../myPilot'
 import { useMechData } from '../mechData'
-import { licenceName, mannaSpent, pilotProblems, personalStatProblems } from '../rules'
+import { licenceName, mannaSpent, pilotProblems, personalStatProblems, formatAmount, useCatalogue } from '../rules'
+import { cardImages, deleteImage } from '../images'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
 import { since } from '../time'
@@ -33,7 +34,8 @@ const loading = ref(true)
 const error = ref('')
 
 const { gear, bionics, pilotStats, talents, coreBonuses } = useGameData()
-const { frames, weapons, systems, integrated } = useMechData()
+const { frames, weapons, systems, mods, integrated } = useMechData()
+const catalogue = useCatalogue()
 
 async function load() {
   const { data: row, error: loadError } = await supabase.from('pending_changes').select('*').eq('id', Number(route.params.id)).maybeSingle()
@@ -79,6 +81,7 @@ const lines = computed(() => {
       frame: (id) => licenceName(frames.value, id),
       weapon: (id) => find([...weapons.value, ...integrated.value.values()], id),
       system: (id) => find([...systems.value, ...integrated.value.values()], id),
+      mod: (id) => find(mods.value, id),
     },
   )
 })
@@ -115,7 +118,6 @@ const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}))
 const spentAfter = computed(() => mannaSpent(proposedSheet.value))
 const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
-const amount = (n: number) => n.toLocaleString('en-GB')
 
 // --- The rule check on the proposed sheet, and whether the pilot changed since the change was started ---
 const problems = computed(() =>
@@ -123,16 +125,7 @@ const problems = computed(() =>
     ? pilotProblems(
         proposedSheet.value,
         { level: approved.value.level, manna: approved.value.manna },
-        {
-          frames: frames.value,
-          weapons: new Map(weapons.value.map((w) => [w.id, w])),
-          systems: new Map(systems.value.map((s) => [s.id, s])),
-          integrated: integrated.value,
-          bionicCosts: new Map(bionics.value.map((b) => [b.id, b.mod_point_cost])),
-          coreBonuses: coreBonuses.value,
-          talents: talents.value,
-          gear: gear.value,
-        },
+        catalogue.value,
         Object.fromEntries(
           (Array.isArray(proposedCard.value.mechs) ? (proposedCard.value.mechs as unknown as PublicMech[]) : []).map((m) => [m.id, m.name]),
         ),
@@ -160,7 +153,12 @@ async function approve() {
   })
   busy.value = false
   error.value = approveError?.message ?? ''
-  if (!error.value) router.push({ name: 'gm-changes' })
+  if (!error.value) {
+    // The approved card's pictures that this change replaced or removed (best effort).
+    const kept = cardImages({ ...pilot.value!, ...proposedCard.value })
+    cardImages(pilot.value!).forEach((path) => kept.has(path) || deleteImage(path))
+    router.push({ name: 'gm-changes' })
+  }
 }
 
 async function reject() {
@@ -201,20 +199,20 @@ async function reject() {
           <dl class="figures">
             <div v-if="pending">
               <dt class="label">Balance before</dt>
-              <dd class="num">{{ amount(approved.manna - spentBefore) }}</dd>
+              <dd class="num">{{ formatAmount(approved.manna - spentBefore) }}</dd>
             </div>
             <div>
               <dt class="label">{{ !pending ? 'Proposal spending' : cost < 0 ? 'Manna refunded' : 'Cost of change' }}</dt>
               <dd class="num" :class="{ 'tone-down': (pending ? cost : spentAfter) > 0, 'tone-up': pending && cost < 0 }">
-                {{ pending ? (cost < 0 ? '+' : cost > 0 ? '−' : '') + amount(Math.abs(cost)) : amount(spentAfter) }}
+                {{ pending ? (cost < 0 ? '+' : cost > 0 ? '−' : '') + formatAmount(Math.abs(cost)) : formatAmount(spentAfter) }}
               </dd>
             </div>
             <div>
               <dt class="label">{{ pending ? 'Balance after' : 'Manna left' }}</dt>
-              <dd class="num" :class="left < 0 ? 'tone-down' : 'tone-info'">{{ amount(left) }}</dd>
+              <dd class="num" :class="left < 0 ? 'tone-down' : 'tone-info'">{{ formatAmount(left) }}</dd>
             </div>
           </dl>
-          <p class="dim figures-note"><span class="num">{{ amount(approved.manna) }}</span> received · <span class="num">{{ amount(spentAfter) }}</span> spent on the proposed sheet</p>
+          <p class="dim figures-note"><span class="num">{{ formatAmount(approved.manna) }}</span> received · <span class="num">{{ formatAmount(spentAfter) }}</span> spent on the proposed sheet</p>
         </div>
       </section>
 

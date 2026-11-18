@@ -14,13 +14,14 @@ export type PublicMech = {
   image: string | null
 }
 
-// "player" is the owner's profile, joined in for their display name.
-export type PublicPilot = Omit<Tables<'characters'>, 'mechs'> & {
+// Only what the cards and the list search use. "player" is the owner's profile, joined in for their display name.
+export type PublicPilot = Pick<Tables<'characters'>, 'id' | 'status' | 'created_at' | 'callsign' | 'pilot_name' | 'pilot_image'> & {
   mechs: PublicMech[]
   player: { display_name: string } | null
 }
 
-const PILOT_FIELDS = '*, player:profiles(display_name)'
+// Shared with the GM roster, which adds the private sheet's few columns.
+export const PILOT_FIELDS = 'id, status, created_at, callsign, pilot_name, pilot_image, mechs, player:profiles(display_name)'
 
 // The mechs column is plain JSON to the database; the site always saves it in the PublicMech shape.
 const toPilot = (row: object) => {
@@ -39,9 +40,4 @@ export function pilotMatches(pilot: PublicPilot, query: string) {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const text = [pilot.callsign, pilot.pilot_name, pilot.player?.display_name, ...pilot.mechs.map((mech) => mech.name)].join(' ').toLowerCase()
   return words.every((word) => text.includes(word))
-}
-
-export async function fetchPilot(id: number) {
-  const { data, error } = await supabase.from('characters').select(PILOT_FIELDS).eq('id', id).maybeSingle()
-  return { pilot: data ? toPilot(data) : null, error: error?.message ?? '' }
 }

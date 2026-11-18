@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent } from './archive'
 import { coreContent } from './coreContent'
-import { toItem, type CoreBonus, type Talent } from './gameData'
+import { toItem, toMod, type CoreBonus, type Talent } from './gameData'
 import type { Manufacturer } from './info'
 import type { Frame } from './mechData'
 
@@ -17,6 +17,7 @@ const content: ArchiveContent = {
   frames,
   weapons: rows('weapons').map(({ id, data }) => toItem(id, data)),
   systems: rows('systems').map(({ id, data }) => toItem(id, data)),
+  mods: rows('mods').map(({ id, data }) => toMod(id, data)),
   gear: rows('pilot_gear').map(({ id, data }) => toItem(id, data)),
   talents: rows('talents').map(({ data }) => data as unknown as Talent),
   coreBonuses: rows('core_bonuses').map(({ data }) => data as unknown as CoreBonus),
@@ -31,6 +32,9 @@ describe('archives', () => {
     expect(count('licences')).toBe(frames.filter(frame => frame.licenceLevel > 0).length)
     expect(entries.find(entry => entry.id === 'mw_autopod')).toMatchObject({ category: 'mech weapons', group: 'HORUS', licence: 'Goblin', level: 1 })
     // Systems without effect text are summed up by their first action or deployable.
+    // Weapon mods are their own category, by licence like weapons and systems.
+    expect(entries.find(entry => entry.id === 'wm_stabilizer_mod')).toMatchObject({ category: 'weapon mods', group: 'SSC', licence: 'Monarch', level: 2 })
+    expect(listFacts(entries.find(entry => entry.id === 'wm_stabilizer_mod')!)).toEqual(['Rank II', '2 SP'])
     for (const name of ['Grounding Charges', 'Repulser Field', 'Clamp Bombs']) expect(entries.find(entry => entry.name === name)?.summary).toBeTruthy()
   })
 

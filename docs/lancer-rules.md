@@ -87,7 +87,14 @@ Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything alread
 | Drone/deployable stats; frame check modifiers and passive effects. | Structured permanent bonuses apply. Drone Commander/Hydra affect drone HP, not mech HP. Explicit supplements cover core check modifiers left in prose; actions and conditions remain references. |
 | **Integrated** weapons and systems (built into a frame, e.g. the Sherman's): always on the mech, take no mount, cost no SP, can't be removed. | Enforced (shown, not pickable) |
 | Changing frame takes the weapons off the mounts, because the mounts differ. Systems stay, and are rule-checked against the new frame's SP. | Enforced |
-| **Weapon mods**. | Not used (house rule) |
+| **Weapon mods** (lancer-data's `mods.json`; an owner imports them like any content). **One mod per weapon**, kept by the weapon's place (`sheet.mechs[id].weapon_mods`, `"mount:place"` to mod id). A mod costs **system points** like a system, and is **licensed like one** (free once you hold its licence rank; GMS mods need none, and no manna is spent). | Enforced: the picker blocks a mod the licences don't cover, one over the system points, a second Unique copy and an AI over capacity; the rule check flags the same. |
+| A mod only goes on a weapon whose **type and size** it allows (`allowed_types`, `allowed_sizes`, `restricted_types`, `restricted_sizes`; an empty list allows all). A Prototype weapon counts as the type its player chose. | Enforced (picker, rule check) |
+| A weapon with `no_mods` (the Mimic Gun, the Gravity Gun) and the **Integrated Weapon** core bonus's mount take **no mod**. Weapons built into a frame or granted by a talent show no mod section at all. | Enforced |
+| A mod's **added range** joins the weapon's range of that type (or is a new range), its **added tags** join the weapon's, and a modded weapon gets the Modded tag. The mod's own `bonuses` go through `mechEffects()` like other equipment. Each change is named under "Where these numbers come from". | Calculated (`equipmentDetails()`). A mod's **added damage** is not counted: it's conditional (Thermal Charge needs a hit and a charge), so it stays in the mod's rules text (developer, 2026-11-17). |
+| A mod's actions, effect and Limited uses (plus the Engineering bonus) are shown in full on its weapon's card. | Reminders only: no expended-use tracking |
+| Removing or swapping a weapon, or changing frame, takes its mod with it. | Enforced by the page |
+| A mod whose place no longer holds a weapon (a lost mount, a lost talent grant), a mod missing from the packs, or one on a weapon it doesn't fit. | Rule-checked, never silently deleted. A mod with no weapon counts for no system points and shows under "Mods without a weapon", where it can be cleared. |
+| Mods whose own rules need the game's state (UNCLE's AI attack, Throughbolt Rounds, Paracausal's Overkill and unreducible damage, Phase-Ready's cover rules). | GM. Shown as rules text; the AI tag counts towards AI capacity. |
 | Several mechs per pilot. Which one is active doesn't matter for a roleplay. | No limit |
 
 ## When rules break anyway
@@ -105,7 +112,7 @@ Nothing is removed automatically. The player fixes it, or the GM sends it back.
 
 ## Damage (homebrew, 2026-10-29)
 
-- Damage is the average of the full dice expression, rounded up once: `1d6 = 4`, `2d6+1 = 8`, `1d6+1d6 = 7`. Flat damage is unchanged.
-- `averageDamage()` uses an arithmetic parser, never JavaScript evaluation. Shared item details apply it to pilot and mech weapon damage, including the displayed weapon profile.
+- Damage is the mean of the full dice expression, rounded up once: `1d6 = 4`, `2d6+1 = 8`, `1d6+1d6 = 7`. Flat damage is unchanged.
+- `flatDamage()` uses an arithmetic parser, never JavaScript evaluation. Shared item details apply it to pilot and mech weapon damage, including the displayed weapon profile.
 - Explicit damage phrases in item, talent and core-bonus rules text are converted too. Movement, healing, checks and limited-use dice are not damage rolls and stay unchanged.
 - Variable expressions and unusual prose cannot be resolved automatically and remain for GM interpretation. Other weapon profiles and actions not yet displayed by the existing item UI remain outside the current UI.

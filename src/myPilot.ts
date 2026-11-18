@@ -1,7 +1,8 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import { isGm, session } from './auth'
-import { parseEntries, type Entry } from './entries'
+import type { Entry } from './entries'
 import type { Json, Tables, TablesUpdate } from './lib/database.types'
+import { cardImages, deleteImage } from './images'
 import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
 import { PUBLIC_COLUMNS } from './changeDiff'
 import type { PublicMech } from './pilots'
@@ -28,10 +29,12 @@ export type MechPrivate = {
   mounts?: (string | null)[][]
   systems?: string[]
   core_mounts?: Record<string, number>
+  // The mod on each weapon, by the weapon's place ("mount:place", like weapon_options): a mod id.
+  weapon_mods?: Record<string, string>
   weapon_options?: Record<string, { profile?: number; type?: string; damageType?: string; accuracy?: boolean; smart?: boolean }>
 }
-// The private sheet so far (docs/database-sketch.md has the full shape). Licences, talents and the rest arrive
-// with the game data. Stats are keyed by id; gear holds content_items ids and bionics holds bionics ids.
+// The private sheet (docs/database-sketch.md has the full shape). Stats are keyed by id; gear holds content_items ids
+// and bionics holds bionics ids.
 export type Sheet = {
   backstory?: Json | null
   mechs?: Record<string, MechPrivate>
@@ -56,6 +59,9 @@ export function mechProblem(name: string, manufacturerId: string) {
 }
 
 export type PendingChange = Tables<'pending_changes'>
+// A change as this page tracks it: everything but the proposed card and sheet, which are only read once, when a draft opens.
+export type ChangeRow = Omit<PendingChange, 'proposed_public' | 'proposed_sheet'>
+const CHANGE_FIELDS = 'id, character_id, status, submitted_by, submitted_at, based_on, created_at, updated_at, reviewed_at, reviewed_by, review_reason'
 
 // Your own approved pilot can't be edited directly: you propose a change (a pending_changes row holding the
 // whole proposed card and sheet). While it's a draft (not submitted), the page shows it and every save goes
@@ -75,7 +81,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const loading = ref(true)
   const loadError = ref('')
   // Your approved pilot's latest change (any status).
-  const change = shallowRef<PendingChange | null>(null)
+  const change = shallowRef<ChangeRow | null>(null)
   // When the sheet last changed, as loaded with the page (the raw string): with the card's updated_at it says what
   // this page is showing, for "based_on" below and for a GM's approve_pilot.
   const sheetUpdatedAt = ref('')
@@ -96,12 +102,11 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     const list = character.value?.mechs
     return (Array.isArray(list) ? list : []) as unknown as PublicMech[]
   })
-  const traits = computed(() => parseEntries(character.value?.traits))
 
   async function latestChange(characterId: number) {
     const { data } = await supabase
       .from('pending_changes')
-      .select('*')
+      .select(CHANGE_FIELDS)
       .eq('character_id', characterId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -109,24 +114,29 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     return data
   }
 
+  // Uploaded images are cleaned up from here, best effort: "savedImages" are the ones in the card as last loaded or
+  // saved, "approvedImages" the approved pilot's (while a draft change is open, which the page shows instead).
+  // A file is deleted once the card stops using it and nothing approved does.
+  // shortcut: rejected changes keep their uploaded images; add an owner clean-up if storage fills.
+  let savedImages = new Set<string>()
+  let approvedImages = new Set<string>()
+  function dropImages(paths: Iterable<string>) {
+    for (const path of paths) if (!approvedImages.has(path)) deleteImage(path)
+  }
+
   async function load() {
     conflict.value = false
     unsaved.clear()
-    const query = supabase.from('characters').select('*, player:profiles(display_name)')
+    const query = supabase.from('characters').select('*, player:profiles(display_name), sheet:character_sheets(sheet, level, manna, review_note, updated_at)')
     const { data, error } = await (pilotId
       ? query.eq('id', pilotId)
       : query.eq('player_id', session.value!.user.id).in('status', ['pending', 'approved']).order('created_at').limit(1)
     ).maybeSingle()
     loadError.value = error?.message ?? ''
-    const { player, ...row } = data ?? { player: null }
+    const { player, sheet: privateRow, ...row } = data ?? { player: null, sheet: null }
     character.value = data ? (row as Character) : null
     playerName.value = player?.display_name ?? ''
     if (data) {
-      const { data: privateRow } = await supabase
-        .from('character_sheets')
-        .select('sheet, level, manna, review_note, updated_at')
-        .eq('character_id', data.id)
-        .maybeSingle()
       sheet.value = (privateRow?.sheet ?? {}) as unknown as Sheet
       gm.value = { level: privateRow?.level ?? 0, manna: privateRow?.manna ?? 0 }
       reviewNote.value = privateRow?.review_note ?? ''
@@ -134,15 +144,21 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       // Your own sheet may not exist yet (the first save creates it), but it's still yours to fill in.
       canSeePrivate.value = !pilotId || !!privateRow
       change.value = null
+      approvedImages = new Set()
       if (data.status === 'approved' && (!pilotId || gmEditing.value)) {
         const latest = await latestChange(data.id)
         change.value = latest
         // Show the change in progress instead of the approved pilot (your own only).
-        if (!pilotId && latest?.status === 'pending') {
-          character.value = { ...character.value!, ...(latest.proposed_public as object) }
-          sheet.value = latest.proposed_sheet as unknown as Sheet
+        const proposed = !pilotId && latest?.status === 'pending'
+          ? (await supabase.from('pending_changes').select('proposed_public, proposed_sheet').eq('id', latest.id).maybeSingle()).data
+          : null
+        if (proposed) {
+          approvedImages = cardImages(character.value!)
+          character.value = { ...character.value!, ...(proposed.proposed_public as object) }
+          sheet.value = proposed.proposed_sheet as unknown as Sheet
         }
       }
+      savedImages = cardImages(character.value!)
     }
     loading.value = false
   }
@@ -178,8 +194,15 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // The card as it is now (only the public columns, which is all a draft holds).
   const card = () => Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, character.value![column]])) as NonNullable<Json>
 
+  // The card with these images was just saved: files it no longer uses can go.
+  function swapImages(now: Set<string>) {
+    dropImages([...savedImages].filter((path) => !now.has(path)))
+    savedImages = now
+  }
+
   async function write(kind: Kind) {
     const c = character.value!
+    const images = cardImages(c)
     if (kind === 'draft') {
       const seen = draft.value!.updated_at
       const result = await checkWrite(
@@ -188,10 +211,11 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
           .update({ proposed_public: card(), proposed_sheet: sheet.value as unknown as NonNullable<Json> })
           .eq('id', draft.value!.id)
           .eq('updated_at', seen)
-          .select(),
+          .select(CHANGE_FIELDS),
         { seen, recheck: () => supabase.from('pending_changes').select('updated_at').eq('id', draft.value!.id).maybeSingle() },
       )
       if (result.row) change.value = result.row
+      if (!result.error) swapImages(images)
       return result.error
     }
     if (kind === 'card') {
@@ -201,6 +225,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       )
       // Only the new updated_at: the card on screen may have newer edits that are still waiting their turn.
       if (result.row) character.value = { ...character.value!, updated_at: result.row.updated_at }
+      if (!result.error) swapImages(images)
       return result.error
     }
     // The first save of a sheet creates it; after that it's an update, guarded by when this page last saw it.
@@ -279,7 +304,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
           .update({ submitted_at: submitted ? new Date().toISOString() : null })
           .eq('id', draft.value!.id)
           .eq('updated_at', seen)
-          .select(),
+          .select(CHANGE_FIELDS),
         { seen, recheck: () => supabase.from('pending_changes').select('updated_at').eq('id', draft.value!.id).maybeSingle() },
       )
       if (result.row) change.value = result.row
@@ -291,7 +316,10 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const withdrawChange = () =>
     queued(async () => {
       const { error } = await checkWrite(await supabase.from('pending_changes').delete().eq('id', draft.value!.id).select('id'))
-      if (!error) await load()
+      if (!error) {
+        dropImages([...savedImages, ...cardImages(character.value!)])
+        await load()
+      }
       return error
     })
 
@@ -346,7 +374,6 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     gmEditing,
     waiting,
     mechs,
-    traits,
     change,
     draft,
     load,

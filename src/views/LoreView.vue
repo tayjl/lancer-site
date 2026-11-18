@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import Icon from '../components/Icon.vue'
 import LoreEntry from '../components/LoreEntry.vue'
 import PageHeader from '../components/PageHeader.vue'
+import { useListPane } from '../listPane'
 import {
-  KIND_INFO, LORE_KINDS, createDraft, entries, entryDate, formatDate, isDraft, loadLore, loaded, loreMatches, readTime, type LoreKind,
+  KIND_INFO, LORE_KINDS, createDraft, entries, entryMeta, isDraft, loadLore, loaded, loreMatches, type LoreKind,
 } from '../lore'
 
 // Lore, like the archives' list + detail pane: a slim list of entries (a box per kind, newest first) and, on desktop,
@@ -37,11 +38,10 @@ const requested = computed(() => entries.value.find((entry) => entry.id === id.v
 const selected = computed(() => (id.value ? requested.value : (shown.value.find((entry) => !isDraft(entry)) ?? shown.value[0])))
 const missing = computed(() => loaded.value && Boolean(id.value) && !requested.value)
 
-const wideQuery = window.matchMedia('not all and (max-width: 56rem)')
-const wide = ref(wideQuery.matches)
-const onWide = (event: MediaQueryListEvent) => (wide.value = event.matches)
-wideQuery.addEventListener('change', onWide)
-onUnmounted(() => wideQuery.removeEventListener('change', onWide))
+// The pane shows beside the list on desktop; on phones the list is a page and an entry is a page of its own.
+const pane = useTemplateRef<HTMLElement>('pane')
+const listBox = useTemplateRef<HTMLElement>('listBox')
+const { wide, step } = useListPane({ selected, listed: shown, pane, listBox, active: () => wide.value })
 const entryPage = computed(() => !wide.value && Boolean(id.value))
 
 async function newEntry() {
@@ -50,38 +50,10 @@ async function newEntry() {
   else router.push({ name: 'lore-edit', params: { id: draft.id } })
 }
 
-const facts = (entry: (typeof entries.value)[number]) => `${isDraft(entry) ? 'Edited ' : ''}${formatDate(entryDate(entry))} · ${readTime(entry.body)}`
-
-// A new entry in the pane starts at its top, and its row is brought into the list's view. Only the list scrolls,
-// never the page.
-const pane = useTemplateRef<HTMLElement>('pane')
-const listBox = useTemplateRef<HTMLElement>('listBox')
-watch(selected, () => pane.value?.scrollTo({ top: 0 }), { flush: 'post' })
-watch([selected, shown], () => {
-  const list = listBox.value
-  const row = list?.querySelector<HTMLElement>('.row[aria-current="true"]')
-  if (!list || !row || !wide.value) return
-  // What of the list is on screen: before the page scrolls and it sticks, its foot can be below the window's.
-  const box = list.getBoundingClientRect()
-  const seen = Math.min(box.bottom, window.innerHeight) - box.top
-  const top = row.getBoundingClientRect().top - box.top + list.scrollTop
-  if (top < list.scrollTop || top + row.offsetHeight > list.scrollTop + seen) list.scrollTop = top - seen / 3
-}, { flush: 'post' })
-
-// Arrow keys move through the list (on desktop choosing as they go); Tab and Enter work as for any link.
-function step(event: KeyboardEvent) {
-  if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
-  const rows = [...(listBox.value?.querySelectorAll<HTMLAnchorElement>('.row') ?? [])]
-  const next = rows[rows.indexOf(document.activeElement as HTMLAnchorElement) + (event.key === 'ArrowDown' ? 1 : -1)]
-  if (!rows.includes(document.activeElement as HTMLAnchorElement) || !next) return
-  event.preventDefault()
-  next.focus()
-  if (wide.value) next.click()
-}
 </script>
 
 <template>
-  <main class="page lore">
+  <main class="page lore list-pane">
     <!-- Phones: an entry is a page of its own. -->
     <template v-if="entryPage">
       <p v-if="!loaded" class="dim">Loading…</p>
@@ -153,7 +125,7 @@ function step(event: KeyboardEvent) {
                     <span class="row-name">{{ entry.title }}</span>
                     <span v-if="isDraft(entry)" class="badge draft">Draft</span>
                   </span>
-                  <span class="row-facts">{{ facts(entry) }}</span>
+                  <span class="row-facts">{{ entryMeta(entry) }}</span>
                 </RouterLink>
               </li>
             </ul>
@@ -180,21 +152,6 @@ function step(event: KeyboardEvent) {
 
 .lore > .page-header {
   margin-bottom: 0;
-}
-
-.search {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-s);
-}
-
-.search .field {
-  flex: 0 1 36rem;
-}
-
-.search input {
-  width: 100%;
-  font-size: 1rem;
 }
 
 /* The kind filter: neutral toggle chips (the archives' manufacturer chips, without a maker colour). */
@@ -259,15 +216,6 @@ function step(event: KeyboardEvent) {
   gap: var(--space-l);
 }
 
-.list,
-.pane {
-  position: sticky;
-  top: var(--stick);
-  max-height: calc(100dvh - var(--stick) - var(--space-m));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .list {
   display: grid;
   gap: var(--space-m);
@@ -279,21 +227,6 @@ function step(event: KeyboardEvent) {
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--panel);
-}
-
-/* A kind's box, as the archives' manufacturer boxes. */
-.group {
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
-}
-
-.group-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-  padding: var(--space-s) var(--space-m);
-  border-bottom: 1px solid var(--rule);
 }
 
 .kind-icon {
@@ -314,12 +247,6 @@ function step(event: KeyboardEvent) {
   font-size: var(--fs-xs);
 }
 
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 /* A row: a real link, the title over its date and reading time, a thin rule between rows. The chosen one is lilac
    with a bar. */
 .row {
@@ -332,25 +259,6 @@ function step(event: KeyboardEvent) {
   border-top: 1px solid var(--rule);
   color: var(--text);
   text-decoration: none;
-}
-
-.rows > li:first-child > .row {
-  border-top: 0;
-}
-
-.row:hover {
-  background: var(--raised);
-}
-
-.row:focus-visible {
-  outline: 2px solid var(--lilac);
-  outline-offset: -2px;
-}
-
-.row[aria-current='true'] {
-  background: color-mix(in srgb, var(--lilac) 14%, transparent);
-  box-shadow: inset 3px 0 0 var(--lilac);
-  color: var(--lilac);
 }
 
 .row-top {
@@ -369,11 +277,6 @@ function step(event: KeyboardEvent) {
 .row-top .badge {
   flex: none;
   margin-left: auto;
-}
-
-.row-facts {
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
 }
 
 @media (max-width: 56rem) {

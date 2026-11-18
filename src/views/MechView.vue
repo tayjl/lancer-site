@@ -5,6 +5,8 @@ import { confirmAction } from '../confirm'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
+import ImageUpload from '../components/ImageUpload.vue'
+import SaveStatus from '../components/SaveStatus.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import MechLoadout from '../components/MechLoadout.vue'
@@ -22,11 +24,12 @@ import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { useGameData } from '../gameData'
-import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder, type ReminderKind } from '../mechData'
+import { buildFrame, fittedMods, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder, type ReminderKind } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
-import { sectionOverride } from '../router'
-import { isLicensed, mechProblems } from '../rules'
+import { useSaveStatus } from '../saveStatus'
+import { pilotList, sectionOverride } from '../router'
+import { isLicensed, mechProblems, useCatalogue } from '../rules'
 
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
 // maker's logo and a thin top border in its colour, the name, manufacturer id, frame and class, then pilot, size and
@@ -47,13 +50,7 @@ const { character, sheet, canSeePrivate, loading, loadError, conflict, retry, ed
 })
 
 // The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
-const list = computed(() =>
-  character.value?.status === 'pending'
-    ? { name: 'pending', label: 'Pending' }
-    : character.value?.status === 'dead'
-      ? { name: 'memorial', label: 'Memorial' }
-      : { name: 'registry', label: 'Registry' },
-)
+const list = computed(() => pilotList(character.value?.status))
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'record-mech') watchEffect(() => (sectionOverride.value = list.value.name))
 const hangar = computed(() =>
@@ -74,17 +71,9 @@ const mechId = computed(() => String(route.params.mechId))
 const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
 
-const { frames, weapons, systems, integrated } = useMechData()
-const { gear, talents, coreBonuses } = useGameData()
-const catalogue = computed(() => ({
-  frames: frames.value,
-  weapons: new Map(weapons.value.map(item => [item.id, item])),
-  systems: new Map(systems.value.map(item => [item.id, item])),
-  integrated: integrated.value,
-  talents: talents.value,
-  coreBonuses: coreBonuses.value,
-  gear: gear.value,
-}))
+const { frames, weapons, systems, mods, integrated } = useMechData()
+const { talents } = useGameData()
+const catalogue = useCatalogue()
 const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
 // The plate shows its manufacturer as the logo and a thin top border in its colour (nothing else), from the packs, so
 // new manufacturers just work. A frame is private: other players get no sheet, so no frame, and the neutral plate
@@ -121,7 +110,8 @@ const spUsed = computed(() => {
   const systemsById = new Map(availableSystems.value.map((item) => [item.id, item]))
   return (
     (details.value.mounts ?? []).flat().reduce((sum, id) => sum + (id ? (weaponsById.get(id)?.sp ?? 0) : 0), 0) +
-    (details.value.systems ?? []).reduce((sum, id) => sum + (systemsById.get(id)?.sp ?? 0), 0)
+    (details.value.systems ?? []).reduce((sum, id) => sum + (systemsById.get(id)?.sp ?? 0), 0) +
+    fittedMods(details.value, frame.value).reduce((sum, [, id]) => sum + (mods.value.find((item) => item.id === id)?.sp ?? 0), 0)
   )
 })
 // The rule check speaks to whoever can fix it: you, on your own editable mech.
@@ -155,15 +145,7 @@ const coreLabel = (entry: Reminder) =>
   entry.kind === 'core-power' ? 'Core power' : entry.source === `${coreSystem.value.name ?? 'core system'} · passive` ? 'Passive' : undefined
 
 // --- The save status shown on the plate, for the one-line fields ---
-const status = ref('')
-const saveError = ref('')
-
-async function track(save: Promise<string | null>) {
-  status.value = 'Saving…'
-  saveError.value = (await save) ?? ''
-  status.value = saveError.value ? '' : 'Saved'
-  return saveError.value || null
-}
+const { saving, saved, error: saveError, track } = useSaveStatus()
 
 // Public changes replace this mech in the pilot's mech list.
 const savePublic = (changes: Partial<PublicMech>) =>
@@ -173,6 +155,7 @@ const savePublic = (changes: Partial<PublicMech>) =>
 const savePrivate = (changes: MechPrivate) =>
   updateSheet({ mechs: { ...sheet.value.mechs, [mechId.value]: { ...details.value, ...changes } } })
 
+const saveImage = (path: string | null) => track(savePublic({ image: path }))
 const saveAppearance = (doc: Json | null) => track(savePublic({ appearance: doc }))
 const saveHistory = (doc: Json | null) => track(savePrivate({ history: doc }))
 const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes))
@@ -198,9 +181,9 @@ const frameOptions = computed(() =>
 
 async function chooseFrame(id: string) {
   const armed = (details.value.mounts ?? []).flat().some(Boolean)
-  if (armed && !(await confirmAction("A new frame has different mounts, so this mech's weapons come off. Go ahead?", { confirmLabel: 'Change frame', danger: true })))
+  if (armed && !(await confirmAction("A new frame has different mounts, so this mech's weapons, and their mods, come off. Go ahead?", { confirmLabel: 'Change frame', danger: true })))
     return
-  await track(savePrivate({ frame: id, mounts: [], core_mounts: {}, weapon_options: {} }))
+  await track(savePrivate({ frame: id, mounts: [], core_mounts: {}, weapon_options: {}, weapon_mods: {} }))
   if (!saveError.value) framePicker.value?.close()
 }
 
@@ -296,13 +279,7 @@ async function scrap() {
             </span>
             <span v-if="baseFrame?.mechtype.length">{{ baseFrame.mechtype.join(' / ') }}</span>
           </div>
-          <p v-if="own && (saveError || status)" class="save-status" role="status">
-            <template v-if="saveError">
-              <span class="error">Not saved: {{ saveError }}</span>
-              <button v-if="!conflict" type="button" class="small quiet" @click="track(retry())">Retry</button>
-            </template>
-            <span v-else class="dim">{{ status }}</span>
-          </p>
+          <SaveStatus v-if="own && (saveError || saving || saved)" :saving="saving" :saved="saved" :error="saveError" :can-retry="!conflict" @retry="track(retry())" />
         </div>
         <dl class="facts">
           <div class="fact">
@@ -322,7 +299,7 @@ async function scrap() {
         </dl>
       </header>
 
-      <GmEditBar v-if="gmEditing" :name="character?.callsign ?? character?.pilot_name ?? ''" :waiting="waiting" :status="status" :error="saveError" :can-retry="!conflict" @retry="track(retry())" @done="router.replace({ query: { ...route.query, edit: undefined } })" />
+      <GmEditBar v-if="gmEditing" :name="character?.callsign ?? character?.pilot_name ?? ''" :waiting="waiting" :saving="saving" :saved="saved" :error="saveError" :can-retry="!conflict" @retry="track(retry())" @done="router.replace({ query: { ...route.query, edit: undefined } })" />
 
       <ConflictNotice v-if="conflict" />
       <CatalogueNotice />
@@ -348,8 +325,8 @@ async function scrap() {
           </div>
           <section class="panel">
             <h2 class="sheet-label">Image</h2>
-            <Portrait class="mech-portrait" :src="mech.image" icon="frame" :alt="`Image of ${mech.name}`" />
-            <p v-if="own" class="dim upload">Image upload isn't available yet.</p>
+            <Portrait class="mech-portrait" :src="mech.image" icon="frame" whole :alt="`Image of ${mech.name}`" />
+            <ImageUpload v-if="editable" :path="mech.image" :save="saveImage" />
           </section>
         </div>
         <section v-if="editable" class="panel danger-zone">
@@ -436,6 +413,7 @@ async function scrap() {
             :integrated="integrated"
             :weapons="availableWeapons"
             :systems="availableSystems"
+            :mods="mods"
             :sheet="sheet"
             :details="details"
             :bonuses="effects.bonuses"
@@ -464,14 +442,6 @@ async function scrap() {
 </template>
 
 <style scoped>
-.sheet,
-.tab-panel,
-.writing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-m);
-}
-
 /* --- The registration plate (the prototype's .plate): no tint, the maker only as the logo and the top border --- */
 .plate {
   --mf: var(--rule);
@@ -525,13 +495,6 @@ async function scrap() {
   letter-spacing: 0.02em;
 }
 
-.subline {
-  align-self: stretch;
-  margin-top: 4px;
-  color: var(--text-dim);
-  font-size: var(--fs-s);
-}
-
 .maker-id {
   color: var(--text-dim);
   font-size: var(--fs-s);
@@ -547,7 +510,7 @@ async function scrap() {
   color: var(--lilac);
 }
 
-/* Name and manufacturer id: plain text with a faint underline that says they can be edited (as my pilot). */
+/* Callsign and name: plain text with a faint underline that says they can be edited. */
 .inline {
   min-height: 0;
   margin-left: -6px;
@@ -566,12 +529,6 @@ async function scrap() {
   border-color: var(--rule);
 }
 
-/* The id's item in the dot-separated line keeps the field's full width; no percentage cap, which would clip it. */
-.subline > :first-child {
-  flex-shrink: 0;
-  max-width: 100%;
-}
-
 .inline.maker-id {
   max-width: none;
 }
@@ -579,10 +536,6 @@ async function scrap() {
 .save-status {
   margin: 4px 0 0;
   font-size: var(--fs-xs);
-}
-
-.save-status .error {
-  color: var(--danger);
 }
 
 .facts {
@@ -600,24 +553,9 @@ async function scrap() {
   align-content: start;
 }
 
-.fact dd {
-  margin: 0;
-}
-
 .pilot {
   align-self: end;
   font-weight: 700;
-}
-
-.fact-value {
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-/* Red only when over: the maker's red never means that. */
-.fact-value.over {
-  color: var(--danger);
 }
 
 /* --- The draft bar, joined to the plate's foot (as my pilot's next-step bar) --- */
@@ -635,39 +573,13 @@ async function scrap() {
   font-size: var(--fs-s);
 }
 
-.next p {
-  max-width: none;
-  margin: 0;
-}
-
-/* --- Tabs: the only thing that sticks, under the top bar --- */
-.sheet-tabs {
-  position: sticky;
-  top: var(--topbar-h);
-  z-index: 2;
-  background: var(--void);
-}
-
 .tab-panel * {
   scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-l));
 }
 
-/* --- Profile: writing on the left, the image on the right; one column on phones (below) --- */
-.profile {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
-  align-items: start;
-  gap: var(--space-m);
-}
-
-.mech-portrait {
+.mech-portrait:not(.whole) {
   width: 100%;
   max-width: 160px;
-}
-
-.upload {
-  margin: var(--space-s) 0 0;
-  font-size: var(--fs-s);
 }
 
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */
@@ -816,12 +728,6 @@ async function scrap() {
   font-size: var(--fs-s);
 }
 
-@media (max-width: 56rem) {
-  .profile {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* --- Phones: the compact plate (smaller logo, the figures on a row under a rule) --- */
 @media (max-width: 48rem) {
   .plate {
@@ -849,10 +755,6 @@ async function scrap() {
 
   .facts .label {
     letter-spacing: 0.04em;
-  }
-
-  .fact-value {
-    font-size: 18px;
   }
 
   .next {

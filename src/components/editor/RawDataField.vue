@@ -1,0 +1,97 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+import { parseRaw, type Data } from '../../contentEditor'
+import Icon from '../Icon.vue'
+import { latest } from './useFields'
+
+// The item's data as JSON, for everything the form has no field for (and for every kind that has no form yet). It edits the
+// same object as the form: what you type here shows in the form and the preview as soon as it's valid JSON, and the
+// form's changes appear here. While the JSON is broken the last good data stays, and "error" says why (Save is blocked).
+const modelProp = defineModel<Data>({ required: true })
+const model = latest(modelProp)
+const props = defineProps<{ open?: boolean }>()
+const emit = defineEmits<{ error: [message: string] }>()
+
+const pretty = (value: Data) => JSON.stringify(value, null, 2)
+const text = ref(pretty(model.value))
+const error = ref('')
+watch(error, (message) => emit('error', message), { immediate: true })
+
+// The form changed the data: show it here, unless this box already says the same (so typing isn't reformatted).
+watch(model, (value) => {
+  const parsed = parseRaw(text.value)
+  if (!('value' in parsed) || JSON.stringify(parsed.value) !== JSON.stringify(value)) {
+    text.value = pretty(value)
+    error.value = ''
+  }
+})
+
+function input(event: Event) {
+  text.value = (event.target as HTMLTextAreaElement).value
+  const parsed = parseRaw(text.value)
+  error.value = 'error' in parsed ? parsed.error : ''
+  if ('value' in parsed) model.value = parsed.value
+}
+</script>
+
+<template>
+  <details class="panel raw" :open="props.open">
+    <summary>
+      <h3 class="sheet-label">Advanced: raw data</h3>
+      <span class="hint">The same data as the form, as JSON. For things the form has no field for.</span>
+    </summary>
+    <textarea
+      class="code"
+      rows="16"
+      spellcheck="false"
+      aria-label="Raw data (JSON)"
+      :value="text"
+      :aria-invalid="!!error"
+      aria-describedby="raw-error"
+      @input="input"
+    ></textarea>
+    <p v-if="error" id="raw-error" class="err" role="alert"><Icon name="warning" /><span><b>Error:</b> {{ error }}</span></p>
+  </details>
+</template>
+
+<style scoped>
+summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-m);
+  cursor: pointer;
+}
+
+summary h3 {
+  flex: none;
+  margin: 0;
+}
+
+summary .hint {
+  flex: 1 1 14rem;
+}
+
+summary:focus-visible {
+  outline: 2px solid var(--lilac);
+  outline-offset: 2px;
+}
+
+.raw[open] > summary {
+  margin-bottom: var(--space-m);
+}
+
+textarea {
+  width: 100%;
+  min-height: 12rem;
+  font-family: var(--mono);
+  font-size: var(--fs-s);
+  line-height: 1.5;
+  resize: vertical;
+  tab-size: 2;
+}
+
+textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+</style>

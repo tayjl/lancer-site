@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import type { Json } from './lib/database.types'
 import { fetchAll, supabase } from './lib/supabaseClient'
 
 // Game content (frames, weapons, talents, tags and so on) is read once per browser session and shared by every page.
@@ -27,6 +28,13 @@ export function cached<T>(key: string, load: () => Promise<Loaded<T>>): Promise<
 
 export const clearCatalogues = () => cache.clear()
 
-// Every content_items row of one kind (frames, weapons, systems, talents, pilot_gear, core_bonuses, tags, manufacturers...).
+// Every published content_items row of one kind (frames, weapons, systems, talents, pilot_gear, core_bonuses, tags,
+// manufacturers...). "data" is the campaign's edited version when an owner has edited the item (content_items.edited,
+// which pack updates never touch), else the pack's own. Drafts (homebrew an owner hasn't published) are left out, so no
+// page or picker offers them. Every page that reads game content goes through here, so they all see edits.
 export const loadKind = (kind: string) =>
-  cached(`content:${kind}`, () => fetchAll((from, to) => supabase.from('content_items').select('id, kind, data').eq('kind', kind).order('id').range(from, to)))
+  cached(`content:${kind}`, async () => {
+    const { rows, error } = await fetchAll((from, to) =>
+      supabase.from('content_items').select('id, kind, data, edited').eq('kind', kind).eq('draft', false).order('id').range(from, to))
+    return { rows: rows.map(({ id, kind, data, edited }) => ({ id, kind, data: edited ?? data })), error } as Loaded<{ id: string; kind: string; data: Json }>
+  })

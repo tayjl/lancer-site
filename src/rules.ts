@@ -1,5 +1,7 @@
-import { loadoutSlots, type CoreBonus, type Item, type Talent } from './gameData'
-import { allowedSizes, buildFrame, mechEffects, mechResources, mechStats, mountSize, talentGrants, type Frame } from './mechData'
+import { computed } from 'vue'
+import { loadoutSlots, useGameData, type CoreBonus, type Item, type Talent } from './gameData'
+import { allowedSizes, buildFrame, fittedMods, mechEffects, mechResources, mechStats, mountSize, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
+import { modBlockedBy } from './equipment'
 import { resolveBonuses } from './bonuses'
 import type { MechPrivate, Sheet } from './myPilot'
 
@@ -31,6 +33,9 @@ export function personalStatProblems(values: Record<string, number> = {}): strin
   if (used > PERSONAL_STAT_POINTS) problems.push(`${used} personal stat points allocated, but only ${PERSONAL_STAT_POINTS} are available.`)
   return problems
 }
+
+// Manna and other big numbers with thousands separators ("2,900").
+export const formatAmount = (n: number) => n.toLocaleString('en-GB')
 
 // Manna prices.
 export const PRICES = { licenceRank: 600, bionic: 500, talentRank: 300 }
@@ -104,11 +109,29 @@ export type Catalogue = {
   systems: Map<string, Item>
   // Built into frames: never picked, so never checked.
   integrated: Map<string, Item>
+  mods?: Map<string, Item>
   // Each bionic's mod-point cost, by id (only the pilot check needs it).
   bionicCosts?: Map<number, number>
   coreBonuses?: CoreBonus[]
   talents?: Talent[]
   gear?: Item[]
+}
+
+// The loaded game content, in the shape the rule checks (and mechEffects) read. Empty until the catalogues arrive.
+export function useCatalogue() {
+  const { frames, weapons, systems, mods, integrated } = useMechData()
+  const { bionics, coreBonuses, talents, gear } = useGameData()
+  return computed<Catalogue>(() => ({
+    frames: frames.value,
+    weapons: new Map(weapons.value.map((item) => [item.id, item])),
+    systems: new Map(systems.value.map((item) => [item.id, item])),
+    integrated: integrated.value,
+    mods: new Map(mods.value.map((item) => [item.id, item])),
+    bionicCosts: new Map(bionics.value.map((bionic) => [bionic.id, bionic.mod_point_cost])),
+    coreBonuses: coreBonuses.value,
+    talents: talents.value,
+    gear: gear.value,
+  }))
 }
 
 // The GM-set parts of a pilot (character_sheets columns, not the sheet itself).
@@ -192,6 +215,20 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   if (heavy >= 0 && !mechResources(sheet, effects).superheavyMounting && bracingMount(frame.mounts, mounts, heavy) < 0)
     problems.push('Its Superheavy weapon needs a second, empty mount.')
 
+  // Mods: on a weapon that's there and takes this mod, with the licence.
+  for (const [key, id] of Object.entries(mech.weapon_mods ?? {})) {
+    const mod = catalogue.mods?.get(id)
+    const weaponId = weaponAt(mech, frame, key)
+    const weapon = weaponId ? lookup(catalogue.weapons, weaponId) : undefined
+    if (!weapon) problems.push(`${mod?.name ?? id} is on a weapon that is no longer there; remove it.`)
+    else if (!mod) problems.push(`A mod (${id}) isn't in the loaded content packs.`)
+    else {
+      if (!isLicensed(mod, licences)) problems.push(needs(mod))
+      const why = modBlockedBy(mod, weapon, frame.mounts[Number(key.split(':')[0])], mech.weapon_options?.[key])
+      if (why) problems.push(`${mod.name} can't go on ${weapon.name}. ${why}.`)
+    }
+  }
+
   // Systems: licence, Unique, one AI.
   const installed = (mech.systems ?? []).map((id) => lookup(catalogue.systems, id))
   installed.forEach((system, k) => {
@@ -199,7 +236,8 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
     else if (!isLicensed(system, licences)) problems.push(needs(system))
   })
   const integratedItems = frame.integrated.map(id => catalogue.integrated.get(id)).filter((item): item is Item => !!item)
-  const known = [...fitted, ...installed.filter((item): item is Item => !!item)]
+  const mods = fittedMods(mech, frame).flatMap(([, id]) => catalogue.mods?.get(id) ?? [])
+  const known = [...fitted, ...installed.filter((item): item is Item => !!item), ...mods]
   for (const item of new Set(known.filter(isUnique)))
     if (known.filter((other) => other.id === item.id).length > 1) problems.push(`${item.name} is unique: one per mech.`)
   const aiCap = Math.max(0, resolveBonuses(1, effects.modifiers.filter(entry => entry.stat === 'ai_cap')).value)

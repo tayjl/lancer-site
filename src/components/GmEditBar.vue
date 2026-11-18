@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { PendingChange } from '../myPilot'
+import type { ChangeRow } from '../myPilot'
+import SaveStatus from './SaveStatus.vue'
 
 // A GM's edit mode on someone else's pilot (pilot sheet and mech pages, ?edit=1): a bar joined to the header's foot,
 // like the "what happens next" bar, saying saves skip approval, with the save status and a Done button. If the
 // player has a change open, a warning under it: a direct edit blocks that change from being approved
 // (approve_change refuses a pilot that changed since the change was made).
-defineProps<{ name: string; waiting: PendingChange | null; status: string; error: string; canRetry: boolean }>()
+defineProps<{ name: string; waiting: ChangeRow | null; saving: boolean; saved: boolean; error: string; canRetry: boolean }>()
 defineEmits<{ done: []; retry: [] }>()
 </script>
 
@@ -14,13 +15,7 @@ defineEmits<{ done: []; retry: [] }>()
     <div class="bar">
       <span class="badge">GM edit</span>
       <p>Changes save straight to this pilot, without approval.</p>
-      <p class="save-status" role="status">
-        <template v-if="error">
-          <span class="error">Not saved: {{ error }}</span>
-          <button v-if="canRetry" type="button" class="small quiet" @click="$emit('retry')">Retry</button>
-        </template>
-        <span v-else class="dim">{{ status }}</span>
-      </p>
+      <SaveStatus :saving="saving" :saved="saved" :error="error" :can-retry="canRetry" @retry="$emit('retry')" />
       <button type="button" class="small done" @click="$emit('done')">Done</button>
     </div>
     <p v-if="waiting" class="notice warn" role="note">
@@ -54,10 +49,6 @@ defineEmits<{ done: []; retry: [] }>()
 p {
   max-width: none;
   margin: 0;
-}
-
-.error {
-  color: var(--danger);
 }
 
 .done {

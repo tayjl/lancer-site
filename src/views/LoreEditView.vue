@@ -6,6 +6,7 @@ import ConflictNotice from '../components/ConflictNotice.vue'
 import Icon from '../components/Icon.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SaveStatus from '../components/SaveStatus.vue'
 import SheetField from '../components/SheetField.vue'
 import { confirmAction } from '../confirm'
 import type { Json } from '../lib/database.types'
@@ -143,14 +144,7 @@ async function remove() {
           <span class="badge approved">Published</span>
           <p class="next-text">Everyone can read it.</p>
         </template>
-        <p class="save-status" role="status">
-          <template v-if="error">
-            <span class="error">Not saved: {{ error }}</span>
-            <button v-if="!conflict" type="button" class="small quiet" @click="save()">Retry</button>
-          </template>
-          <span v-else-if="saving" class="dim">Saving…</span>
-          <span v-else-if="saved" class="dim">Saved</span>
-        </p>
+        <SaveStatus :saving="saving > 0" :saved="saved" :error="error" :can-retry="!conflict" @retry="save()" />
         <div class="next-actions">
           <button type="button" class="small" @click="router.push({ name: 'lore-entry', params: { id } })">View entry</button>
           <button v-if="draft" type="button" class="primary small" @click="publish">Publish</button>
@@ -242,15 +236,6 @@ async function remove() {
   border-radius: var(--radius);
   background: var(--void);
   font-size: var(--fs-s);
-}
-
-.next p {
-  max-width: none;
-  margin: 0;
-}
-
-.save-status .error {
-  color: var(--danger);
 }
 
 .next-actions {

@@ -4,3 +4,6 @@ export function since(iso: string) {
   const [d, h, m] = [Math.floor(minutes / 1440), Math.floor((minutes % 1440) / 60), minutes % 60]
   return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`
 }
+
+// "3 Nov 2026", for dates shown on the site.
+export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })

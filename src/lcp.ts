@@ -1,8 +1,8 @@
-import { unzip } from 'fflate'
+import { strToU8, unzip, zipSync } from 'fflate'
 import type { Json, Tables } from './lib/database.types'
 
 export const LCP_KINDS = {
-  frames: 'frames', weapons: 'mech weapons', systems: 'mech systems', pilot_gear: 'pilot gear',
+  frames: 'frames', weapons: 'mech weapons', systems: 'mech systems', mods: 'weapon mods', pilot_gear: 'pilot gear',
   talents: 'talents', core_bonuses: 'core bonuses', tags: 'tags', manufacturers: 'manufacturers',
 } as const
 export type LcpKind = keyof typeof LCP_KINDS
@@ -10,14 +10,15 @@ export type LcpManifest = { name: string; author: string; version: string; descr
 export type LcpItem = { id: string; kind: LcpKind; data: Record<string, Json> }
 export type LcpPack = { manifest: LcpManifest; items: LcpItem[]; ignored: string[]; warnings: string[] }
 export type InstalledPack = Tables<'content_packs'>
-export type InstalledItem = Pick<Tables<'content_items'>, 'id' | 'pack_id' | 'kind'>
+// "edited": an owner has edited this item in the content editor (content_items.edited), and pack updates keep that edit.
+export type InstalledItem = Pick<Tables<'content_items'>, 'id' | 'pack_id' | 'kind'> & { edited?: boolean }
 
 // Recognise core items across packs, including the two legacy local seed packs.
 // Checking IDs and types avoids mistaking a similarly named homebrew pack for core.
 export function hasCoreContent(items: InstalledItem[]) {
   const required: [string, LcpKind][] = [
     ['mf_standard_pattern_i_everest', 'frames'], ['mw_assault_rifle', 'weapons'],
-    ['ms_custom_paint_job', 'systems'], ['pg_archaic_melee', 'pilot_gear'],
+    ['ms_custom_paint_job', 'systems'], ['wm_stabilizer_mod', 'mods'], ['pg_archaic_melee', 'pilot_gear'],
     ['t_ace', 'talents'], ['cb_auto_stabilizing_hardpoints', 'core_bonuses'], ['tg_burn', 'tags'],
   ]
   return required.every(([id, kind]) => items.some(item => item.id === id && item.kind === kind))
@@ -96,6 +97,16 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
   return { manifest, items, ignored, warnings }
 }
 
+// An .lcp (a zip of JSON files, one per kind) from items, for the homebrew export. readLcp reads it back.
+export function writeLcp(manifest: Record<string, Json>, items: { kind: LcpKind; data: Json }[]): Uint8Array {
+  const files: Record<string, Uint8Array> = { 'lcp_manifest.json': strToU8(JSON.stringify(manifest, null, 2)) }
+  for (const kind of Object.keys(LCP_KINDS) as LcpKind[]) {
+    const list = items.filter(item => item.kind === kind).map(item => item.data)
+    if (list.length) files[`${kind}.json`] = strToU8(JSON.stringify(list, null, 2))
+  }
+  return zipSync(files)
+}
+
 // Preview against metadata only; the database repeats these checks when saving.
 export function planLcp(pack: LcpPack, packs: InstalledPack[], installed: InstalledItem[]) {
   const existing = packs.find(row => row.name === pack.manifest.name) ?? null
@@ -104,13 +115,17 @@ export function planLcp(pack: LcpPack, packs: InstalledPack[], installed: Instal
   const conflicts: { id: string; reason: string }[] = []
   let added = 0
   let updated = 0
+  let edited = 0
   for (const item of pack.items) {
     const old = byId.get(item.id)
     if (!old) added++
     else if (old.pack_id !== existing?.id) conflicts.push({ id: item.id, reason: `belongs to ${packs.find(row => row.id === old.pack_id)?.name ?? 'another pack'}` })
     else if (old.kind !== item.kind) conflicts.push({ id: item.id, reason: 'would change the item type' })
-    else updated++
+    else {
+      updated++
+      if (old.edited) edited++
+    }
   }
   const retained = installed.filter(item => item.pack_id === existing?.id && !incoming.has(item.id)).length
-  return { existing, added, updated, retained, conflicts }
+  return { existing, added, updated, edited, retained, conflicts }
 }

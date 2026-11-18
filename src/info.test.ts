@@ -21,7 +21,7 @@ describe('full information', () => {
     const info = itemInfo(toItem('mw_autopod', data('mw_autopod')))
     expect(info.kind).toBe('main launcher weapon')
     expect(info.id).toBe('mw_autopod')
-    expect(info.facts).toEqual([{ text: 'HORUS' }, { text: 'Licence: HORUS Goblin I', tone: 'sky' }])
+    expect(info.facts).toEqual([{ text: 'HORUS' }, { text: 'Licence: HORUS Goblin I' }])
     expect(info.lore).toContain('antipersonnel weapon')
     expect(headings(info, 'rules')).toEqual(['effect', 'Autonomous Assault'])
     expect(info.groups[0].cards[1]).toMatchObject({ activation: 'Reaction', frequency: '1/round' })
@@ -30,19 +30,10 @@ describe('full information', () => {
     expect(itemInfo(toItem('ms_turret_drones', data('ms_turret_drones'))).groups[1].cards.find(tag => tag.heading === 'limited 3')?.html).toContain('can only be used 3 times')
   })
 
-  it('stacks a weapon’s rules, with on hit effects in rose', () => {
+  it('stacks a weapon’s rules', () => {
     const info = itemInfo(toItem('mw_concussion_missiles', data('mw_concussion_missiles')))
     expect(info.groups[0]).toMatchObject({ title: 'rules', stack: true })
-    expect(info.groups[0].cards.find(card => card.heading === 'on hit')?.tone).toBe('rose')
-    expect(info.groups.find(group => group.title === 'tags')?.cards.every(card => card.tone === 'sky')).toBe(true)
-  })
-
-  it('colours summons (drones, deployables) and actions as combat, general rules lilac', () => {
-    const drones = itemInfo(toItem('ms_turret_drones', data('ms_turret_drones')))
-    expect(drones.groups[0].cards.map(card => card.tone)).toEqual(['rose', 'rose', 'rose'])
-    const autopod = itemInfo(toItem('mw_autopod', data('mw_autopod')))
-    expect(autopod.groups[0].cards.map(card => card.tone)).toEqual(['lilac', 'rose'])
-    expect(talentInfo(data('t_ace') as unknown as Talent).groups[0].cards.every(card => card.tone === 'lilac')).toBe(true)
+    expect(info.groups[0].cards.some(card => card.heading === 'on hit')).toBe(true)
   })
 
   it('runs an item description’s paragraphs together', () => {
@@ -63,8 +54,7 @@ describe('full information', () => {
     const goblin = frame('mf_goblin'), everest = frame('mf_standard_pattern_i_everest')
     const info = frameInfo(goblin, [goblin, everest])
     expect(info).toMatchObject({ kind: 'HORUS frame', name: 'Goblin' })
-    expect(info.facts[0]).toEqual({ text: 'Controller / Support', tone: 'rose' })
-    expect(info.facts[2].tone).toBe('sky')
+    expect(info.facts[0]).toEqual({ text: 'Controller / Support' })
     expect(info.lore).toContain('first identified HORUS frame')
     expect(info.lore!.match(/<p>/g)).toHaveLength(3)
     expect(info.lore).not.toContain('<br>')

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isGm } from '../auth'
-import { KIND_INFO, entryDate, formatDate, isDraft, readTime, type LoreEntry } from '../lore'
+import { KIND_INFO, entryMeta, isDraft, type LoreEntry } from '../lore'
 import Icon from './Icon.vue'
 import RichText from './RichText.vue'
 
@@ -16,7 +16,6 @@ const kind = computed(() => KIND_INFO[props.entry.kind])
 const related = computed(() =>
   props.entry.related.flatMap((id) => props.entries.find((other) => other.id === id && other.id !== props.entry.id) ?? []),
 )
-const meta = (entry: LoreEntry) => `${isDraft(entry) ? 'Edited ' : ''}${formatDate(entryDate(entry))} · ${readTime(entry.body)}`
 
 // "Copy link" puts this entry's full address on the clipboard and says so for a moment.
 const copied = ref('')
@@ -58,7 +57,7 @@ onBeforeUnmount(() => clearTimeout(timer))
       <p class="sep meta">
         <span v-if="isDraft(entry)" class="badge draft">Draft</span>
         <span v-if="entry.author">By {{ entry.author.display_name }}</span>
-        <span>{{ meta(entry) }}</span>
+        <span>{{ entryMeta(entry) }}</span>
       </p>
     </header>
 
@@ -70,7 +69,7 @@ onBeforeUnmount(() => clearTimeout(timer))
         <li v-for="other in related" :key="other.id">
           <Icon :name="KIND_INFO[other.kind].icon" class="kind-icon" />
           <RouterLink :to="{ name: 'lore-entry', params: { id: other.id } }">{{ other.title }}</RouterLink>
-          <span class="dim meta-end">{{ meta(other) }}</span>
+          <span class="dim meta-end">{{ entryMeta(other) }}</span>
         </li>
       </ul>
     </section>

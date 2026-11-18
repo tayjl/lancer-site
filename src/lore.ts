@@ -1,7 +1,8 @@
 import { ref, shallowRef } from 'vue'
 import type { Tables, TablesUpdate } from './lib/database.types'
 import { checkWrite, supabase } from './lib/supabaseClient'
-import { docText } from './richText'
+import { docText } from './richTextSafe'
+import { formatDate } from './time'
 
 // Lore: stories, places, factions, people and events the GMs write (the lore_entries table). Everyone logged in
 // reads published entries; the database hands GMs and owners the drafts too, and only they can write.
@@ -26,11 +27,13 @@ export const isDraft = (entry: Pick<LoreEntry, 'published_at'>) => entry.publish
 
 // The date a list is ordered by: when it was published, or (a draft) when it was last edited.
 export const entryDate = (entry: LoreEntry) => entry.published_at ?? entry.updated_at
-export const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 // Reading time: the body's words at 200 a minute, rounded up, never under a minute.
 export const readMinutes = (body: unknown) => Math.max(1, Math.ceil(docText(body).split(' ').filter(Boolean).length / 200))
 export const readTime = (body: unknown) => `${readMinutes(body)} min read`
+
+// A list row's and the entry's line under the title: "12 Nov 2026 · 3 min read" ("Edited …" for a draft).
+export const entryMeta = (entry: LoreEntry) => `${isDraft(entry) ? 'Edited ' : ''}${formatDate(entryDate(entry))} · ${readTime(entry.body)}`
 
 // The search: every typed word must appear in the title, summary or body text.
 export function loreMatches(entry: Pick<LoreEntry, 'title' | 'summary' | 'body'>, query: string) {

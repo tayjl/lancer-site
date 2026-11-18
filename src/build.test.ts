@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { coreContent } from './coreContent'
-import { toItem, pilotVitals, type CoreBonus, type Talent } from './gameData'
+import { toItem, toMod, pilotVitals, type CoreBonus, type Talent } from './gameData'
 import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, type Frame, type EffectCatalogue } from './mechData'
-import { equipmentDetails, selectWeaponProfile } from './equipment'
+import { equipmentDetails, modBlockedBy, modsRefused, selectWeaponProfile } from './equipment'
 import type { Sheet } from './myPilot'
 import type { NamedBonus } from './bonuses'
 import { mechProblems } from './rules'
@@ -11,13 +11,14 @@ vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
 const data = (id: string) => coreContent.items.find(item => item.id === id)!.data as Record<string, unknown>
 const items = (kind: string) => new Map(coreContent.items.filter(item => item.kind === kind).map(item => [item.id, toItem(item.id, item.data)]))
 const weapons = items('weapons'), systems = items('systems')
+const mods = new Map(coreContent.items.filter(item => item.kind === 'mods').map(item => [item.id, toMod(item.id, item.data)]))
 const talents = coreContent.items.filter(item => item.kind === 'talents').map(item => item.data as unknown as Talent)
 const coreBonuses = coreContent.items.filter(item => item.kind === 'core_bonuses').map(item => item.data as unknown as CoreBonus)
 const frame = (id = 'mf_standard_pattern_i_everest'): Frame => {
   const raw = data(id)
   return { id, name: String(raw.name), source: String(raw.source), licenceLevel: Number(raw.license_level), integrated: [], mechtype: [], mounts: raw.mounts as string[], stats: raw.stats as Record<string, number>, description: String(raw.description), raw }
 }
-const catalogue: EffectCatalogue & { frames: Frame[] } = { frames: [frame(), frame('mf_hydra'), frame('mf_deaths_head')], weapons, systems, integrated: new Map([...weapons, ...systems]), talents, coreBonuses }
+const catalogue: EffectCatalogue & { frames: Frame[] } = { frames: [frame(), frame('mf_hydra'), frame('mf_deaths_head')], weapons, systems, integrated: new Map([...weapons, ...systems]), mods, talents, coreBonuses }
 const named = (id: string, val: unknown, filters: Record<string, unknown> = {}): NamedBonus => ({ source: 'Test bonus', bonus: { id, val: val as number, ...filters } })
 
 describe('complete core character builds', () => {
@@ -84,7 +85,7 @@ describe('complete core character builds', () => {
     expect(drone.hp).toBe(20)
     expect(mechStats(frame('mf_hydra'), {}, effects.modifiers).find(stat => stat.id === 'hp')!.value).toBe(frame('mf_hydra').stats.hp)
   })
-  it('applies filtered range bonuses, Hunter thrown range and damage averaged once', () => {
+  it('applies filtered range bonuses, Hunter thrown range and damage converted once', () => {
     const melee = toItem('blade', { type: 'Melee', mount: 'Auxiliary', range: [{ type: 'Threat', val: 1 }], damage: [{ type: 'Energy', val: '1d6' }] })
     const result = equipmentDetails(melee, { talents: { t_hunter: 2 } }, [named('range', 1, { weapon_types: ['melee'], range_types: ['Threat'] }), named('range', 5, { range_types: ['Range'] }), named('damage', '1d6', { damage_types: ['Energy'] }), named('damage', 100, { condition: '{exposed}' })])
     expect(result.range).toEqual([{ type: 'Threat', val: 2 }, { type: 'Thrown', val: 5 }])
@@ -131,5 +132,60 @@ describe('complete core character builds', () => {
     const stats = pilotVitals({ pilot_gear: ['suit'], talents: { test: 1 } }, [armour], custom)
     expect(stats.map(stat => stat.value)).toEqual([8, 0, 4, 12])
     expect(stats[0].contributors).toContain('Test 1: +2')
+  })
+})
+
+describe('weapon mods', () => {
+  const mod = (id: string) => mods.get(id)!
+  const weapon = (id: string) => weapons.get(id)!
+
+  it('fits a mod to a weapon by type and size, and refuses weapons and mounts that take none', () => {
+    const rifle = weapon('mw_assault_rifle')
+    expect(modBlockedBy(mod('wm_nanocomposite_adaptation'), rifle, 'Main')).toBe('')
+    expect(modBlockedBy(mod('wm_stabilizer_mod'), rifle, 'Main')).toBe('Fits Launcher, Cannon weapons only')
+    expect(modBlockedBy(mod('wm_stabilizer_mod'), weapon('mw_assault_cannon'), 'Main')).toBe('')
+    expect(modBlockedBy(mod('wm_uncle_class_comp_con'), weapon('mw_siege_cannon'), 'Heavy')).toBe("Can't go on Superheavy weapons")
+    expect(modBlockedBy(mod('wm_nanocomposite_adaptation'), weapon('mw_mimic_gun'), 'Heavy')).toBe("Mimic Gun can't take mods")
+    expect(modsRefused(rifle, 'Integrated Auxiliary')).toBe("An integrated mount can't be modified")
+    // A Prototype weapon counts as the type its player chose.
+    expect(modBlockedBy(mod('wm_stabilizer_mod'), weapon('mw_prototype_1'), 'Main')).not.toBe('')
+    expect(modBlockedBy(mod('wm_stabilizer_mod'), weapon('mw_prototype_1'), 'Main', { type: 'Cannon' })).toBe('')
+  })
+
+  it('adds the mod’s range and tags to its weapon, names the mod as the source, and leaves conditional damage out', () => {
+    const cannon = toItem('cannon', { name: 'Cannon', mount: 'Main', type: 'Cannon', range: [{ type: 'Range', val: 10 }], damage: [{ type: 'Kinetic', val: '1d6' }] })
+    const modded = equipmentDetails(cannon, {}, [], undefined, undefined, {}, mod('wm_stabilizer_mod'))
+    expect(modded.range).toEqual([{ type: 'Range', val: 15 }])
+    expect(modded.tags.map(tag => tag.id)).toEqual(['tg_ordnance', 'tg_modded'])
+    expect(modded.sources).toContain('Stabilizer Mod: +5 range')
+    const blade = equipmentDetails(weapon('mw_charged_blade'), {}, [], undefined, undefined, {}, mod('wm_thermal_charge'))
+    expect(blade.damage).toEqual([{ type: 'Energy', val: 5 }])
+    // Without a mod nothing changes.
+    expect(equipmentDetails(cannon, {}, []).tags).toEqual([])
+  })
+
+  it('counts a mod’s system points and bonuses, needs its licence, and flags a mod that cannot be there', () => {
+    const bonusMod = toMod('wm_test_hp', { name: 'Test mod', sp: 1, allowed_types: ['Rifle'], bonuses: [{ id: 'hp', val: 3 }] })
+    const custom = { ...catalogue, mods: new Map([...mods, ['wm_test_hp', bonusMod]]) }
+    const mech = { frame: frame().id, mounts: [['mw_assault_rifle'], [], []], weapon_mods: { '0:0': 'wm_test_hp' } }
+    expect(mechEffects(mech, {}, custom).modifiers.some(entry => entry.stat === 'hp' && entry.value === 3)).toBe(true)
+    expect(mechProblems(mech, {}, custom)).toEqual([])
+    // Licensed like a system, and fitted to its weapon's type.
+    const licensed = { ...mech, weapon_mods: { '0:0': 'wm_nanocomposite_adaptation' } }
+    expect(mechProblems(licensed, {}, custom)).toEqual(['Nanocomposite Adaptation needs mf_balor licence rank II.'])
+    expect(mechProblems(licensed, { licences: { mf_balor: 2 } }, custom)).toEqual([])
+    expect(mechProblems({ ...mech, weapon_mods: { '0:0': 'wm_stabilizer_mod' } }, { licences: { mf_monarch: 2 } }, custom))
+      .toEqual(["Stabilizer Mod can't go on Assault Rifle. Fits Launcher, Cannon weapons only."])
+    // Its system points are spent too: a 2 SP mod and a 5 SP system on a 6 SP frame.
+    const big = toItem('big', { name: 'Big system', sp: 5 })
+    const full = { ...custom, systems: new Map([...systems, ['big', big]]) }
+    expect(mechProblems({ ...licensed, systems: ['big'] }, { licences: { mf_balor: 2 } }, full)).toEqual(['Its system points are over: 7/6.'])
+    expect(mechProblems({ ...mech, systems: ['big'] }, {}, full)).toEqual([])
+    // A mod whose place holds no weapon, or that isn't in the packs, is flagged and costs nothing.
+    expect(mechProblems({ ...mech, weapon_mods: { '2:0': 'wm_test_hp' } }, {}, custom)).toEqual(['Test mod is on a weapon that is no longer there; remove it.'])
+    expect(mechProblems({ ...mech, weapon_mods: { '0:0': 'wm_gone' } }, {}, custom)).toEqual(["A mod (wm_gone) isn't in the loaded content packs."])
+    // Integrated mounts take none, and a Unique mod only once.
+    const integratedMount = { frame: frame().id, mounts: [[], [], [], ['mw_assault_rifle']], weapon_mods: { '3:0': 'wm_test_hp' } }
+    expect(mechProblems(integratedMount, { core_bonuses: ['cb_integrated_weapon'] }, custom)).toContain("Test mod can't go on Assault Rifle. An integrated mount can't be modified.")
   })
 })

@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { useTemplateRef } from 'vue'
-import { editorExtensions, loreHref, SIZES, splitAroundSelection } from '../richText'
+import { editorExtensions, splitAroundSelection } from '../richText'
+import { loreHref, SIZES } from '../richTextSafe'
 import Icon from './Icon.vue'
 import ItemPicker from './ItemPicker.vue'
 
 // The paragraph editor (extensions in src/richText.ts). The value is TipTap's JSON document, or null when empty.
 const doc = defineModel<unknown>()
 // "links" (only the lore editor sets it) adds a "Link to entry" button, with these entries to pick from.
-const props = defineProps<{ label: string; links?: { id: string; name: string; meta?: string; text?: string }[] }>()
+// "html" (the content editor's rules text) makes the value an HTML string, "" when empty, as game data has it; "basic"
+// leaves out the sizes and headings, so it only writes what RulesText.vue shows (bold, italic, underline, lists).
+const props = defineProps<{ label: string; links?: { id: string; name: string; meta?: string; text?: string }[]; html?: boolean; basic?: boolean }>()
 
 const editor = useEditor({
   content: (doc.value as object | null) ?? '',
   extensions: editorExtensions(!!props.links),
   editorProps: { attributes: { 'aria-label': props.label, 'aria-multiline': 'true', role: 'textbox' } },
-  onUpdate: ({ editor }) => (doc.value = editor.isEmpty ? null : editor.getJSON()),
+  onUpdate: ({ editor }) => (doc.value = props.html ? (editor.isEmpty ? '' : editor.getHTML()) : editor.isEmpty ? null : editor.getJSON()),
 })
 
 const SMALL = SIZES.small
@@ -54,14 +57,14 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
         <button type="button" class="tool mark" aria-label="Italic" title="Italic" :aria-pressed="is('italic')" @click="toggleItalic"><em>I</em></button>
         <button type="button" class="tool mark" aria-label="Underline" title="Underline" :aria-pressed="is('underline')" @click="toggleUnderline"><u>U</u></button>
       </span>
-      <span class="group">
+      <span v-if="!basic" class="group">
         <button type="button" class="tool" aria-label="Small text" title="Small text" :aria-pressed="is('textStyle', { fontSize: SMALL })" @click="setSize(SMALL)">S</button>
         <button type="button" class="tool" aria-label="Normal text" title="Normal text" :aria-pressed="isNormalSize()" @click="setSize()">M</button>
         <button type="button" class="tool" aria-label="Large text" title="Large text" :aria-pressed="is('textStyle', { fontSize: LARGE })" @click="setSize(LARGE)">L</button>
       </span>
       <span class="group">
         <button type="button" class="tool" aria-label="Bullet list" title="Bullet list" :aria-pressed="is('bulletList')" @click="toggleList"><Icon name="list" /></button>
-        <button type="button" class="tool" aria-label="Heading" title="Heading" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading"><Icon name="heading" /></button>
+        <button v-if="!basic" type="button" class="tool" aria-label="Heading" title="Heading" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading"><Icon name="heading" /></button>
       </span>
       <span v-if="links" class="group">
         <button

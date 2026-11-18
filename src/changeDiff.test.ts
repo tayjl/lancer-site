@@ -11,6 +11,7 @@ const names: Names = {
   frame: (id) => `F:${id}`,
   weapon: (id) => `W:${id}`,
   system: (id) => `S:${id}`,
+  mod: (id) => `M:${id}`,
 }
 
 describe('listDiff', () => {
@@ -96,6 +97,20 @@ describe('changeDiff', () => {
       'lowered | L:other licence, rank II → I',
       'removed | T:old, rank I',
       'added | T:fresh, rank I',
+    ])
+  })
+
+  it('says which weapon a mod is on, whether it is added, removed or swapped', () => {
+    const mech = { id: 'm1', name: 'Lantern', manufacturer_id: 'AAAA-AAAA-AAAA', appearance: null, image: null }
+    const side = (mounts: (string | null)[][], weapon_mods: Record<string, string>) => ({ card: { mechs: [mech] }, sheet: { mechs: { m1: { mounts, weapon_mods } } } })
+    const text = (before: ReturnType<typeof side>, after: ReturnType<typeof side>) => changeDiff(before, after, names).map((line) => `${line.kind} | ${line.text}`)
+    const rifle = [['rifle'], ['cannon']]
+    expect(text(side(rifle, {}), side(rifle, { '0:0': 'wm_a' }))).toEqual(['added | Mod on W:rifle: M:wm_a'])
+    expect(text(side(rifle, { '1:0': 'wm_a' }), side(rifle, {}))).toEqual(['removed | Mod on W:cannon: M:wm_a'])
+    expect(text(side(rifle, { '0:0': 'wm_a' }), side(rifle, { '0:0': 'wm_b' }))).toEqual(['updated | Mod on W:rifle: M:wm_a → M:wm_b'])
+    // The mod leaves with its weapon: it is named for the weapon it was on.
+    expect(text(side(rifle, { '0:0': 'wm_a' }), side([['pistol'], ['cannon']], {}))).toEqual([
+      'added | W:pistol', 'removed | W:rifle', 'removed | Mod on W:rifle: M:wm_a',
     ])
   })
 

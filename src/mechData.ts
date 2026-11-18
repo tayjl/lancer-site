@@ -14,11 +14,11 @@ import sizeHalfIcon from './assets/icons/size-half.svg'
 import size1Icon from './assets/icons/size-1.svg'
 import size2Icon from './assets/icons/size-2.svg'
 import size3Icon from './assets/icons/size-3.svg'
-import { loadoutSlots, loadSources, loadTagNames, toItem, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
+import { loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
 import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
 import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
-import { averageDamageText } from './damage'
+import { flatDamageText } from './damage'
 import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES } from './coreRules'
 
@@ -50,6 +50,15 @@ const MOUNT_SLOTS: Record<string, string[][]> = {
   Flex: [['Main', 'Auxiliary'], ['Auxiliary']],
   'Main/Aux': [['Main', 'Auxiliary'], ['Auxiliary']],
   'Aux/Aux': [['Auxiliary'], ['Auxiliary']],
+}
+
+// What a mount takes, in words (the loadout's empty states, the frame form).
+export const MOUNT_HINTS: Record<string, string> = {
+  Main: 'Takes one Main or Auxiliary weapon.',
+  Heavy: 'Takes one weapon of any size.',
+  Flex: 'Takes one Main or two Auxiliary weapons.',
+  'Main/Aux': 'Takes one Main and one Auxiliary weapon.',
+  'Aux/Aux': 'Takes two Auxiliary weapons.',
 }
 
 // How many weapons a mount holds.
@@ -90,12 +99,23 @@ const BONUS_STATS: Record<string, string> = {
   tech_attack: 'tech_attack', repcap: 'repair', sp: 'system_points',
   size: 'size', armor_max: 'armor_max', ai_cap: 'ai_cap', limited_bonus: 'limited_bonus',
 }
+// The weapon in a place on the mech ("mount:place", like weapon_options), or undefined when the frame has no such place
+// or it's empty.
+export function weaponAt(mech: MechPrivate, frame: Frame, key: string) {
+  const [m, i] = key.split(':').map(Number)
+  return frame.mounts[m] && i < mountSize(frame.mounts[m]) ? mech.mounts?.[m]?.[i] ?? undefined : undefined
+}
+// The mods on weapons that are there: [place, mod id]. A mod whose place holds no weapon is stray: it counts for nothing.
+export const fittedMods = (mech: MechPrivate, frame: Frame | null) =>
+  Object.entries(mech.weapon_mods ?? {}).filter(([key]) => frame && weaponAt(mech, frame, key))
+
 export type StatModifier = { stat: string; source: string; value: number; replace: boolean; overwrite: boolean }
 export type EffectCatalogue = {
   frames?: Frame[]
   weapons: Map<string, Item>
   systems: Map<string, Item>
   integrated: Map<string, Item>
+  mods?: Map<string, Item>
   talents?: Talent[]
   coreBonuses?: CoreBonus[]
   gear?: Item[]
@@ -200,7 +220,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
           name: String(action.name ?? origin.name),
           activation: action.activation ? String(action.activation) : undefined,
           source: `${name} · ${label}`,
-          text: averageDamageText(`${trigger}${action.detail ?? action.description}`),
+          text: flatDamageText(`${trigger}${action.detail ?? action.description}`),
         })
       }
     }
@@ -208,7 +228,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     const twins = actions.filter(action => sameName(action.name, origin.name))
     const twin = twins.find(action => action.activation) ?? twins.sort((a, b) => b.text.length - a.text.length)[0]
     if (twin) reminders.push({ ...origin, activation: twin.activation, source: name, text: twin.text })
-    else if (text) reminders.push({ ...origin, source: name, text: averageDamageText(String(text)) })
+    else if (text) reminders.push({ ...origin, source: name, text: flatDamageText(String(text)) })
     reminders.push(...actions.filter(action => !twins.includes(action)))
   }
   if (baseFrame?.raw) {
@@ -231,7 +251,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
           from: core.name ? String(core.name) : undefined,
           activation: action?.activation,
           source: `${power} · active core power`,
-          text: action?.text ?? averageDamageText(String(core.active_effect)),
+          text: action?.text ?? flatDamageText(String(core.active_effect)),
         })
       }
     }
@@ -256,6 +276,8 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   for (const id of builtIn) addItem(id, catalogue.integrated, `integrated:${id}`)
   const equipped = [...(mech.systems ?? []).map(id => ({ id, items: catalogue.systems })),
     ...mounts.flatMap((places, m) => places.flatMap((id, i) => id ? [{ id, items: catalogue.weapons, key: `${m}:${i}` }] : []))].filter(entry => !builtIn.has(entry.id))
+    // A mod counts like any other equipped item (its bonuses, and Unique once).
+    .concat(fittedMods(mech, frame).map(([, id]) => ({ id, items: catalogue.mods ?? new Map(), key: id })))
   const unique = new Set<string>()
   for (const entry of equipped) {
     const { id, items } = entry
@@ -382,17 +404,35 @@ function integratedIds(value: unknown): string[] {
 // Licence names by licence (frame) id, e.g. "IPS-N Drake", shared by every page once the frames have loaded.
 export const licenceNames = shallowRef(new Map<string, string>())
 
+// A frame from its pack data (also the content editor's preview).
+export function toFrame(id: string, data: unknown): Frame {
+  const frame = (data ?? {}) as Record<string, unknown>
+  return {
+    id,
+    name: String(frame.name ?? id),
+    source: String(frame.source ?? ''),
+    licenceLevel: Number(frame.license_level ?? 0) || 0,
+    integrated: integratedIds(frame),
+    mechtype: Array.isArray(frame.mechtype) ? frame.mechtype.map(String) : [],
+    mounts: Array.isArray(frame.mounts) ? frame.mounts.map(String) : [],
+    stats: (frame.stats ?? {}) as Record<string, number>,
+    description: String(frame.description ?? ''),
+    raw: frame,
+  }
+}
+
 export function useMechData() {
   const frames = shallowRef<Frame[]>([])
   const weapons = shallowRef<Item[]>([])
   const systems = shallowRef<Item[]>([])
+  const mods = shallowRef<Item[]>([])
   // Weapons and systems built into frames, by id: shown on the mech, never picked.
   const integrated = shallowRef(new Map<string, Item>())
 
   async function load() {
     loadTagNames()
     loadSources()
-    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'talents'].map(loadKind))).flatMap((result) => result.rows)
+    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'mods', 'talents'].map(loadKind))).flatMap((result) => result.rows)
     const frameRows = rows.filter((row) => row.kind === 'frames')
     // Built-in and talent-only items can't be picked: they come with a frame or a talent.
     const talentEquipment = rows.filter(row => row.kind === 'talents').flatMap(row => {
@@ -409,28 +449,15 @@ export function useMechData() {
       rows.filter((row) => row.kind !== 'frames' && (builtIn.has(row.id) || (row.data as { talent_item?: boolean })?.talent_item)).map((row) => [row.id, toItem(row.id, row.data)]),
     )
     frames.value = frameRows
-      .map(({ id, data }) => {
-        const frame = (data ?? {}) as Record<string, unknown>
-        return {
-          id,
-          name: String(frame.name ?? id),
-          source: String(frame.source ?? ''),
-          licenceLevel: Number(frame.license_level ?? 0) || 0,
-          integrated: integratedIds(frame),
-          mechtype: Array.isArray(frame.mechtype) ? frame.mechtype.map(String) : [],
-          mounts: Array.isArray(frame.mounts) ? frame.mounts.map(String) : [],
-          stats: (frame.stats ?? {}) as Record<string, number>,
-          description: String(frame.description ?? ''),
-          raw: frame,
-        }
-      })
+      .map(({ id, data }) => toFrame(id, data))
       .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))
     licenceNames.value = new Map(frames.value.map((f) => [f.id, `${f.source} ${f.name}`]))
     weapons.value = pickable('weapons').sort((a, b) => a.name.localeCompare(b.name))
     systems.value = pickable('systems').sort((a, b) => a.name.localeCompare(b.name))
+    mods.value = rows.filter(row => row.kind === 'mods').map(row => toMod(row.id, row.data)).sort((a, b) => a.name.localeCompare(b.name))
   }
 
   load()
 
-  return { frames, weapons, systems, integrated }
+  return { frames, weapons, systems, mods, integrated }
 }

@@ -127,6 +127,13 @@ export const router = createRouter({
       component: () => import('./views/ContentView.vue'),
       meta: { title: 'GM content', summary: 'The packs behind your pilots, mechs and equipment.', gm: true, owner: true },
     },
+    // The in-browser editor for game content (owners only), under the content tab.
+    {
+      path: '/gm/content/editor',
+      name: 'gm-content-editor',
+      component: () => import('./views/ContentEditorView.vue'),
+      meta: { title: 'Content editor', summary: 'Make and change game content.', gm: true, owner: true, section: 'gm-content' },
+    },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
@@ -140,6 +147,10 @@ router.beforeEach(async (to) => {
   if (!to.meta.public && !session.value) return { name: 'login' }
   if (to.name === 'login' && session.value) return { name: 'home' }
 })
+
+// The list a pilot is in, by status: its route name and label (the record's breadcrumb and top bar tab).
+export const pilotList = (status: string | undefined) =>
+  status === 'pending' ? { name: 'pending', label: 'Pending' } : status === 'dead' ? { name: 'memorial', label: 'Memorial' } : { name: 'registry', label: 'Registry' }
 
 // The tab a page marks when its route meta.section can't say: a pilot record marks the list the pilot is in.
 // Set by the record's view once the pilot loads; cleared when the path changes (App.vue keys views by path).
