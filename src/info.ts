@@ -4,7 +4,7 @@ import type { ArchiveCategory } from './archive'
 import { flatDamageText } from './damage'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, itemDetails, itemRules } from './itemDetails'
-import { licenceNames, mechStats, sameName, type Frame } from './mechData'
+import { alternateOf, licenceFrames, licenceNames, mechStats, sameName, type Frame } from './mechData'
 import { PRICES, rankName } from './rules'
 
 // Everything about one thing a pilot can buy or equip, for the full-information dialog (InfoDialog.vue, opened by
@@ -108,7 +108,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     facts: facts(
       { text: frame.mechtype.join(' / ') },
       `Mounts: ${frame.mounts.join(', ')}`,
-      { text: frame.licenceLevel ? `Licence: ${frame.name} ${rankName(frame.licenceLevel)}` : 'No licence needed' },
+      { text: frame.licenceLevel ? `Licence: ${(alternateOf(frame, frames) ?? frame).name} ${rankName(frame.licenceLevel)}` : 'No licence needed' },
     ),
     lore: paragraphs(text(frame.description)),
     // The frame's own numbers, before HASE and bonuses.
@@ -224,16 +224,17 @@ export const archiveLink = (category: ArchiveCategory, id: string): RouteLocatio
 // the editor, which shouldn't navigate away).
 export type Unlock = { kind: 'frame' | 'weapon' | 'system' | 'mod'; name: string; to: RouteLocationRaw; info: () => Info }
 
-// What rank "level" (1 to 3) of a frame's licence unlocks: the frame itself (at its own level), weapons, systems and mods.
+// What rank "level" (1 to 3) of a frame's licence unlocks: the frame and its alternate frames (each at its own level),
+// weapons, systems and mods.
 export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], mods: Item[], level: number, frames: Frame[] = [frame]): Unlock[] => [
-  ...(frame.licenceLevel === level ? [{ kind: 'frame' as const, name: frame.name, to: archiveLink('frames', frame.id), info: () => frameInfo(frame, frames) }] : []),
+  ...licenceFrames(frame, frames).filter((f) => f.licenceLevel === level).map((f) => ({ kind: 'frame' as const, name: f.name, to: archiveLink('frames', f.id), info: () => frameInfo(f, frames) })),
   ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon' as const, name: item.name, to: archiveLink('mech weapons', item.id), info: () => itemInfo(item) })),
   ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system' as const, name: item.name, to: archiveLink('mech systems', item.id), info: () => itemInfo(item) })),
   ...mods.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'mod' as const, name: item.name, to: archiveLink('weapon mods', item.id), info: () => itemInfo(item) })),
 ]
 
 // A licence (one per licensed frame): what each of its three ranks unlocks, side by side like the sheet's ladder.
-export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = [], mods: Item[] = []): Info {
+export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = [], mods: Item[] = [], frames: Frame[] = [frame]): Info {
   return {
     kind: `${frame.source} licence`.trim(),
     id: frame.id,
@@ -243,7 +244,7 @@ export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] 
     lore: '',
     stats: [],
     groups: groups({ title: 'ranks', cards: [1, 2, 3].map((level) => {
-      const unlocks = licenceUnlocks(frame, weapons, systems, mods, level)
+      const unlocks = licenceUnlocks(frame, weapons, systems, mods, level, frames)
       return { heading: `rank ${rankName(level)}`, html: unlocks.length ? '' : 'Nothing new at this rank.', unlocks }
     }) }),
   }

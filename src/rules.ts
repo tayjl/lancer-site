@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { loadoutSlots, useGameData, type CoreBonus, type Item, type Talent } from './gameData'
-import { allowedSizes, buildFrame, fittedMods, mechEffects, mechResources, mechStats, mountSize, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
+import { allowedSizes, alternateOf, buildFrame, chosenFrame, fittedMods, mechEffects, mechResources, mechStats, mountSize, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
 import { modBlockedBy } from './equipment'
 import { resolveBonuses } from './bonuses'
 import type { MechPrivate, Sheet } from './myPilot'
@@ -106,6 +106,16 @@ export const rankName = (rank: number) => ['0', 'I', 'II', 'III'][rank] ?? Strin
 export const isLicensed = (need: { licenceId: string; licenceLevel: number }, licences: Record<string, number> | undefined) =>
   need.licenceLevel <= 0 || (licences?.[need.licenceId] ?? 0) >= need.licenceLevel
 
+// Why a pilot can't use this frame yet, or '' if they can: its licence at its rank, and, when the licence has alternate
+// frames, only the one the pilot chose for it (sheet.frame_choices). GMS frames have no licence.
+export function frameBlockedBy(frame: Frame, frames: Frame[], sheet: Pick<Sheet, 'licences' | 'frame_choices'>): string {
+  if (frame.licenceLevel <= 0) return ''
+  const original = alternateOf(frame, frames) ?? frame
+  if (!isLicensed({ licenceId: original.id, licenceLevel: frame.licenceLevel }, sheet.licences)) return `Needs licence ${rankName(frame.licenceLevel)}`
+  const chosen = chosenFrame(original, frames, sheet.frame_choices)
+  return chosen.id === frame.id ? '' : `Licence gives ${chosen.name}`
+}
+
 // --- Superheavy weapons take a Heavy mount and one more, empty, mount ---
 
 // Which mount holds a Superheavy weapon, or -1.
@@ -208,8 +218,11 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   }
   const needs = (item: { name: string; licenceId: string; licenceLevel: number }) =>
     `${item.name} needs ${licenceName(catalogue.frames, item.licenceId)} licence rank ${rankName(item.licenceLevel)}.`
-  if (!isLicensed({ licenceId: frame.id, licenceLevel: frame.licenceLevel }, licences))
-    problems.push(needs({ name: `The ${frame.name} frame`, licenceId: frame.id, licenceLevel: frame.licenceLevel }))
+  const licenceFrame = alternateOf(baseFrame, catalogue.frames) ?? baseFrame
+  if (!isLicensed({ licenceId: licenceFrame.id, licenceLevel: frame.licenceLevel }, licences))
+    problems.push(needs({ name: `The ${frame.name} frame`, licenceId: licenceFrame.id, licenceLevel: frame.licenceLevel }))
+  else if (frameBlockedBy(baseFrame, catalogue.frames, sheet))
+    problems.push(`${frame.name} isn't the frame the ${licenceFrame.name} licence gives this pilot.`)
 
   // Weapons: licence, mount size, Superheavy bracing, Unique.
   const mounts = (mech.mounts ?? []).slice(0, frame.mounts.length)
@@ -286,7 +299,12 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
 
   for (const [id, rank] of Object.entries(sheet.licences ?? {}))
     if (!Number.isInteger(rank) || rank < 0 || rank > MAX_LICENCE_RANK) problems.push(`${licenceName(catalogue.frames, id)} licence must be a whole rank from 0 to III.`)
-    else if (rank > 0 && !catalogue.frames.some(frame => frame.id === id && frame.licenceLevel > 0)) problems.push(`Licence ${id} isn't in the loaded licensed frames.`)
+    else if (rank > 0) {
+      const frame = catalogue.frames.find(frame => frame.id === id && frame.licenceLevel > 0)
+      const original = frame && alternateOf(frame, catalogue.frames)
+      if (!frame) problems.push(`Licence ${id} isn't in the loaded licensed frames.`)
+      else if (original) problems.push(`${frame.name} is now part of the ${original.name} licence, not a licence of its own: a GM should move its ranks there.`)
+    }
   for (const [id, rank] of Object.entries(sheet.talents ?? {}))
     if (!Number.isInteger(rank) || rank < 0 || rank > MAX_TALENT_RANK) problems.push(`Talent ${id} must be a whole rank from 0 to III.`)
     else if (rank > 0 && !catalogue.talents?.some(talent => talent.id === id)) problems.push(`Talent ${id} isn't in the loaded content packs.`)

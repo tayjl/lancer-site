@@ -173,6 +173,12 @@ export function changeDiff(
     if (!same(a.history, b.history)) add(`${section} / history`, 'history', a.history ? 'updated' : 'added', b.history)
   }
   ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)
+  // Which frame a licence gives (unset is the licence's own frame): "HA Genghis licence frame: HA Genghis → HA Worldkiller".
+  const [oldChoices, newChoices] = [before.sheet.frame_choices ?? {}, after.sheet.frame_choices ?? {}]
+  for (const id of new Set([...Object.keys(oldChoices), ...Object.keys(newChoices)])) {
+    const [a, b] = [oldChoices[id] ?? id, newChoices[id] ?? id]
+    if (a !== b) add('licences', `${names.licence(id)} licence frame: ${names.frame(a)} → ${names.frame(b)}`)
+  }
   listChanges('core bonuses', before.sheet.core_bonuses, after.sheet.core_bonuses, names.coreBonus)
   ranks('talents', before.sheet.talents, after.sheet.talents, names.talent)
   return lines

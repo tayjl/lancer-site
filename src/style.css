@@ -891,14 +891,19 @@ label.field .error {
 }
 
 /* A grid of item cards (SlotCard.vue, ItemCard.vue): as many 20rem columns as fit, one on phones. */
+/* Columns rather than a grid, so a short card doesn't leave a gap under it: each column fills from the top (masonry).
+   Cards read down each column, then across; the DOM order (and so tab order) is the same. */
 .slot-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-  align-items: start;
-  gap: var(--space-m);
+  columns: 20rem; /* a minimum width; narrower screens get one full-width column */
+  column-gap: var(--space-m);
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.slot-grid > * {
+  break-inside: avoid;
+  margin-bottom: var(--space-m);
 }
 
 /* ───────────────────────── Dialog ─────────────────────────

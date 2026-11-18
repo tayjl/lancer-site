@@ -122,8 +122,9 @@ export const personalBonusTypes = (stats: { id: string; name: string }[]): Bonus
 export const bonusTypesFor = (kind: EditorKind, stats: { id: string; name: string }[]) =>
   [...BONUS_TYPES.filter((type) => kind !== 'pilot_gear' || type.group === 'Pilot'), ...(kind === 'pilot_gear' || kind === 'core_bonuses' ? personalBonusTypes(stats) : [])]
 
-// The frame form's choices (src/components/editor/FrameForm.vue). A frame is its own licence: license_id is its id, and
-// license_level (0 for GMS, otherwise 2) is the rank that unlocks it. "unused" stats are game data the site's mech maths
+// The frame form's choices (src/components/editor/FrameForm.vue). A frame is its own licence: license_id is its id, unless it
+// is an alternate of another frame (an alternate Genghis), when license_id is the original's id and variant its name
+// (alternateOf() in mechData.ts reads it); license_level (0 for GMS, otherwise 2) is the rank that unlocks it. "unused" stats are game data the site's mech maths
 // leaves out (no grit, save target or sensors); the form still edits them.
 export const FRAME_ROLES = ['Balanced', 'Striker', 'Defender', 'Support', 'Controller', 'Artillery']
 export const FRAME_MOUNTS = ['Main', 'Heavy', 'Flex', 'Main/Aux', 'Aux/Aux', 'Auxiliary', 'Integrated Auxiliary']
@@ -154,6 +155,8 @@ export type Context = {
   // Every item id (talents grant items) and every frame id (a licence is a frame's), when the editor has them.
   known?: Set<string>
   licences?: Set<string>
+  // The frames that are themselves alternates of another (an alternate can't be of one of these).
+  alternates?: Set<string>
 }
 
 const isNumber = (value: unknown) => (typeof value === 'number' && Number.isFinite(value)) || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)))
@@ -300,7 +303,12 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
   if (typeof data.source !== 'string' || !data.source.trim()) out.push(error('Choose the manufacturer.', 'source'))
   const rank = data.license_level
   if (!Number.isInteger(rank) || (rank as number) < 0 || (rank as number) > 3) out.push(error('A licence rank is none (0), I, II or III.', 'license_level'))
-  if (data.license_id !== ctx.id) out.push(warn(`A frame is its own licence: licence id should be "${ctx.id}".`, 'license_id'))
+  const licence = String(data.license_id ?? '')
+  if (data.variant || (licence !== ctx.id && ctx.licences?.has(licence))) {
+    if (licence === ctx.id || (data.variant && data.variant === data.name)) out.push(error("A frame can't be an alternate of itself.", 'license_id'))
+    else if (ctx.alternates?.has(licence)) out.push(error('Choose the original frame: an alternate frame is already an alternate of another.', 'license_id'))
+  }
+  else if (licence !== ctx.id) out.push(warn(`A frame is its own licence: licence id should be "${ctx.id}".`, 'license_id'))
 
   const stats = entry(data.stats)
   for (const { key, label, unused } of FRAME_STATS) {

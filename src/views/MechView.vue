@@ -29,7 +29,7 @@ import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
 import { pilotList, sectionOverride } from '../router'
-import { gmOnly, GM_ONLY_REASON, isLicensed, mechProblems, useCatalogue } from '../rules'
+import { frameBlockedBy, gmOnly, GM_ONLY_REASON, mechProblems, rankName, useCatalogue } from '../rules'
 import { isGm } from '../auth'
 
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
@@ -162,18 +162,19 @@ const saveHistory = (doc: Json | null) => track(savePrivate({ history: doc }))
 const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes))
 
 // --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
-// A licensed frame needs rank II in its own licence; GMS frames need none. HORUS, NHC and Exotic frames are GM-only.
+// A licensed frame needs its rank in its licence, and, if the licence has alternate frames, to be the one the pilot chose for it; GMS frames need none. HORUS, NHC and Exotic frames are GM-only.
 const framePicker = useTemplateRef('framePicker')
 const frameOptions = computed(() =>
   frames.value
     .map((f) => {
       const restricted = !isGm.value && gmOnly(f)
-      const licensed = !restricted && isLicensed({ licenceId: f.id, licenceLevel: f.licenceLevel }, licences.value)
+      const why = restricted ? GM_ONLY_REASON : frameBlockedBy(f, frames.value, sheet.value)
+      const licensed = !why
       return {
         id: f.id,
         name: `${f.source} ${f.name}`,
-        meta: [f.mechtype.join('/'), `Mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? 'Licence rank II' : 'GMS'].filter(Boolean),
-        blocked: restricted ? GM_ONLY_REASON : licensed ? '' : 'Needs licence II',
+        meta: [f.mechtype.join('/'), `Mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? `Licence rank ${rankName(f.licenceLevel)}` : 'GMS'].filter(Boolean),
+        blocked: why,
         info: () => frameInfo(f, frames.value),
         licensed,
       }

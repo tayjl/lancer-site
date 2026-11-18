@@ -4,7 +4,7 @@ import { confirmAction } from '../../confirm'
 import { bonusTypesFor, errorsOf, kindInfo, newId, problemsFor, usedBy, type Data, type EditorKind, type Problem } from '../../contentEditor'
 import { createItem, deleteItem, homebrewPack, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
 import { invalidateCatalogues } from '../../gameData'
-import { useMechData } from '../../mechData'
+import { alternateOf, licensedFrames, useMechData } from '../../mechData'
 import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
 import { useSaveStatus } from '../../saveStatus'
 import ConflictNotice from '../ConflictNotice.vue'
@@ -70,14 +70,14 @@ watch(() => working.value.name, (name) => {
   if (!isNew || props.kind === 'bionics' || props.kind === 'manufacturers') return
   const id = newId(props.kind, String(name ?? ''), props.takenIds)
   // A frame is its own licence, so its licence id follows its id.
-  working.value = { ...working.value, id, ...(props.kind === 'frames' ? { license_id: id } : {}) }
+  working.value = { ...working.value, id, ...(props.kind === 'frames' && !working.value.variant ? { license_id: id } : {}) }
 })
 
 // Everything wrong with what's on screen. Errors block Save; warnings don't.
 const rawError = ref('')
 // Licences are frames' (a weapon of Marrow II needs the Marrow licence at rank II), so the frames are read for the choice.
 const { frames } = useMechData()
-const licences = computed(() => frames.value.filter((frame) => frame.licenceLevel > 0).map((frame) => ({ id: frame.id, name: frame.name, source: frame.source })))
+const licences = computed(() => licensedFrames(frames.value).map((frame) => ({ id: frame.id, name: frame.name, source: frame.source })))
 const problems = computed<Problem[]>(() => {
   const found = problemsFor(props.kind, working.value, {
     id: props.item?.key ?? String(working.value.id ?? ''),
@@ -85,6 +85,7 @@ const problems = computed<Problem[]>(() => {
     statIds: props.stats.map((stat) => stat.id),
     known: props.takenIds,
     licences: new Set(frames.value.map((frame) => frame.id)),
+    alternates: new Set(frames.value.filter((frame) => alternateOf(frame, frames.value)).map((frame) => frame.id)),
   })
   if (isNew && props.kind !== 'bionics' && props.takenIds.has(String(working.value.id))) found.push({ level: 'error', text: 'That ID is already used by another item.', field: 'id' })
   if (rawError.value) found.push({ level: 'error', text: rawError.value })

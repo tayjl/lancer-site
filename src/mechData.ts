@@ -401,6 +401,25 @@ function integratedIds(value: unknown): string[] {
   )
 }
 
+// An alternate frame (Worldkiller, an alternate Genghis) shares its original's licence. The packs mark one with
+// `variant` (the original's name) and usually `license_id` (the original's id); some leave `license_id` out, so the name
+// is the fallback. A frame that is its own licence (license_id = its id, no variant) is an original.
+export function alternateOf(frame: Frame, frames: Frame[]): Frame | undefined {
+  const id = String(frame.raw?.license_id ?? '')
+  const variant = String(frame.raw?.variant ?? '')
+  return frames.find((f) => f.id !== frame.id && f.id === id) ?? (variant ? frames.find((f) => f.id !== frame.id && f.name === variant && !f.raw?.variant) : undefined)
+}
+
+// The licences a pilot can buy: one per original licensed frame, never an alternate.
+export const licensedFrames = (frames: Frame[]) => frames.filter((f) => f.licenceLevel > 0 && !alternateOf(f, frames))
+
+// The frames one licence can give: the original, then its licensed alternates.
+export const licenceFrames = (original: Frame, frames: Frame[]) => [original, ...frames.filter((f) => f.licenceLevel > 0 && alternateOf(f, frames)?.id === original.id)]
+
+// The frame a pilot's licence gives: their choice (sheet.frame_choices) if it is one of the licence's frames, else the original.
+export const chosenFrame = (original: Frame, frames: Frame[], choices: Record<string, string> | undefined) =>
+  licenceFrames(original, frames).find((f) => f.id === choices?.[original.id]) ?? original
+
 // Licence names by licence (frame) id, e.g. "IPS-N Drake", shared by every page once the frames have loaded.
 export const licenceNames = shallowRef(new Map<string, string>())
 
@@ -443,18 +462,21 @@ export function useMechData() {
     const pickable = (kind: string) =>
       rows
         .filter((row) => row.kind === kind && !builtIn.has(row.id) && !(row.data as { talent_item?: boolean } | null)?.talent_item)
-        .map((row) => toItem(row.id, row.data))
+        .map((row) => relicensed(toItem(row.id, row.data)))
 
-    integrated.value = new Map(
-      rows.filter((row) => row.kind !== 'frames' && (builtIn.has(row.id) || (row.data as { talent_item?: boolean })?.talent_item)).map((row) => [row.id, toItem(row.id, row.data)]),
-    )
     frames.value = frameRows
       .map(({ id, data }) => toFrame(id, data))
       .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))
+    // Gear naming an alternate frame's licence counts under the original's.
+    const original = new Map(frames.value.flatMap((f) => { const o = alternateOf(f, frames.value); return o ? [[f.id, o.id] as const] : [] }))
+    const relicensed = (item: Item): Item => (original.has(item.licenceId) ? { ...item, licenceId: original.get(item.licenceId)! } : item)
+    integrated.value = new Map(
+      rows.filter((row) => row.kind !== 'frames' && (builtIn.has(row.id) || (row.data as { talent_item?: boolean })?.talent_item)).map((row) => [row.id, relicensed(toItem(row.id, row.data))]),
+    )
     licenceNames.value = new Map(frames.value.map((f) => [f.id, `${f.source} ${f.name}`]))
     weapons.value = pickable('weapons').sort((a, b) => a.name.localeCompare(b.name))
     systems.value = pickable('systems').sort((a, b) => a.name.localeCompare(b.name))
-    mods.value = rows.filter(row => row.kind === 'mods').map(row => toMod(row.id, row.data)).sort((a, b) => a.name.localeCompare(b.name))
+    mods.value = rows.filter(row => row.kind === 'mods').map(row => relicensed(toMod(row.id, row.data))).sort((a, b) => a.name.localeCompare(b.name))
   }
 
   load()

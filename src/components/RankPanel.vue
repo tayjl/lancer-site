@@ -5,13 +5,15 @@ import { isGm } from '../auth'
 import { GM_ONLY_REASON, MAX_LICENCE_RANK, rankName } from '../rules'
 import type { Info, Unlock } from '../info'
 import Icon from './Icon.vue'
+import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
 import ItemPicker from './ItemPicker.vue'
 import RulesText from './RulesText.vue'
 import UnlockList from './UnlockList.vue'
 
-// What one rank gives: a talent rank's name and rules text, or the gear a licence rank unlocks.
-export type RankStep = { name?: string; html?: string; unlocks?: Unlock[] }
+// What one rank gives: a talent rank's name and rules text, or the gear a licence rank unlocks. A licence with alternate
+// frames also asks which frame it gives ("choice", on the rank that unlocks them).
+export type RankStep = { name?: string; html?: string; unlocks?: Unlock[]; choice?: { value: string; options: { value: string; name: string; info: () => Info }[] } }
 
 // Things bought by rank with manna (licences and talents; src/rules.ts): an item card per one held, its rank in the
 // header, and what each rank gives ("details", one step per rank); and a button in the heading to buy a new one from
@@ -19,11 +21,12 @@ export type RankStep = { name?: string; html?: string; unlocks?: Unlock[] }
 // their symbols; talents ("tiers") stack them, a big numeral beside the rank's name and rules. Held ranks are bright,
 // later ones dimmed, with "Next: 600 manna" or "Locked" while editable. Each rank costs "price"; buying stops when
 // the manna "balance" can't cover it (the button stays, disabled, with the reason beside it). Lowering refunds it.
-// An option marked "gmOnly" (HORUS, NHC, Exotic) can't be bought by players (blocked), "GM only", listed last.
+// An option marked "gmOnly" (HORUS, NHC, Exotic) can't be bought by players (blocked), "GM only", listed last; one marked
+// "stale" is only shown while held (a licence that has since become part of another), never offered.
 const props = defineProps<{
   title: string
   noun: string
-  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean }[]
+  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; stale?: boolean }[]
   held: Record<string, number>
   details: (id: string) => RankStep[]
   columns?: boolean
@@ -32,6 +35,8 @@ const props = defineProps<{
   balance: number
   editable: boolean
   save: (next: Record<string, number>) => Promise<string | null>
+  // Saves the frame chosen for a licence (RankStep.choice); resolves to an error message or null.
+  choose?: (id: string, value: string) => Promise<string | null>
 }>()
 
 const optionOf = (id: string) => props.options.find((option) => option.id === id)
@@ -54,6 +59,16 @@ async function store(next: Record<string, number>) {
   return !error.value
 }
 
+// With a frame choice the frames are the radios (or the chosen one), so the unlock list leaves them out.
+const gear = (step: RankStep) => (step.choice ? step.unlocks?.filter((unlock) => unlock.kind !== 'frame') : step.unlocks) ?? []
+const chosen = (step: RankStep) => step.choice!.options.find((option) => option.value === step.choice!.value) ?? step.choice!.options[0]
+
+async function choose(id: string, value: string) {
+  saving.value = true
+  error.value = (await props.choose?.(id, value)) ?? ''
+  saving.value = false
+}
+
 // Rank 0 drops it.
 function setRank(id: string, rank: number) {
   const next = { ...props.held, [id]: rank }
@@ -65,7 +80,7 @@ function setRank(id: string, rank: number) {
 const picker = useTemplateRef('picker')
 const offered = computed(() =>
   props.options
-    .filter((option) => !props.held[option.id])
+    .filter((option) => !props.held[option.id] && !option.stale)
     .map((option) => ({ ...option, blocked: restricted(option.id) ? GM_ONLY_REASON : affordable.value ? '' : 'Not enough manna' }))
     .sort((a, b) => Number(restricted(a.id)) - Number(restricted(b.id))),
 )
@@ -107,8 +122,19 @@ async function buy(id: string) {
                 <span v-else-if="status(i, rank) === 'locked'" class="status">Locked</span>
               </p>
               <RulesText v-if="step.html" :html="step.html" />
-              <UnlockList v-if="step.unlocks?.length" :items="step.unlocks" />
-              <p v-else-if="!step.html" class="dim nothing">Nothing new at this rank.</p>
+              <fieldset v-if="step.choice && editable" class="frame-choice">
+                <legend class="label">Frame</legend>
+                <label v-for="option in step.choice.options" :key="option.value" class="frame-option">
+                  <input type="radio" :name="`${id}-frame`" :checked="step.choice.value === option.value" :disabled="saving" @change="choose(id, option.value)" />
+                  <Icon name="frame" />{{ option.name }}
+                </label>
+              </fieldset>
+              <p v-else-if="step.choice" class="frame-chosen">
+                <Icon name="frame" /><span class="dim">Chosen frame:</span>
+                <InfoButton :label="chosen(step).name" :info="chosen(step).info" />
+              </p>
+              <UnlockList v-if="gear(step).length" :items="gear(step)" />
+              <p v-else-if="!step.html && !step.choice" class="dim nothing">Nothing new at this rank.</p>
             </div>
           </li>
         </ol>
@@ -241,6 +267,8 @@ async function buy(id: string) {
 }
 
 .ladder .unlocks,
+.ladder .frame-choice,
+.ladder .frame-chosen,
 .ladder .nothing {
   grid-column: 1 / -1;
 }
@@ -278,6 +306,50 @@ async function buy(id: string) {
 .tiers .rank-body {
   display: grid;
   gap: 2px;
+}
+
+/* The frame a licence gives: real radio inputs, one row each, the name opening its information. */
+.frame-choice {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--fs-s);
+}
+
+.frame-choice legend {
+  padding: 0;
+  margin-bottom: var(--space-xs);
+}
+
+.frame-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.frame-option .icon,
+.frame-chosen .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+}
+
+.frame-option input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--lilac);
+}
+
+.frame-chosen {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-s);
 }
 
 .note {

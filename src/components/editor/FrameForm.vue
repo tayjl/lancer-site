@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { FRAME_MOUNTS, FRAME_ROLES, FRAME_SIZES, FRAME_STATS, FRAME_USES, type BonusType, type Data } from '../../contentEditor'
 import { itemInfo } from '../../info'
-import { MOUNT_HINTS, useMechData } from '../../mechData'
+import { alternateOf, MOUNT_HINTS, toFrame, useMechData } from '../../mechData'
 import Icon from '../Icon.vue'
 import InfoButton from '../InfoButton.vue'
 import RichTextEditor from '../RichTextEditor.vue'
@@ -56,7 +56,18 @@ const moveMount = (index: number, by: number) => {
 const core = computed(() => entry(model.value.core_system))
 const roman = (level: number) => ['None', 'I', 'II', 'III'][level] ?? String(level)
 
-const { weapons, systems, mods } = useMechData()
+const { frames, weapons, systems, mods } = useMechData()
+// An alternate frame (Worldkiller, an alternate Genghis) shares its original's licence: license_id is the original's id and
+// variant its name, as the packs write them. None means this frame is its own licence.
+const alternate = computed({
+  get: () => alternateOf(toFrame(String(model.value.id ?? ''), model.value), frames.value)?.id ?? '',
+  set: (id: string) => {
+    const { variant: _variant, ...rest } = model.value
+    const original = frames.value.find((frame) => frame.id === id)
+    model.value = original ? { ...rest, license_id: original.id, variant: original.name } : { ...rest, license_id: rest.id }
+  },
+})
+const originals = computed(() => frames.value.filter((frame) => frame.id !== model.value.id && !alternateOf(frame, frames.value)))
 const unlocks = computed(() => {
   const mine = [...weapons.value.map((item) => ({ kind: 'Weapon', item })), ...systems.value.map((item) => ({ kind: 'System', item })), ...mods.value.map((item) => ({ kind: 'Mod', item }))]
     .filter(({ item }) => item.licenceId === model.value.id)
@@ -92,7 +103,13 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
           <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
         </select>
       </Field>
-      <Field class="span2" label="Licence" path="license_id" hint="A frame is its own licence, so this is its own ID.">
+      <Field class="span2" label="Alternate of" path="license_id" hint="An alternate frame, such as an alternate Genghis, shares its original's licence: pilots choose between them.">
+        <select v-model="alternate">
+          <option value="">None: its own licence</option>
+          <option v-for="frame in originals" :key="frame.id" :value="frame.id">{{ frame.source }} {{ frame.name }}</option>
+        </select>
+      </Field>
+      <Field class="span2" label="Licence" path="license_id" :hint="alternate ? 'The ID of the original frame.' : 'A frame is its own licence, so this is its own ID.'">
         <input class="code" :value="String(model.license_id ?? '')" type="text" readonly />
       </Field>
     </div>

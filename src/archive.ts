@@ -4,7 +4,7 @@ import type { Bionic, CoreBonus, Item, Talent } from './gameData'
 import { flatDamageText } from './damage'
 import { bionicInfo, modPoints, coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
 import { itemDetails } from './itemDetails'
-import type { Frame } from './mechData'
+import { licensedFrames, type Frame } from './mechData'
 import { licenceName, rankName } from './rules'
 import { plainText } from './rulesText'
 
@@ -80,10 +80,10 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
   return [
     ...manufacturers.map((m) =>
       entry({ category: 'manufacturers', group: m.id, id: m.id, name: m.name, summary: plainText(m.quote), info: () => manufacturerInfo(m, frames) }, [], [m.description])),
-    ...frames.filter((f) => f.licenceLevel > 0).map((f) =>
+    ...licensedFrames(frames).map((f) =>
       entry(
         {
-          category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => licenceInfo(f, weapons, systems, mods),
+          category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => licenceInfo(f, weapons, systems, mods, frames),
         },
         f.mechtype,
         [],

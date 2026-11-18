@@ -45,6 +45,9 @@ export type Sheet = {
   // Bought with manna (src/rules.ts): the rank (1 to 3) in each licence, keyed by licence (frame) id, and in
   // each talent, keyed by talent id. Core bonuses (ids) are free, one per 3 licence ranks.
   licences?: Record<string, number>
+  // Which frame each licence gives when it has alternate frames (Worldkiller is an alternate Genghis): licence id to the
+  // chosen frame id. Unset means the original frame. Free: no manna.
+  frame_choices?: Record<string, string>
   talents?: Record<string, number>
   core_bonuses?: string[]
 }

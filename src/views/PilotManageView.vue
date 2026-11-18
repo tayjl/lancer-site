@@ -23,7 +23,7 @@ import StatRow from '../components/StatRow.vue'
 import { imageUrl } from '../images'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
-import { useMechData } from '../mechData'
+import { chosenFrame, licenceFrames, licensedFrames, useMechData, type Frame } from '../mechData'
 import { bionicInfo, frameInfo, licenceUnlocks, talentInfo } from '../info'
 import { useMyPilot, type Sheet } from '../myPilot'
 import { useSaveStatus } from '../saveStatus'
@@ -189,16 +189,27 @@ const { frames, weapons, systems, mods } = useMechData()
 const catalogue = useCatalogue()
 const balance = computed(() => gm.value.manna - mannaSpent(sheet.value, bionicPrices.value))
 
-// Licences: one per licensed frame. Each rank unlocks the frame and gear of that licence level.
-const licenceOptions = computed(() =>
-  frames.value
-    .filter((frame) => frame.licenceLevel > 0)
-    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), gmOnly: gmOnly(frame) })),
-)
+// Licences: one per original licensed frame (alternate frames share it). Each rank unlocks the frames and gear of that
+// licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
+// can be lowered or removed; the rule check says why.
+const licenceOptions = computed(() => {
+  const option = (frame: Frame, stale = false) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), gmOnly: gmOnly(frame), stale })
+  const originals = licensedFrames(frames.value)
+  return [...originals.map((frame) => option(frame)), ...frames.value.filter((f) => f.licenceLevel > 0 && !originals.includes(f) && sheet.value.licences?.[f.id]).map((frame) => option(frame, true))]
+})
 const licenceDetails = (id: string): RankStep[] => {
   const frame = frames.value.find((f) => f.id === id)
-  return [1, 2, 3].map((level) => ({ unlocks: frame ? licenceUnlocks(frame, weapons.value, systems.value, mods.value, level, frames.value) : [] }))
+  const options = frame ? licenceFrames(frame, frames.value) : []
+  const first = Math.min(...options.map((f) => f.licenceLevel))
+  return [1, 2, 3].map((level) => ({
+    unlocks: frame ? licenceUnlocks(frame, weapons.value, systems.value, mods.value, level, frames.value) : [],
+    // Once the rank that unlocks the frames is held, the pilot picks which one the licence gives.
+    choice: options.length > 1 && level === first && (sheet.value.licences?.[id] ?? 0) >= level
+      ? { value: chosenFrame(frame!, frames.value, sheet.value.frame_choices).id, options: options.map((f) => ({ value: f.id, name: f.name, info: () => frameInfo(f, frames.value) })) }
+      : undefined,
+  }))
 }
+const saveFrameChoice = (licence: string, frameId: string) => track(updateSheet({ frame_choices: { ...sheet.value.frame_choices, [licence]: frameId } }))
 // The hangar: a mech's frame is private, and a new mech joins the card's list.
 const frameId = (mechId: string) => sheet.value.mechs?.[mechId]?.frame
 const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
@@ -519,6 +530,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             :balance="balance"
             :editable="editable"
             :save="saveLicences"
+            :choose="saveFrameChoice"
           >
             <template #summary>
               <span class="meter-inline">Licence level <span class="num">{{ licenceLevel(sheet) }}</span></span>
