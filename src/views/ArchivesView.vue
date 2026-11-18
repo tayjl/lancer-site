@@ -114,12 +114,11 @@ const blocks = computed(() => {
 // The list's entries in the order they're shown.
 const listed = computed(() => blocks.value.flatMap((block) => block.groups.flatMap((group) => group.sections.flatMap((section) => section.entries))))
 
-// A manufacturer card's counts, each a shortcut to that category (filtered to the maker). Licences always show,
-// even 0 (GMS sells no licences), so every card has the same rows; the rest only when there are some.
+// A manufacturer card's counts, each a shortcut to that category (filtered to the maker). Every row always shows,
+// even 0 (GMS sells no licences, NHC no weapon mods), so every card has the same rows.
 const MADE: ArchiveCategory[] = ['licences', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'core bonuses']
 const counts = (maker: Manufacturer) =>
   MADE.map((made) => ({ made, count: entries.value.filter((entry) => entry.category === made && entry.group === maker.id).length }))
-    .filter((c) => c.count || c.made === 'licences')
 
 const key = (entry: ArchiveEntry) => `${entry.category}:${entry.id}`
 
