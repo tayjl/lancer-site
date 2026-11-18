@@ -5,7 +5,6 @@ import type { Data, EditorKind } from '../../contentEditor'
 import { toCoreBonus, toItem, toMod, toTalent, type Bionic } from '../../gameData'
 import { bionicInfo, coreBonusInfo, frameInfo, itemInfo, manufacturerInfo, talentInfo, type Info } from '../../info'
 import { toFrame, useMechData } from '../../mechData'
-import { PRICES } from '../../rules'
 import Icon from '../Icon.vue'
 import InfoBody from '../InfoBody.vue'
 import ItemCard from '../ItemCard.vue'
@@ -33,8 +32,8 @@ function build(data: Data): Built {
     if (kind === 'manufacturers') return { info: manufacturerInfo(toManufacturer(id, data), frames.value) }
     if (kind === 'tags') return { info: { kind: 'tag', name: String(data.name ?? id), facts: [], stats: [], groups: [{ title: 'what it means', cards: [{ heading: 'meaning', html: String(data.description ?? '') }] }] } }
     if (kind === 'bionics') {
-      const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), manna_cost: 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
-      return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name])), PRICES.bionic) }
+      const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
+      return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name]))) }
     }
     return { info: { kind: 'personal stat', name: String(data.name ?? id), facts: [{ text: `Key: ${id}` }], stats: [], groups: [] } }
   } catch (error) {

@@ -74,3 +74,16 @@ export function paragraphs(nodes: RulesNode[]): RulesNode[] {
   flush()
   return result
 }
+
+// Only the first line: everything up to the first line break (even inside <i>) or the first paragraph or list.
+export function firstLine(nodes: RulesNode[]): RulesNode[] {
+  const kept: RulesNode[] = []
+  for (const node of nodes) {
+    if (typeof node === 'string') { kept.push(node); continue }
+    if (node.tag === 'br') break
+    const children = firstLine(node.children)
+    kept.push({ tag: node.tag, children })
+    if (BLOCKS.has(node.tag) || children.length < node.children.length) break
+  }
+  return kept
+}

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { sourceOf, type CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
-import { coreBonusProblems } from '../rules'
+import { coreBonusProblems, gmOnly, GM_ONLY_REASON } from '../rules'
 import { plainText } from '../rulesText'
 import { coreBonusInfo } from '../info'
 import ItemCard from './ItemCard.vue'
@@ -42,13 +43,15 @@ async function remove(id: string) {
 }
 
 const picker = useTemplateRef('picker')
-const blocked = (id: string) => coreBonusProblems(
-  { licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options,
-)[0] ?? ''
+// HORUS, NHC and Exotic bonuses are GM-only: blocked for players, and listed last.
+const blocked = (id: string) =>
+  (!isGm.value && gmOnly(byId.value.get(id) ?? {}) ? GM_ONLY_REASON : '') ||
+  (coreBonusProblems({ licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '')
 const offered = computed(() =>
   props.options
     .filter((bonus) => !props.taken.includes(bonus.id))
-    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source, text: plainText(bonus.effect), blocked: blocked(bonus.id), info: () => coreBonusInfo(bonus) })),
+    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source, text: plainText(bonus.effect), blocked: blocked(bonus.id), info: () => coreBonusInfo(bonus) }))
+    .sort((a, b) => Number(a.blocked === GM_ONLY_REASON) - Number(b.blocked === GM_ONLY_REASON)),
 )
 
 function open() {

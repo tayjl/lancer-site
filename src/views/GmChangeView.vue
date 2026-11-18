@@ -33,7 +33,7 @@ const approved = shallowRef<{ sheet: Sheet; level: number; manna: number; update
 const loading = ref(true)
 const error = ref('')
 
-const { gear, bionics, pilotStats, talents, coreBonuses } = useGameData()
+const { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses } = useGameData()
 const { frames, weapons, systems, mods, integrated } = useMechData()
 const catalogue = useCatalogue()
 
@@ -114,8 +114,8 @@ const tones = [
 ] as const
 
 // --- Manna: what the change costs, and what's left after it ---
-const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}))
-const spentAfter = computed(() => mannaSpent(proposedSheet.value))
+const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value))
+const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value))
 const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
 

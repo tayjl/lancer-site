@@ -1,4 +1,6 @@
 import { shallowRef } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
+import type { ArchiveCategory } from './archive'
 import { flatDamageText } from './damage'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, itemDetails, itemRules } from './itemDetails'
@@ -11,7 +13,8 @@ import { PRICES, rankName } from './rules'
 // power with the power's own lore, an item's rules, its tags). Rules text stays formatted HTML for RulesText.vue.
 // An action's card also has its activation (ActionChip.vue), frequency and own range and damage (itemRules).
 // "actions": a frame trait's other actions, each drawn inside the trait's card with its own chip.
-export type InfoCard = { heading: string; html: string; activation?: string; frequency?: string; stats?: InfoStat[]; actions?: InfoCard[] }
+// "unlocks": the gear a licence rank unlocks (UnlockList.vue).
+export type InfoCard = { heading: string; html: string; activation?: string; frequency?: string; stats?: InfoStat[]; actions?: InfoCard[]; unlocks?: Unlock[] }
 // "stack": cards one above another, for rules read in order (an item's effect, then on attack, on hit...).
 // "tags": tag chips, each with what it means. "look" draws a frame's groups as item cards (ItemCard.vue): "traits"
 // a card per trait in the frame colour, "core" the whole group as one card in the core colour, titled by the group.
@@ -179,13 +182,15 @@ export function coreBonusInfo(bonus: CoreBonus): Info {
 }
 
 // Bionics are campaign content (plain text descriptions); "statNames" turns stat ids into their names.
-export function bionicInfo(bionic: Bionic, statNames: Map<string, string>, price: number): Info {
+export function bionicInfo(bionic: Bionic, statNames: Map<string, string>): Info {
   return {
     kind: 'bionic',
     name: bionic.name,
-    facts: facts(`${bionic.mod_point_cost} mod points`, `${price} manna`, bionic.retired ? 'retired: no longer offered' : ''),
+    facts: facts(bionic.slot, `${bionic.mod_point_cost} mod points`, `${bionic.manna_cost} manna`, bionic.retired ? 'retired: no longer offered' : ''),
     stats: bionic.bonuses.map((bonus) => ({ label: statNames.get(bonus.stat_id) ?? bonus.stat_id, icon: STAT_ICONS[bonus.stat_id], value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}` })),
-    groups: groups({ title: 'rules', cards: card('description', (bionic.description ?? '').replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))) }),
+    // The description is flavour, drawn as lore like a frame's; it's plain text, so escaped.
+    lore: text(bionic.description) ? `<p>${text(bionic.description).replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</p>` : '',
+    groups: groups({ title: 'rules', cards: card('effect', bionic.effect) }),
   }
 }
 
@@ -207,17 +212,23 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
   }
 }
 
-// What rank "level" (1 to 3) of a frame's licence unlocks: the frame itself (at its own level), weapons and systems.
-export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], mods: Item[], level: number) => [
-  ...(frame.licenceLevel === level ? [{ kind: 'frame', name: frame.name }] : []),
-  ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon', name: item.name })),
-  ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system', name: item.name })),
-  ...mods.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'mod', name: item.name })),
+// A link to one entry in the archives (the url ArchivesView.vue reads: ?cat= and ?item=). Only for things the archives
+// list: frames, and the weapons, systems and mods a pilot can pick (not built-in or talent-only equipment).
+export const archiveLink = (category: ArchiveCategory, id: string): RouteLocationRaw => ({ name: 'archives', query: { cat: category, item: `${category}:${id}` } })
+// "to" links to its archive entry (the licence's information); "info" opens its full information (the sheet's ladder and
+// the editor, which shouldn't navigate away).
+export type Unlock = { kind: 'frame' | 'weapon' | 'system' | 'mod'; name: string; to: RouteLocationRaw; info: () => Info }
+
+// What rank "level" (1 to 3) of a frame's licence unlocks: the frame itself (at its own level), weapons, systems and mods.
+export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], mods: Item[], level: number, frames: Frame[] = [frame]): Unlock[] => [
+  ...(frame.licenceLevel === level ? [{ kind: 'frame' as const, name: frame.name, to: archiveLink('frames', frame.id), info: () => frameInfo(frame, frames) }] : []),
+  ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon' as const, name: item.name, to: archiveLink('mech weapons', item.id), info: () => itemInfo(item) })),
+  ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system' as const, name: item.name, to: archiveLink('mech systems', item.id), info: () => itemInfo(item) })),
+  ...mods.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'mod' as const, name: item.name, to: archiveLink('weapon mods', item.id), info: () => itemInfo(item) })),
 ]
 
 // A licence (one per licensed frame): what each of its three ranks unlocks, side by side like the sheet's ladder.
 export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] = [], mods: Item[] = []): Info {
-  const unlocks = (level: number) => licenceUnlocks(frame, weapons, systems, mods, level).map((unlock) => `<li><b>${unlock.kind[0].toUpperCase()}${unlock.kind.slice(1)}:</b> ${unlock.name}</li>`)
   return {
     kind: `${frame.source} licence`.trim(),
     id: frame.id,
@@ -226,9 +237,9 @@ export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] 
     facts: facts({ text: frame.mechtype.join(' / ') }, `${PRICES.licenceRank} manna per rank`),
     lore: '',
     stats: [],
-    groups: groups({ title: 'ranks', cards: [1, 2, 3].flatMap((level) => {
-      const items = unlocks(level)
-      return card(`rank ${rankName(level)}`, items.length ? `<ul>${items.join('')}</ul>` : 'Nothing new at this rank.')
+    groups: groups({ title: 'ranks', cards: [1, 2, 3].map((level) => {
+      const unlocks = licenceUnlocks(frame, weapons, systems, mods, level)
+      return { heading: `rank ${rankName(level)}`, html: unlocks.length ? '' : 'Nothing new at this rank.', unlocks }
     }) }),
   }
 }

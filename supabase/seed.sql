@@ -93,12 +93,12 @@ from pack, jsonb_array_elements($gear$[
 ]$gear$::jsonb) item;
 
 -- Made-up bionics, so the bionics picker and the mod limit can be tried out. The real ones are the GMs' to write.
-insert into public.bionics (id, name, description, manna_cost, mod_point_cost)
+insert into public.bionics (id, name, description, slot, effect, manna_cost, mod_point_cost)
 overriding system value values
-  (1, 'Myomer weave', 'Synthetic muscle fibre threaded through the arms and back.', 2, 2),
-  (2, 'Ocular suite', 'Replacement eyes with a zoom lens and low-light filter.', 1, 1),
-  (3, 'Neural lace', 'A mesh across the cortex that speeds up thought and machine handshakes.', 4, 3),
-  (4, 'Reflex graft', 'Wired nerves that cut reaction time.', 3, 4);
+  (1, 'Myomer weave', 'Synthetic muscle fibre threaded through the arms and back.', 'Arm', '<p>Lifting and grappling feel easy.</p>', 500, 2),
+  (2, 'Ocular suite', 'Replacement eyes with a zoom lens and low-light filter.', 'Eyes', '', 500, 1),
+  (3, 'Neural lace', 'A mesh across the cortex that speeds up thought and machine handshakes.', 'Brain', '', 750, 3),
+  (4, 'Reflex graft', 'Wired nerves that cut reaction time.', 'Spine', '', 500, 4);
 select setval(pg_get_serial_sequence('public.bionics', 'id'), 4);
 
 insert into public.bionic_bonuses (bionic_id, stat_id, amount) values

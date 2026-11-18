@@ -122,7 +122,8 @@ export const makerColour = (maker?: Manufacturer) =>
 const LOGOS = import.meta.glob('./assets/logos/*.svg', { eager: true, import: 'default' }) as Record<string, string>
 // The bundled logo names, for the content editor's choice.
 export const LOGO_NAMES = Object.keys(LOGOS).map((path) => path.replace(/^.*\/(.+)\.svg$/, '$1')).sort()
-export const makerLogo = (maker?: Manufacturer) => (maker?.logo ? LOGOS[`./assets/logos/${maker.logo}.svg`] : undefined) ?? null
+// A pack's own "logo" name first, else a bundled logo named after the manufacturer's id (NHC's pack doesn't name one).
+export const makerLogo = (maker?: Manufacturer) => LOGOS[`./assets/logos/${maker?.logo}.svg`] ?? LOGOS[`./assets/logos/${maker?.id.toLowerCase()}.svg`] ?? null
 
 // How a category's entries are listed: one group per manufacturer (in the manufacturers' order, then any unknown
 // sources, then "other"), per pilot gear type, or a single untitled group (talents). Each with its accent colour.

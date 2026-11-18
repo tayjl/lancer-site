@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import type { Data } from '../../contentEditor'
+import { computed, useId } from 'vue'
+import { BIONIC_SLOTS, type Data } from '../../contentEditor'
+import { useGameData } from '../../gameData'
 import Icon from '../Icon.vue'
+import RichTextEditor from '../RichTextEditor.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
 import { latest, useFields, useProblems } from './useFields'
 
-// The form for a bionic (a site table, not pack content): its description, the mod points it takes, and the personal
-// stats it changes. Every bionic costs the same manna (src/rules.ts PRICES), so there's no price here. "Retired" takes it
-// off the list pilots choose from; pilots who have it keep it.
+// The form for a biomod (a site table, not pack content): its slot on the body, its own price in manna, the mod points it
+// takes, the personal stats it changes, and its description (flavour) and effect (rules). "Retired" takes it off the list
+// pilots choose from; pilots who have it keep it.
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
 const props = defineProps<{ stats: { id: string; name: string }[] }>()
@@ -15,7 +18,14 @@ const f = useFields(model)
 const { invalid } = useProblems()
 const name = f.text('name')
 const description = f.text('description')
+const slot = f.text('slot')
+const price = f.number('manna_cost')
+const effect = f.text('effect')
 const cost = f.number('mod_point_cost')
+// The usual slots, then any the campaign has made up.
+const listId = useId()
+const { bionics } = useGameData()
+const slots = computed(() => [...new Set([...BIONIC_SLOTS, ...bionics.value.map((bionic) => bionic.slot).filter(Boolean)])])
 const retired = f.flag('retired')
 const bonuses = f.list<{ stat_id: string; amount: number }>('bonuses')
 
@@ -33,12 +43,13 @@ const add = () => {
     <h3 id="bio-basics" class="sheet-label">Basics</h3>
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
+      <Field class="span2" label="Slot" path="slot" hint="Where on the body it goes. Pick a suggestion or type your own.">
+        <input v-model="slot" type="text" autocomplete="off" :list="listId" />
+        <datalist :id="listId"><option v-for="option in slots" :key="option" :value="option"></option></datalist>
+      </Field>
+      <Field class="span2" label="Price (manna)" path="manna_cost"><input v-model="price" type="number" min="0" step="1" /></Field>
       <Field class="span2" label="Mod points" path="mod_point_cost"><input v-model="cost" type="number" min="0" step="1" /></Field>
     </div>
-    <label class="field">
-      <span>Description</span>
-      <textarea v-model="description" rows="4"></textarea>
-    </label>
     <label class="check"><input v-model="retired" type="checkbox" />Retired: no longer offered. Pilots who have it keep it.</label>
   </section>
 
@@ -57,6 +68,14 @@ const add = () => {
     </ul>
     <p v-else class="hint">No bonuses. Use a negative number for a drawback.</p>
     <div><button type="button" class="small" :disabled="bonuses.length >= stats.length" @click="add"><Icon name="plus" />Add bonus</button></div>
+  </section>
+
+  <section class="panel" aria-labelledby="bio-text">
+    <h3 id="bio-text" class="sheet-label">Text</h3>
+    <Field label="Description" hint="Flavour text, plain.">
+      <textarea v-model="description" rows="4"></textarea>
+    </Field>
+    <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
   </section>
 </template>
 

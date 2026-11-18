@@ -59,7 +59,7 @@ export function blankItem(kind: EditorKind, id: string, nextOrder = 1): Data {
   if (kind === 'talents') return { id, name: '', terse: '', description: '', ranks: RANK_NAMES.map(() => ({ name: '', description: '' })) }
   // A manufacturer's id is a short code the player types (IPS-N), not made from its name.
   if (kind === 'manufacturers') return { id: '', name: '', logo: '', light: '#8a8a99', dark: '#b3b3c2', quote: '', description: '' }
-  if (kind === 'bionics') return { id: '', name: '', description: '', mod_point_cost: 1, retired: false, bonuses: [] }
+  if (kind === 'bionics') return { id: '', name: '', description: '', slot: '', effect: '', manna_cost: 500, mod_point_cost: 1, retired: false, bonuses: [] }
   if (kind === 'pilot_stats') return { id, name: '', sort_order: nextOrder }
   return { id, name: '' }
 }
@@ -365,10 +365,14 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   return problems
 }
 
-export type BionicData = { id: string; name: string; description: string; mod_point_cost: number; retired: boolean; bonuses: { stat_id: string; amount: number }[] }
+// Where on the body a biomod goes: the form suggests these (and any slot already used); the slot itself is free text.
+export const BIONIC_SLOTS = ['Head', 'Eyes', 'Ears', 'Brain', 'Spine', 'Torso', 'Heart', 'Lungs', 'Arm', 'Hand', 'Leg', 'Foot', 'Skin', 'Nervous system', 'Full body']
+export type BionicData = { id: string; name: string; description: string; slot: string; effect: string; manna_cost: number; mod_point_cost: number; retired: boolean; bonuses: { stat_id: string; amount: number }[] }
 export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Problem[] {
   const problems: Problem[] = []
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
+  if (typeof data.slot !== 'string' || !data.slot.trim()) problems.push(warn('No slot: pilots will not see where on the body it goes.', 'slot'))
+  if (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0) problems.push(error('The price needs a whole number of manna, 0 or more.', 'manna_cost'))
   if (!Number.isInteger(data.mod_point_cost) || (data.mod_point_cost as number) < 0) problems.push(error('Mod points need a whole number, 0 or more.', 'mod_point_cost'))
   const seen = new Set<string>()
   for (const [index, bonus] of list(data.bonuses).entries()) {

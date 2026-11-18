@@ -24,12 +24,12 @@ import { imageUrl } from '../images'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { useMechData } from '../mechData'
-import { bionicInfo, frameInfo, itemInfo, talentInfo } from '../info'
+import { bionicInfo, frameInfo, licenceUnlocks, talentInfo } from '../info'
 import { useMyPilot, type Sheet } from '../myPilot'
 import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
 import { pilotList, sectionOverride } from '../router'
-import { coreBonusPicks, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
+import { coreBonusPicks, gmOnly, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
 
 // my pilot: your pilot as one sheet. A compact header (portrait, callsign, name, player, status, then level, licence
 // level and manna), the "what happens next" bar under it, any notes and the rule check, then a slim sticky row of
@@ -124,7 +124,7 @@ const mechLink = (mechId: string) =>
 // A GM's edit mode (?edit=1) on a living pilot's record or review page; Done leaves it.
 const gmCanEdit = computed(() => isGm.value && !own && character.value?.status !== 'dead')
 const setEdit = (on: boolean) => router.replace({ query: { ...route.query, edit: on ? '1' : undefined } })
-const { gear, bionics, pilotStats, talents, coreBonuses } = useGameData()
+const { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses } = useGameData()
 
 // The identity table under the portrait. [column, label]
 const IDENTITY = [
@@ -179,7 +179,7 @@ const saveBackstory = (doc: Json | null) => track(updateSheet({ backstory: doc }
 // Bionics for their box, each opening its full information.
 const bionicOptions = computed(() => {
   const statNames = new Map(pilotStats.value.map((stat) => [stat.id, stat.name]))
-  return bionicItems(bionics.value, PRICES.bionic).map((item, i) => ({ ...item, info: () => bionicInfo(bionics.value[i], statNames, PRICES.bionic) }))
+  return bionicItems(bionics.value).map((item, i) => ({ ...item, info: () => bionicInfo(bionics.value[i], statNames) }))
 })
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
 const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
@@ -187,23 +187,18 @@ const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, mods } = useMechData()
 const catalogue = useCatalogue()
-const balance = computed(() => gm.value.manna - mannaSpent(sheet.value))
+const balance = computed(() => gm.value.manna - mannaSpent(sheet.value, bionicPrices.value))
 
 // Licences: one per licensed frame. Each rank unlocks the frame and gear of that licence level.
 const licenceOptions = computed(() =>
   frames.value
     .filter((frame) => frame.licenceLevel > 0)
-    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value) })),
+    .map((frame) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), gmOnly: gmOnly(frame) })),
 )
-const licenceDetails = (id: string): RankStep[] =>
-  [1, 2, 3].map((level) => ({
-    unlocks: [
-      ...frames.value.filter((f) => f.id === id && f.licenceLevel === level).map((f) => ({ kind: 'frame', name: f.name, info: () => frameInfo(f, frames.value) })),
-      ...weapons.value.filter((w) => w.licenceId === id && w.licenceLevel === level).map((w) => ({ kind: 'weapon', name: w.name, info: () => itemInfo(w) })),
-      ...systems.value.filter((s) => s.licenceId === id && s.licenceLevel === level).map((s) => ({ kind: 'system', name: s.name, info: () => itemInfo(s) })),
-      ...mods.value.filter((m) => m.licenceId === id && m.licenceLevel === level).map((m) => ({ kind: 'mod', name: m.name, info: () => itemInfo(m) })),
-    ],
-  }))
+const licenceDetails = (id: string): RankStep[] => {
+  const frame = frames.value.find((f) => f.id === id)
+  return [1, 2, 3].map((level) => ({ unlocks: frame ? licenceUnlocks(frame, weapons.value, systems.value, mods.value, level, frames.value) : [] }))
+}
 // The hangar: a mech's frame is private, and a new mech joins the card's list.
 const frameId = (mechId: string) => sheet.value.mechs?.[mechId]?.frame
 const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
@@ -333,7 +328,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             <div class="fact">
               <dt class="label">Manna left</dt>
               <dd class="fact-value num" :class="{ over: balance < 0 }">{{ formatAmount(balance) }}</dd>
-              <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
+              <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet, bionicPrices)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
             </div>
           </dl>
           <div v-if="gmLink || (gmCanEdit && !gmEditing)" class="gm-actions">
@@ -506,7 +501,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             :chosen="sheet.bionics ?? []"
             :editable="editable"
             :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
-            :add-blocked="balance < PRICES.bionic ? 'Not enough manna' : ''"
+            :balance="balance"
             :save="saveBionics"
           />
           <PilotLoadout class="panel" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />

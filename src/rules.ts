@@ -38,7 +38,21 @@ export function personalStatProblems(values: Record<string, number> = {}): strin
 export const formatAmount = (n: number) => n.toLocaleString('en-GB')
 
 // Manna prices.
-export const PRICES = { licenceRank: 600, bionic: 500, talentRank: 300 }
+export const PRICES = { licenceRank: 600, talentRank: 300 }
+
+// Content only GMs and owners hand out (docs/lancer-rules.md): anything from these manufacturers, or of the "Exotic"
+// category (a pilot gear type, a licence or a manufacturer of that name). Matched by name, ignoring case, because
+// NHC and Exotic content comes from packs imported on the live site, not from this repo.
+export const GM_ONLY_NAMES = ['HORUS', 'NHC', 'EXOTIC']
+export const GM_ONLY_REASON = 'GM only'
+type Restrictable = { source?: unknown; type?: unknown; licenceId?: string; raw?: Record<string, unknown> }
+// Whether a frame, weapon, system, mod, gear item or core bonus is GM-only: its own source, type or licence name, or
+// the manufacturer or name of the frame whose licence it needs. Pickers block it for players (never GMs).
+export function gmOnly(thing: Restrictable, frames: Frame[] = []): boolean {
+  const licence = frames.find((frame) => frame.id === thing.licenceId)
+  const labels = [thing.source, thing.type, thing.raw?.source, thing.raw?.license, thing.raw?.category, licence?.source, licence?.name]
+  return labels.some((label) => typeof label === 'string' && GM_ONLY_NAMES.includes(label.trim().toUpperCase()))
+}
 
 export const sum = (values: Record<string, number> | undefined) => Object.values(values ?? {}).reduce((a, b) => a + (Number.isFinite(b) ? Math.max(0, b) : 0), 0)
 
@@ -80,9 +94,10 @@ export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBo
   return problems
 }
 
-// Manna spent on the sheet: licence ranks, biomods and talent ranks.
-export const mannaSpent = (sheet: Sheet) =>
-  licenceLevel(sheet) * PRICES.licenceRank + (sheet.bionics?.length ?? 0) * PRICES.bionic + sum(sheet.talents) * PRICES.talentRank
+// Manna spent on the sheet: licence ranks, biomods (each at its own price; an id missing from the catalogue costs 0, like
+// any unknown item) and talent ranks.
+export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>) =>
+  licenceLevel(sheet) * PRICES.licenceRank + (sheet.bionics ?? []).reduce((total, id) => total + (bionicPrices.get(id) ?? 0), 0) + sum(sheet.talents) * PRICES.talentRank
 
 export const rankName = (rank: number) => ['0', 'I', 'II', 'III'][rank] ?? String(rank)
 
@@ -112,6 +127,8 @@ export type Catalogue = {
   mods?: Map<string, Item>
   // Each bionic's mod-point cost, by id (only the pilot check needs it).
   bionicCosts?: Map<number, number>
+  // Each bionic's price in manna, by id (what mannaSpent reads).
+  bionicPrices?: Map<number, number>
   coreBonuses?: CoreBonus[]
   talents?: Talent[]
   gear?: Item[]
@@ -120,7 +137,7 @@ export type Catalogue = {
 // The loaded game content, in the shape the rule checks (and mechEffects) read. Empty until the catalogues arrive.
 export function useCatalogue() {
   const { frames, weapons, systems, mods, integrated } = useMechData()
-  const { bionics, coreBonuses, talents, gear } = useGameData()
+  const { bionics, bionicPrices, coreBonuses, talents, gear } = useGameData()
   return computed<Catalogue>(() => ({
     frames: frames.value,
     weapons: new Map(weapons.value.map((item) => [item.id, item])),
@@ -128,6 +145,7 @@ export function useCatalogue() {
     integrated: integrated.value,
     mods: new Map(mods.value.map((item) => [item.id, item])),
     bionicCosts: new Map(bionics.value.map((bionic) => [bionic.id, bionic.mod_point_cost])),
+    bionicPrices: bionicPrices.value,
     coreBonuses: coreBonuses.value,
     talents: talents.value,
     gear: gear.value,
@@ -255,7 +273,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 // each mech by name.
 export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>): string[] {
   const problems = personalStatProblems(sheet.pilot_stats)
-  const spent = mannaSpent(sheet)
+  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map())
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 
   const skills = sum(sheet.mech_skills)

@@ -8,6 +8,7 @@ import ItemCard from './ItemCard.vue'
 import ItemStats from './ItemStats.vue'
 import RadarChart from './RadarChart.vue'
 import RulesText from './RulesText.vue'
+import UnlockList from './UnlockList.vue'
 
 // The full information on one thing (src/info.ts), under its name: shared by the information dialog (InfoDialog.vue)
 // and the archives' detail pane. Left-aligned: its facts, its numbers (a frame's as a radar chart against every frame,
@@ -78,7 +79,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
         </dl>
         <ul v-else class="cards" :class="{ stack: group.stack }">
           <li v-for="(card, c) in group.cards" :key="c" class="card">
-            <InfoRule v-bind="rule(card)" />
+            <InfoRule v-bind="rule(card)"><UnlockList v-if="card.unlocks?.length" :items="card.unlocks" links /></InfoRule>
           </li>
         </ul>
       </section>

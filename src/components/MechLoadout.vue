@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
@@ -9,7 +10,7 @@ import { plainText } from '../rulesText'
 import { modBlockedBy, modsRefused } from '../equipment'
 import { allowedSizes, fittedMods, MOUNT_HINTS, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { bracingMount, isLicensed, licenceName, rankName, superheavyMount } from '../rules'
+import { bracingMount, gmOnly, GM_ONLY_REASON, isLicensed, licenceName, rankName, superheavyMount } from '../rules'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 import BuildItem from './BuildItem.vue'
@@ -152,10 +153,12 @@ const options = computed(() => {
     return ''
   }
   // Licensed items first (for a mod, ones that fit), then the rest (shown, so players can see what a licence would unlock).
+  // GM-only ones (HORUS, NHC, Exotic) are blocked for players and go last.
   return list
     .map((item) => {
       const details = itemDetails(item, tagNames.value)
-      const blocked = blockedBy(item)
+      const restricted = !isGm.value && gmOnly(item, props.frames)
+      const blocked = restricted ? GM_ONLY_REASON : blockedBy(item)
       return {
         id: item.id,
         name: item.name,
@@ -163,7 +166,7 @@ const options = computed(() => {
         text: plainText(details.text),
         info: () => itemInfo(item),
         blocked,
-        licensed: t.kind === 'mod' ? !blocked : isLicensed(item, props.licences),
+        licensed: !restricted && (t.kind === 'mod' ? !blocked : isLicensed(item, props.licences)),
       }
     })
     .sort((a, b) => Number(b.licensed) - Number(a.licensed))

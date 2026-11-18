@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { sourceOf } from '../gameData'
-import { MAX_LICENCE_RANK, rankName } from '../rules'
-import type { Info } from '../info'
+import { isGm } from '../auth'
+import { GM_ONLY_REASON, MAX_LICENCE_RANK, rankName } from '../rules'
+import type { Info, Unlock } from '../info'
 import Icon from './Icon.vue'
-import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
 import ItemPicker from './ItemPicker.vue'
 import RulesText from './RulesText.vue'
+import UnlockList from './UnlockList.vue'
 
 // What one rank gives: a talent rank's name and rules text, or the gear a licence rank unlocks.
-export type RankStep = { name?: string; html?: string; unlocks?: { kind: string; name: string; info?: () => Info }[] }
+export type RankStep = { name?: string; html?: string; unlocks?: Unlock[] }
 
 // Things bought by rank with manna (licences and talents; src/rules.ts): an item card per one held, its rank in the
 // header, and what each rank gives ("details", one step per rank); and a button in the heading to buy a new one from
@@ -18,10 +19,11 @@ export type RankStep = { name?: string; html?: string; unlocks?: { kind: string;
 // their symbols; talents ("tiers") stack them, a big numeral beside the rank's name and rules. Held ranks are bright,
 // later ones dimmed, with "Next: 600 manna" or "Locked" while editable. Each rank costs "price"; buying stops when
 // the manna "balance" can't cover it (the button stays, disabled, with the reason beside it). Lowering refunds it.
+// An option marked "gmOnly" (HORUS, NHC, Exotic) can't be bought by players (blocked), "GM only", listed last.
 const props = defineProps<{
   title: string
   noun: string
-  options: { id: string; name: string; meta?: string; info?: () => Info }[]
+  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean }[]
   held: Record<string, number>
   details: (id: string) => RankStep[]
   columns?: boolean
@@ -36,6 +38,7 @@ const optionOf = (id: string) => props.options.find((option) => option.id === id
 const nameOf = (id: string) => optionOf(id)?.name ?? id
 const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
 const affordable = computed(() => props.balance >= props.price)
+const restricted = (id: string) => !isGm.value && !!optionOf(id)?.gmOnly
 // Licences are frame-purple, talents brown (the --type-* tokens).
 const look = computed(() => (props.columns ? { type: 'frame' as const, icon: 'license' } : { type: 'talent' as const, icon: 'talent' }))
 // What a rank's box says about it: held, the next one to buy, or locked behind it. Prices only while editable.
@@ -63,7 +66,8 @@ const picker = useTemplateRef('picker')
 const offered = computed(() =>
   props.options
     .filter((option) => !props.held[option.id])
-    .map((option) => ({ ...option, blocked: affordable.value ? '' : 'Not enough manna' })),
+    .map((option) => ({ ...option, blocked: restricted(option.id) ? GM_ONLY_REASON : affordable.value ? '' : 'Not enough manna' }))
+    .sort((a, b) => Number(restricted(a.id)) - Number(restricted(b.id))),
 )
 
 function open() {
@@ -103,14 +107,7 @@ async function buy(id: string) {
                 <span v-else-if="status(i, rank) === 'locked'" class="status">Locked</span>
               </p>
               <RulesText v-if="step.html" :html="step.html" />
-              <ul v-if="step.unlocks?.length" class="unlocks">
-                <li v-for="item in step.unlocks" :key="`${item.kind}:${item.name}`">
-                  <Icon :name="item.kind" />
-                  <span class="sr-only">{{ item.kind }}:</span>
-                  <InfoButton v-if="item.info" :info="item.info" :label="item.name" />
-                  <template v-else>{{ item.name }}</template>
-                </li>
-              </ul>
+              <UnlockList v-if="step.unlocks?.length" :items="step.unlocks" />
               <p v-else-if="!step.html" class="dim nothing">Nothing new at this rank.</p>
             </div>
           </li>
@@ -246,27 +243,6 @@ async function buy(id: string) {
 .ladder .unlocks,
 .ladder .nothing {
   grid-column: 1 / -1;
-}
-
-.unlocks {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  font-size: var(--fs-s);
-  list-style: none;
-}
-
-.unlocks li {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.unlocks .icon {
-  width: 18px;
-  height: 18px;
-  color: var(--text-dim);
 }
 
 /* A talent rank: a big numeral in its own column, then the rank's name and rules, left-aligned. Ranks are parted by a

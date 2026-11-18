@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { paragraphs, parseRules, plainText } from './rulesText'
+import { firstLine, paragraphs, parseRules, plainText } from './rulesText'
 
 describe('rules text', () => {
   it('keeps lists, bold and line breaks as data', () => {
@@ -35,5 +35,11 @@ describe('rules text', () => {
       { tag: 'ul', children: [{ tag: 'li', children: ['a', { tag: 'br', children: [] }, 'b'] }] },
     ])
     expect(paragraphs(parseRules('No breaks.'))).toEqual(['No breaks.'])
+  })
+
+  it('keeps only the first line, even when the break is inside italics', () => {
+    expect(firstLine(parseRules('<i>One,<br>two.</i>'))).toEqual([{ tag: 'i', children: ['One,'] }])
+    expect(firstLine(parseRules('One.<br>Two.'))).toEqual(['One.'])
+    expect(firstLine(parseRules('<i>Just one.</i>'))).toEqual([{ tag: 'i', children: ['Just one.'] }])
   })
 })

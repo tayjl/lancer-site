@@ -23,7 +23,7 @@ This campaign replaces LANCER's licence level with two things, decided by the de
 | Level gives **HASE points: 2 + level**. | Enforced |
 | Level gives **biomod capacity, the mod limit: 6 + level**. | Enforced |
 | **Manna** buys everything else. GMs record how much a pilot has received. | Enforced by the database (`character_sheets.manna`, GM-only trigger) |
-| What's spent is worked out from the sheet: **licence ranks 600, biomods 500, talent ranks 300**. Balance = received − spent. Lowering a rank or removing a biomod refunds it. | Enforced (pickers block what the balance can't cover; the rule check flags a negative balance) |
+| What's spent is worked out from the sheet: **licence ranks 600, biomods each at their own price (set in the content editor), talent ranks 300**. Balance = received − spent. Lowering a rank or removing a biomod refunds it. | Enforced (pickers block what the balance can't cover; the rule check flags a negative balance) |
 | **GMS gear** is free to print. **Licensed gear** (frames, weapons, systems) is free once you hold the licence rank. | Enforced |
 | Manna spent outside the sheet (bribes, repairs, anything narrative) isn't tracked. GMs lower "manna received" for it. | GM |
 | Starting level and manna for a new pilot. | GM (entered by hand; open question in CLAUDE.md) |
@@ -38,7 +38,7 @@ Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything alread
 | **Licence level** is the total licence ranks bought. | Enforced (worked out) |
 | **Frames** need rank II in their licence. GMS frames (licence level 0, e.g. the Everest) need none. | Enforced |
 | **Mech weapons and systems** need a rank in their frame's licence at least equal to their licence level (I, II or III). GMS items (licence level 0) need none. | Enforced |
-| Exotic or GM-granted gear outside licences. | Not supported. GMs can't grant it yet. |
+| **GM-only content:** anything from the HORUS or NHC (Nidhogg Collective) manufacturers, anything of the "Exotic" category (a gear type, licence or manufacturer of that name), and anything whose licence is a frame from one of those (`gmOnly()` in `src/rules.ts`, matched by name, ignoring case). Players can't add it: the frame, weapon, system, mod, gear, licence and core bonus pickers show it blocked ("GM only", listed last), and players can't gain such a licence, but once a pilot holds one (a GM granted it) they can `Raise rank` on it with manna like any other. GMs and owners are unrestricted, on their own pilots and on any pilot in GM edit mode. Items a GM added stay usable and aren't flagged as rule problems. | Enforced in the pickers only (the sheet is one JSON column, so the database can't tell who added an item); GM review is the backstop, since a player's changes only reach a pilot through approval and the review lists every addition. |
 
 ## Pilot skills and stats
 

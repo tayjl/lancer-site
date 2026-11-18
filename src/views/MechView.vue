@@ -29,7 +29,8 @@ import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
 import { pilotList, sectionOverride } from '../router'
-import { isLicensed, mechProblems, useCatalogue } from '../rules'
+import { gmOnly, GM_ONLY_REASON, isLicensed, mechProblems, useCatalogue } from '../rules'
+import { isGm } from '../auth'
 
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
 // maker's logo and a thin top border in its colour, the name, manufacturer id, frame and class, then pilot, size and
@@ -161,17 +162,18 @@ const saveHistory = (doc: Json | null) => track(savePrivate({ history: doc }))
 const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes))
 
 // --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
-// A licensed frame needs rank II in its own licence; GMS frames need none.
+// A licensed frame needs rank II in its own licence; GMS frames need none. HORUS, NHC and Exotic frames are GM-only.
 const framePicker = useTemplateRef('framePicker')
 const frameOptions = computed(() =>
   frames.value
     .map((f) => {
-      const licensed = isLicensed({ licenceId: f.id, licenceLevel: f.licenceLevel }, licences.value)
+      const restricted = !isGm.value && gmOnly(f)
+      const licensed = !restricted && isLicensed({ licenceId: f.id, licenceLevel: f.licenceLevel }, licences.value)
       return {
         id: f.id,
         name: `${f.source} ${f.name}`,
         meta: [f.mechtype.join('/'), `Mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? 'Licence rank II' : 'GMS'].filter(Boolean),
-        blocked: licensed ? '' : 'Needs licence II',
+        blocked: restricted ? GM_ONLY_REASON : licensed ? '' : 'Needs licence II',
         info: () => frameInfo(f, frames.value),
         licensed,
       }

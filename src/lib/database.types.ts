@@ -75,29 +75,35 @@ export type Database = {
       bionics: {
         Row: {
           description: string | null
+          effect: string
           id: number
           manna_cost: number
           mod_point_cost: number
           name: string
           retired: boolean
+          slot: string
           updated_at: string
         }
         Insert: {
           description?: string | null
+          effect?: string
           id?: never
           manna_cost?: number
           mod_point_cost?: number
           name: string
           retired?: boolean
+          slot?: string
           updated_at?: string
         }
         Update: {
           description?: string | null
+          effect?: string
           id?: never
           manna_cost?: number
           mod_point_cost?: number
           name?: string
           retired?: boolean
+          slot?: string
           updated_at?: string
         }
         Relationships: []
@@ -605,9 +611,12 @@ export type Database = {
           expected_updated_at?: string
           new_bonuses: Json
           new_description: string
+          new_effect: string
           new_mod_cost: number
           new_name: string
+          new_price: number
           new_retired: boolean
+          new_slot: string
           target_id?: number
         }
         Returns: Json

@@ -132,6 +132,8 @@ const linked = computed(() => {
   const wanted = parseItem(route.query.item)
   return wanted ? entries.value.find((e) => e.category === wanted.category && e.id === wanted.id) : undefined
 })
+// Whether the dialog already shows this entry (a link inside it moves the url to another one, which then replaces it).
+const isShown = (entry: ArchiveEntry) => shownInfo.value?.id === entry.id && shownInfo.value.kind === entry.info().kind
 const selected = computed(() => (linked.value && listed.value.includes(linked.value) ? linked.value : listed.value[0]))
 // Desktop shows the chosen entry in the detail pane; phones and the landing open the dialog.
 const pane = useTemplateRef<HTMLElement>('pane')
@@ -145,7 +147,7 @@ watch(
   ([value]) => {
     if (!value) return
     const wanted = parseItem(value)
-    if (linked.value) { if (!paneMode.value && !shownInfo.value) showInfo(linked.value.info()) }
+    if (linked.value) { if (!paneMode.value && !isShown(linked.value)) showInfo(linked.value.info()) }
     else if (!wanted || entries.value.some((e) => e.category === wanted.category)) setQuery({ item: undefined })
   },
   { immediate: true },
@@ -197,7 +199,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
             <InfoButton class="maker-id" :info="() => manufacturerInfo(maker, frames)" :label="maker.name" @click="open('manufacturers', maker.id)">{{ maker.id }}</InfoButton>
             <span v-if="subtitle(maker)" class="maker-name" :class="{ glitch: GLITCHED.has(maker.id) }">{{ subtitle(maker) }}</span>
           </header>
-          <RulesText v-if="MOTTOS[maker.id] ?? maker.quote" class="motto" :html="MOTTOS[maker.id] ?? maker.quote" />
+          <RulesText v-if="MOTTOS[maker.id] ?? maker.quote" class="motto" first-line-only :html="MOTTOS[maker.id] ?? maker.quote" />
           <ul class="maker-counts">
             <li v-for="c in counts(maker)" :key="c.made">
               <!-- A zero is a plain row: a click would only open an empty list. -->

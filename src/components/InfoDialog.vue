@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { loadManufacturers, makerColour, makerLogo } from '../archive'
 import { shownInfo, type Manufacturer } from '../info'
 import Icon from './Icon.vue'
@@ -10,6 +11,9 @@ import InfoBody from './InfoBody.vue'
 // name, Close), then InfoBody.vue, which the archives' detail pane shares.
 const dialog = useTemplateRef('dialog')
 const closed = () => { shownInfo.value = null }
+// A link inside it (to an archive entry) goes to another page: close it there. (Within the archives, which swaps its own.)
+const route = useRoute()
+watch(() => route.path, closed)
 watch(shownInfo, (info) => {
   if (info && !dialog.value?.open) dialog.value?.showModal()
   if (!info) dialog.value?.close()

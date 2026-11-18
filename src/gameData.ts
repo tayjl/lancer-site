@@ -1,4 +1,4 @@
-import { shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { cached, clearCatalogues, loadKind } from './catalogue'
 import { fetchAll, supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
@@ -118,6 +118,10 @@ export type Bionic = {
   id: number
   name: string
   description: string | null
+  slot: string
+  // Rules text, simple HTML like an item's effect.
+  effect: string
+  // The price in manna.
   manna_cost: number
   mod_point_cost: number
   retired: boolean
@@ -224,14 +228,16 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
   })
 }
 
-// Bionics as LoadoutBox items: the bonuses and manna price as the subtitle (and the bonuses as stats with symbols, for
-// the cards), the mod-point cost as the cost.
-// Every biomod costs the same (homebrew; PRICES in src/rules.ts), so the bionics table's own manna_cost is unused.
-export const bionicItems = (catalogue: Bionic[], price: number) =>
+// Bionics as LoadoutBox items: the slot, bonuses and manna price as the subtitle (and the bonuses as stats with symbols, for
+// the cards), the mod-point cost as the cost, the price for the picker's affordability check.
+export const bionicItems = (catalogue: Bionic[]) =>
   catalogue.map((b) => ({
     id: b.id,
     name: b.name,
-    type: [...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`), `${price} manna`].join(', '),
+    type: [b.slot, ...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`)].filter(Boolean).join(', '),
+    slot: b.slot,
+    effect: b.effect,
+    price: b.manna_cost,
     stats: b.bonuses.map((bonus) => ({ label: bonus.stat_id.replace('_', '-'), value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}`, icon: STAT_ICONS[bonus.stat_id] })),
     description: b.description,
     cost: b.mod_point_cost,
@@ -252,6 +258,8 @@ export function toCoreBonus(id: string, data: unknown): CoreBonus {
 export function useGameData() {
   const gear = shallowRef<Item[]>([])
   const bionics = shallowRef<Bionic[]>([])
+  // Each biomod's price in manna, by id (what mannaSpent() reads).
+  const bionicPrices = computed(() => new Map(bionics.value.map((bionic) => [bionic.id, bionic.manna_cost])))
   const pilotStats = shallowRef<PilotStat[]>([])
   const talents = shallowRef<Talent[]>([])
   const coreBonuses = shallowRef<CoreBonus[]>([])
@@ -279,5 +287,5 @@ export function useGameData() {
 
   load()
 
-  return { gear, bionics, pilotStats, talents, coreBonuses }
+  return { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses }
 }

@@ -4,14 +4,15 @@ import type { Info } from '../info'
 import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
 import ItemStats from './ItemStats.vue'
+import RulesText from './RulesText.vue'
 
 // A loadout section (bionics): the chosen items as item cards (pilot colour, the cost at the right, any stats with
 // their symbols, the description), and an edit button that opens a picker to add or remove them.
 // Only items from the catalogue can be added. With "limit", each item's cost counts against a cap
-// (e.g. bionics against the mod limit), and the picker won't add anything that goes over it. "addBlocked"
-// stops all adding and says why (e.g. "not enough manna").
+// (e.g. bionics against the mod limit), and the picker won't add anything that goes over it. An item with a "price"
+// can't be added when it costs more than "balance" (manna left).
 type Id = string | number
-type Item = { id: Id; name: string; type?: string; stats?: { label: string; value: string; icon?: string }[]; description?: string | null; cost?: number; retired?: boolean; info?: () => Info }
+type Item = { id: Id; name: string; type?: string; stats?: { label: string; value: string; icon?: string }[]; description?: string | null; slot?: string; effect?: string; price?: number; cost?: number; retired?: boolean; info?: () => Info }
 
 const props = defineProps<{
   title: string
@@ -20,7 +21,7 @@ const props = defineProps<{
   editable: boolean
   tag?: string
   limit?: { label: string; unit: string; max: number }
-  addBlocked?: string
+  balance?: number
   save: (ids: Id[]) => Promise<string | null>
 }>()
 
@@ -47,7 +48,7 @@ const offered = computed(() => {
 
 const tooCostly = (item: Item) => !!props.limit && used.value + (item.cost ?? 0) > props.limit.max
 // Why an item can't be added, or '' if it can.
-const blockedBy = (item: Item) => (tooCostly(item) ? 'Over the limit' : props.addBlocked || '')
+const blockedBy = (item: Item) => (tooCostly(item) ? 'Over the limit' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
 
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]
@@ -76,7 +77,9 @@ function open() {
     <ul v-if="chosenItems.length" class="slot-grid">
       <li v-for="item in chosenItems" :key="item.id">
         <ItemCard type="pilot" icon="generic_item" :name="item.name" :info="item.info" :meta="item.cost ? String(item.cost) : ''" :unit="limit?.unit">
+          <p v-if="item.slot || item.price != null" class="facts sep"><span v-if="item.slot">{{ item.slot }}</span><span v-if="item.price != null">{{ item.price }} manna</span></p>
           <ItemStats v-if="item.stats?.length" :stats="item.stats" />
+          <RulesText v-if="item.effect" :html="item.effect" />
           <p v-if="item.description" class="description">{{ item.description }}</p>
         </ItemCard>
       </li>
@@ -108,6 +111,7 @@ function open() {
               <span class="pick-meta sep">
                 <span v-if="item.type">{{ item.type }}</span>
                 <span v-if="item.cost != null">{{ item.cost }} {{ limit?.unit }}</span>
+                <span v-if="item.price != null">{{ item.price }} manna</span>
               </span>
               <span v-if="item.description" class="pick-text">{{ item.description }}</span>
             </div>
@@ -138,9 +142,12 @@ function open() {
   white-space: nowrap;
 }
 
+/* Flavour, drawn like lore (dim, italic) so it reads apart from the effect's rules. */
 .description {
   margin: 0;
-  font-size: var(--fs-m);
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+  font-style: italic;
 }
 
 /* --- The picker (dialog and option rows from style.css) --- */

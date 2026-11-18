@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, coreBonusPicks, coreBonusProblems, isLicensed, mannaSpent, mechProblems, personalPoints, personalStatProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
+import { bracingMount, coreBonusPicks, gmOnly, coreBonusProblems, isLicensed, mannaSpent, mechProblems, personalPoints, personalStatProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -42,6 +42,10 @@ const catalogue: Catalogue = {
   bionicCosts: new Map([
     [1, 2],
     [2, 3],
+  ]),
+  bionicPrices: new Map([
+    [1, 500],
+    [2, 500],
   ]),
 }
 
@@ -177,14 +181,16 @@ describe('homebrew levelling and manna', () => {
   it('flags invalid ranks and unavailable gear without granting negative spending refunds', () => {
     const sheet = { licences: { blackbeard: -3 }, talents: { missing: 1.5 }, mech_skills: { hull: -1 }, pilot_gear: ['missing'] }
     const problems = pilotProblems(sheet, { level: 0, manna: 10000 }, { ...catalogue, gear: [] }, {})
-    expect(mannaSpent({ licences: { blackbeard: -3 } })).toBe(0)
+    expect(mannaSpent({ licences: { blackbeard: -3 } }, new Map())).toBe(0)
     expect(problems).toContain('blackbeard licence must be a whole rank from 0 to III.'.replace('blackbeard', 'IPS-N blackbeard'))
     expect(problems).toContain('Talent missing must be a whole rank from 0 to III.')
     expect(problems).toContain('hull must be a whole number from 0 to 6.')
     expect(problems).toContain('Pilot gear includes items unavailable in the loaded content packs.')
   })
-  it('prices licence ranks at 600, biomods at 500 and talent ranks at 300', () => {
-    expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } })).toBe(3 * 600 + 2 * 500 + 300)
+  it('prices licence ranks at 600, talent ranks at 300 and each biomod at its own price', () => {
+    const prices = new Map([[1, 500], [2, 750]])
+    expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } }, prices)).toBe(3 * 600 + 500 + 750 + 300)
+    expect(mannaSpent({ bionics: [1, 99] }, prices)).toBe(500)
   })
 
   it('gives a core bonus for every 3 licence ranks', () => {
@@ -210,5 +216,32 @@ describe('homebrew levelling and manna', () => {
       'Bionics use 8 mod points, but level 0 only gives 6.',
       'A biomod can only be installed once.',
     ])
+    const dear = { ...catalogue, bionicPrices: new Map([[1, 750], [2, 500]]) }
+    expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, dear, {})).toEqual(['1250 manna spent, but only 1000 received.'])
+  })
+})
+
+describe('GM-only content', () => {
+  const horus = frame('goblin', 2, ['Main'])
+  horus.source = 'HORUS'
+  const frames = [everest, blackbeard, horus]
+
+  it('flags HORUS, NHC and Exotic by source, ignoring case', () => {
+    expect(gmOnly(horus)).toBe(true)
+    expect(gmOnly(item('a', { source: 'horus' }))).toBe(true) // an item's source is in its raw data
+    expect(gmOnly(item('a', {}))).toBe(false)
+    expect(gmOnly({ raw: { source: ' nhc ' } })).toBe(true)
+    expect(gmOnly({ raw: { source: 'Exotic' } })).toBe(true)
+    expect(gmOnly({ source: 'IPS-N' })).toBe(false)
+    expect(gmOnly({ source: 'GMS' })).toBe(false)
+  })
+
+  it('flags things whose licence is a frame from one of them, or that are of the Exotic type', () => {
+    expect(gmOnly(item('visor', { license_id: 'goblin', license_level: 1 }), frames)).toBe(true)
+    expect(gmOnly(item('rifle', { license_id: 'blackbeard', license_level: 1 }), frames)).toBe(false)
+    expect(gmOnly(item('thing', { license_id: 'goblin' }))).toBe(false) // no frames given to look the licence up in
+    expect(gmOnly({ type: 'Exotic' })).toBe(true)
+    expect(gmOnly({ raw: { license: 'EXOTIC' } })).toBe(true)
+    expect(gmOnly({ raw: { category: 'exotic' } })).toBe(true)
   })
 })

@@ -113,12 +113,14 @@ describe('full information', () => {
   })
 
   it('shows bionic bonuses by stat name and escapes its plain text', () => {
-    const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', manna_cost: 0, mod_point_cost: 2, retired: false, bonuses: [{ stat_id: 'perception', amount: 1 }] }
-    const info = bionicInfo(bionic, new Map([['perception', 'perception']]), 500)
+    const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', slot: 'Eyes', effect: '<p>Sees <b>far</b>.</p>', manna_cost: 750, mod_point_cost: 2, retired: false, bonuses: [{ stat_id: 'perception', amount: 1 }] }
+    const info = bionicInfo(bionic, new Map([['perception', 'perception']]))
     expect(info.stats).toMatchObject([{ label: 'perception', value: '+1' }])
     expect(info.stats[0].icon).toBeTruthy()
-    expect(info.facts.map(fact => fact.text)).toEqual(['2 mod points', '500 manna'])
-    expect(info.groups[0].cards[0].html).toBe('See &lt;far> &amp; wide')
+    expect(info.facts.map(fact => fact.text)).toEqual(['Eyes', '2 mod points', '750 manna'])
+    expect(info.groups[0].cards.map(card => card.heading)).toEqual(['effect'])
+    expect(info.groups[0].cards[0].html).toBe('<p>Sees <b>far</b>.</p>')
+    expect(info.lore).toBe('<p>See &lt;far> &amp; wide</p>')
   })
 })
 
@@ -141,8 +143,9 @@ describe('archive information', () => {
     const info = licenceInfo(goblin, items('weapons'), items('systems'))
     expect(info).toMatchObject({ kind: 'HORUS licence', id: 'mf_goblin', name: 'Goblin' })
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['rank I', 'rank II', 'rank III'])
-    expect(info.groups[0].cards[0].html).toContain('<b>Weapon:</b> Autopod')
-    expect(info.groups[0].cards[1].html).toContain('<b>Frame:</b> Goblin')
+    expect(info.groups[0].cards[0].unlocks).toContainEqual(expect.objectContaining({ kind: 'weapon', name: 'Autopod', to: { name: 'archives', query: { cat: 'mech weapons', item: 'mech weapons:mw_autopod' } } }))
+    // The frame itself is at rank II, and links to its own entry.
+    expect(info.groups[0].cards[1].unlocks).toContainEqual(expect.objectContaining({ kind: 'frame', name: 'Goblin', to: { name: 'archives', query: { cat: 'frames', item: 'frames:mf_goblin' } } }))
   })
 
   it('shows a manufacturer’s motto, history and frames', () => {

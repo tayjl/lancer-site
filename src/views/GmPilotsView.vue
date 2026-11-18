@@ -7,6 +7,7 @@ import type { Json } from '../lib/database.types'
 import { PILOT_FIELDS, type PublicPilot } from '../pilots'
 import { checkWrite, supabase } from '../lib/supabaseClient'
 import type { Sheet } from '../myPilot'
+import { useGameData } from '../gameData'
 import { formatAmount, licenceLevel, mannaSpent } from '../rules'
 
 // Waiting pilots are ordered by submission time. The searchable roster includes every pilot,
@@ -51,7 +52,8 @@ const saved = reactive<Record<number, boolean>>({})
 // Numbers typed but not saved yet (a failed save keeps them on screen for Retry), by pilot.
 const typed = reactive<Record<number, { level?: number; manna?: number }>>({})
 const shown = (pilot: Pilot, field: 'level' | 'manna') => typed[pilot.id]?.[field] ?? pilot.sheet?.[field] ?? 0
-const spent = (pilot: Pilot) => mannaSpent((pilot.sheet ?? {}) as Sheet)
+const { bionicPrices } = useGameData()
+const spent = (pilot: Pilot) => mannaSpent((pilot.sheet ?? {}) as Sheet, bionicPrices.value)
 const left = (pilot: Pilot) => (pilot.sheet?.manna ?? 0) - spent(pilot)
 const licenceRanks = (pilot: Pilot) => licenceLevel((pilot.sheet ?? {}) as Sheet)
 

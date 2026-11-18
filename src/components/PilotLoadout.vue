@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
+import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemDetails, statLine } from '../itemDetails'
 import { itemInfo } from '../info'
+import { gmOnly, GM_ONLY_REASON } from '../rules'
 import { plainText } from '../rulesText'
 import ItemDetails from './ItemDetails.vue'
 import ItemPicker from './ItemPicker.vue'
@@ -50,13 +52,16 @@ async function unequip(slot: Slot) {
 const picker = useTemplateRef('picker')
 const target = ref<Slot | null>(null)
 
+// HORUS, NHC and Exotic gear is GM-only: blocked for players, and listed last.
 const options = computed(() =>
   props.items
     .filter((item) => item.type === target.value?.type)
     .map((item) => {
       const details = itemDetails(item, tagNames.value)
-      return { id: item.id, name: item.name, meta: statLine(details), text: plainText(details.text), info: () => itemInfo(item) }
-    }),
+      const blocked = !isGm.value && gmOnly(item) ? GM_ONLY_REASON : ''
+      return { id: item.id, name: item.name, meta: statLine(details), text: plainText(details.text), info: () => itemInfo(item), blocked }
+    })
+    .sort((a, b) => Number(!!a.blocked) - Number(!!b.blocked)),
 )
 
 function open(slot: Slot) {

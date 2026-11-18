@@ -1,12 +1,17 @@
 <script setup lang="ts">
+import type { RouteLocationRaw } from 'vue-router'
 import { showInfo, type Info } from '../info'
 
-// An item's name that opens its full information (InfoDialog.vue). "info" is only worked out when clicked.
-const props = defineProps<{ info: () => Info; label: string }>()
+// An item's name that opens its full information (InfoDialog.vue; "info" is only worked out when clicked), or, given
+// "to" instead, a link to its entry in the archives (archiveLink() in info.ts). Both look the same.
+const props = defineProps<{ info?: () => Info; to?: RouteLocationRaw; label: string }>()
 </script>
 
 <template>
-  <button type="button" class="info-link" :aria-label="`Full information: ${label}`" @click="showInfo(props.info())">
+  <RouterLink v-if="to" :to="to" class="info-link" :aria-label="`Open in archives: ${label}`">
+    <slot>{{ label }}</slot>
+  </RouterLink>
+  <button v-else type="button" class="info-link" :aria-label="`Full information: ${label}`" @click="showInfo(props.info!())">
     <slot>{{ label }}</slot>
   </button>
 </template>
