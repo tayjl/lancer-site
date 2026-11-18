@@ -780,6 +780,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
 /* --- Registering --- */
 .register {
   max-width: 32rem;
+  margin-inline: auto;
 }
 
 .register-form {
