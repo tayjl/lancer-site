@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content editor mockup</title>
+<link rel="stylesheet" href="../prototype/styles.css">
+<link rel="stylesheet" href="editor.css">
+</head>
+<body class="shell">
+
+<nav class="proto-index" aria-label="Mockup sections">
+  <strong>Content editor mockup:</strong>
+  <a href="#weapon">1 Weapon</a>
+  <a href="#official">2 Official item</a>
+  <a href="#frame">3 Frame</a>
+  <a href="#mobile">4 Phone</a>
+  <a href="#options">5 Layout options</a>
+  <a href="#notes">Notes for the developer</a>
+</nav>
+
+<main>
+<div class="intro">
+  <h1 style="font-size:var(--fs-xl);color:var(--text);margin-bottom:var(--space-s)">An editor for game content, inside the site</h1>
+  <p>Owners write homebrew frames, weapons, systems and the rest in a form, with a live preview of what players will see. Everything made here lives in one pack, <b>Campaign homebrew</b>. Official packs can be read and copied, never changed. The frames below are the real mockup pages: scroll inside them, click a list row, switch the preview tabs.</p>
+</div>
+
+<!-- ═══════════════ 1. Weapon ═══════════════ -->
+<section id="weapon" aria-labelledby="weapon-h">
+  <h2 class="group-h" id="weapon-h">1 · Editing a homebrew weapon</h2>
+  <p class="intro">Option A, the proposed layout: the archives' list and pane, with the form in the pane and the preview beside it. Shown with two profiles, an on-hit action, three tags (one with a mistake), two bonuses, and a weapon that five pilots already use. Scroll the frame to see every section.</p>
+  <figure style="margin:0 0 var(--space-m)"><figcaption class="cap"><b>Desktop</b> · 1280px wide · Cinder Lance (homebrew, in use)</figcaption>
+    <div class="scroll-wrap" style="margin:0"><iframe class="frame frame-d" loading="lazy" src="frames/weapon.html" title="Weapon editor, desktop"></iframe></div></figure>
+
+  <h3 style="font-size:var(--fs-l);margin:var(--space-l) 0 var(--space-s)" id="states">Save status and mistakes</h3>
+  <p class="intro">Same wording and colours as the rest of the site. A mistake is red with a warning sign and the word "Error", beside the field; a blocked Save keeps its label with the reason next to it. Saving is explicit here (not autosave), because saving a used item changes other people's sheets.</p>
+  <div class="states" aria-label="Save status examples">
+    <span class="status">Unsaved changes</span>
+    <span class="status" style="display:inline-flex;gap:4px;align-items:center;color:var(--text-dim);font-size:var(--fs-s)">Saving…</span>
+    <span class="save-ok" style="display:inline-flex;gap:4px;align-items:center;color:var(--ok);font-size:var(--fs-s)"><svg class="icon" aria-hidden="true"><use href="../prototype/icons.svg#check"/></svg>Saved</span>
+    <span style="display:inline-flex;gap:4px;align-items:center;color:var(--danger);font-size:var(--fs-s)"><svg class="icon" aria-hidden="true"><use href="../prototype/icons.svg#warning"/></svg>Not saved: you don't have permission to change this, or it no longer exists. <button class="btn btn-quiet btn-sm" type="button">Retry</button></span>
+    <span class="err" style="margin:0"><svg class="icon" aria-hidden="true"><use href="../prototype/icons.svg#warning"/></svg><span><b>Error:</b> Limited needs a number of uses.</span></span>
+  </div>
+</section>
+
+<!-- ═══════════════ 2. Official ═══════════════ -->
+<section id="official" aria-labelledby="official-h">
+  <h2 class="group-h" id="official-h">2 · An official item</h2>
+  <p class="intro">Official packs are read-only: no form, a lock in the list, and a <b>Copy to homebrew</b> button. The copy gets a new id, starts as a draft and leaves every existing sheet alone.</p>
+  <figure style="margin:0"><figcaption class="cap"><b>Desktop</b> · LANCER Core system selected</figcaption>
+    <div class="scroll-wrap" style="margin:0"><iframe class="frame frame-d" style="height:860px" loading="lazy" src="frames/official.html" title="Official item, desktop"></iframe></div></figure>
+</section>
+
+<!-- ═══════════════ 3. Frame ═══════════════ -->
+<section id="frame" aria-labelledby="frame-h">
+  <h2 class="group-h" id="frame-h">3 · A frame, the big one</h2>
+  <p class="intro">A frame has too many parts for one long form. Each part is a folded section with a one-line summary; only Stats and Weapon mounts are open. This is an outline: the folded sections reuse the same repeaters, action pickers and tag pickers as the weapon. A frame can also be a draft, shown here with <b>Save draft</b> and <b>Publish</b>.</p>
+  <figure style="margin:0"><figcaption class="cap"><b>Desktop</b> · homebrew frame, draft</figcaption>
+    <div class="scroll-wrap" style="margin:0"><iframe class="frame frame-d" loading="lazy" src="frames/frame.html" title="Frame editor, desktop"></iframe></div></figure>
+</section>
+
+<!-- ═══════════════ 4. Phone ═══════════════ -->
+<section id="mobile" aria-labelledby="mobile-h">
+  <h2 class="group-h" id="mobile-h">4 · On a phone</h2>
+  <p class="intro">One screen at a time. The list is its own screen; opening an item shows the form with a back link, and the preview sits behind an <b>Edit | Preview</b> tab row instead of beside the form. Save stays in the sticky bar. Controls are 44px.</p>
+  <div class="phones">
+    <figure style="margin:0"><figcaption class="cap"><b>Phone</b> · list</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/weapon.html?screen=list" title="Weapon list, phone"></iframe></figure>
+    <figure style="margin:0"><figcaption class="cap"><b>Phone</b> · form</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/weapon.html?screen=form" title="Weapon form, phone"></iframe></figure>
+    <figure style="margin:0"><figcaption class="cap"><b>Phone</b> · Preview tab</figcaption><iframe class="frame frame-p" loading="lazy" src="frames/weapon.html?screen=preview" title="Weapon preview, phone"></iframe></figure>
+  </div>
+</section>
+
+<!-- ═══════════════ 5. Options ═══════════════ -->
+<section id="options" aria-labelledby="options-h">
+  <h2 class="group-h" id="options-h">5 · Two layouts for the weapon screen</h2>
+  <p class="intro">Option A is screen 1 above. Option B removes the separate preview: the item card itself is the form. Hovering a part outlines it; clicking opens the editor for that part in place. Here the tags are open.</p>
+  <figure style="margin:0 0 var(--space-l)"><figcaption class="cap"><b>Option B</b> · edit on the card (pane only)</figcaption>
+    <div class="scroll-wrap" style="margin:0"><iframe class="frame frame-b" loading="lazy" src="frames/option-b.html" title="Option B, edit on the card"></iframe></div></figure>
+  <div class="opts">
+    <div class="opt"><h3>Option A · form and preview side by side</h3>
+      <ul>
+        <li class="pro">Every field is in a fixed place and nothing is hidden, so it is easy to find, test and make accessible.</li>
+        <li class="pro">One pattern for all ten kinds: frames, talents and tags only change the form, not the screen.</li>
+        <li class="pro">Phones work naturally: Edit and Preview become two tabs.</li>
+        <li class="con">You edit in one place and look in another, and the preview column is narrow on a small laptop.</li>
+      </ul></div>
+    <div class="opt"><h3>Option B · edit on the card</h3>
+      <ul>
+        <li class="pro">What you change is what you see; it feels like building a card in COMP/CON.</li>
+        <li class="pro">Fewer boxes on screen for a small item like a weapon.</li>
+        <li class="con">Ids, bonuses, dice, lore and raw data are not on the card, so a side panel is needed anyway.</li>
+        <li class="con">Every kind needs its own clickable card, and big items like frames get crowded; small tap targets and many hidden controls are hard on phones and for keyboard use.</li>
+      </ul></div>
+  </div>
+</section>
+
+<!-- ═══════════════ Notes ═══════════════ -->
+<section id="notes" aria-labelledby="notes-h">
+  <h2 class="group-h" id="notes-h">Notes for the developer</h2>
+  <div class="notes">
+    <div><h3>Where it lives</h3>
+      <p>A sub-page of Content (<span class="code">/gm/content/editor</span>), reached from a button on the Content page and shown in the mockups with the Content tab current and a "Packs and imports" link back. I would not add a new top-bar tab: the bar already needs about 75rem for an owner, and another tab moves the Menu drawer breakpoint further up. Content stays the pack manager (import, update, remove); the editor is where the items inside are made.</p></div>
+    <div><h3>Open decisions</h3>
+      <ol>
+        <li><b>Who edits.</b> Owners only matches today's rule (only owners change LCP content), and the lock note reads "Owners only". "GMs and owners" would be a one-word change in the note, but it also means a policy change on the homebrew pack: GMs could then change every pilot's sheet by editing a used item.</li>
+        <li><b>Drafts.</b> I mocked them (a dashed "Draft" badge in the list, <b>Save draft</b> and <b>Publish</b>) so half-finished items never reach pilots' pickers and a copied official item doesn't appear twice. The cost: every picker and archive list must skip drafts, and an item in use can't go back to draft. Without drafts, <b>Save changes</b> is the only button and a new item is live at once.</li>
+        <li><b>Overriding official items.</b> Not allowed in the mockup: edits would change every pilot's sheet and be lost on the next pack update. Changing an official item means copying it, then swapping it on sheets by hand. A "swap everywhere" action could come later.</li>
+        <li><b>The used-by notice colour.</b> It is the info colour because the site has no caution colour; red means a rule is broken. Say if you want it stronger.</li>
+      </ol></div>
+    <div><h3>Other things the mockup assumes</h3>
+      <ul>
+        <li>Bionics and personal stats are site tables, not LCP content, so they sit after a divider in the tabs, have no "Campaign homebrew" box, and are left out of <b>Export as .lcp</b>.</li>
+        <li>Rules text uses the site's toolbar with bold, italic, underline and bullets only, and the same sanitiser as everywhere else. Dice become one flat number; the number shown beside the field is called "Players see", never an average.</li>
+        <li>The bonus picker lists only the bonus types the build maths counts. Anything else needs Advanced: raw data and is not counted. The raw box is checked with the importer's own validation before Save is allowed.</li>
+        <li>Reordering uses up and down buttons, not dragging, so it works with a keyboard and on phones. The grip is only a visual cue.</li>
+        <li>Saving an in-use item asks no confirmation of its own: the notice above the form already says who it affects. Delete is blocked, with the reason, while any pilot or open change uses the item (same rule as removing a pack).</li>
+      </ul></div>
+    <div><h3>What each phase would ship</h3>
+      <ol>
+        <li><b>Phase 1, the small kinds:</b> bionics, personal stats, pilot gear, tags and core bonuses. This builds the shared parts once: list and pane, save and conflict handling, the used-by check, the bonus picker, the rules-text field, Advanced: raw data, Copy to homebrew and Export as .lcp.</li>
+        <li><b>Phase 2, the repeating kinds:</b> talents (three ranks), weapons (profiles, ranges, damage, actions), systems and weapon mods. Adds the repeaters, activation picker and damage entries.</li>
+        <li><b>Phase 3, frames:</b> stats, mounts, traits, core system and deployables, in the folded layout, plus the licence ladder derived from items.</li>
+      </ol></div>
+  </div>
+</section>
+</main>
+<script src="editor.js"></script>
+</body>
+</html>

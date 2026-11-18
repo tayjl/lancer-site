@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor · frame</title>
+<link rel="stylesheet" href="../../prototype/styles.css">
+<link rel="stylesheet" href="../editor.css">
+</head>
+<body data-screen="form">
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#">My pilot</a>
+        <a class="tab" href="#">Registry</a>
+        <a class="tab" href="#">Pending <span class="count">2</span></a>
+        <a class="tab" href="#">Memorial</a>
+        <a class="tab" href="#">Archives</a>
+        <a class="tab" href="#">Lore</a>
+      </div>
+      <div class="topbar-group">
+        <span class="label">GM</span>
+        <div class="tabs">
+          <a class="tab" href="#">Pilots</a>
+          <a class="tab" href="#">Changes <span class="count">3</span></a>
+          <a class="tab" href="#" aria-current="page">Content</a>
+        </div>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">Vanta <span class="label">Owner</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false" aria-controls="drawer" data-menu>Menu</button>
+    </div>
+  </div>
+  <nav class="topbar-drawer" id="drawer" aria-label="Main">
+    <a href="#">My pilot</a><a href="#">Registry</a><a href="#">Pending</a><a href="#">Memorial</a><a href="#">Archives</a><a href="#">Lore</a>
+    <span class="label">GM</span>
+    <a href="#">Pilots</a><a href="#">Changes</a><a href="#" aria-current="page">Content</a>
+    <span class="label">Signed in as Vanta (owner)</span>
+  </nav>
+</header>
+<main class="page">
+<header class="page-head">
+  <div><nav class="crumbs" aria-label="Breadcrumb"><span>GM</span><span aria-hidden="true">/</span><a href="#">Content</a><span aria-hidden="true">/</span><span aria-current="page">Editor</span></nav><h1>Content editor</h1><p class="dim">Make and change game content. Official packs are read-only.</p></div>
+  <div class="side btn-row"><span class="private"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg>Owners only</span><a class="btn" href="#">Packs and imports</a><button class="btn" type="button"><svg class="icon" aria-hidden="true"><use href="../icons.svg#download"/></svg>Export as .lcp</button></div>
+</header>
+<div class="tabs cats" role="tablist" aria-label="Kind of content"><button class="tab" role="tab" type="button" aria-selected="true">Frames <span class="count">24</span></button><button class="tab" role="tab" type="button" aria-selected="false">Weapons <span class="count">122</span></button><button class="tab" role="tab" type="button" aria-selected="false">Systems <span class="count">96</span></button><button class="tab" role="tab" type="button" aria-selected="false">Weapon mods <span class="count">21</span></button><button class="tab" role="tab" type="button" aria-selected="false">Pilot gear <span class="count">31</span></button><button class="tab" role="tab" type="button" aria-selected="false">Talents <span class="count">47</span></button><button class="tab" role="tab" type="button" aria-selected="false">Core bonuses <span class="count">33</span></button><button class="tab" role="tab" type="button" aria-selected="false">Tags <span class="count">38</span></button><button class="tab site" role="tab" type="button" aria-selected="false">Bionics <span class="count">4</span></button><button class="tab site" role="tab" type="button" aria-selected="false">Personal stats <span class="count">5</span></button></div>
+
+<div class="ed-browser">
+<aside class="ed-list" aria-label="Frames">
+  <div class="lf search-box"><label class="sr-only" for="q">Search frames</label><input id="q" class="field" type="search" placeholder="Search frames"><svg class="icon" aria-hidden="true"><use href="../../lore/icons.svg#search"/></svg></div>
+
+  <section class="group" aria-labelledby="g-hb">
+    <div class="group-head"><h3 id="g-hb">Campaign homebrew</h3><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>New frame</button></div>
+    <ul class="rows">
+      <li><button class="row" type="button" aria-current="true"><span class="row-top"><span class="row-name">Pallbearer</span><span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#draft"/></svg>Draft</span></span><span class="row-facts">Support · SSC Marrow</span></button></li>
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Weaver</span></span><span class="row-facts">Striker · HA Veil · used by 2</span></button></li>
+    </ul>
+  </section>
+
+  <section class="group" aria-labelledby="g-core">
+    <div class="group-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg><h3 id="g-core">LANCER Core</h3><span class="num">20</span></div>
+    <ul class="rows">
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Everest</span></span><span class="row-facts">Balanced · GMS · used by 8</span></button></li>
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Nelson</span></span><span class="row-facts">Striker · IPS-N Drake · used by 3</span></button></li>
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Balor</span></span><span class="row-facts">Striker · HA Barbarossa · used by 1</span></button></li>
+    </ul>
+    <div class="group-more"><button class="btn btn-quiet btn-sm" type="button">Show 17 more</button></div>
+  </section>
+
+  <section class="group" aria-labelledby="g-lr">
+    <div class="group-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg><h3 id="g-lr">Long Rim</h3><span class="num">2</span></div>
+    <div class="group-more"><button class="btn btn-quiet btn-sm" type="button">Show 2</button></div>
+  </section>
+</aside>
+
+<div class="ed-pane">
+  <button class="btn btn-quiet btn-sm back" type="button" data-screen-set="list"><svg class="icon" aria-hidden="true"><use href="../icons.svg#arrow-left-s"/></svg>Frames</button>
+  <div class="ed-bar">
+    <div class="tabs mtabs m-only" role="tablist" aria-label="Editor view">
+      <button class="tab" role="tab" type="button" aria-selected="true" data-screen-set="form">Edit</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-screen-set="preview">Preview</button>
+    </div>
+    <svg class="icon kind-ico" aria-hidden="true"><use href="../../prototype/icons.svg#frame"/></svg><h2>Pallbearer</h2>
+    <span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#draft"/></svg>Draft</span>
+    <span class="status saved"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#check"/></svg>Saved</span>
+    <div class="btn-row"><button class="btn btn-sm" type="button">Save draft</button><button class="btn btn-primary btn-sm" type="button">Publish</button></div>
+  </div>
+
+  <div class="ed-cols">
+  <div class="ed-form">
+
+    <div class="notice notice-info" role="status"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#info"/></svg><div><div class="notice-title">Draft: players can't see this frame yet</div>It is not offered in pilots' pickers or the archives. Publish it when it is ready. A published frame that is in use can't go back to draft.</div></div>
+
+    <details class="section fold">
+      <summary><h3 class="section-title">Identity</h3><span class="fold-sum">Pallbearer · SSC · Marrow · Support</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary>
+      <div class="fold-body"><p class="hint">Name, ID, manufacturer, licence, mech type and size. Same plain fields as a weapon's Basics.</p></div>
+    </details>
+
+    <section class="section" aria-labelledby="s-stats">
+      <div class="section-head"><h3 class="section-title" id="s-stats">Stats</h3><p class="hint">What the frame gives before pilot skills and gear. Grit, save target and sensors are not used on this site, so they are not here.</p></div>
+      <div class="grid-f" style="grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr))">
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#size-1"/></svg>Size</span><select class="field num"><option>½</option><option selected>1</option><option>2</option><option>3</option></select></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#structure"/></svg>Structure</span><input class="field num" type="number" value="4"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#reactor"/></svg>Stress</span><input class="field num" type="number" value="4"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#hp"/></svg>HP</span><input class="field num" type="number" value="10"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#armour"/></svg>Armour</span><input class="field num" type="number" value="1"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#evasion"/></svg>Evasion</span><input class="field num" type="number" value="8"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#e_def"/></svg>E-defence</span><input class="field num" type="number" value="8"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#heat"/></svg>Heat cap</span><input class="field num" type="number" value="8"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#repair"/></svg>Repair cap</span><input class="field num" type="number" value="5"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#speed"/></svg>Speed</span><input class="field num" type="number" value="4"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#tech_attack"/></svg>Tech attack</span><input class="field num" type="number" value="0"></label>
+        <label class="lf"><span class="label"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#system_point"/></svg>System points</span><input class="field num" type="number" value="7"></label>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="s-mnt">
+      <div class="section-head"><h3 class="section-title" id="s-mnt">Weapon mounts</h3><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Add mount</button><p class="hint">Players see them in this order. A Flex mount takes one Main or two Aux weapons.</p></div>
+      <div class="reps">
+        <div class="rep"><div class="rep-body" style="border:0;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;padding:var(--space-xs) var(--space-s) var(--space-xs) var(--space-xs)"><svg class="icon" aria-hidden="true"><use href="../icons.svg#grip"/></svg><label class="lf"><span class="sr-only">Mount 1</span><select class="field"><option>Flex</option><option>Main</option><option>Heavy</option><option>Aux</option><option>Aux/Aux</option><option>Main/Aux</option></select></label><span class="rep-tools"><button class="ibtn" type="button" aria-label="Move mount 1 up" disabled><svg class="icon" aria-hidden="true"><use href="../icons.svg#chevron-up"/></svg></button><button class="ibtn" type="button" aria-label="Move mount 1 down"><svg class="icon" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></button><button class="ibtn rm" type="button" aria-label="Remove mount 1"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></span></div></div>
+        <div class="rep"><div class="rep-body" style="border:0;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;padding:var(--space-xs) var(--space-s) var(--space-xs) var(--space-xs)"><svg class="icon" aria-hidden="true"><use href="../icons.svg#grip"/></svg><label class="lf"><span class="sr-only">Mount 2</span><select class="field"><option>Main</option></select></label><span class="rep-tools"><button class="ibtn" type="button" aria-label="Move mount 2 up"><svg class="icon" aria-hidden="true"><use href="../icons.svg#chevron-up"/></svg></button><button class="ibtn" type="button" aria-label="Move mount 2 down"><svg class="icon" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></button><button class="ibtn rm" type="button" aria-label="Remove mount 2"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></span></div></div>
+        <div class="rep"><div class="rep-body" style="border:0;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;padding:var(--space-xs) var(--space-s) var(--space-xs) var(--space-xs)"><svg class="icon" aria-hidden="true"><use href="../icons.svg#grip"/></svg><label class="lf"><span class="sr-only">Mount 3</span><select class="field"><option>Aux</option></select></label><span class="rep-tools"><button class="ibtn" type="button" aria-label="Move mount 3 up"><svg class="icon" aria-hidden="true"><use href="../icons.svg#chevron-up"/></svg></button><button class="ibtn" type="button" aria-label="Move mount 3 down" disabled><svg class="icon" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></button><button class="ibtn rm" type="button" aria-label="Remove mount 3"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></span></div></div>
+      </div>
+    </section>
+
+    <details class="section fold">
+      <summary><h3 class="section-title">Traits</h3><span class="fold-sum">2 traits: Graveside Manner, Slow Burn</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary>
+      <div class="fold-body"><p class="hint">Each trait is a name, rules text and optional actions, bonuses and deployables, edited like a weapon's.</p></div>
+    </details>
+
+    <details class="section fold">
+      <summary><h3 class="section-title">Core system</h3><span class="fold-sum">Ossuary Engine: 1 passive, 1 power</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary>
+      <div class="fold-body"><p class="hint">Name, lore, passive, active power and its activation, plus core-only bonuses.</p></div>
+    </details>
+
+    <details class="section fold">
+      <summary><h3 class="section-title">Licence unlocks</h3><span class="fold-sum">Marrow I to III: 9 items</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary>
+      <div class="fold-body"><p class="hint">Worked out from the weapons and systems that name this licence. Nothing to edit here; open an item to change its rank.</p></div>
+    </details>
+
+    <details class="section fold">
+      <summary><h3 class="section-title">Description and lore</h3><span class="fold-sum">Rules text and 2 paragraphs of lore</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary>
+      <div class="fold-body"><p class="hint">Plain formatting only, like every rules-text box.</p></div>
+    </details>
+
+    <details class="section fold">
+      <summary><h3 class="section-title">Advanced: raw data</h3><span class="fold-sum">For fields the form doesn't cover</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary>
+      <div class="fold-body"><p class="hint">The frame exactly as it is stored.</p></div>
+    </details>
+
+    <section class="section danger-zone" aria-labelledby="s-dz">
+      <div class="section-head"><h3 class="section-title" id="s-dz">Danger zone</h3></div>
+      <p class="danger-body">Deleting removes this frame and its licence from the pack for good. It cannot be undone.</p>
+      <div class="blocked"><button class="btn btn-danger" type="button">Delete item</button><span class="blocked-reason">No pilot uses it, so it can go.</span></div>
+    </section>
+  </div>
+
+  <aside class="ed-preview" aria-label="Preview">
+    <div class="pv" data-tabgroup>
+      <div class="section-head" style="margin:0"><h3 class="section-title">Preview</h3><span class="private" style="margin-left:auto">What players see</span></div>
+      <div class="tabs" role="tablist" aria-label="Preview of">
+        <button class="tab" role="tab" type="button" aria-selected="true" data-pane="pv-card">Frame card</button>
+        <button class="tab" role="tab" type="button" aria-selected="false" data-pane="pv-info">Full information</button>
+      </div>
+      <div id="pv-card" role="tabpanel">
+        <article class="item item-frame">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#frame"/></svg><h3 class="item-name"><button type="button">Pallbearer</button></h3><span class="item-meta"><span><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#size-1"/></svg><span class="unit">SIZE 1</span></span></span></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>SSC Marrow</span><span>Support</span></div>
+            <div class="frame-stats">
+              <span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#structure"/></svg>4 <small>structure</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#reactor"/></svg>4 <small>stress</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#hp"/></svg>10 <small>hp</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#armour"/></svg>1 <small>armour</small></span>
+              <span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#evasion"/></svg>8 <small>evasion</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#e_def"/></svg>8 <small>e-def</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#heat"/></svg>8 <small>heat</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#repair"/></svg>5 <small>repair</small></span>
+              <span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#speed"/></svg>4 <small>speed</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#tech_attack"/></svg>0 <small>tech</small></span><span class="fstat"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#system_point"/></svg>7 <small>sp</small></span>
+            </div>
+            <div class="ability"><span class="label">Mounts</span><div class="mounts"><span class="chip">Flex</span><span class="chip">Main</span><span class="chip">Aux</span></div></div>
+            <div class="ability"><span class="label">Traits</span><div class="ability-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#trait"/></svg><span class="ability-name">Graveside Manner</span></div><div class="ability-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#trait"/></svg><span class="ability-name">Slow Burn</span></div></div>
+            <div class="ability"><span class="label">Core system</span><div class="ability-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#corebonus"/></svg><span class="ability-name">Ossuary Engine</span></div></div>
+          </div>
+          <div class="pack-source">Source: Campaign homebrew</div>
+        </article>
+      </div>
+      <div id="pv-info" role="tabpanel" hidden><p class="hint">The frame's full information page: stat chart, traits with their rules, and the core system, as in the Archives.</p></div>
+      <p class="pv-note">The summary card. The full page opens from the name.</p>
+    </div>
+  </aside>
+  </div>
+</div>
+</div>
+</main>
+<script src="../editor.js"></script>
+</body>
+</html>

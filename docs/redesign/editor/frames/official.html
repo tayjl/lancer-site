@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor · official item</title>
+<link rel="stylesheet" href="../../prototype/styles.css">
+<link rel="stylesheet" href="../editor.css">
+</head>
+<body data-screen="form">
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#">My pilot</a>
+        <a class="tab" href="#">Registry</a>
+        <a class="tab" href="#">Pending <span class="count">2</span></a>
+        <a class="tab" href="#">Memorial</a>
+        <a class="tab" href="#">Archives</a>
+        <a class="tab" href="#">Lore</a>
+      </div>
+      <div class="topbar-group">
+        <span class="label">GM</span>
+        <div class="tabs">
+          <a class="tab" href="#">Pilots</a>
+          <a class="tab" href="#">Changes <span class="count">3</span></a>
+          <a class="tab" href="#" aria-current="page">Content</a>
+        </div>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">Vanta <span class="label">Owner</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false" aria-controls="drawer" data-menu>Menu</button>
+    </div>
+  </div>
+  <nav class="topbar-drawer" id="drawer" aria-label="Main">
+    <a href="#">My pilot</a><a href="#">Registry</a><a href="#">Pending</a><a href="#">Memorial</a><a href="#">Archives</a><a href="#">Lore</a>
+    <span class="label">GM</span>
+    <a href="#">Pilots</a><a href="#">Changes</a><a href="#" aria-current="page">Content</a>
+    <span class="label">Signed in as Vanta (owner)</span>
+  </nav>
+</header>
+<main class="page">
+<header class="page-head">
+  <div><nav class="crumbs" aria-label="Breadcrumb"><span>GM</span><span aria-hidden="true">/</span><a href="#">Content</a><span aria-hidden="true">/</span><span aria-current="page">Editor</span></nav><h1>Content editor</h1><p class="dim">Make and change game content. Official packs are read-only.</p></div>
+  <div class="side btn-row"><span class="private"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg>Owners only</span><a class="btn" href="#">Packs and imports</a><button class="btn" type="button"><svg class="icon" aria-hidden="true"><use href="../icons.svg#download"/></svg>Export as .lcp</button></div>
+</header>
+<div class="tabs cats" role="tablist" aria-label="Kind of content"><button class="tab" role="tab" type="button" aria-selected="false">Frames <span class="count">24</span></button><button class="tab" role="tab" type="button" aria-selected="false">Weapons <span class="count">122</span></button><button class="tab" role="tab" type="button" aria-selected="true">Systems <span class="count">96</span></button><button class="tab" role="tab" type="button" aria-selected="false">Weapon mods <span class="count">21</span></button><button class="tab" role="tab" type="button" aria-selected="false">Pilot gear <span class="count">31</span></button><button class="tab" role="tab" type="button" aria-selected="false">Talents <span class="count">47</span></button><button class="tab" role="tab" type="button" aria-selected="false">Core bonuses <span class="count">33</span></button><button class="tab" role="tab" type="button" aria-selected="false">Tags <span class="count">38</span></button><button class="tab site" role="tab" type="button" aria-selected="false">Bionics <span class="count">4</span></button><button class="tab site" role="tab" type="button" aria-selected="false">Personal stats <span class="count">5</span></button></div>
+
+<div class="ed-browser">
+<aside class="ed-list" aria-label="Systems">
+  <div class="lf search-box"><label class="sr-only" for="q">Search systems</label><input id="q" class="field" type="search" placeholder="Search systems"><svg class="icon" aria-hidden="true"><use href="../../lore/icons.svg#search"/></svg></div>
+
+  <section class="group" aria-labelledby="g-hb">
+    <div class="group-head"><h3 id="g-hb">Campaign homebrew</h3><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>New system</button></div>
+    <ul class="rows">
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Marrow Relay</span></span><span class="row-facts">Marrow I · 2 SP · used by 1</span></button></li>
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Slagwatch Ward</span><span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#draft"/></svg>Draft</span></span><span class="row-facts">Marrow II · 1 SP</span></button></li>
+    </ul>
+  </section>
+
+  <section class="group" aria-labelledby="g-core">
+    <div class="group-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg><h3 id="g-core">LANCER Core</h3><span class="num">90</span></div>
+    <ul class="rows">
+      <li><button class="row" type="button" aria-current="true"><span class="row-top"><span class="row-name">Pattern-C Screen Array</span></span><span class="row-facts">GMS · 2 SP · used by 7</span></button></li>
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Sigil Emitter</span></span><span class="row-facts">GMS · 1 SP · used by 4</span></button></li>
+      <li><button class="row" type="button"><span class="row-top"><span class="row-name">Torch Pack</span></span><span class="row-facts">GMS · 1 SP · used by 9</span></button></li>
+    </ul>
+    <div class="group-more"><button class="btn btn-quiet btn-sm" type="button">Show 87 more</button></div>
+  </section>
+
+  <section class="group" aria-labelledby="g-lr">
+    <div class="group-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg><h3 id="g-lr">Long Rim</h3><span class="num">4</span></div>
+    <div class="group-more"><button class="btn btn-quiet btn-sm" type="button">Show 4</button></div>
+  </section>
+</aside>
+
+<div class="ed-pane">
+  <div class="ed-bar">
+    <svg class="icon kind-ico" aria-hidden="true"><use href="../../prototype/icons.svg#system"/></svg><h2>Pattern-C Screen Array</h2>
+    <span class="badge"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#lock"/></svg>Official</span>
+    <span class="status">LANCER Core 3.1.7</span>
+    <div class="btn-row"><button class="btn btn-primary btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../icons.svg#copy"/></svg>Copy to homebrew</button></div>
+  </div>
+
+  <div class="ed-cols">
+  <div class="ed-form">
+    <div class="notice notice-info" role="status"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#info"/></svg><div><div class="notice-title">This item belongs to LANCER Core</div>Official content can't be changed. Copy it to Campaign homebrew to make your own version.</div></div>
+
+    <section class="section" aria-labelledby="s-det">
+      <div class="section-head"><h3 class="section-title" id="s-det">Details</h3><span class="private">Read-only</span></div>
+      <dl class="kv">
+        <dt>Name</dt><dd>Pattern-C Screen Array</dd>
+        <dt>ID</dt><dd class="code">ms_pattern_c_screen_array</dd>
+        <dt>Pack</dt><dd>LANCER Core 3.1.7</dd>
+        <dt>Manufacturer</dt><dd>GMS</dd>
+        <dt>Licence</dt><dd>None (free to print)</dd>
+        <dt>System points</dt><dd class="num">2</dd>
+        <dt>In use</dt><dd>7 pilots</dd>
+      </dl>
+    </section>
+
+    <section class="section" aria-labelledby="s-copy">
+      <div class="section-head"><h3 class="section-title" id="s-copy">What the copy changes</h3></div>
+      <p class="hint">Everything is copied as it is. Only these three things are new, so pilots who already use the original are not touched.</p>
+      <dl class="kv">
+        <dt>New ID</dt><dd class="code">hb_ms_pattern_c_screen_array</dd>
+        <dt>Pack</dt><dd>Campaign homebrew</dd>
+        <dt>State</dt><dd><span class="badge badge-draft"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#draft"/></svg>Draft</span> <span class="dim">Hidden from pickers until you publish it.</span></dd>
+      </dl>
+    </section>
+  </div>
+
+  <aside class="ed-preview" aria-label="Preview">
+    <div class="pv" data-tabgroup>
+      <div class="section-head" style="margin:0"><h3 class="section-title">Preview</h3><span class="private" style="margin-left:auto">What players see</span></div>
+      <div class="tabs" role="tablist" aria-label="Preview of">
+        <button class="tab" role="tab" type="button" aria-selected="true" data-pane="pv-card">Item card</button>
+        <button class="tab" role="tab" type="button" aria-selected="false" data-pane="pv-info">Full information</button>
+      </div>
+      <div id="pv-card" role="tabpanel">
+        <article class="item item-system">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#system"/></svg><h3 class="item-name"><button type="button">Pattern-C Screen Array</button></h3><span class="item-meta"><span><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#system_point"/></svg>2<span class="unit">SP</span></span></span></div>
+          <div class="item-body">
+            <div class="item-facts sep"><span>GMS</span><span>System</span></div>
+            <div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Raise screen</span><span class="dim">1 per round</span></div>
+              <div class="ability-body rules"><p>Raise a <b>Size 1</b> screen in a free space within range 5. It blocks line of sight through its space. It lasts until it is destroyed or you raise another.</p></div></div>
+            <div class="ability"><div class="ability-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#deployable"/></svg><span class="ability-name">Screen</span></div>
+              <div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#hp"/></svg>8 <small>hp</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#evasion"/></svg>5 <small>evasion</small></span></div></div>
+            <div class="chips"><span class="chip">Deployable</span><span class="chip">Limited<span class="num">2</span></span></div>
+          </div>
+          <div class="pack-source">Source: LANCER Core 3.1.7</div>
+        </article>
+      </div>
+      <div id="pv-info" role="tabpanel" hidden>
+        <div class="info-body">
+          <div class="info-head"><span class="label">Mech system</span><span class="name">Pattern-C Screen Array</span><div class="item-facts sep dim" style="font-size:var(--fs-s)"><span>GMS</span><span>2 system points</span></div></div>
+          <div class="info-group"><span class="label">Actions</span><div class="ability"><div class="ability-head"><span class="action action-quick"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#activation_quick"/></svg>Quick</span><span class="ability-name">Raise screen</span></div><div class="ability-body rules"><p>Raise a <b>Size 1</b> screen in a free space within range 5. It blocks line of sight through its space.</p></div></div></div>
+          <div class="info-group"><span class="label">Tags</span><dl class="dl-tags"><dt><span class="chip">Deployable</span></dt><dd>Placed in the world rather than carried.</dd></dl></div>
+        </div>
+      </div>
+      <p class="pv-note">The same card players see in loadouts and the archives.</p>
+    </div>
+  </aside>
+  </div>
+</div>
+</div>
+</main>
+<script src="../editor.js"></script>
+</body>
+</html>

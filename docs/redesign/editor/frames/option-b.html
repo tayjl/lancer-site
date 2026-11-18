@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor · option B, edit on the card</title>
+<link rel="stylesheet" href="../../prototype/styles.css">
+<link rel="stylesheet" href="../editor.css">
+</head>
+<body data-screen="form">
+<main class="page">
+  <div class="ed-bar" style="position:static">
+    <svg class="icon kind-ico" aria-hidden="true"><use href="../../prototype/icons.svg#weapon"/></svg><h2>Cinder Lance</h2>
+    <span class="badge badge-approved"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#approved"/></svg>Published</span>
+    <span class="status">Unsaved changes</span>
+    <div class="btn-row"><button class="btn btn-quiet btn-sm" type="button">Revert</button><button class="btn btn-primary btn-sm" type="button">Save changes</button></div>
+  </div>
+  <p class="b-note" style="margin-top:var(--space-m)">Pane only; the category tabs and list on the left stay as in Option A. Click any part of the card to edit it where it is.</p>
+  <div class="notice notice-info" role="status" style="margin-bottom:var(--space-m)"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#info"/></svg><div><div class="notice-title">Used by WARDEN, LANTERN and 3 more</div>Saving changes their sheets.</div></div>
+
+  <div class="b-grid">
+    <div>
+      <article class="item item-weapon" aria-label="Item card, editable">
+        <div class="item-head"><span class="edit-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#weapon"/></svg><input class="edit-name" aria-label="Weapon name" value="Cinder Lance"><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></span><span class="item-meta"><span class="edit-head"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#system_point"/></svg>2<span class="unit">SP</span><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></span></span></div>
+        <div class="item-body">
+          <div class="edit-part"><div class="item-facts sep"><span>SSC Marrow II</span><span>Main Rifle</span></div><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></div>
+
+          <div class="edit-part"><div class="prof" style="padding:0;border:0"><div class="label">Slug mode</div><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#range"/></svg>10 <small>range</small></span><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#kinetic"/></svg>6 <small>kinetic</small></span></div></div><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></div>
+          <div class="edit-part"><div class="prof" style="padding:0;border:0"><div class="label">Flare mode</div><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#range"/></svg>8 <small>range</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#blast"/></svg>1 <small>blast</small></span><span class="rd dmg-burn"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#burn"/></svg>2 <small>burn</small></span></div></div><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></div>
+
+          <div class="edit-part"><div class="rules"><p>Choose a <b>mode</b> each time you attack. Everything in the <b>blast</b> of flare mode is lit up until the end of the round.</p></div><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></div>
+
+          <div class="edit-part"><div class="ability" style="padding:0;border:0"><div class="ability-head"><span class="action action-reaction"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#reaction"/></svg>Reaction</span><span class="ability-name">Cinder Mark</span><span class="dim">1 per round</span></div>
+            <div class="ability-body rules"><p><b>Trigger:</b> A hit with this weapon.</p><p>The target is <b>marked</b> until the end of your next turn.</p></div></div><svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg></div>
+
+          <div class="edit-part active" aria-label="Tags (editing)">
+            <div class="tag-edit">
+              <span class="chip-x">Loading<button class="ibtn rm" type="button" aria-label="Remove tag Loading"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></span>
+              <span class="chip-x">Knockback <input aria-label="Knockback distance" value="2"><button class="ibtn rm" type="button" aria-label="Remove tag Knockback"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></span>
+              <span class="chip-x">Limited <input aria-label="Limited uses" value="3"><button class="ibtn rm" type="button" aria-label="Remove tag Limited"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></span>
+            </div>
+            <svg class="icon ep-pencil" aria-hidden="true"><use href="../../lore/icons.svg#pencil"/></svg>
+            <div class="inline-edit">
+              <div class="lf search-box"><label class="sr-only" for="tq">Search tags</label><input id="tq" class="field" type="search" value="ac" placeholder="Search tags"><svg class="icon" aria-hidden="true"><use href="../../lore/icons.svg#search"/></svg></div>
+              <ul class="pick-list" style="border:1px solid var(--rule);border-radius:var(--radius);background:var(--void)">
+                <li class="pick-row" style="border-top:0"><span class="what"><b>Accurate</b><span>Easier to hit with.</span></span><button class="btn btn-sm" type="button">Add</button></li>
+                <li class="pick-row"><span class="what"><b>Inaccurate</b><span>Harder to hit with.</span></span><button class="btn btn-sm" type="button">Add</button></li>
+                <li class="pick-row"><span class="what"><b>Loading</b><span>Must be reloaded before it can fire again.</span></span><span class="takes">Already added</span></li>
+              </ul>
+              <div class="btn-row"><button class="btn btn-sm" type="button">Done</button></div>
+            </div>
+          </div>
+
+          <div class="add-parts"><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Profile</button><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Action</button><button class="btn btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Deployable</button></div>
+        </div>
+        <div class="pack-source">Source: Campaign homebrew</div>
+      </article>
+    </div>
+
+    <aside class="ed-side" style="display:grid;gap:var(--space-m)">
+      <section class="section" aria-labelledby="nb">
+        <div class="section-head"><h3 class="section-title" id="nb">Not on the card</h3></div>
+        <p class="hint">Things players don't see on the card still need a form, so they live here.</p>
+        <label class="lf"><span class="label">ID</span><input class="field code" value="hb_mw_cinder_lance" readonly></label>
+        <div class="lf"><span class="label">Bonuses when equipped</span>
+          <div class="rows-in">
+            <div class="entry" style="grid-template-columns:minmax(0,1fr) 5rem auto"><select class="field" aria-label="Bonus type"><option>Speed</option></select><input class="field num" aria-label="Value" value="-1"><button class="ibtn rm" type="button" aria-label="Remove bonus"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></div>
+            <div class="entry" style="grid-template-columns:minmax(0,1fr) 5rem auto"><select class="field" aria-label="Bonus type"><option>E-defence</option></select><input class="field num" aria-label="Value" value="1"><button class="ibtn rm" type="button" aria-label="Remove bonus"><svg class="icon" aria-hidden="true"><use href="../icons.svg#x"/></svg></button></div>
+            <div><button class="btn btn-quiet btn-sm" type="button"><svg class="icon" aria-hidden="true"><use href="../../prototype/icons.svg#plus"/></svg>Add bonus</button></div>
+          </div></div>
+        <label class="lf"><span class="label">Lore</span><textarea class="field" rows="3">Foundry hands call it the lance because that is what the slag looks like leaving the barrel.</textarea></label>
+      </section>
+      <details class="section fold"><summary><h3 class="section-title">Advanced: raw data</h3><span class="fold-sum">Collapsed</span><svg class="icon chev" aria-hidden="true"><use href="../../lore/icons.svg#chevron-down"/></svg></summary><div class="fold-body"></div></details>
+      <section class="section danger-zone"><div class="section-head"><h3 class="section-title">Danger zone</h3></div><div class="blocked"><button class="btn btn-danger" type="button" disabled>Delete item</button><span class="blocked-reason">Used by 5 pilots.</span></div></section>
+    </aside>
+  </div>
+</main>
+</body>
+</html>
