@@ -90,7 +90,12 @@ function step() {
 }
 
 // So the log always starts on a whole message (see hideCutLines in src/chat.ts).
-const hideCutMessages = () => hideCutLines(log.value)
+// Also pins the log to its newest line by scrolling, in case a browser lets overflow from
+// "justify-content: flex-end" be scrolled (harmless where it can't be: there's nothing to scroll).
+function hideCutMessages() {
+  if (log.value) log.value.scrollTop = log.value.scrollHeight
+  hideCutLines(log.value)
+}
 
 // "post" runs it after Vue has added the new lines to the page.
 watch([shown, chatShown], hideCutMessages, { flush: 'post' })
