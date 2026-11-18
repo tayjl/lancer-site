@@ -578,7 +578,6 @@ export type Database = {
       }
       is_gm: { Args: never; Returns: boolean }
       is_owner: { Args: never; Returns: boolean }
-      mark_dead: { Args: { target_character_id: number }; Returns: undefined }
       item_usage: {
         Args: { is_bionic?: boolean; item_id: string }
         Returns: {
@@ -586,6 +585,7 @@ export type Database = {
           pilot: string
         }[]
       }
+      mark_dead: { Args: { target_character_id: number }; Returns: undefined }
       pack_usage: {
         Args: never
         Returns: {
