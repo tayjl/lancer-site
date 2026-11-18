@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent } from './archive'
 import { coreContent } from './coreContent'
-import { toItem, toMod, type CoreBonus, type Talent } from './gameData'
+import { toItem, toMod, type Bionic, type CoreBonus, type Talent } from './gameData'
 import type { Manufacturer } from './info'
 import type { Frame } from './mechData'
 
@@ -11,6 +11,8 @@ const frames: Frame[] = rows('frames').map(({ id, data }) => {
   const raw = data as Record<string, unknown>
   return { id, name: String(raw.name), source: String(raw.source), licenceLevel: Number(raw.license_level ?? 0), integrated: [], mechtype: (raw.mechtype ?? []) as string[], mounts: (raw.mounts ?? []) as string[], stats: (raw.stats ?? {}) as Record<string, number>, description: String(raw.description ?? ''), raw }
 })
+const biomod = (id: number, name: string, source: string | null, extra: Partial<Bionic> = {}): Bionic =>
+  ({ id, name, description: 'A cold eye.', slot: 'Eyes', source, effect: '<p>See in the dark.</p>', manna_cost: 500, mod_point_cost: 2, retired: false, bonuses: [], ...extra })
 const content: ArchiveContent = {
   manufacturers: rows('manufacturers').map(({ id, data }) => ({ id, ...(data as object), colour: (data as { dark: string }).dark }) as Manufacturer)
     .sort((a, b) => a.name.localeCompare(b.name)),
@@ -19,6 +21,14 @@ const content: ArchiveContent = {
   systems: rows('systems').map(({ id, data }) => toItem(id, data)),
   mods: rows('mods').map(({ id, data }) => toMod(id, data)),
   gear: rows('pilot_gear').map(({ id, data }) => toItem(id, data)),
+  biomods: [
+    biomod(1, 'Ocular implant', 'IPS-N'),
+    biomod(2, 'Mirror shades', 'HORUS', { slot: 'Head', mod_point_cost: 1 }),
+    biomod(3, 'Odd eye', 'EXOTIC'),
+    biomod(4, 'Plain graft', null),
+    biomod(5, 'Old graft', 'IPS-N', { retired: true }),
+  ],
+  statNames: new Map(),
   talents: rows('talents').map(({ data }) => data as unknown as Talent),
   coreBonuses: rows('core_bonuses').map(({ data }) => data as unknown as CoreBonus),
 }
@@ -71,6 +81,19 @@ describe('archives', () => {
     const talentGroups = archiveGroups(entries.filter(entry => entry.category === 'talents'), content.manufacturers)
     expect(talentGroups).toHaveLength(1)
     expect(talentGroups[0]).toMatchObject({ title: '', colour: 'var(--lilac)' })
+  })
+
+  it('lists biomods by manufacturer, unknown sources and then Other, leaving retired ones out', () => {
+    const list = entries.filter(entry => entry.category === 'biomods')
+    expect(list.map(entry => entry.name)).toEqual(['Ocular implant', 'Mirror shades', 'Odd eye', 'Plain graft'])
+    expect(archiveGroups(list, content.manufacturers).map(group => group.key)).toEqual(['HORUS', 'IPS-N', 'EXOTIC', 'other'])
+    expect(listFacts(list[0])).toEqual(['Eyes', '2 mod points'])
+    expect(listFacts(list[1])).toEqual(['Head', '1 mod point'])
+    expect(list[0].info()).toMatchObject({ kind: 'biomod', source: 'IPS-N' })
+    // The maker filter applies to them; searching reaches the slot, effect and description.
+    expect(filterByMakers(list, ['IPS-N']).map(entry => entry.name)).toEqual(['Ocular implant'])
+    for (const word of ['head', 'dark', 'cold']) expect(searchArchive(list, word).length).toBeGreaterThan(0)
+    expect(searchArchive(list, 'head').map(entry => entry.name)).toEqual(['Mirror shades'])
   })
 
   it('splits weapons and systems into a section per licence, unlicensed first, each by rank', () => {

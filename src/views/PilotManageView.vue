@@ -179,7 +179,7 @@ const saveBackstory = (doc: Json | null) => track(updateSheet({ backstory: doc }
 // Bionics for their box, each opening its full information.
 const bionicOptions = computed(() => {
   const statNames = new Map(pilotStats.value.map((stat) => [stat.id, stat.name]))
-  return bionicItems(bionics.value).map((item, i) => ({ ...item, info: () => bionicInfo(bionics.value[i], statNames) }))
+  return bionicItems(bionics.value).map((item, i) => ({ ...item, gmOnly: gmOnly(bionics.value[i]), info: () => bionicInfo(bionics.value[i], statNames) }))
 })
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
 const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
@@ -495,7 +495,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <div v-show="tab === 'equipment'" class="tab-panel">
           <LoadoutBox
             class="panel"
-            title="bionics"
+            title="biomods"
             tag="Private"
             :items="bionicOptions"
             :chosen="sheet.bionics ?? []"

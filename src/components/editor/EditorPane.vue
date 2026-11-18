@@ -254,7 +254,7 @@ defineExpose({ dirty })
         <FrameForm v-else-if="kind === 'frames'" v-model="working" :bonus-types="bonusTypes" :locked="!isNew" :manufacturers="manufacturers" />
         <ManufacturerForm v-else-if="kind === 'manufacturers'" v-model="working" :locked="!isNew" />
         <TagForm v-else-if="kind === 'tags'" v-model="working" :locked="!isNew" />
-        <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" />
+        <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
         <StatForm v-else-if="kind === 'pilot_stats'" v-model="working" :locked="!isNew" />
         <p v-else class="notice" role="note">
           <span>There's no form for {{ info.label.toLowerCase() }} yet. Edit the data below; the preview shows the result.</span>

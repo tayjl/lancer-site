@@ -213,7 +213,7 @@ describe('homebrew levelling and manna', () => {
     ])
     expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, catalogue, {})).toEqual([])
     expect(pilotProblems({ bionics: [1, 2, 2] }, { level: 0, manna: 1500 }, catalogue, {})).toEqual([
-      'Bionics use 8 mod points, but level 0 only gives 6.',
+      'Biomods use 8 mod points, but level 0 only gives 6.',
       'A biomod can only be installed once.',
     ])
     const dear = { ...catalogue, bionicPrices: new Map([[1, 750], [2, 500]]) }

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import type { Info } from '../info'
+import { isGm } from '../auth'
+import { modPoints, type Info } from '../info'
+import { GM_ONLY_REASON } from '../rules'
 import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
 import ItemStats from './ItemStats.vue'
@@ -12,7 +14,7 @@ import RulesText from './RulesText.vue'
 // (e.g. bionics against the mod limit), and the picker won't add anything that goes over it. An item with a "price"
 // can't be added when it costs more than "balance" (manna left).
 type Id = string | number
-type Item = { id: Id; name: string; type?: string; stats?: { label: string; value: string; icon?: string }[]; description?: string | null; slot?: string; effect?: string; price?: number; cost?: number; retired?: boolean; info?: () => Info }
+type Item = { id: Id; name: string; facts?: string[]; source?: string; stats?: { label: string; value: string; icon?: string }[]; description?: string | null; slot?: string; effect?: string; price?: number; cost?: number; retired?: boolean; gmOnly?: boolean; info?: () => Info }
 
 const props = defineProps<{
   title: string
@@ -36,19 +38,20 @@ const chosenItems = computed(() =>
 )
 const used = computed(() => chosenItems.value.reduce((sum, item) => sum + (item.cost ?? 0), 0))
 
-// Retired items stay on sheets that have them, but can't be newly picked.
+// Retired items stay on sheets that have them, but can't be newly picked. GM-only ones (HORUS, NHC, Exotic) are listed last.
 const offered = computed(() => {
   const words = filter.value.trim().toLowerCase()
   return props.items.filter(
     (item) =>
       (!item.retired || props.chosen.includes(item.id)) &&
-      (!words || `${item.name} ${item.type ?? ''}`.toLowerCase().includes(words)),
-  )
+      (!words || `${item.name} ${item.facts?.join(' ') ?? ''}`.toLowerCase().includes(words)),
+  ).sort((a, b) => Number(restricted(a)) - Number(restricted(b)))
 })
 
+const restricted = (item: Item) => !isGm.value && !!item.gmOnly
 const tooCostly = (item: Item) => !!props.limit && used.value + (item.cost ?? 0) > props.limit.max
 // Why an item can't be added, or '' if it can.
-const blockedBy = (item: Item) => (tooCostly(item) ? 'Over the limit' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
+const blockedBy = (item: Item) => (restricted(item) ? GM_ONLY_REASON : tooCostly(item) ? 'Over the limit' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
 
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]
@@ -77,7 +80,7 @@ function open() {
     <ul v-if="chosenItems.length" class="slot-grid">
       <li v-for="item in chosenItems" :key="item.id">
         <ItemCard type="pilot" icon="generic_item" :name="item.name" :info="item.info" :meta="item.cost ? String(item.cost) : ''" :unit="limit?.unit">
-          <p v-if="item.slot || item.price != null" class="facts sep"><span v-if="item.slot">{{ item.slot }}</span><span v-if="item.price != null">{{ item.price }} manna</span></p>
+          <p v-if="item.source || item.slot || item.price != null" class="facts sep"><span v-if="item.source">{{ item.source }}</span><span v-if="item.slot">{{ item.slot }}</span><span v-if="item.price != null">{{ item.price }} manna</span></p>
           <ItemStats v-if="item.stats?.length" :stats="item.stats" />
           <RulesText v-if="item.effect" :html="item.effect" />
           <p v-if="item.description" class="description">{{ item.description }}</p>
@@ -109,8 +112,8 @@ function open() {
             <div class="pick-about">
               <span class="pick-name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
               <span class="pick-meta sep">
-                <span v-if="item.type">{{ item.type }}</span>
-                <span v-if="item.cost != null">{{ item.cost }} {{ limit?.unit }}</span>
+                <span v-for="fact in item.facts" :key="fact">{{ fact }}</span>
+                <span v-if="item.cost != null">{{ modPoints(item.cost) }}</span>
                 <span v-if="item.price != null">{{ item.price }} manna</span>
               </span>
               <span v-if="item.description" class="pick-text">{{ item.description }}</span>

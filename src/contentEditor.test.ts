@@ -85,7 +85,7 @@ describe('item checks', () => {
 })
 
 describe('bionic and personal stat checks', () => {
-  const bionic = { name: 'Arm', slot: 'Arm', manna_cost: 750, mod_point_cost: 2, bonuses: [{ stat_id: 'physicality', amount: 1 }] }
+  const bionic = { name: 'Arm', slot: 'Arm', source: 'IPS-N', manna_cost: 750, mod_point_cost: 2, bonuses: [{ stat_id: 'physicality', amount: 1 }] }
   it('accepts a bionic with a bonus on a stat that exists', () => {
     expect(texts(bionic, 'bionics')).toEqual([])
   })
@@ -103,6 +103,10 @@ describe('bionic and personal stat checks', () => {
     expect(texts({ ...bionic, manna_cost: 0 }, 'bionics')).toEqual([])
     expect(texts({ ...bionic, slot: ' ' }, 'bionics')).toEqual([])
     expect(texts({ ...bionic, slot: ' ' }, 'bionics', 'warn')).toHaveLength(1)
+  })
+  it('only warns about a missing manufacturer', () => {
+    expect(texts({ ...bionic, source: '' }, 'bionics')).toEqual([])
+    expect(texts({ ...bionic, source: '' }, 'bionics', 'warn')).toEqual(["No manufacturer: it's listed under Other."])
   })
   it('needs a personal stat to have a name and an order', () => {
     expect(texts({ name: 'Grit', sort_order: 6 }, 'pilot_stats')).toEqual([])
@@ -136,6 +140,6 @@ describe('new items', () => {
     expect(blankItem('frames', 'hb_mf_new')).toMatchObject({ id: 'hb_mf_new', license_id: 'hb_mf_new', name: '', mounts: ['Main'] })
     expect(blankItem('pilot_gear', 'hb_pg_new')).toMatchObject({ id: 'hb_pg_new', type: 'Gear' })
     expect(blankItem('pilot_stats', 'grit', 6)).toEqual({ id: 'grit', name: '', sort_order: 6 })
-    expect(blankItem('bionics', '')).toMatchObject({ slot: '', effect: '', manna_cost: 500, mod_point_cost: 1, bonuses: [] })
+    expect(blankItem('bionics', '')).toMatchObject({ slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, bonuses: [] })
   })
 })

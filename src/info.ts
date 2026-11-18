@@ -182,11 +182,16 @@ export function coreBonusInfo(bonus: CoreBonus): Info {
 }
 
 // Bionics are campaign content (plain text descriptions); "statNames" turns stat ids into their names.
+// "1 mod point", "2 mod points": the one wording for a biomod's mod-point cost (info, archives, picker).
+export const modPoints = (n: number) => `${n} mod ${n === 1 ? 'point' : 'points'}`
+
 export function bionicInfo(bionic: Bionic, statNames: Map<string, string>): Info {
   return {
-    kind: 'bionic',
+    kind: 'biomod',
+    id: String(bionic.id), // so the archives can tell whether the dialog already shows it
     name: bionic.name,
-    facts: facts(bionic.slot, `${bionic.mod_point_cost} mod points`, `${bionic.manna_cost} manna`, bionic.retired ? 'retired: no longer offered' : ''),
+    source: bionic.source ?? undefined,
+    facts: facts(bionic.source ?? '', bionic.slot, modPoints(bionic.mod_point_cost), `${bionic.manna_cost} manna`, bionic.retired ? 'retired: no longer offered' : ''),
     stats: bionic.bonuses.map((bonus) => ({ label: statNames.get(bonus.stat_id) ?? bonus.stat_id, icon: STAT_ICONS[bonus.stat_id], value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}` })),
     // The description is flavour, drawn as lore like a frame's; it's plain text, so escaped.
     lore: text(bionic.description) ? `<p>${text(bionic.description).replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</p>` : '',

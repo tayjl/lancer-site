@@ -48,8 +48,8 @@ export async function loadCounts(): Promise<Record<string, number>> {
 // What each kind's list shows. Pack items read just a few fields (the rows are big); bionics and stats are small tables.
 export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; error: string | null }> {
   if (kind === 'bionics') {
-    const { rows, error } = await fetchAll((from, to) => supabase.from('bionics').select('id, name, slot, manna_cost, mod_point_cost, retired').order('name').order('id').range(from, to))
-    return { rows: rows.map((b) => ({ key: String(b.id), kind, name: b.name, facts: [b.slot, `${b.mod_point_cost} mod ${b.mod_point_cost === 1 ? 'point' : 'points'}`, `${b.manna_cost} manna`, b.retired ? 'retired' : ''].filter(Boolean).join(' · '), packId: null, draft: false, edited: false })), error }
+    const { rows, error } = await fetchAll((from, to) => supabase.from('bionics').select('id, name, slot, source, manna_cost, mod_point_cost, retired').order('name').order('id').range(from, to))
+    return { rows: rows.map((b) => ({ key: String(b.id), kind, name: b.name, facts: [b.source, b.slot, `${b.mod_point_cost} mod ${b.mod_point_cost === 1 ? 'point' : 'points'}`, `${b.manna_cost} manna`, b.retired ? 'retired' : ''].filter(Boolean).join(' · '), packId: null, draft: false, edited: false })), error }
   }
   if (kind === 'pilot_stats') {
     const { rows, error } = await fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))
@@ -74,7 +74,7 @@ export async function loadItem(kind: EditorKind, key: string): Promise<{ item: L
     if (error || !data) return { item: null, error: error?.message ?? null }
     const { updated_at, bonuses, ...rest } = data
     const bonusList = [...bonuses].sort((a, b) => a.stat_id.localeCompare(b.stat_id))
-    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: updated_at, data: { id: String(data.id), name: rest.name, description: rest.description ?? '', slot: rest.slot, effect: rest.effect, manna_cost: rest.manna_cost, mod_point_cost: rest.mod_point_cost, retired: rest.retired, bonuses: bonusList } }, error: null }
+    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: updated_at, data: { id: String(data.id), name: rest.name, description: rest.description ?? '', slot: rest.slot, source: rest.source ?? '', effect: rest.effect, manna_cost: rest.manna_cost, mod_point_cost: rest.mod_point_cost, retired: rest.retired, bonuses: bonusList } }, error: null }
   }
   if (kind === 'pilot_stats') {
     const { data, error } = await supabase.from('pilot_stats').select('*').eq('id', key).maybeSingle()
@@ -101,14 +101,14 @@ export async function homebrewPack(packs: Pack[]): Promise<{ id: number; error?:
 }
 
 // What save_bionic takes, from the form data (the slot is trimmed by the function).
-const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired, new_bonuses: (working.bonuses ?? []) as Json })
+const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_source: String(working.source ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired, new_bonuses: (working.bonuses ?? []) as Json })
 
 // A new item, as a draft (pack items), or a new bionic or personal stat.
 export async function createItem(kind: EditorKind, working: Data, packId: number | null): Promise<(Saved & { key?: string })> {
   if (kind === 'bionics') {
     const { data, error } = await supabase.rpc('save_bionic', bionicArgs(working))
     const saved = data as { id: number; updated_at: string } | null
-    return error || !saved ? { error: error ? message(error) : 'The bionic was not saved.' } : { updatedAt: saved.updated_at, key: String(saved.id) }
+    return error || !saved ? { error: error ? message(error) : 'The biomod was not saved.' } : { updatedAt: saved.updated_at, key: String(saved.id) }
   }
   if (kind === 'pilot_stats') {
     const result = await checkWrite(await supabase.from('pilot_stats').insert({ id: String(working.id), name: String(working.name), sort_order: Number(working.sort_order) }).select('updated_at'))
@@ -125,7 +125,7 @@ export async function saveItem(item: Loaded, working: Data, homebrew: boolean): 
     const { data, error } = await supabase.rpc('save_bionic', { ...bionicArgs(working), target_id: Number(item.key), expected_updated_at: seen })
     const saved = data as { updated_at: string } | null
     if (error) return { error: /changed somewhere else/.test(error.message) ? CHANGED_ELSEWHERE : message(error) }
-    return saved ? { updatedAt: saved.updated_at } : { error: 'The bionic was not saved.' }
+    return saved ? { updatedAt: saved.updated_at } : { error: 'The biomod was not saved.' }
   }
   if (item.kind === 'pilot_stats') {
     const result = await checkWrite(

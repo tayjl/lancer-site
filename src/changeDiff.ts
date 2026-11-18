@@ -107,7 +107,7 @@ export function changeDiff(
   // Stats and what manna buys.
   stats('personal stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 2)
   stats('piloting stats', before.sheet.mech_skills, after.sheet.mech_skills, 0)
-  listChanges('bionics', before.sheet.bionics, after.sheet.bionics, names.bionic)
+  listChanges('biomods', before.sheet.bionics, after.sheet.bionics, names.bionic)
   listChanges('loadout', before.sheet.pilot_gear, after.sheet.pilot_gear, names.gear)
 
   // Mechs: the public list and each mech's private details, by mech id.

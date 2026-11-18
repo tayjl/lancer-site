@@ -33,7 +33,7 @@ describe('changeDiff', () => {
     )
     expect([...new Set(lines.map(line => line.section))]).toEqual([
       'appearance', 'personality', 'backstory', 'personal stats', 'piloting stats',
-      'bionics', 'loadout', 'licences', 'core bonuses', 'talents',
+      'biomods', 'loadout', 'licences', 'core bonuses', 'talents',
     ])
   })
 
@@ -70,7 +70,7 @@ describe('changeDiff', () => {
       'identity | added | Age: - → 31',
       'piloting stats | raised | Hull 1 → 2',
       'piloting stats | raised | Agility 0 → 1',
-      'bionics | added | B:2',
+      'biomods | added | B:2',
       'loadout | added | G:drone',
       'mech: Lantern II / identity | updated | Name: Lantern → Lantern II',
       'mech: Lantern II / frame | updated | Frame: F:everest → F:blackbeard',

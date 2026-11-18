@@ -113,11 +113,11 @@ describe('full information', () => {
   })
 
   it('shows bionic bonuses by stat name and escapes its plain text', () => {
-    const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', slot: 'Eyes', effect: '<p>Sees <b>far</b>.</p>', manna_cost: 750, mod_point_cost: 2, retired: false, bonuses: [{ stat_id: 'perception', amount: 1 }] }
+    const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', slot: 'Eyes', source: 'IPS-N', effect: '<p>Sees <b>far</b>.</p>', manna_cost: 750, mod_point_cost: 2, retired: false, bonuses: [{ stat_id: 'perception', amount: 1 }] }
     const info = bionicInfo(bionic, new Map([['perception', 'perception']]))
     expect(info.stats).toMatchObject([{ label: 'perception', value: '+1' }])
     expect(info.stats[0].icon).toBeTruthy()
-    expect(info.facts.map(fact => fact.text)).toEqual(['Eyes', '2 mod points', '750 manna'])
+    expect(info.facts.map(fact => fact.text)).toEqual(['IPS-N', 'Eyes', '2 mod points', '750 manna'])
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['effect'])
     expect(info.groups[0].cards[0].html).toBe('<p>Sees <b>far</b>.</p>')
     expect(info.lore).toBe('<p>See &lt;far> &amp; wide</p>')

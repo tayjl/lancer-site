@@ -92,7 +92,7 @@ function grouped(items: DiffLine[]) {
   return [...groups]
 }
 const sections = computed(() => {
-  const priority = ['personal stats', 'piloting stats', 'licences', 'bionics', 'loadout', 'core bonuses', 'talents']
+  const priority = ['personal stats', 'piloting stats', 'licences', 'biomods', 'loadout', 'core bonuses', 'talents']
   const order = (section: string) => {
     const index = priority.indexOf(section)
     return index >= 0 ? index : section.startsWith('mech') ? priority.length : priority.length + 1

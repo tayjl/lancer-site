@@ -82,6 +82,7 @@ export type Database = {
           name: string
           retired: boolean
           slot: string
+          source: string | null
           updated_at: string
         }
         Insert: {
@@ -93,6 +94,7 @@ export type Database = {
           name: string
           retired?: boolean
           slot?: string
+          source?: string | null
           updated_at?: string
         }
         Update: {
@@ -104,6 +106,7 @@ export type Database = {
           name?: string
           retired?: boolean
           slot?: string
+          source?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -617,6 +620,7 @@ export type Database = {
           new_price: number
           new_retired: boolean
           new_slot: string
+          new_source?: string
           target_id?: number
         }
         Returns: Json

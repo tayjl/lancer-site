@@ -282,7 +282,7 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
     if (!Number.isInteger(value) || value < 0 || value > MAX_SKILL) problems.push(`${id} must be a whole number from 0 to ${MAX_SKILL}.`)
 
   const mods = (sheet.bionics ?? []).reduce((total, id) => total + (catalogue.bionicCosts?.get(id) ?? 0), 0)
-  if (mods > modLimit(gm.level)) problems.push(`Bionics use ${mods} mod points, but level ${gm.level} only gives ${modLimit(gm.level)}.`)
+  if (mods > modLimit(gm.level)) problems.push(`Biomods use ${mods} mod points, but level ${gm.level} only gives ${modLimit(gm.level)}.`)
 
   for (const [id, rank] of Object.entries(sheet.licences ?? {}))
     if (!Number.isInteger(rank) || rank < 0 || rank > MAX_LICENCE_RANK) problems.push(`${licenceName(catalogue.frames, id)} licence must be a whole rank from 0 to III.`)

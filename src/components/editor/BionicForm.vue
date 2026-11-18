@@ -13,12 +13,13 @@ import { latest, useFields, useProblems } from './useFields'
 // pilots choose from; pilots who have it keep it.
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
-const props = defineProps<{ stats: { id: string; name: string }[] }>()
+const props = defineProps<{ stats: { id: string; name: string }[]; manufacturers: { id: string; name: string }[] }>()
 const f = useFields(model)
 const { invalid } = useProblems()
 const name = f.text('name')
 const description = f.text('description')
 const slot = f.text('slot')
+const source = f.text('source')
 const price = f.number('manna_cost')
 const effect = f.text('effect')
 const cost = f.number('mod_point_cost')
@@ -46,6 +47,13 @@ const add = () => {
       <Field class="span2" label="Slot" path="slot" hint="Where on the body it goes. Pick a suggestion or type your own.">
         <input v-model="slot" type="text" autocomplete="off" :list="listId" />
         <datalist :id="listId"><option v-for="option in slots" :key="option" :value="option"></option></datalist>
+      </Field>
+      <Field class="span2" label="Manufacturer" path="source" hint="HORUS, NHC and Exotic biomods are GM-only.">
+        <select v-model="source">
+          <option value="">None</option>
+          <option v-if="source && !manufacturers.some((maker) => maker.id === source)" :value="source">{{ source }}</option>
+          <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
+        </select>
       </Field>
       <Field class="span2" label="Price (manna)" path="manna_cost"><input v-model="price" type="number" min="0" step="1" /></Field>
       <Field class="span2" label="Mod points" path="mod_point_cost"><input v-model="cost" type="number" min="0" step="1" /></Field>

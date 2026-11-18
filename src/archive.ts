@@ -1,22 +1,22 @@
 import { shallowRef } from 'vue'
 import { loadKind } from './catalogue'
-import type { CoreBonus, Item, Talent } from './gameData'
+import type { Bionic, CoreBonus, Item, Talent } from './gameData'
 import { flatDamageText } from './damage'
-import { coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
+import { bionicInfo, modPoints, coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
 import { itemDetails } from './itemDetails'
 import type { Frame } from './mechData'
 import { licenceName, rankName } from './rules'
 import { plainText } from './rulesText'
 
 // The archives page (ArchivesView.vue): every manufacturer, licence, core bonus, frame, mech weapon, mech system,
-// weapon mod, pilot gear and talent in the loaded packs, each opening its full information, with one search across all of them.
-export const ARCHIVE_CATEGORIES = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'pilot gear', 'talents'] as const
+// weapon mod, pilot gear, biomod and talent in the loaded packs, each opening its full information, with one search across all of them.
+export const ARCHIVE_CATEGORIES = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'pilot gear', 'biomods', 'talents'] as const
 export type ArchiveCategory = (typeof ARCHIVE_CATEGORIES)[number]
 // "search" is everything the search looks through: name, facts, group and rules text, lower case. "group" is what the
 // entry is listed under: its manufacturer's id (or "other"), a pilot gear type, or "" for no grouping (talents).
 // "level" is its licence level (0 for GMS and anything unlicensed), which orders it within its group, and "licence"
 // the licence's name (a frame's, e.g. "Barbarossa"; "" when unlicensed) for weapons and systems.
-// "item" (weapons, systems, gear) or "frame" (frames, licences) is what its row's facts come from (listFacts);
+// "item" (weapons, systems, gear), "frame" (frames, licences) or "bionic" (biomods) is what its row's facts come from (listFacts);
 // "summary" (a one-line plain effect, terse or motto) is searched too.
 export type ArchiveEntry = {
   category: ArchiveCategory
@@ -27,6 +27,7 @@ export type ArchiveEntry = {
   licence: string
   item?: Item
   frame?: Frame
+  bionic?: Bionic
   summary: string
   search: string
   info: () => Info
@@ -39,6 +40,8 @@ export type ArchiveContent = {
   systems: Item[]
   mods: Item[]
   gear: Item[]
+  biomods: Bionic[]
+  statNames: Map<string, string>
   talents: Talent[]
   coreBonuses: CoreBonus[]
 }
@@ -64,7 +67,7 @@ const summaryOf = (item: Item) =>
   plainText(itemDetails(item, new Map()).text) || plainText(flatDamageText(firstDetail(item.raw?.actions) || firstDetail(item.raw?.deployables)))
 
 export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
-  const { manufacturers, frames, weapons, systems, mods, gear, talents, coreBonuses } = content
+  const { manufacturers, frames, weapons, systems, mods, gear, biomods, statNames, talents, coreBonuses } = content
   const item = (category: ArchiveCategory, i: Item, group = sourceOf(i)) =>
     entry(
       {
@@ -93,20 +96,23 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
     ...systems.map((s) => item('mech systems', s)),
     ...mods.map((m) => item('weapon mods', m)),
     ...gear.map((g) => item('pilot gear', g, g.type)),
+    ...biomods.filter((b) => !b.retired).map((b) =>
+      entry({ category: 'biomods', group: b.source?.trim() || 'other', id: String(b.id), name: b.name, bionic: b, summary: plainText(b.effect), info: () => bionicInfo(b, statNames) }, [b.slot], [b.effect, b.description ?? ''])),
     ...talents.map((t) =>
       entry({ category: 'talents', group: '', id: t.id, name: t.name, summary: t.terse, info: () => talentInfo(t) }, [], t.ranks.flatMap((r) => [r.name, r.description]))),
   ]
 }
 
 // The one or two key facts a row in the archives' list shows after the name (its full information is in the detail
-// pane): a weapon's rank and mount and type, a system's or mod's rank and system points, a frame's or licence's role, a
+// pane): a biomod's slot and mod points, a weapon's rank and mount and type, a system's or mod's rank and system points, a frame's or licence's role, a
 // manufacturer's code. Nothing for the rest: their group (maker, gear type) already says enough.
 export function listFacts(entry: ArchiveEntry): string[] {
-  const { item, frame } = entry
+  const { item, frame, bionic } = entry
   const rank = entry.level ? `Rank ${rankName(entry.level)}` : ''
   const facts =
     entry.category === 'mech weapons' && item ? [rank, `${item.mount} ${item.type}`.trim()]
     : (entry.category === 'mech systems' || entry.category === 'weapon mods') && item ? [rank, item.sp ? `${item.sp} SP` : '']
+    : bionic ? [bionic.slot, modPoints(bionic.mod_point_cost)]
     : frame ? [frame.mechtype.join(' / ')]
     : entry.category === 'manufacturers' && entry.id !== entry.name ? [entry.id]
     : []
@@ -173,7 +179,7 @@ export function searchArchive(entries: ArchiveEntry[], query: string): ArchiveEn
 
 // The manufacturer filter (?maker=GMS,IPS-N): known manufacturers' ids only, so a stale or made-up id does nothing.
 // Pilot gear and talents have no manufacturer, so the filter leaves them alone.
-export const MAKER_CATEGORIES: ArchiveCategory[] = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods']
+export const MAKER_CATEGORIES: ArchiveCategory[] = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'biomods']
 export const parseMakers = (value: unknown, manufacturers: Manufacturer[]) =>
   String(value ?? '').split(',').filter((id) => manufacturers.some((m) => m.id === id))
 export const filterByMakers = (entries: ArchiveEntry[], makers: string[]) =>

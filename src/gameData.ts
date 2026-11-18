@@ -119,6 +119,8 @@ export type Bionic = {
   name: string
   description: string | null
   slot: string
+  // The manufacturer's id (HORUS, IPS-N...), or null for none.
+  source: string | null
   // Rules text, simple HTML like an item's effect.
   effect: string
   // The price in manna.
@@ -234,7 +236,9 @@ export const bionicItems = (catalogue: Bionic[]) =>
   catalogue.map((b) => ({
     id: b.id,
     name: b.name,
-    type: [b.slot, ...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`)].filter(Boolean).join(', '),
+    // The picker's facts line, before the mod points and price: maker, slot, then each bonus.
+    facts: [b.source ?? '', b.slot, ...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`)].filter(Boolean),
+    source: b.source ?? '',
     slot: b.slot,
     effect: b.effect,
     price: b.manna_cost,

@@ -23,7 +23,7 @@ import { useMechData } from '../mechData'
 // the chosen entry's full information beside it (InfoBody.vue); on phones the list only, an entry opening the
 // information dialog (InfoDialog.vue).
 const { frames, weapons, systems, mods } = useMechData()
-const { gear, talents, coreBonuses } = useGameData()
+const { gear, bionics, pilotStats, talents, coreBonuses } = useGameData()
 const manufacturers = useManufacturers()
 
 const entries = computed(() =>
@@ -34,6 +34,8 @@ const entries = computed(() =>
     systems: systems.value,
     mods: mods.value,
     gear: gear.value,
+    biomods: bionics.value,
+    statNames: new Map(pilotStats.value.map((stat) => [stat.id, stat.name])),
     talents: talents.value,
     coreBonuses: coreBonuses.value,
   }),
@@ -116,7 +118,7 @@ const listed = computed(() => blocks.value.flatMap((block) => block.groups.flatM
 
 // A manufacturer card's counts, each a shortcut to that category (filtered to the maker). Every row always shows,
 // even 0 (GMS sells no licences, NHC no weapon mods), so every card has the same rows.
-const MADE: ArchiveCategory[] = ['licences', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'core bonuses']
+const MADE: ArchiveCategory[] = ['licences', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'biomods', 'core bonuses']
 const counts = (maker: Manufacturer) =>
   MADE.map((made) => ({ made, count: entries.value.filter((entry) => entry.category === made && entry.group === maker.id).length }))
 
@@ -156,7 +158,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
 
 <template>
   <main class="page archives list-pane">
-    <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, weapon mod, piece of gear, talent and core bonus in the loaded content packs.">
+    <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, weapon mod, piece of gear, biomod, talent and core bonus in the loaded content packs.">
       <span class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
     </PageHeader>
     <CatalogueNotice />
