@@ -40,7 +40,8 @@ const page = (direction: -1 | 1) => row.value?.scrollBy({ left: direction * row.
 </script>
 
 <template>
-  <div class="tabs-wrap">
+  <!-- The root takes the page's class (e.g. the sticky .sheet-tabs), so it carries no position of its own. -->
+  <div class="tabs-wrap"><div class="tabs-row">
     <button v-if="more.left" type="button" class="small tabs-arrow left" aria-label="Scroll tabs left" tabindex="-1" @click="page(-1)"><Icon name="chevron-left" /></button>
     <nav ref="row" class="tabs" :aria-label="label" @scroll.passive="update" @wheel="wheel">
       <button
@@ -55,11 +56,11 @@ const page = (direction: -1 | 1) => row.value?.scrollBy({ left: direction * row.
       </button>
     </nav>
     <button v-if="more.right" type="button" class="small tabs-arrow right" aria-label="Scroll tabs right" tabindex="-1" @click="page(1)"><Icon name="chevron-right" /></button>
-  </div>
+  </div></div>
 </template>
 
 <style scoped>
-.tabs-wrap {
+.tabs-row {
   position: relative;
 }
 
