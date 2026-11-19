@@ -15,6 +15,7 @@ import MechHangar from '../components/MechHangar.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
 import Portrait from '../components/Portrait.vue'
+import gritIcon from '../assets/icons/skill.svg'
 import RankPanel, { type RankStep } from '../components/RankPanel.vue'
 import SaveStatus from '../components/SaveStatus.vue'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -203,7 +204,11 @@ const bionicOptions = computed(() => {
   return bionicItems(bionics.value).map((item, i) => ({ ...item, ...restrictionOf(bionics.value[i]), info: () => bionicInfo(bionics.value[i], statNames) }))
 })
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
-const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
+// Grit is LANCER's: half the level, rounded up. Shown only; the mech maths doesn't use it.
+const vitals = computed(() => [
+  ...pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value),
+  { id: 'grit', name: 'Grit', value: Math.ceil(gm.value.level / 2), icon: gritIcon, contributors: [`Half of level ${gm.value.level}, rounded up`] },
+])
 
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, mods } = useMechData()
@@ -488,7 +493,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           <section class="panel">
             <h2 class="sheet-label">Identity</h2>
             <Portrait class="identity-portrait" :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
-            <ImageUpload v-if="editable" :path="character.pilot_image" :save="saveImage" />
+            <ImageUpload v-if="editable" class="identity-upload" :path="character.pilot_image" :save="saveImage" />
             <dl class="kv">
               <template v-for="[column, label] in IDENTITY" :key="column">
                 <dt><label v-if="editable" :for="`identity-${column}`">{{ label }}</label><template v-else>{{ label }}</template></dt>
@@ -780,7 +785,17 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
 
 .identity-portrait {
   width: 100%;
-  max-width: 160px;
+  max-width: 240px;
+  margin-inline: auto;
+}
+
+/* Under the centred portrait, its buttons and status centre too. */
+.identity-upload {
+  text-align: center;
+}
+
+.identity-upload :deep(.buttons) {
+  justify-content: center;
 }
 
 .kv {
