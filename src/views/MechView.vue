@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, provide, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAction } from '../confirm'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
@@ -31,8 +31,8 @@ import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
 import { pilotList, sectionOverride } from '../router'
-import { frameBlockedBy, gmOnly, GM_ONLY_REASON, mechProblems, useCatalogue } from '../rules'
-import { isGm } from '../auth'
+import { frameBlockedBy, isExotic, mechProblems, restrictionOf, useCatalogue } from '../rules'
+import { GM_EDIT, useRestriction } from '../restriction'
 
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
 // maker's logo and a thin top border in its colour, the name, manufacturer id, frame and class, then pilot, size and
@@ -51,6 +51,7 @@ const own = !pilotId
 const { character, sheet, canSeePrivate, loading, loadError, conflict, retry, editable, gmEditing, waiting, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId, {
   gmEdit: () => route.query.edit === '1',
 })
+provide(GM_EDIT, gmEditing) // so the loadout's and frame pickers know Exotic content may be chosen (rules.ts)
 
 // The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
 const list = computed(() => pilotList(character.value?.status))
@@ -164,15 +165,17 @@ const saveHistory = (doc: Json | null) => track(savePrivate({ history: doc }))
 const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes))
 
 // --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
-// A licensed frame needs its rank in its licence, and, if the licence has alternate frames, to be the one the pilot chose for it; GMS frames need none. HORUS, NHC and Exotic frames are GM-only.
+// A licensed frame needs its rank in its licence, and, if the licence has alternate frames, to be the one the pilot chose for it; GMS frames need none. HORUS and NHC frames are GM-only, Exotic ones GM-edit-only.
 const framePicker = useTemplateRef('framePicker')
+const reasonFor = useRestriction()
 const frameOptions = computed(() => {
   const ranges = frameRanges(frames.value)
   return frames.value.map((f) => ({
     id: f.id,
     name: f.name,
     ...framePick(f, ranges, manufacturers.value),
-    blocked: !isGm.value && gmOnly(f) ? GM_ONLY_REASON : frameBlockedBy(f, frames.value, sheet.value),
+    exotic: isExotic(f),
+    blocked: reasonFor(restrictionOf(f)) || frameBlockedBy(f, frames.value, sheet.value),
     info: () => frameInfo(f, frames.value),
   }))
 })
@@ -304,7 +307,7 @@ async function scrap() {
 
       <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
       <div v-if="own && draft" class="next">
-        <span class="badge" :class="draft.submitted_at ? 'pending' : 'draft'">{{ draft.submitted_at ? 'Submitted' : 'Draft' }}</span>
+        <span class="badge" :class="draft.submitted_at ? 'pending' : draft.review_reason ? 'rejected' : 'draft'">{{ draft.submitted_at ? 'Submitted' : draft.review_reason ? 'Sent back' : 'Draft' }}</span>
         <p v-if="!draft.submitted_at">Edits here go into your draft change. Submit it from <RouterLink :to="{ name: 'pilot' }">My pilot</RouterLink>.</p>
         <p v-else>Waiting on a GM. This mech is read-only.</p>
       </div>

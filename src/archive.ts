@@ -5,7 +5,7 @@ import { flatDamageText } from './damage'
 import { bionicInfo, modPoints, coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
 import { itemDetails } from './itemDetails'
 import { licensedFrames, type Frame } from './mechData'
-import { licenceName, rankName } from './rules'
+import { EXOTIC, isExotic, licenceName, rankName } from './rules'
 import { plainText } from './rulesText'
 
 // The archives page (ArchivesView.vue): every manufacturer, licence, core bonus, frame, mech weapon, mech system,
@@ -16,6 +16,7 @@ export type ArchiveCategory = (typeof ARCHIVE_CATEGORIES)[number]
 // entry is listed under: its manufacturer's id (or "other"), a pilot gear type, or "" for no grouping (talents).
 // "level" is its licence level (0 for GMS and anything unlicensed), which orders it within its group, and "licence"
 // the licence's name (a frame's, e.g. "Barbarossa"; "" when unlicensed) for weapons and systems.
+// "exotic": Exotic gear (rules.ts), listed last in its group.
 // "item" (weapons, systems, gear), "frame" (frames, licences) or "bionic" (biomods) is what its row's facts come from (listFacts);
 // "summary" (a one-line plain effect, terse or motto) is searched too.
 export type ArchiveEntry = {
@@ -25,6 +26,7 @@ export type ArchiveEntry = {
   group: string
   level: number
   licence: string
+  exotic: boolean
   item?: Item
   frame?: Frame
   bionic?: Bionic
@@ -54,8 +56,10 @@ const entry = (
 ): ArchiveEntry => ({
   level: 0,
   licence: '',
+  exotic: false,
   summary: '',
   ...fields,
+  group: makerId(fields.group),
   search: [fields.name, ...facts, fields.group, fields.summary ?? '', ...text.map(plainText)].join(' ').toLowerCase(),
 })
 const sourceOf = (item: Item) => String(item.raw?.source ?? '') || 'other'
@@ -71,7 +75,7 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
   const item = (category: ArchiveCategory, i: Item, group = sourceOf(i)) =>
     entry(
       {
-        category, group, id: i.id, name: i.name, level: i.licenceLevel, item: i, summary: summaryOf(i), info: () => itemInfo(i),
+        category, group, id: i.id, name: i.name, level: i.licenceLevel, exotic: isExotic(i), item: i, summary: summaryOf(i), info: () => itemInfo(i),
         licence: i.licenceLevel > 0 ? frames.find((f) => f.id === i.licenceId)?.name ?? i.licenceId : '',
       },
       [`${i.mount} ${i.type}`, i.licenceLevel > 0 ? licenceName(frames, i.licenceId) : ''],
@@ -83,23 +87,23 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
     ...licensedFrames(frames).map((f) =>
       entry(
         {
-          category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => licenceInfo(f, weapons, systems, mods, frames),
+          category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, exotic: isExotic(f), frame: f, info: () => licenceInfo(f, weapons, systems, mods, frames),
         },
         f.mechtype,
         [],
       )),
     ...coreBonuses.map((b) =>
-      entry({ category: 'core bonuses', group: b.source || 'other', id: b.id, name: b.name, summary: plainText(b.effect), info: () => coreBonusInfo(b) }, [], [b.effect])),
+      entry({ category: 'core bonuses', group: b.source || 'other', id: b.id, name: b.name, exotic: isExotic(b), summary: plainText(b.effect), info: () => coreBonusInfo(b) }, [], [b.effect])),
     ...frames.map((f) =>
-      entry({ category: 'frames', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, frame: f, info: () => frameInfo(f, frames) }, f.mechtype, [f.description])),
+      entry({ category: 'frames', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, exotic: isExotic(f), frame: f, info: () => frameInfo(f, frames) }, f.mechtype, [f.description])),
     ...weapons.map((w) => item('mech weapons', w)),
     ...systems.map((s) => item('mech systems', s)),
     ...mods.map((m) => item('weapon mods', m)),
     ...gear.map((g) => item('pilot gear', g, g.type)),
     ...biomods.filter((b) => !b.retired).map((b) =>
-      entry({ category: 'biomods', group: b.source?.trim() || 'other', id: String(b.id), name: b.name, bionic: b, summary: plainText(b.effect), info: () => bionicInfo(b, statNames) }, [b.slot], [b.effect, b.description ?? ''])),
+      entry({ category: 'biomods', group: b.source?.trim() || 'other', id: String(b.id), name: b.name, exotic: isExotic(b), bionic: b, summary: plainText(b.effect), info: () => bionicInfo(b, statNames) }, [b.slot], [b.effect, b.description ?? ''])),
     ...talents.map((t) =>
-      entry({ category: 'talents', group: '', id: t.id, name: t.name, summary: t.terse, info: () => talentInfo(t) }, [], t.ranks.flatMap((r) => [r.name, r.description]))),
+      entry({ category: 'talents', group: '', id: t.id, name: t.name, exotic: isExotic(t), summary: t.terse, info: () => talentInfo(t) }, [], t.ranks.flatMap((r) => [r.name, r.description]))),
   ]
 }
 
@@ -118,6 +122,12 @@ export function listFacts(entry: ArchiveEntry): string[] {
     : []
   return facts.filter(Boolean)
 }
+
+// The Exotic pseudo-manufacturer: a constant, not a content row. Owner-made items with no mainline manufacturer use its id as
+// their source. It has no colour or logo, so it looks like "Other"; it is listed after everything else.
+export const EXOTIC_MAKER: Manufacturer = { id: EXOTIC, name: 'Exotic', quote: '', description: '', colour: '', logo: '' }
+// A source as a group key: any spelling of Exotic is EXOTIC.
+export const makerId = (source: string) => (source.trim().toUpperCase() === EXOTIC ? EXOTIC : source.trim())
 
 // A manufacturer's accent colour, if it's a plain hex colour (it comes from imported packs); otherwise lilac.
 export const makerColour = (maker?: Manufacturer) =>
@@ -149,15 +159,15 @@ const grouped = <T>(list: T[], keyOf: (item: T) => string) => {
 export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufacturer[], ranked = false): ArchiveGroup[] {
   const makers = new Map(manufacturers.map((m) => [m.id, m]))
   const order = [...manufacturers.map((m) => m.id), ...Object.keys(GEAR_TYPES)]
-  const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : key === 'other' ? order.length + 1 : order.length)
-  const groups = grouped(ranked ? entries : [...entries].sort((a, b) => a.level - b.level), (entry) => entry.group)
+  const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : key === 'other' ? order.length + 1 : key === EXOTIC ? order.length + 2 : order.length)
+  const groups = grouped(ranked ? entries : [...entries].sort((a, b) => Number(a.exotic) - Number(b.exotic) || a.level - b.level), (entry) => entry.group)
   if (!ranked) groups.sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
   return groups.map(([key, list]) => {
     const maker = makers.get(key)
     const sections = grouped(list, (entry) => (!ranked && BY_LICENCE.includes(entry.category) ? entry.licence : ''))
       .sort(([a], [b]) => Number(Boolean(a)) - Number(Boolean(b)) || a.localeCompare(b))
       .map(([licence, entries]) => ({ licence, entries }))
-    return { key, title: maker ? maker.id : GEAR_TYPES[key] ?? (key === 'other' ? 'Other' : key), colour: makerColour(maker), logo: makerLogo(maker), entries: list, sections }
+    return { key, title: maker ? maker.id : GEAR_TYPES[key] ?? (key === 'other' ? 'Other' : key === EXOTIC ? EXOTIC_MAKER.name : key), colour: makerColour(maker), logo: makerLogo(maker), entries: list, sections }
   })
 }
 
@@ -181,7 +191,7 @@ export function searchArchive(entries: ArchiveEntry[], query: string): ArchiveEn
 // Pilot gear and talents have no manufacturer, so the filter leaves them alone.
 export const MAKER_CATEGORIES: ArchiveCategory[] = ['manufacturers', 'licences', 'core bonuses', 'frames', 'mech weapons', 'mech systems', 'weapon mods', 'biomods']
 export const parseMakers = (value: unknown, manufacturers: Manufacturer[]) =>
-  String(value ?? '').split(',').filter((id) => manufacturers.some((m) => m.id === id))
+  String(value ?? '').split(',').filter((id) => id === EXOTIC || manufacturers.some((m) => m.id === id))
 export const filterByMakers = (entries: ArchiveEntry[], makers: string[]) =>
   makers.length ? entries.filter((e) => !MAKER_CATEGORIES.includes(e.category) || makers.includes(e.group)) : entries
 

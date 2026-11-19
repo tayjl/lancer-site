@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watchEffect } from 'vue'
+import { computed, provide, reactive, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
@@ -26,10 +26,11 @@ import type { Json } from '../lib/database.types'
 import { chosenFrame, licenceFrames, licensedFrames, useMechData, type Frame } from '../mechData'
 import { bionicInfo, frameInfo, licenceUnlocks, talentInfo } from '../info'
 import { useMyPilot, type Sheet } from '../myPilot'
+import { GM_EDIT } from '../restriction'
 import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
 import { pilotList, sectionOverride } from '../router'
-import { coreBonusPicks, gmOnly, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
+import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
 import { capitalise } from '../text'
 
 // my pilot: your pilot as one sheet. A compact header (portrait, callsign, name, player, status, then level, licence
@@ -80,12 +81,17 @@ const {
   withdrawChange,
   markDead,
 } = useMyPilot(pilotId, { gmEdit: () => route.query.edit === '1' })
+// Exotic content can be picked only in a GM's edit mode (rules.ts): every picker below asks (src/restriction.ts).
+provide(GM_EDIT, gmEditing)
 
 // A pilot that isn't submitted yet (a new one, or one a GM sent back): only its player and GMs see it in lists.
 const isDraft = computed(() => character.value?.status === 'pending' && !character.value.submitted_at)
 
 // Your approved pilot: changes are proposed, then a GM approves them (src/myPilot.ts).
 const approvedOwn = computed(() => own && character.value?.status === 'approved')
+
+// A change a GM sent back comes back as a draft with their note (the database makes it, see reject_change).
+const sentBack = computed(() => (draft.value && !draft.value.submitted_at ? draft.value.review_reason : null))
 
 // A GM's note on your last approved change. "Clear note" only hides it on this device (the note stays in the
 // change's history), so it's remembered in localStorage, which can be missing or blocked: every access is guarded.
@@ -126,9 +132,13 @@ if (route.name === 'pilot-record') watchEffect(() => (sectionOverride.value = ba
 // Your own mechs open for editing; anyone else's open read-only under their record (editable in a GM's edit mode, kept in the url).
 const mechLink = (mechId: string) =>
   own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId }, query: gmEditing.value ? { edit: '1' } : undefined }
-// A GM's edit mode (?edit=1) on a living pilot's record or review page; Done leaves it.
-const gmCanEdit = computed(() => isGm.value && !own && character.value?.status !== 'dead')
-const setEdit = (on: boolean) => router.replace({ query: { ...route.query, edit: on ? '1' : undefined } })
+// A GM's edit mode (?edit=1) on a living pilot's record or review page; Done leaves it. On your own approved pilot (a GM or
+// owner's) the button is on My pilot too: it opens your own record in edit mode (a pending pilot is already yours to edit).
+const gmCanEdit = computed(() => isGm.value && character.value?.status !== 'dead' && (!own || character.value?.status === 'approved'))
+const setEdit = (on: boolean) =>
+  own && on
+    ? router.push({ name: 'pilot-record', params: { id: character.value!.id }, query: { edit: '1' } })
+    : router.replace({ query: { ...route.query, edit: on ? '1' : undefined } })
 const { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses } = useGameData()
 
 // The identity table under the portrait. [column, label]
@@ -184,7 +194,7 @@ const saveBackstory = (doc: Json | null) => track(updateSheet({ backstory: doc }
 // Bionics for their box, each opening its full information.
 const bionicOptions = computed(() => {
   const statNames = new Map(pilotStats.value.map((stat) => [stat.id, stat.name]))
-  return bionicItems(bionics.value).map((item, i) => ({ ...item, gmOnly: gmOnly(bionics.value[i]), info: () => bionicInfo(bionics.value[i], statNames) }))
+  return bionicItems(bionics.value).map((item, i) => ({ ...item, ...restrictionOf(bionics.value[i]), info: () => bionicInfo(bionics.value[i], statNames) }))
 })
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
 const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value))
@@ -198,7 +208,7 @@ const balance = computed(() => gm.value.manna - mannaSpent(sheet.value, bionicPr
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
 // can be lowered or removed; the rule check says why.
 const licenceOptions = computed(() => {
-  const option = (frame: Frame, stale = false) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), gmOnly: gmOnly(frame), stale })
+  const option = (frame: Frame, stale = false) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), ...restrictionOf(frame), stale })
   const originals = licensedFrames(frames.value)
   return [...originals.map((frame) => option(frame)), ...frames.value.filter((f) => f.licenceLevel > 0 && !originals.includes(f) && sheet.value.licences?.[f.id]).map((frame) => option(frame, true))]
 })
@@ -221,7 +231,7 @@ const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
 // Talents: each rank's name and rules.
-const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse, info: () => talentInfo(t) })))
+const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse, info: () => talentInfo(t), ...restrictionOf(t) })))
 const talentDetails = (id: string): RankStep[] =>
   (talents.value.find((t) => t.id === id)?.ranks ?? []).map((r) => ({ name: r.name, html: r.description }))
 const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({ talents: talentRanks }))
@@ -385,9 +395,10 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           <span class="badge pending">Pending</span>
           <p class="next-text">Waiting on a GM.</p>
         </template>
-        <template v-else-if="!draft">
-          <span v-if="change?.status === 'rejected'" class="badge rejected">Rejected</span>
-          <p class="next-text">{{ change?.status === 'rejected' ? 'Your last change was rejected.' : 'Changes need GM approval.' }}</p>
+        <p v-else-if="!draft" class="next-text">Changes need GM approval.</p>
+        <template v-else-if="sentBack">
+          <span class="badge rejected">Sent back</span>
+          <p class="next-text">A GM sent this back. Fix what they asked, then resubmit.</p>
         </template>
         <template v-else-if="!draft.submitted_at">
           <span class="badge draft">Draft</span>
@@ -438,9 +449,9 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <p class="note-text">Your last change was approved.</p>
         <p class="note-text">{{ changeNote }}</p>
       </div>
-      <div v-if="approvedOwn && !draft && change?.status === 'rejected'" class="notice warn" role="note">
-        <p class="notice-title">A GM rejected your last change</p>
-        <p class="note-text">{{ change.review_reason }}</p>
+      <div v-if="own && sentBack" class="notice warn" role="note">
+        <p class="notice-title">Note from the GM</p>
+        <p class="note-text">{{ sentBack }}</p>
       </div>
       <RuleCheck v-if="canSeePrivate" :problems="problems" :fix="ruleFix" />
 

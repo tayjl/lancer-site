@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { WEAPON_MOUNTS, WEAPON_TYPES, setProfiles, splitProfiles, type BonusType, type Data } from '../../contentEditor'
+import { WEAPON_MOUNTS, WEAPON_TYPES, lockedTags, setProfiles, splitProfiles, type BonusType, type Data } from '../../contentEditor'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
@@ -125,7 +125,7 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
 
   <section class="panel" aria-labelledby="weapon-tags">
     <h3 id="weapon-tags" class="sheet-label">Tags</h3>
-    <TagListField v-model="tagList" :tags="tags" />
+    <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
   </section>
 
   <section class="panel" aria-labelledby="weapon-bonuses">

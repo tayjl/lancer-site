@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blankItem, bonusTypesFor, errorsOf, newId, parseRaw, problemsFor, slug, usedBy, type Context } from './contentEditor'
+import { blankItem, bonusTypesFor, errorsOf, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, withExoticTag, type Context } from './contentEditor'
 
 const ctx: Context = {
   id: 'hb_pg_vest',
@@ -141,5 +141,28 @@ describe('new items', () => {
     expect(blankItem('pilot_gear', 'hb_pg_new')).toMatchObject({ id: 'hb_pg_new', type: 'Gear' })
     expect(blankItem('pilot_stats', 'grit', 6)).toEqual({ id: 'grit', name: '', sort_order: 6 })
     expect(blankItem('bionics', '')).toMatchObject({ slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, bonuses: [] })
+  })
+})
+
+describe('the Exotic Gear tag', () => {
+  it('is added to anything whose manufacturer is Exotic, once, and keeps the other tags', () => {
+    const rifle = { id: 'hb_mw_x', name: 'X', source: 'EXOTIC', tags: [{ id: 'tg_unique' }] }
+    expect(withExoticTag('weapons', rifle).tags).toEqual([{ id: 'tg_unique' }, { id: 'tg_exotic' }])
+    expect(withExoticTag('weapons', withExoticTag('weapons', rifle))).toEqual(withExoticTag('weapons', rifle))
+    expect(withExoticTag('pilot_gear', { id: 'g', name: 'G', source: ' exotic ' }).tags).toEqual([{ id: 'tg_exotic' }])
+    for (const kind of ['systems', 'mods', 'frames', 'core_bonuses'] as const) expect(withExoticTag(kind, { source: 'EXOTIC' }).tags).toEqual([{ id: 'tg_exotic' }])
+  })
+  it('leaves other manufacturers, other kinds and biomods alone', () => {
+    const gms = { id: 'a', name: 'A', source: 'GMS' }
+    expect(withExoticTag('weapons', gms)).toBe(gms)
+    const tagged = { id: 'a', name: 'A', source: 'NHC', tags: [{ id: 'tg_exotic' }] } // a prototype keeps its manufacturer
+    expect(withExoticTag('weapons', tagged)).toBe(tagged)
+    expect(withExoticTag('bionics', { source: 'EXOTIC' })).toEqual({ source: 'EXOTIC' })
+    expect(withExoticTag('talents', { source: 'EXOTIC' })).toEqual({ source: 'EXOTIC' })
+  })
+  it('locks the tag in the form only while the manufacturer is Exotic', () => {
+    expect(lockedTags({ source: 'EXOTIC' })).toEqual(['tg_exotic'])
+    expect(lockedTags({ source: 'GMS' })).toEqual([])
+    expect(lockedTags({})).toEqual([])
   })
 })

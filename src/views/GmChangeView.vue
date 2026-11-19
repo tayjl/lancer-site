@@ -20,11 +20,11 @@ import { capitalise, plural } from '../text'
 import { since } from '../time'
 
 // One pending change (opened from gm: changes): what it changes, in plain words, against the approved
-// pilot; what it costs in manna; the rule check on the proposed sheet; then approve or reject. GMs approve
-// or reject the whole change. Approving runs approve_change (all-or-nothing, in the database), which refuses
+// pilot; what it costs in manna; the rule check on the proposed sheet; then approve or send back. GMs approve
+// or send back the whole change. Approving runs approve_change (all-or-nothing, in the database), which refuses
 // if the pilot changed since the change was started or the player edited and resubmitted it since this page loaded it
-// (expected_submitted_at, sent back as it came). Rejecting runs reject_change and needs a reason. Either way the
-// note is what the player sees.
+// (expected_submitted_at, sent back as it came). Sending back runs reject_change, needs a note and gives the player their proposal back as a draft
+// (the change itself stays as history, status "rejected"). Either way the note is what the player sees.
 
 const route = useRoute()
 const router = useRouter()
@@ -164,7 +164,7 @@ async function approve() {
 
 async function reject() {
   if (!note.value.trim()) {
-    error.value = 'Write a reason before rejecting.'
+    error.value = 'Write a note before sending it back.'
     return
   }
   busy.value = true
@@ -192,7 +192,7 @@ async function reject() {
             <span>Player: {{ pilot.player?.display_name ?? 'Unknown player' }}</span>
             <span v-if="waiting">Submitted {{ since(change.submitted_at!) }} ago</span>
             <span v-else-if="pending">Not submitted</span>
-            <span v-else><span class="badge" :class="change.status">{{ capitalise(change.status) }}</span></span>
+            <span v-else><span class="badge" :class="change.status">{{ change.status === 'rejected' ? 'Sent back' : capitalise(change.status) }}</span></span>
           </p>
           <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }">Open pilot record</RouterLink>
         </div>
@@ -260,7 +260,7 @@ async function reject() {
           <label class="field">
             <span>Note to the player</span>
             <textarea v-model="note" rows="3"></textarea>
-            <span class="hint">Required when rejecting.</span>
+            <span class="hint">Required when sending back.</span>
           </label>
           <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
           <div class="actions">
@@ -268,12 +268,12 @@ async function reject() {
               <button type="button" class="primary" :disabled="busy || stale" :aria-describedby="stale ? 'approve-why' : undefined" @click="approve">Approve change</button>
               <span v-if="stale" id="approve-why" class="blocked-reason">Pilot changed after this change</span>
             </span>
-            <button type="button" class="danger" :disabled="busy" @click="reject">Reject change</button>
+            <button type="button" class="danger" :disabled="busy" @click="reject">Send back change</button>
           </div>
         </div>
       </section>
       <section v-else-if="change.status === 'rejected'" class="panel">
-        <h2 class="sheet-label">Reason for rejecting</h2>
+        <h2 class="sheet-label">Note when sent back</h2>
         <p class="prose">{{ change.review_reason }}</p>
       </section>
     </template>

@@ -1,4 +1,4 @@
-import { HOMEBREW_PACK, KINDS, isObject, type Data, type EditorKind } from './contentEditor'
+import { HOMEBREW_PACK, KINDS, isObject, withExoticTag, type Data, type EditorKind } from './contentEditor'
 import type { Json } from './lib/database.types'
 import { LCP_KINDS, writeLcp, type LcpKind } from './lcp'
 import { CHANGED_ELSEWHERE, NOT_ALLOWED, checkWrite, fetchAll, supabase } from './lib/supabaseClient'
@@ -105,7 +105,8 @@ export async function homebrewPack(packs: Pack[]): Promise<{ id: number; error?:
 const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_source: String(working.source ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired, new_bonuses: (working.bonuses ?? []) as Json })
 
 // A new item, as a draft (pack items), or a new bionic or personal stat.
-export async function createItem(kind: EditorKind, working: Data, packId: number | null): Promise<(Saved & { key?: string })> {
+export async function createItem(kind: EditorKind, edits: Data, packId: number | null): Promise<(Saved & { key?: string })> {
+  const working = withExoticTag(kind, edits)
   if (kind === 'bionics') {
     const { data, error } = await supabase.rpc('save_bionic', bionicArgs(working))
     const saved = data as { id: number; updated_at: string } | null
@@ -120,7 +121,8 @@ export async function createItem(kind: EditorKind, working: Data, packId: number
 }
 
 // Saves what's on screen over the loaded item: a homebrew item's own data, or an imported item's edited version.
-export async function saveItem(item: Loaded, working: Data, homebrew: boolean): Promise<Saved> {
+export async function saveItem(item: Loaded, edits: Data, homebrew: boolean): Promise<Saved> {
+  const working = withExoticTag(item.kind, edits)
   const seen = item.updatedAt
   if (item.kind === 'bionics') {
     const { data, error } = await supabase.rpc('save_bionic', { ...bionicArgs(working), target_id: Number(item.key), expected_updated_at: seen })

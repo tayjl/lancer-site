@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { WEAPON_MOUNTS, WEAPON_TYPES, type BonusType, type Data } from '../../contentEditor'
+import { WEAPON_MOUNTS, WEAPON_TYPES, lockedTags, type BonusType, type Data } from '../../contentEditor'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
@@ -76,7 +76,7 @@ const addedDamage = f.list<Entry>('added_damage')
 
   <section class="panel" aria-labelledby="mod-tags">
     <h3 id="mod-tags" class="sheet-label">Tags</h3>
-    <TagListField v-model="tagList" :tags="tags" />
+    <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
   </section>
 
   <section class="panel" aria-labelledby="mod-bonuses">

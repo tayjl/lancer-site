@@ -1,8 +1,8 @@
-import { makerColour, makerLogo } from './archive'
+import { EXOTIC_MAKER, makerColour, makerId, makerLogo } from './archive'
 import type { Bonus, Item } from './gameData'
 import type { Info, Manufacturer } from './info'
 import { itemCard, itemDetails, tagLabel, visibleTags, type CardType, type ItemStat } from './itemDetails'
-import { rankName } from './rules'
+import { EXOTIC, rankName } from './rules'
 import { mechStats, type Frame } from './mechData'
 import { plainText } from './rulesText'
 
@@ -19,6 +19,8 @@ export type PickOption = {
   text?: string
   search?: string
   blocked?: string
+  // Exotic gear (rules.ts): listed last in its box.
+  exotic?: boolean
   picked?: boolean
   info?: () => Info
   // The symbol before the name, on its --type-* colour.
@@ -34,25 +36,25 @@ export type PickOption = {
 export type PickExtras = Partial<Omit<PickOption, 'id' | 'name'>>
 
 // A manufacturer's box: its id as the title, its name beside it, its colour and logo (only the logo and the border use it).
-// Unknown ids are listed after the known ones, "other" last.
+// Unknown ids are listed after the known ones, then "other", then Exotic (a constant, not a pack manufacturer).
 export function makerGroup(id: string | null | undefined, manufacturers: Manufacturer[]): PickGroup {
-  const key = id?.trim() || 'other'
+  const key = makerId(id ?? '') || 'other'
   const index = manufacturers.findIndex((m) => m.id === key)
-  const maker = manufacturers[index]
+  const maker = manufacturers[index] ?? (key === EXOTIC ? EXOTIC_MAKER : undefined)
   return {
     key,
-    title: maker ? maker.id : key === 'other' ? 'Other' : key,
-    name: maker && maker.name !== maker.id ? maker.name : undefined,
+    title: key === EXOTIC ? EXOTIC_MAKER.name : maker ? maker.id : key === 'other' ? 'Other' : key,
+    name: maker && maker.name !== maker.id && key !== EXOTIC ? maker.name : undefined,
     // Lilac means "you can click this", so a box with no colour of its own gets the neutral rule colour.
     colour: maker && makerColour(maker) !== 'var(--lilac)' ? makerColour(maker) : 'var(--rule)',
     logo: makerLogo(maker),
-    order: index >= 0 ? index : key === 'other' ? manufacturers.length + 1 : manufacturers.length,
+    order: index >= 0 ? index : key === 'other' ? manufacturers.length + 1 : key === EXOTIC ? manufacturers.length + 2 : manufacturers.length,
   }
 }
 
 // The options in boxes: ungrouped ones first, then a box per manufacturer. Inside a box the ones that can be chosen come
-// first (the current one counts as choosable); a box with nothing choosable (HORUS, NHC and Exotic for a player) goes
-// after the boxes that have something, otherwise manufacturers keep their order.
+// first (the current one counts as choosable) and Exotic gear comes last; a box with nothing choosable (HORUS and NHC for a
+// player) goes after the boxes that have something, otherwise manufacturers keep their order. The Exotic box is always last.
 export function groupPicks(options: PickOption[], current?: string | number | null) {
   const boxes = new Map<string, { group?: PickGroup; options: PickOption[] }>()
   for (const option of options) {
@@ -62,9 +64,10 @@ export function groupPicks(options: PickOption[], current?: string | number | nu
   }
   const blocked = (option: PickOption) => !!option.blocked && option.id !== current
   const list = [...boxes.values()]
-  for (const box of list) box.options.sort((a, b) => Number(blocked(a)) - Number(blocked(b)))
+  for (const box of list) box.options.sort((a, b) => Number(!!a.exotic) - Number(!!b.exotic) || Number(blocked(a)) - Number(blocked(b)))
   const dead = (box: { options: PickOption[] }) => box.options.every(blocked)
-  return list.sort((a, b) => Number(!!a.group) - Number(!!b.group) || Number(dead(a)) - Number(dead(b)) || (a.group?.order ?? 0) - (b.group?.order ?? 0))
+  const exoticBox = (box: { group?: PickGroup }) => box.group?.key === EXOTIC
+  return list.sort((a, b) => Number(!!a.group) - Number(!!b.group) || Number(exoticBox(a)) - Number(exoticBox(b)) || Number(dead(a)) - Number(dead(b)) || (a.group?.order ?? 0) - (b.group?.order ?? 0))
 }
 
 // The tags worth a chip on a row, in this order, at most "limit" of them.
@@ -77,7 +80,7 @@ export function keyTags(item: Item, tagNames: Map<string, string>, limit = 3): P
     .map((tag) => ({ label: tagLabel(tag, tagNames) }))
 }
 
-const sourceOf = (item: Item) => String(item.raw?.source ?? '') || 'other'
+const sourceOf = (item: Item) => makerId(String(item.raw?.source ?? '')) || 'other'
 
 // A weapon, system, mod or piece of pilot gear. Weapons: mount and type, range and damage, SP, key tags. Systems: type,
 // SP, key tags. Mods: what they fit, SP. Pilot armour: its bonuses; pilot gear: its tags. Pilot gear sits in no box.

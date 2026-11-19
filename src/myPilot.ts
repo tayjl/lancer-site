@@ -92,7 +92,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // edit mode sees "waiting" instead, to warn that editing directly stops the change from being approved.
   const waiting = computed(() => (change.value?.status === 'pending' ? change.value : null))
   const draft = computed(() => (pilotId ? null : waiting.value))
-  // A GM's edit mode: never for players, dead pilots (they can't change) or anyone's own pilot.
+  // A GM's edit mode (on a record, by id; a GM or owner's own pilot too, through their own record): never for players or
+  // dead pilots (they can't change).
   const gmEditing = computed(() => !!pilotId && !!options.gmEdit?.() && isGm.value && !!character.value && character.value.status !== 'dead')
 
   const editable = computed(
@@ -120,7 +121,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // Uploaded images are cleaned up from here, best effort: "savedImages" are the ones in the card as last loaded or
   // saved, "approvedImages" the approved pilot's (while a draft change is open, which the page shows instead).
   // A file is deleted once the card stops using it and nothing approved does.
-  // shortcut: rejected changes keep their uploaded images; add an owner clean-up if storage fills.
+  // shortcut: a sent-back change's rejected history row keeps its images until its draft is withdrawn or approved; add an owner clean-up if storage fills.
   let savedImages = new Set<string>()
   let approvedImages = new Set<string>()
   function dropImages(paths: Iterable<string>) {

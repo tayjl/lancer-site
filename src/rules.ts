@@ -41,19 +41,39 @@ export const formatAmount = (n: number) => n.toLocaleString('en-GB')
 // Manna prices.
 export const PRICES = { licenceRank: 600, talentRank: 300 }
 
-// Content only GMs and owners hand out (docs/lancer-rules.md): anything from these manufacturers, or of the "Exotic"
-// category (a pilot gear type, a licence or a manufacturer of that name). Matched by name, ignoring case, because
-// NHC and Exotic content comes from packs imported on the live site, not from this repo.
-export const GM_ONLY_NAMES = ['HORUS', 'NHC', 'EXOTIC']
+// Content only GMs and owners hand out (docs/lancer-rules.md). Two kinds:
+// - HORUS and NHC: blocked for players in every picker, free for GMs and owners anywhere ("GM only"). Matched by name,
+//   ignoring case, because NHC content comes from packs imported on the live site, not from this repo.
+// - Exotic (isExotic): selectable only in a GM's edit mode, even for GMs and owners on their own pilots ("GM edit only").
+export const GM_ONLY_NAMES = ['HORUS', 'NHC']
 export const GM_ONLY_REASON = 'GM only'
-type Restrictable = { source?: unknown; type?: unknown; licenceId?: string; raw?: Record<string, unknown> }
-// Whether a frame, weapon, system, mod, gear item or core bonus is GM-only: its own source, type or licence name, or
-// the manufacturer or name of the frame whose licence it needs. Pickers block it for players (never GMs).
+export const EXOTIC_REASON = 'GM edit only'
+// The Exotic pseudo-manufacturer (a code constant, not a content row) and the tag every Exotic item carries.
+export const EXOTIC = 'EXOTIC'
+export const EXOTIC_TAG = 'tg_exotic'
+type Restrictable = { source?: unknown; type?: unknown; licenceId?: string; tags?: unknown; raw?: Record<string, unknown>; [key: string]: unknown }
+const named = (label: unknown) => (typeof label === 'string' ? label.trim().toUpperCase() : '')
+// Whether a frame, weapon, system, mod, gear item or core bonus is HORUS or NHC: its own source, type or licence name, or
+// the manufacturer or name of the frame whose licence it needs.
 export function gmOnly(thing: Restrictable, frames: Frame[] = []): boolean {
   const licence = frames.find((frame) => frame.id === thing.licenceId)
   const labels = [thing.source, thing.type, thing.raw?.source, thing.raw?.license, thing.raw?.category, licence?.source, licence?.name]
-  return labels.some((label) => typeof label === 'string' && GM_ONLY_NAMES.includes(label.trim().toUpperCase()))
+  return labels.some((label) => GM_ONLY_NAMES.includes(named(label)))
 }
+// Whether anything is Exotic: its source is EXOTIC (an owner-made item with no manufacturer), or it carries the Exotic
+// Gear tag (a one-of-a-kind prototype that may have a real manufacturer). Pack data comes as an Item (its pack's fields
+// in raw) or as the raw record (core bonuses, talents, frames); tags are objects or plain ids. Biomods have a source only.
+export function isExotic(thing: Restrictable): boolean {
+  return [thing, thing.raw ?? {}].some((record: Record<string, unknown>) => {
+    const tags = Array.isArray(record.tags) ? record.tags : []
+    return named(record.source) === EXOTIC || tags.some((tag) => named(typeof tag === 'string' ? tag : (tag as { id?: unknown } | null)?.id) === EXOTIC_TAG.toUpperCase())
+  })
+}
+export type Restriction = { gmOnly: boolean; exotic: boolean }
+export const restrictionOf = (thing: Restrictable, frames: Frame[] = []): Restriction => ({ gmOnly: gmOnly(thing, frames), exotic: isExotic(thing) })
+// Why a picker refuses it, or '' when this viewer may pick it: "gm" is a GM or owner, "gmEdit" is a GM's edit mode.
+export const restrictionReason = (r: Partial<Restriction>, viewer: { gm: boolean; gmEdit: boolean }) =>
+  r.exotic ? (viewer.gmEdit ? '' : EXOTIC_REASON) : r.gmOnly && !viewer.gm ? GM_ONLY_REASON : ''
 
 export const sum = (values: Record<string, number> | undefined) => Object.values(values ?? {}).reduce((a, b) => a + (Number.isFinite(b) ? Math.max(0, b) : 0), 0)
 

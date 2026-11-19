@@ -6,7 +6,7 @@ import EditorPane from '../components/editor/EditorPane.vue'
 import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SheetTabs from '../components/SheetTabs.vue'
-import { useManufacturers } from '../archive'
+import { EXOTIC_MAKER, useManufacturers } from '../archive'
 import { confirmAction } from '../confirm'
 import { HOMEBREW_PACK, KINDS, blankItem, kindInfo, newId, type EditorKind } from '../contentEditor'
 import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, type ListRow, type Loaded, type Pack } from '../editorStore'
@@ -40,7 +40,8 @@ const manufacturers = useManufacturers()
 const homebrewId = computed(() => packs.value.find((pack) => pack.name === HOMEBREW_PACK)?.id ?? null)
 const packName = (id: number | null) => packs.value.find((pack) => pack.id === id)?.name ?? ''
 const tagChoices = computed(() => [...tagNames.value].filter(([id]) => !hiddenTags.value.has(id)).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)))
-const makerChoices = computed(() => manufacturers.value.map((maker) => ({ id: maker.id, name: maker.name })))
+// The Exotic pseudo-manufacturer (a constant, not a row) is always offered, last.
+const makerChoices = computed(() => [...manufacturers.value.map((maker) => ({ id: maker.id, name: maker.name })), { id: EXOTIC_MAKER.id, name: EXOTIC_MAKER.name }])
 const tabLabels = KINDS.map((k) => k.label)
 const tabCounts = computed(() => Object.fromEntries(KINDS.map((k) => [k.label, counts.value[k.key] ?? 0])))
 

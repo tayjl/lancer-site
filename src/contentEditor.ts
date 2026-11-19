@@ -2,6 +2,7 @@ import { capitalise } from './text'
 import { bonusValue } from './bonuses'
 import { flatDamage } from './damage'
 import type { LcpKind } from './lcp'
+import { EXOTIC, EXOTIC_TAG } from './rules'
 
 // The content editor's rules (ContentEditorView.vue): the kinds it edits, new ids, and what makes an item's data
 // acceptable to save. Pure, so it's tested without a database (src/contentEditor.test.ts).
@@ -31,6 +32,15 @@ export const KINDS: KindInfo[] = [
 export const kindInfo = (key: EditorKind) => KINDS.find((k) => k.key === key)!
 
 export type Data = Record<string, unknown>
+// Every item whose manufacturer is Exotic carries the Exotic Gear tag (rules.ts). The tag can't be removed while it is, and
+// the save adds it if it's missing (withExoticTag), whatever the form or the raw data box did. Biomods have no tags.
+const EXOTIC_TAGGED: EditorKind[] = ['weapons', 'systems', 'mods', 'pilot_gear', 'frames', 'core_bonuses']
+export const lockedTags = (data: Data): string[] => (String(data.source ?? '').trim().toUpperCase() === EXOTIC ? [EXOTIC_TAG] : [])
+export function withExoticTag(kind: EditorKind, data: Data): Data {
+  const tags = Array.isArray(data.tags) ? data.tags : []
+  const missing = EXOTIC_TAGGED.includes(kind) && lockedTags(data).length && !tags.some((tag) => (isObject(tag) ? tag.id : tag) === EXOTIC_TAG)
+  return missing ? { ...data, tags: [...tags, { id: EXOTIC_TAG }] } : data
+}
 export const isObject = (value: unknown): value is Data => !!value && typeof value === 'object' && !Array.isArray(value)
 
 // "Cinder Lance" → "cinder_lance".

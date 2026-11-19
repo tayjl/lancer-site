@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent } from './archive'
+import { archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem, parseMakers, searchArchive, type ArchiveContent, type ArchiveEntry } from './archive'
 import { coreContent } from './coreContent'
 import { toItem, toMod, type Bionic, type CoreBonus, type Talent } from './gameData'
 import type { Manufacturer } from './info'
@@ -83,10 +83,10 @@ describe('archives', () => {
     expect(talentGroups[0]).toMatchObject({ title: '', colour: 'var(--lilac)' })
   })
 
-  it('lists biomods by manufacturer, unknown sources and then Other, leaving retired ones out', () => {
+  it('lists biomods by manufacturer, Other, then Exotic last, leaving retired ones out', () => {
     const list = entries.filter(entry => entry.category === 'biomods')
     expect(list.map(entry => entry.name)).toEqual(['Ocular implant', 'Mirror shades', 'Odd eye', 'Plain graft'])
-    expect(archiveGroups(list, content.manufacturers).map(group => group.key)).toEqual(['HORUS', 'IPS-N', 'EXOTIC', 'other'])
+    expect(archiveGroups(list, content.manufacturers).map(group => group.key)).toEqual(['HORUS', 'IPS-N', 'other', 'EXOTIC'])
     expect(listFacts(list[0])).toEqual(['Eyes', '2 mod points'])
     expect(listFacts(list[1])).toEqual(['Head', '1 mod point'])
     expect(list[0].info()).toMatchObject({ kind: 'Biomod', source: 'IPS-N' })
@@ -138,8 +138,24 @@ describe('archives', () => {
     expect(makerLogo({ ...homebrew, logo: 'not-bundled' })).toBeNull()
     expect(makerColour({ ...homebrew, colour: 'red; background: url(x)' })).toBe('var(--lilac)')
     expect(makerColour(undefined)).toBe('var(--lilac)')
-    const entry = { category: 'frames', id: 'x', name: 'X', group: 'NEW', level: 0, licence: '', summary: '', search: '', info: entries[0].info } as const
+    const entry = { category: 'frames', id: 'x', name: 'X', group: 'NEW', level: 0, licence: '', exotic: false, summary: '', search: '', info: entries[0].info } as const
     expect(archiveGroups([entry], [homebrew])[0]).toMatchObject({ title: 'NEW', colour: '#123abc', logo: null })
+  })
+
+  it('lists the Exotic group after Other, Exotic entries last in their group, and lets the filter name it', () => {
+    const entry = (id: string, group: string, extra: Record<string, unknown> = {}) =>
+      ({ category: 'mech weapons', id, name: id, group, level: 0, licence: '', exotic: false, summary: '', search: '', info: entries[0].info, ...extra }) as ArchiveEntry
+    const list = [entry('e', 'EXOTIC', { exotic: true }), entry('o', 'other'), entry('p', 'GMS', { exotic: true }), entry('g', 'GMS'), entry('u', 'ZZZ')]
+    const groups = archiveGroups(list, content.manufacturers)
+    expect(groups.map(group => group.key)).toEqual(['GMS', 'ZZZ', 'other', 'EXOTIC'])
+    expect(groups[3]).toMatchObject({ title: 'Exotic', colour: 'var(--lilac)', logo: null })
+    expect(groups[0].entries.map(e => e.id)).toEqual(['g', 'p'])
+    expect(parseMakers('GMS,EXOTIC,NOPE', content.manufacturers)).toEqual(['GMS', 'EXOTIC'])
+    expect(filterByMakers(list, ['EXOTIC']).map(e => e.id)).toEqual(['e'])
+  })
+
+  it('puts a biomod from any spelling of Exotic in the Exotic group', () => {
+    expect(entries.find(e => e.category === 'biomods' && e.name === 'Odd eye')).toMatchObject({ group: 'EXOTIC', exotic: true })
   })
 
   it('gives each list row one or two key facts', () => {

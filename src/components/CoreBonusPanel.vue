@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { sourceOf, type CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
-import { coreBonusProblems, gmOnly, GM_ONLY_REASON } from '../rules'
+import { coreBonusProblems, isExotic, restrictionOf } from '../rules'
+import { useRestriction } from '../restriction'
 import { plainText } from '../rulesText'
 import { bonusStats, makerGroup } from '../pickerRows'
 import { useManufacturers } from '../archive'
@@ -46,9 +46,10 @@ async function remove(id: string) {
 }
 
 const picker = useTemplateRef('picker')
-// HORUS, NHC and Exotic bonuses are GM-only: blocked for players, and listed last.
+// HORUS and NHC bonuses are GM-only (blocked for players), Exotic ones GM-edit-only; both listed last.
+const reasonFor = useRestriction()
 const blocked = (id: string) =>
-  (!isGm.value && gmOnly(byId.value.get(id) ?? {}) ? GM_ONLY_REASON : '') ||
+  reasonFor(restrictionOf(byId.value.get(id) ?? {})) ||
   (coreBonusProblems({ licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '').replace(/\.$/, '')
 // Listed by manufacturer, each with the permanent numbers it adds; what it needs is the blocked reason beside the button.
 const manufacturers = useManufacturers()
@@ -64,6 +65,7 @@ const offered = computed(() =>
         group: makerGroup(bonus.source, manufacturers.value),
         search: plainText(bonus.effect),
         blocked: blocked(bonus.id),
+        exotic: isExotic(bonus),
         info: () => coreBonusInfo(bonus),
       }
     }),

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { sourceOf } from '../gameData'
-import { isGm } from '../auth'
-import { GM_ONLY_REASON, MAX_LICENCE_RANK, rankName } from '../rules'
+import { MAX_LICENCE_RANK, rankName } from '../rules'
+import { useRestriction } from '../restriction'
 import { frameRanges, framePick } from '../pickerRows'
 import { useManufacturers } from '../archive'
 import { useMechData } from '../mechData'
@@ -24,12 +24,13 @@ export type RankStep = { name?: string; html?: string; unlocks?: Unlock[]; choic
 // their symbols; talents ("tiers") stack them, a big numeral beside the rank's name and rules. Held ranks are bright,
 // later ones dimmed, with "Next: 600 manna" or "Locked" while editable. Each rank costs "price"; buying stops when
 // the manna "balance" can't cover it (the button stays, disabled, with the reason beside it). Lowering refunds it.
-// An option marked "gmOnly" (HORUS, NHC, Exotic) can't be bought by players (blocked), "GM only", listed last; one marked
+// An option marked "gmOnly" (HORUS, NHC) can't be bought by players (blocked), "GM only"; one marked "exotic" only in a GM's
+// edit mode, "GM edit only"; Exotic ones are listed last. One marked
 // "stale" is only shown while held (a licence that has since become part of another), never offered.
 const props = defineProps<{
   title: string
   noun: string
-  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; stale?: boolean }[]
+  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; exotic?: boolean; stale?: boolean }[]
   held: Record<string, number>
   details: (id: string) => RankStep[]
   columns?: boolean
@@ -46,7 +47,8 @@ const optionOf = (id: string) => props.options.find((option) => option.id === id
 const nameOf = (id: string) => optionOf(id)?.name ?? id
 const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
 const affordable = computed(() => props.balance >= props.price)
-const restricted = (id: string) => !isGm.value && !!optionOf(id)?.gmOnly
+const reasonFor = useRestriction()
+const restricted = (id: string) => reasonFor(optionOf(id) ?? {})
 // Licences are frame-purple, talents brown (the --type-* tokens).
 const look = computed(() => (props.columns ? { type: 'frame' as const, icon: 'license' } : { type: 'talent' as const, icon: 'talent' }))
 // What a rank's box says about it: held, the next one to buy, or locked behind it. Prices only while editable.
@@ -92,12 +94,12 @@ const offered = computed(() =>
     .filter((option) => !props.held[option.id] && !option.stale)
     .map((option) => {
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
-      const blocked = restricted(option.id) ? GM_ONLY_REASON : affordable.value ? '' : 'Not enough manna'
+      const blocked = restricted(option.id) || (affordable.value ? '' : 'Not enough manna')
       return frame
         ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, false), meta: undefined, blocked }
         : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }
     })
-    .sort((a, b) => Number(restricted(a.id)) - Number(restricted(b.id))),
+    .sort((a, b) => Number(!!optionOf(a.id)?.exotic) - Number(!!optionOf(b.id)?.exotic) || Number(!!restricted(a.id)) - Number(!!restricted(b.id))),
 )
 
 function open() {

@@ -9,7 +9,7 @@ import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import Icon from '../components/Icon.vue'
 import {
-  ARCHIVE_CATEGORIES, MAKER_CATEGORIES, archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem,
+  ARCHIVE_CATEGORIES, EXOTIC_MAKER, MAKER_CATEGORIES, archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem,
   parseMakers, searchArchive, useManufacturers, type ArchiveCategory, type ArchiveEntry,
 } from '../archive'
 import { useGameData } from '../gameData'
@@ -101,7 +101,7 @@ watch(() => [view.value, tabCounts.value], showCurrent, { flush: 'post' })
 const makerChips = computed(() => {
   if (landing.value || (view.value !== 'all' && !MAKER_CATEGORIES.includes(view.value))) return []
   const present = new Set(found.value.filter(inView).map((entry) => entry.group))
-  return manufacturers.value.filter((maker) => present.has(maker.id) || chosenMakers.value.includes(maker.id))
+  return [...manufacturers.value, EXOTIC_MAKER].filter((maker) => present.has(maker.id) || chosenMakers.value.includes(maker.id))
 })
 
 // What's listed: one block of groups for a category; across every category, a block per category with a heading and

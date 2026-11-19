@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SYSTEM_TYPES, type BonusType, type Data } from '../../contentEditor'
+import { SYSTEM_TYPES, lockedTags, type BonusType, type Data } from '../../contentEditor'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
@@ -55,7 +55,7 @@ const type = f.text('type')
 
   <section class="panel" aria-labelledby="system-tags">
     <h3 id="system-tags" class="sheet-label">Tags</h3>
-    <TagListField v-model="tagList" :tags="tags" />
+    <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
   </section>
 
   <section class="panel" aria-labelledby="system-bonuses">

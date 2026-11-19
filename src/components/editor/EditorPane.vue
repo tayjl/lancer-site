@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { confirmAction } from '../../confirm'
-import { bonusTypesFor, errorsOf, kindInfo, newId, problemsFor, usedBy, type Data, type EditorKind, type Problem } from '../../contentEditor'
+import { bonusTypesFor, errorsOf, kindInfo, newId, problemsFor, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
 import { createItem, deleteItem, homebrewPack, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
 import { invalidateCatalogues } from '../../gameData'
 import { alternateOf, licensedFrames, useMechData } from '../../mechData'
@@ -109,6 +109,8 @@ onMounted(async () => {
 const status = useSaveStatus()
 const conflict = ref(false)
 watch(working, () => { if (dirty.value) status.saved.value = false })
+// An Exotic manufacturer puts the Exotic Gear tag on the item (and the save adds it too, editorStore.ts).
+watch(working, (data) => { const next = withExoticTag(props.kind, data); if (next !== data) working.value = next })
 const busy = computed(() => status.saving.value)
 const title = computed(() => String(working.value.name ?? '').trim() || (isNew ? `New ${info.singular}` : props.item!.key))
 const current = () => ({ ...props.item!, updatedAt: updatedAt.value })
@@ -125,7 +127,7 @@ async function run(write: () => Promise<{ updatedAt?: string; error?: string; ke
 
 async function save() {
   if (errorCount.value || busy.value || conflict.value) return
-  const snapshot = clone(working.value)
+  const snapshot = withExoticTag(props.kind, clone(working.value))
   await run(async () => {
     if (!isNew) return saveItem(current(), snapshot, homebrew)
     let packId: number | null = null

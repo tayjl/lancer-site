@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
@@ -10,7 +9,8 @@ import { useManufacturers } from '../archive'
 import { modBlockedBy, modsRefused } from '../equipment'
 import { allowedSizes, fittedMods, MOUNT_HINTS, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { bracingMount, gmOnly, GM_ONLY_REASON, isLicensed, licenceName, rankName, superheavyMount } from '../rules'
+import { bracingMount, isLicensed, licenceName, rankName, isExotic, restrictionOf, superheavyMount } from '../rules'
+import { useRestriction } from '../restriction'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 import BuildItem from './BuildItem.vue'
@@ -129,6 +129,7 @@ const picker = useTemplateRef('picker')
 type Target = { kind: 'weapon'; m: number; i: number; id: string | null; allowed: string[]; label: string } | { kind: 'system' } | { kind: 'mod'; m: number; i: number; id: string | null; weapon: Item }
 const target = ref<Target | null>(null)
 
+const reasonFor = useRestriction()
 const options = computed(() => {
   const t = target.value
   if (!t) return []
@@ -153,14 +154,15 @@ const options = computed(() => {
     if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough system points'
     return ''
   }
-  // The picker puts what can be chosen first in each manufacturer's box (PickList.vue). GM-only ones (HORUS, NHC, Exotic)
-  // are blocked for players.
+  // The picker puts what can be chosen first in each manufacturer's box (PickList.vue). HORUS and NHC are blocked for
+  // players, Exotic outside a GM's edit mode.
   return list.map((item) => ({
     id: item.id,
     name: item.name,
     ...itemPick(item, tagNames.value, manufacturers.value),
     info: () => itemInfo(item),
-    blocked: !isGm.value && gmOnly(item, props.frames) ? GM_ONLY_REASON : blockedBy(item),
+    exotic: isExotic(item),
+    blocked: reasonFor(restrictionOf(item, props.frames)) || blockedBy(item),
   }))
 })
 

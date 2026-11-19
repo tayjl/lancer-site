@@ -32,6 +32,18 @@ describe('pickerRows', () => {
     expect(groupPicks([option('a', 'GMS'), { id: 'g', name: 'g' }]).map((box) => box.group?.key)).toEqual([undefined, 'GMS'])
   })
 
+  it('lists the Exotic box after every other box, and Exotic items last in their box', () => {
+    expect(makerGroup('exotic', makers)).toMatchObject({ key: 'EXOTIC', title: 'Exotic', name: undefined, colour: 'var(--rule)', logo: null, order: 4 })
+    const live = groupPicks([option('e', 'EXOTIC'), option('o', ''), option('g', 'GMS'), option('z', 'ZZZ')])
+    expect(live.map((box) => box.group?.key)).toEqual(['GMS', 'ZZZ', 'other', 'EXOTIC'])
+    // Blocked boxes sink below the live ones, but Exotic is still after them.
+    const sunk = groupPicks([option('e', 'EXOTIC', 'GM edit only'), option('h', 'IPS-N', 'GM only'), option('g', 'GMS')])
+    expect(sunk.map((box) => box.group?.key)).toEqual(['GMS', 'IPS-N', 'EXOTIC'])
+    // A tagged prototype from a real manufacturer goes last in its own box, even past a blocked item.
+    const box = groupPicks([{ ...option('proto', 'GMS'), exotic: true }, option('plain', 'GMS', 'no'), option('free', 'GMS')])[0]
+    expect(box.options.map((o) => o.id)).toEqual(['free', 'plain', 'proto'])
+  })
+
   it('shows a weapon as mount, range, damage, SP and key tags, never its rules', () => {
     const weapon = rows('weapons').map(({ id, data }) => toItem(id, data)).find((item) => item.mount === 'Main' && item.damage.length && item.tags.some((tag) => tag.id === 'tg_unique' || tag.id === 'tg_loading'))!
     const pick = itemPick(weapon, new Map(), makers)

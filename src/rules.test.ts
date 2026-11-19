@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, coreBonusPicks, gmOnly, coreBonusProblems, isLicensed, mannaSpent, mechProblems, personalPoints, personalStatProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
+import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechProblems, personalPoints, personalStatProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -226,22 +226,75 @@ describe('GM-only content', () => {
   horus.source = 'HORUS'
   const frames = [everest, blackbeard, horus]
 
-  it('flags HORUS, NHC and Exotic by source, ignoring case', () => {
+  it('flags HORUS and NHC by source, ignoring case, and no longer Exotic', () => {
     expect(gmOnly(horus)).toBe(true)
     expect(gmOnly(item('a', { source: 'horus' }))).toBe(true) // an item's source is in its raw data
     expect(gmOnly(item('a', {}))).toBe(false)
     expect(gmOnly({ raw: { source: ' nhc ' } })).toBe(true)
-    expect(gmOnly({ raw: { source: 'Exotic' } })).toBe(true)
     expect(gmOnly({ source: 'IPS-N' })).toBe(false)
     expect(gmOnly({ source: 'GMS' })).toBe(false)
+    expect(gmOnly({ source: 'EXOTIC' })).toBe(false) // Exotic has its own rule (isExotic)
   })
 
-  it('flags things whose licence is a frame from one of them, or that are of the Exotic type', () => {
+  it('flags things whose licence is a frame from HORUS or NHC', () => {
     expect(gmOnly(item('visor', { license_id: 'goblin', license_level: 1 }), frames)).toBe(true)
     expect(gmOnly(item('rifle', { license_id: 'blackbeard', license_level: 1 }), frames)).toBe(false)
     expect(gmOnly(item('thing', { license_id: 'goblin' }))).toBe(false) // no frames given to look the licence up in
-    expect(gmOnly({ type: 'Exotic' })).toBe(true)
-    expect(gmOnly({ raw: { license: 'EXOTIC' } })).toBe(true)
-    expect(gmOnly({ raw: { category: 'exotic' } })).toBe(true)
+  })
+})
+
+describe('Exotic content', () => {
+  it('is an item whose source is EXOTIC, ignoring case and spaces', () => {
+    expect(isExotic({ source: 'EXOTIC' })).toBe(true)
+    expect(isExotic({ source: ' exotic ' })).toBe(true)
+    expect(isExotic(item('a', { source: 'Exotic' }))).toBe(true) // in the pack data
+    expect(isExotic({ id: 7, source: 'EXOTIC' })).toBe(true) // a biomod
+    expect(isExotic({ source: 'IPS-N' })).toBe(false)
+    expect(isExotic({ source: null })).toBe(false)
+    expect(isExotic({})).toBe(false)
+  })
+
+  it('is an item with the Exotic Gear tag, as objects or plain ids, on the item or in its data', () => {
+    expect(isExotic(item('rifle', { mount: 'Main', tags: [{ id: 'tg_exotic' }] }))).toBe(true)
+    expect(isExotic(item('sys', { sp: 1, tags: [{ id: 'tg_unique' }, { id: 'tg_exotic' }] }))).toBe(true)
+    expect(isExotic({ tags: ['tg_exotic'] })).toBe(true)
+    expect(isExotic({ tags: [{ id: 'TG_EXOTIC' }] })).toBe(true)
+    expect(isExotic({ raw: { tags: [{ id: 'tg_exotic' }] } })).toBe(true)
+    expect(isExotic({ source: 'NHC', tags: [{ id: 'tg_exotic' }] })).toBe(true) // a prototype with a real manufacturer
+    expect(isExotic(item('plain', { tags: [{ id: 'tg_unique' }, { id: 'tg_limited', val: 2 }] }))).toBe(false)
+    expect(isExotic(item('suit', { tags: [{ id: 'tg_exoskeleton' }] }))).toBe(false) // only the exact tag
+  })
+
+  it('ignores type, category, licence names and pack names', () => {
+    expect(isExotic({ type: 'Exotic' })).toBe(false)
+    expect(isExotic({ raw: { license: 'EXOTIC', category: 'exotic' } })).toBe(false)
+    expect(isExotic({ licenceId: 'exotic' })).toBe(false)
+  })
+})
+
+describe('what a picker refuses', () => {
+  const horus = { gmOnly: true, exotic: false }
+  const exotic = { gmOnly: false, exotic: true }
+  const player = { gm: false, gmEdit: false }
+  const gm = { gm: true, gmEdit: false }
+  const gmEditing = { gm: true, gmEdit: true }
+
+  it('blocks Exotic outside a GM edit mode, for players and for GMs on their own pilots', () => {
+    expect(restrictionReason(exotic, player)).toBe('GM edit only')
+    expect(restrictionReason(exotic, gm)).toBe('GM edit only')
+    expect(restrictionReason(exotic, gmEditing)).toBe('')
+  })
+
+  it('keeps HORUS and NHC free for GMs and owners anywhere, blocked for players', () => {
+    expect(restrictionReason(horus, player)).toBe('GM only')
+    expect(restrictionReason(horus, gm)).toBe('')
+    expect(restrictionReason(horus, gmEditing)).toBe('')
+    expect(restrictionReason({ gmOnly: false, exotic: false }, player)).toBe('')
+  })
+
+  it('reads both from the thing itself', () => {
+    expect(restrictionOf({ source: 'HORUS' })).toEqual({ gmOnly: true, exotic: false })
+    expect(restrictionOf({ source: 'EXOTIC' })).toEqual({ gmOnly: false, exotic: true })
+    expect(restrictionReason(restrictionOf({ source: 'NHC', tags: ['tg_exotic'] }), gm)).toBe('GM edit only')
   })
 })

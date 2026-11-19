@@ -193,6 +193,68 @@ select throws_ok(
   $$ select public.reject_change((select id from public.pending_changes where character_id = 100 and status = 'rejected'), 'Again') $$,
   'P0001', null, 'a reviewed change cannot be rejected again');
 
+-- Rejecting sends the change back: the player gets a draft copy with the GM's note, and the rejected row stays as history.
+select is((select count(*)::int from public.pending_changes where character_id = 100 and status = 'rejected'), 1,
+  'the rejected change is kept as history');
+select is((select count(*)::int from public.pending_changes where character_id = 100 and status = 'pending' and submitted_at is null), 1,
+  'the player gets a new draft');
+select is(
+  (select (d.proposed_public, d.proposed_sheet, d.submitted_by, d.review_reason, d.reviewed_by)::text
+   from public.pending_changes d where d.character_id = 100 and d.status = 'pending'),
+  (select (r.proposed_public, r.proposed_sheet, r.submitted_by, r.review_reason, null::uuid)::text
+   from public.pending_changes r where r.character_id = 100 and r.status = 'rejected'),
+  'the draft has the same card, sheet and player, and carries the GM''s note');
+select is(
+  (select d.based_on from public.pending_changes d where d.character_id = 100 and d.status = 'pending'),
+  (select greatest(c.updated_at, s.updated_at)
+   from public.characters c join public.character_sheets s on s.character_id = c.id where c.id = 100),
+  'the draft''s based_on is the pilot''s last change at send-back, so an earlier GM edit does not leave it stale');
+
+-- The player can edit, submit and withdraw it, but not touch the note or based_on.
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+-- An edit to the pilot after the send-back still blocks approving the draft (the player submits it, a GM tries to approve).
+reset role;
+alter table public.characters disable trigger characters_updated_at;
+update public.characters set updated_at = updated_at + interval '1 hour' where id = 100;
+alter table public.characters enable trigger characters_updated_at;
+set local role authenticated;
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending';
+set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+select throws_ok(
+  $$ select public.approve_change((select id from public.pending_changes where character_id = 100 and status = 'pending'),
+       (select submitted_at from public.pending_changes where character_id = 100 and status = 'pending')) $$,
+  'P0001', 'This character changed after the change was made. Reject it so the player can resubmit.',
+  'a GM edit after the send-back still blocks approving the draft');
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+update public.pending_changes set submitted_at = null where character_id = 100 and status = 'pending';
+select throws_ok(
+  $$ update public.pending_changes set review_reason = 'Fine' where character_id = 100 and status = 'pending' $$,
+  'P0001', null, 'players cannot rewrite the GM''s note on a sent-back draft');
+select throws_ok(
+  $$ update public.pending_changes set based_on = now() + interval '1 day' where character_id = 100 and status = 'pending' $$,
+  'P0001', 'based_on is set when a change is created and never changes.', 'players cannot move based_on on a sent-back draft');
+select lives_ok(
+  $$ update public.pending_changes set proposed_sheet = '{"manna": 1}' where character_id = 100 and status = 'pending' $$,
+  'players can edit a sent-back draft');
+select lives_ok(
+  $$ update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending' $$,
+  'players can submit a sent-back draft');
+select is((select review_reason from public.pending_changes where character_id = 100 and status = 'pending'), null,
+  'submitting clears the note from the draft');
+select is((select review_reason from public.pending_changes where character_id = 100 and status = 'rejected'), 'Out of date',
+  'the history row keeps the note');
+select lives_ok(
+  $$ update public.pending_changes set submitted_at = null where character_id = 100 and status = 'pending' $$,
+  'players can take it back again');
+with attempt as (
+  delete from public.pending_changes where character_id = 100 and status = 'pending' returning 1
+)
+select is((select count(*)::int from attempt), 1, 'players can withdraw a sent-back draft');
+select is((select count(*)::int from public.pending_changes where character_id = 100 and status = 'rejected'), 1,
+  'withdrawing leaves the rejected history row');
+set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+
 -- Approving with no note leaves the note empty.
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 -- (The pilot's last change is in the future after the step above, so this change says it was based on that.)
@@ -381,6 +443,45 @@ select is((select count(*)::int from attempt), 1, 'owners can delete any pilot')
 select is((select count(*)::int from public.character_sheets where character_id = 103), 0, 'deleting a pilot deletes its sheet');
 select is((select count(*)::int from public.pending_changes where character_id = 103), 0, 'deleting a pilot deletes its changes');
 
+-- ---------------------------------------------------------------------
+-- The backfill in 20261119130000_send_back_changes.sql: pilots whose latest change was rejected get a draft back
+-- ---------------------------------------------------------------------
 reset role;
+-- 108: latest change rejected, nothing open. 109: rejected, but a draft is already open. 110: rejected, then approved.
+insert into public.characters (id, player_id, status, pilot_name, callsign) overriding system value values
+  (108, '33333333-3333-3333-3333-333333333333', 'approved', 'Eight', 'Octo'),
+  (109, '33333333-3333-3333-3333-333333333333', 'approved', 'Nine', 'Nona'),
+  (110, '33333333-3333-3333-3333-333333333333', 'approved', 'Ten', 'Deca');
+insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, based_on, status, review_reason, submitted_at, created_at) values
+  (108, '33333333-3333-3333-3333-333333333333', '{"pilot_name": "Eight"}', '{"manna": 8}', '2000-01-01', 'rejected', 'Fix it', now(), now() - interval '1 day'),
+  (109, '33333333-3333-3333-3333-333333333333', '{"pilot_name": "Nine"}', '{}', '2000-01-01', 'rejected', 'Nope', now(), now() - interval '2 days'),
+  (110, '33333333-3333-3333-3333-333333333333', '{"pilot_name": "Ten"}', '{}', '2000-01-01', 'rejected', 'Nope', now(), now() - interval '3 days'),
+  (110, '33333333-3333-3333-3333-333333333333', '{"pilot_name": "Ten"}', '{}', '2000-01-01', 'approved', null, now(), now() - interval '2 days');
+insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, based_on)
+  values (109, '33333333-3333-3333-3333-333333333333', '{"pilot_name": "Nine, newer"}', '{}', '2000-01-01');
+
+-- The same statement as the migration's backfill.
+insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, based_on, review_reason)
+select r.character_id, r.submitted_by, r.proposed_public, r.proposed_sheet, private.pilot_last_changed(r.character_id), r.review_reason
+from (
+  select distinct on (character_id) *
+  from public.pending_changes
+  order by character_id, created_at desc, id desc
+) r
+join public.characters c on c.id = r.character_id and c.status = 'approved'
+where r.status = 'rejected'
+  and not exists (select 1 from public.pending_changes p where p.character_id = r.character_id and p.status = 'pending');
+
+select is(
+  (select (proposed_sheet, review_reason, submitted_at)::text from public.pending_changes where character_id = 108 and status = 'pending'),
+  '("{""manna"": 8}","Fix it",)',
+  'backfill: a rejected latest change comes back as a draft with its note');
+select is((select based_on from public.pending_changes where character_id = 108 and status = 'pending'), private.pilot_last_changed(108),
+  'backfill: the draft''s based_on is the pilot''s last change');
+select is((select count(*)::int from public.pending_changes where character_id = 109 and status = 'pending'), 1,
+  'backfill: a pilot that already has an open change gets nothing extra');
+select is((select count(*)::int from public.pending_changes where character_id = 110 and status = 'pending'), 0,
+  'backfill: a pilot whose latest change was approved gets nothing');
+
 select * from finish();
 rollback;

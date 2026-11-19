@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemInfo } from '../info'
-import { gmOnly, GM_ONLY_REASON } from '../rules'
+import { restrictionOf } from '../rules'
+import { useRestriction } from '../restriction'
 import { itemPick } from '../pickerRows'
 import { plural } from '../text'
 import ItemDetails from './ItemDetails.vue'
@@ -52,15 +52,16 @@ async function unequip(slot: Slot) {
 const picker = useTemplateRef('picker')
 const target = ref<Slot | null>(null)
 
-// HORUS, NHC and Exotic gear is GM-only: blocked for players, and listed last.
+// HORUS and NHC gear is GM-only (blocked for players), Exotic gear GM-edit-only (blocked outside a GM's edit mode); both listed last.
+const reasonFor = useRestriction()
 const options = computed(() =>
   props.items
     .filter((item) => item.type === target.value?.type)
     .map((item) => {
-      const blocked = !isGm.value && gmOnly(item) ? GM_ONLY_REASON : ''
-      return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked }
+      const restriction = restrictionOf(item)
+      return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked: reasonFor(restriction), exotic: restriction.exotic }
     })
-    .sort((a, b) => Number(!!a.blocked) - Number(!!b.blocked)),
+    .sort((a, b) => Number(a.exotic) - Number(b.exotic) || Number(!!a.blocked) - Number(!!b.blocked)),
 )
 
 function open(slot: Slot) {

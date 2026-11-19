@@ -9,7 +9,7 @@ import { since } from '../time'
 
 // gm: changes: changes players have submitted to their approved pilots, oldest submission first,
 // so whoever has waited longest is reviewed first. Drafts players are still writing don't show. Below, the
-// latest reviewed changes, which are kept as history (who reviewed them, when, and why if rejected).
+// latest reviewed changes, which are kept as history (who reviewed them, when, and the note if sent back).
 
 type Pilot = { id: number; callsign: string | null; pilot_name: string; pilot_image?: string | null; player?: { display_name: string } | null } | null
 type Waiting = { id: number; submitted_at: string; character: Pilot }
@@ -83,7 +83,7 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
             <tbody>
               <tr v-for="item in reviewed" :key="item.id">
                 <td><RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="callsign">{{ nameOf(item.character) }}</RouterLink></td>
-                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'rejected'">{{ capitalise(item.status) }}</span></td>
+                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'rejected'">{{ item.status === 'rejected' ? 'Sent back' : capitalise(item.status) }}</span></td>
                 <td>{{ item.reviewer?.display_name ?? '–' }}</td>
                 <td class="dim"><template v-if="item.reviewed_at">{{ since(item.reviewed_at) }} ago</template></td>
                 <td class="dim reason" :title="item.review_reason ?? ''">{{ item.review_reason ?? '–' }}</td>

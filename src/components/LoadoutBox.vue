@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import { isGm } from '../auth'
 import { useManufacturers } from '../archive'
 import type { Info } from '../info'
 import { makerGroup, type PickOption } from '../pickerRows'
 import { plainText } from '../rulesText'
-import { GM_ONLY_REASON } from '../rules'
+import { useRestriction } from '../restriction'
 import ItemCard from './ItemCard.vue'
 import ItemStats from './ItemStats.vue'
 import PickList from './PickList.vue'
@@ -17,7 +16,7 @@ import RulesText from './RulesText.vue'
 // (e.g. bionics against the mod limit), and the picker won't add anything that goes over it. An item with a "price"
 // can't be added when it costs more than "balance" (manna left).
 type Id = string | number
-type Item = { id: Id; name: string; facts?: string[]; source?: string; stats?: { label: string; value: string; icon?: string }[]; description?: string | null; slot?: string; effect?: string; price?: number; cost?: number; retired?: boolean; gmOnly?: boolean; info?: () => Info }
+type Item = { id: Id; name: string; facts?: string[]; source?: string; stats?: { label: string; value: string; icon?: string }[]; description?: string | null; slot?: string; effect?: string; price?: number; cost?: number; retired?: boolean; gmOnly?: boolean; exotic?: boolean; info?: () => Info }
 
 const props = defineProps<{
   title: string
@@ -43,7 +42,7 @@ const used = computed(() => chosenItems.value.reduce((sum, item) => sum + (item.
 
 // Retired items stay on sheets that have them, but can't be newly picked. The picker's rows are visual (PickList.vue):
 // a box per manufacturer, the slot, the stat bonuses with their symbols, mod points and price; the effect and
-// description are only searched. GM-only ones (HORUS, NHC, Exotic) are blocked for players and listed last.
+// description are only searched. HORUS and NHC biomods are blocked for players, Exotic ones outside a GM's edit mode.
 const manufacturers = useManufacturers()
 const offered = computed(() => {
   const words = filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
@@ -59,6 +58,7 @@ const offered = computed(() => {
         info: item.info,
         picked,
         blocked: picked ? '' : blockedBy(item),
+        exotic: item.exotic,
         look: { type: 'pilot', icon: 'generic_item' },
         stats: [
           ...(item.stats ?? []).map((stat) => ({ ...stat, icon: stat.icon ?? null, kind: 'bonus' })),
@@ -73,10 +73,10 @@ const offered = computed(() => {
     .filter((row) => words.every((word) => `${row.name} ${row.search}`.toLowerCase().includes(word)))
 })
 
-const restricted = (item: Item) => !isGm.value && !!item.gmOnly
+const restricted = useRestriction()
 const tooCostly = (item: Item) => !!props.limit && used.value + (item.cost ?? 0) > props.limit.max
 // Why an item can't be added, or '' if it can.
-const blockedBy = (item: Item) => (restricted(item) ? GM_ONLY_REASON : tooCostly(item) ? 'Not enough mod points' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
+const blockedBy = (item: Item) => restricted(item) || (tooCostly(item) ? 'Not enough mod points' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
 
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]

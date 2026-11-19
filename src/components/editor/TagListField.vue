@@ -9,7 +9,8 @@ import { latest, useProblems } from './useFields'
 type TagEntry = { id: string; val?: string | number }
 const modelProp = defineModel<TagEntry[]>({ required: true })
 const model = latest(modelProp)
-const props = withDefaults(defineProps<{ tags: { id: string; name: string }[]; label?: string; path?: string }>(), { path: 'tags' })
+// "locked": ids that can't be removed (the Exotic Gear tag while the manufacturer is Exotic).
+const props = withDefaults(defineProps<{ tags: { id: string; name: string }[]; label?: string; path?: string; locked?: string[] }>(), { path: 'tags', locked: () => [] })
 const { invalid } = useProblems()
 
 const nameOf = (id: string) => props.tags.find((tag) => tag.id === id)?.name ?? id
@@ -29,7 +30,7 @@ const setValue = (index: number, text: string) =>
 <template>
   <div class="tags">
     <ul v-if="model.length" class="chips" :aria-label="label ?? 'Tags'">
-      <li v-for="(entry, index) in model" :key="entry.id" class="chip-x">
+      <li v-for="(entry, index) in model" :key="entry.id" class="chip-x" :class="{ fixed: locked.includes(entry.id) }">
         {{ shown(entry.id) }}
         <input
           v-if="takesValue(entry.id)"
@@ -39,13 +40,14 @@ const setValue = (index: number, text: string) =>
           :aria-invalid="invalid(`${path}.${index}.val`) || undefined"
           @input="setValue(index, ($event.target as HTMLInputElement).value)"
         />
-        <button type="button" class="icon-btn remove" :aria-label="`Remove ${shown(entry.id)}`" @click="model = model.filter((_, i) => i !== index)"><Icon name="close" /></button>
+        <button v-if="!locked.includes(entry.id)" type="button" class="icon-btn remove" :aria-label="`Remove ${shown(entry.id)}`" @click="model = model.filter((_, i) => i !== index)"><Icon name="close" /></button>
       </li>
     </ul>
     <select class="add" aria-label="Add a tag" @change="add">
       <option value="">Add tag…</option>
       <option v-for="tag in available" :key="tag.id" :value="tag.id">{{ tag.name.replace('{VAL}', '').trim() }}</option>
     </select>
+    <p v-if="locked.length" class="dim hint">Exotic items always carry Exotic Gear.</p>
     <FieldError v-for="(entry, index) in model" :key="entry.id" :path="`${path}.${index}`" deep />
   </div>
 </template>
@@ -78,6 +80,10 @@ const setValue = (index: number, text: string) =>
   font: 700 var(--fs-xs) / 1 var(--sans);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.chip-x.fixed {
+  padding-right: 10px;
 }
 
 .chip-x input {
