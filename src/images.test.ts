@@ -62,9 +62,13 @@ describe('frameArt', () => {
     expect(frameArt(frame('hb_mine', { image: 'https://evil.example/x.png' }), frames)).toBeNull()
   })
   it("gives an alternate with no art of its own its original's, and a homebrew frame nothing", () => {
+    const blackbeard = frame('mf_blackbeard', { name: 'Blackbeard' })
+    const alt = frame('mf_test_alt', { variant: 'Blackbeard', license_id: blackbeard.id })
+    expect(frameArt(alt, [blackbeard, alt])).toEqual({ bundled: blackbeard.id })
+    // Everest's only art is Massif's "NO IMAGE DATA" placeholder, which isn't bundled: Sagarmatha gets the symbol too.
     const everest = frame('mf_standard_pattern_i_everest', { name: 'Everest' })
-    const alt = frame('mf_sagarmatha', { variant: 'Everest', license_id: everest.id })
-    expect(frameArt(alt, [everest, alt])).toEqual({ bundled: everest.id })
+    const sagarmatha = frame('mf_sagarmatha', { variant: 'Everest', license_id: everest.id })
+    expect(frameArt(sagarmatha, [everest, sagarmatha])).toBeNull()
     expect(frameArt(frames[3], frames)).toBeNull()
   })
   it('builds the link for an upload without loading anything, and none for no art', async () => {

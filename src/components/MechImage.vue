@@ -6,7 +6,7 @@ import Icon from './Icon.vue'
 // The one place a mech's picture is drawn (hangar cards, the mech page, licence cards, the frame picker, the
 // information dialog, the frame editor). It always shows something, in this order:
 //   1. "src": the mech's own upload (a stored path, src/images.ts). A plain picture with rounded corners.
-//   2. "art": its frame's picture (a cut-out, drawn straight on the page, standing on a faint shadow).
+//   2. "art": its frame's picture (a cut-out, drawn straight on the page).
 //   3. A placeholder: the maker's "logo" if known, else the frame symbol, dim, in the middle of the same space.
 // A picture that fails to load (a deleted upload, a missing file) falls through to the next one. The space is reserved
 // by the "size" (one height per place), so nothing jumps while the picture loads and cards line up with or without art.
@@ -83,25 +83,9 @@ const kind = computed(() => {
   border-radius: var(--radius);
 }
 
-/* A cut-out stands on the bottom edge, on a faint ellipse (existing tokens only), so a row of cards shares one ground. */
+/* A cut-out stands on the bottom edge, so a row of cards shares one ground. */
 .kind-art {
   align-items: flex-end;
-}
-
-.kind-art::after {
-  content: '';
-  position: absolute;
-  right: 12%;
-  bottom: 0;
-  left: 12%;
-  height: 0.75rem;
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--text) 14%, transparent), transparent);
-}
-
-.cutout {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 0.2rem;
 }
 
 .none .icon {
@@ -113,10 +97,6 @@ const kind = computed(() => {
 .size-pick {
   --h: 64px;
   width: 64px;
-}
-
-.size-pick::after {
-  display: none;
 }
 
 .size-card {
