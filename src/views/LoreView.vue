@@ -73,7 +73,7 @@ async function newEntry() {
 
       <div class="search">
         <label class="field">
-          <span>Search lore</span>
+          <span>Search</span>
           <input ref="searchBox" v-model="query" type="search" placeholder="Title, summary or text" @keydown.esc="query = ''" />
         </label>
         <button v-if="query" type="button" class="small" @click="(query = ''), searchBox?.focus()">Clear</button>

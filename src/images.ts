@@ -30,10 +30,10 @@ const toBlob = (canvas: HTMLCanvasElement, type: string) =>
 // Shrinks the picture and uploads it. Returns the stored path; throws an Error with a plain message when it can't.
 // Animated GIFs become still pictures.
 export async function uploadImage(file: File) {
-  if (!file.type.startsWith('image/')) throw new Error('that file is not an image.')
-  if (file.size > MAX_INPUT) throw new Error('that image is over 20 MB. Pick a smaller one.')
+  if (!file.type.startsWith('image/')) throw new Error('That file is not an image.')
+  if (file.size > MAX_INPUT) throw new Error('That image is over 20 MB.')
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => {
-    throw new Error("that image can't be read. Try a PNG, JPEG or WebP.")
+    throw new Error("That image can't be read. Try a PNG, JPEG or WebP.")
   })
   const { width, height } = scaledSize(bitmap.width, bitmap.height)
   const canvas = document.createElement('canvas')
@@ -44,7 +44,7 @@ export async function uploadImage(file: File) {
   // Safari can't write WebP and hands back a PNG instead, so ask again for a JPEG.
   let blob = await toBlob(canvas, 'image/webp')
   if (blob?.type !== 'image/webp') blob = await toBlob(canvas, 'image/jpeg')
-  if (!blob) throw new Error("that image can't be converted.")
+  if (!blob) throw new Error("That image can't be converted.")
   const path = `${session.value!.user.id}/${crypto.randomUUID()}.${blob.type === 'image/webp' ? 'webp' : 'jpg'}`
   const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type, cacheControl: '31536000' })
   if (error) throw new Error(error.message)

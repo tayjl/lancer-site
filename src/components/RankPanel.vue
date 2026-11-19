@@ -3,6 +3,9 @@ import { computed, ref, useTemplateRef } from 'vue'
 import { sourceOf } from '../gameData'
 import { isGm } from '../auth'
 import { GM_ONLY_REASON, MAX_LICENCE_RANK, rankName } from '../rules'
+import { frameRanges, framePick } from '../pickerRows'
+import { useManufacturers } from '../archive'
+import { useMechData } from '../mechData'
 import type { Info, Unlock } from '../info'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
@@ -78,10 +81,22 @@ function setRank(id: string, rank: number) {
 
 // --- Buying a new one at rank I ---
 const picker = useTemplateRef('picker')
+// Licences are listed by manufacturer, each with its frame's roles, mounts and key stats (the box says who makes it, so
+// "HA Genghis" is just "Genghis"); talents show their summary line and a talent symbol (a talent's ranks are in its full
+// information).
+const { frames } = useMechData()
+const manufacturers = useManufacturers()
+const ranges = computed(() => frameRanges(frames.value))
 const offered = computed(() =>
   props.options
     .filter((option) => !props.held[option.id] && !option.stale)
-    .map((option) => ({ ...option, blocked: restricted(option.id) ? GM_ONLY_REASON : affordable.value ? '' : 'Not enough manna' }))
+    .map((option) => {
+      const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
+      const blocked = restricted(option.id) ? GM_ONLY_REASON : affordable.value ? '' : 'Not enough manna'
+      return frame
+        ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, false), meta: undefined, blocked }
+        : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }
+    })
     .sort((a, b) => Number(restricted(a.id)) - Number(restricted(b.id))),
 )
 
@@ -134,7 +149,7 @@ async function buy(id: string) {
                 <InfoButton :label="chosen(step).name" :info="chosen(step).info" />
               </p>
               <UnlockList v-if="gear(step).length" :items="gear(step)" />
-              <p v-else-if="!step.html && !step.choice" class="dim nothing">Nothing new at this rank.</p>
+              <p v-else-if="!step.html && !step.choice" class="dim nothing">No unlocks.</p>
             </div>
           </li>
         </ol>
@@ -153,7 +168,7 @@ async function buy(id: string) {
 
     <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
 
-    <ItemPicker ref="picker" :title="`Add a ${noun} (rank I, ${price} manna)`" :options="offered" :saving="saving" :error="error" @choose="buy" />
+    <ItemPicker ref="picker" :title="`Add ${noun} · ${price} manna`" :options="offered" :saving="saving" :error="error" @choose="buy" />
   </section>
 </template>
 

@@ -226,8 +226,10 @@ select is((select count(*)::int from attempt), 1, 'players can withdraw a submit
 -- ---------------------------------------------------------------------
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 select lives_ok(
-  $$ insert into public.characters (player_id, pilot_name) values ('11111111-1111-1111-1111-111111111111', 'One') $$,
+  $$ insert into public.characters (player_id, pilot_name, submitted_at)
+     values ('11111111-1111-1111-1111-111111111111', 'One', now() - interval '1 day') $$,
   'a player can create a pending pilot');
+select is((select submitted_at from public.characters where pilot_name = 'One'), null, 'a new pilot is always a draft');
 select throws_ok(
   $$ insert into public.characters (player_id, pilot_name) values ('11111111-1111-1111-1111-111111111111', 'One Again') $$,
   'P0001', 'You already have a living pilot.', 'a player cannot create a second living pilot');
@@ -238,6 +240,61 @@ select lives_ok(
 select throws_ok(
   $$ select public.approve_pilot((select id from public.characters where pilot_name = 'One'), now(), 'Hi') $$,
   'P0001', 'Only GMs and owners can approve pilots.', 'players cannot approve a pilot');
+
+-- Submitting: a draft until the player submits it, and locked while it's submitted.
+select lives_ok($$ update public.characters set callsign = 'Uno' where pilot_name = 'One' $$, 'a player can edit their draft pilot');
+select lives_ok(
+  $$ update public.characters set submitted_at = '2000-01-01' where pilot_name = 'One' $$,
+  'a player can submit their pilot');
+select cmp_ok((select submitted_at from public.characters where pilot_name = 'One'), '>', '2020-01-01'::timestamptz,
+  'the database stamps the submitted time');
+select throws_ok(
+  $$ update public.characters set pilot_name = 'Hacked' where pilot_name = 'One' $$,
+  'P0001', 'This pilot is waiting for review. Choose Edit pilot to change it.', 'a player cannot edit a submitted pilot''s card');
+select throws_ok(
+  $$ update public.character_sheets set sheet = '{"manna": 9}' where character_id = (select id from public.characters where pilot_name = 'One') $$,
+  'P0001', 'This pilot is waiting for review. Choose Edit pilot to change it.', 'a player cannot edit a submitted pilot''s sheet');
+select throws_ok(
+  $$ update public.characters set submitted_at = now() where pilot_name = 'One' $$,
+  'P0001', null, 'a player cannot move the submitted time');
+select lives_ok($$ update public.characters set submitted_at = null where pilot_name = 'One' $$, 'a player can take a submitted pilot back to a draft');
+select lives_ok($$ update public.characters set callsign = 'Uno Again' where pilot_name = 'One' $$, 'and edit it again');
+select lives_ok(
+  $$ update public.character_sheets set sheet = '{"x": 1}' where character_id = (select id from public.characters where pilot_name = 'One') $$,
+  'and edit its sheet again');
+update public.characters set submitted_at = now() where pilot_name = 'One';
+
+set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+with attempt as (update public.characters set submitted_at = now() where id = 106 returning 1)
+select is((select count(*)::int from attempt), 0, 'a player cannot submit someone else''s pilot');
+with attempt as (update public.characters set submitted_at = null where id = 100 returning 1)
+select is((select count(*)::int from attempt), 0, 'a player cannot set submitted_at on an approved pilot');
+
+-- Sending back: GMs only, with a note; it makes the pilot a draft again, and submitting clears the note.
+set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+select throws_ok(
+  $$ select public.send_back_pilot((select id from public.characters where pilot_name = 'One'), 'Nope') $$,
+  'P0001', 'Only GMs and owners can send pilots back.', 'players cannot send a pilot back');
+set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
+select throws_ok(
+  $$ select public.send_back_pilot((select id from public.characters where pilot_name = 'One'), '  ') $$,
+  'P0001', 'Write a note first, so the player knows what to fix.', 'sending back needs a note');
+select lives_ok(
+  $$ select public.send_back_pilot((select id from public.characters where pilot_name = 'One'), '  Fix the backstory  ') $$,
+  'GMs can send a submitted pilot back');
+select is((select submitted_at from public.characters where pilot_name = 'One'), null, 'a sent-back pilot is a draft again');
+select is((select review_note from public.character_sheets s join public.characters c on c.id = s.character_id where c.pilot_name = 'One'),
+  'Fix the backstory', 'the note is saved, trimmed');
+select throws_ok(
+  $$ select public.send_back_pilot((select id from public.characters where pilot_name = 'One'), 'Again') $$,
+  'P0001', null, 'a draft cannot be sent back');
+select throws_ok(
+  $$ select public.approve_pilot((select id from public.characters where pilot_name = 'One'), now(), 'Hi') $$,
+  'P0001', null, 'approve_pilot refuses a draft');
+set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+update public.characters set submitted_at = now() where pilot_name = 'One';
+select is((select review_note from public.character_sheets s join public.characters c on c.id = s.character_id where c.pilot_name = 'One'),
+  null, 'resubmitting clears the GM''s note');
 
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select lives_ok(

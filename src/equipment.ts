@@ -6,7 +6,7 @@ import type { MechPrivate, Sheet } from './myPilot'
 export function selectWeaponProfile(item: Item, index = 0): Item {
   const profile = item.profiles?.[index]
   if (!profile) return item
-  const selected = toItem(item.id, { ...item.raw, ...profile, name: `${item.name} · ${profile.name ?? `profile ${index + 1}`}`, profiles: [] })
+  const selected = toItem(item.id, { ...item.raw, ...profile, name: `${item.name} · ${profile.name ?? `Profile ${index + 1}`}`, profiles: [] })
   return { ...selected, profiles: item.profiles, raw: item.raw, bonuses: [...item.bonuses, ...(Array.isArray(profile.bonuses) ? profile.bonuses : [])] }
 }
 
@@ -25,8 +25,8 @@ export function modBlockedBy(mod: Item, weapon: Item, mount: string, options?: W
   const list = (key: string) => (Array.isArray(mod.raw?.[key]) ? mod.raw[key].map(String) : [])
   const type = weapon.id.startsWith('mw_prototype_') ? options?.type ?? 'Rifle' : weapon.type
   const [types, sizes] = [list('allowed_types'), list('allowed_sizes')]
-  if (types.length && !types.includes(type)) return `Fits ${types.join(', ')} weapons only`
-  if (sizes.length && !sizes.includes(weapon.mount)) return `Fits ${sizes.join(', ')} weapons only`
+  if (types.length && !types.includes(type)) return `Fits ${types.join(', ')} only`
+  if (sizes.length && !sizes.includes(weapon.mount)) return `Fits ${sizes.join(', ')} only`
   if (list('restricted_types').includes(type)) return `Can't go on ${type} weapons`
   if (list('restricted_sizes').includes(weapon.mount)) return `Can't go on ${weapon.mount} weapons`
   return ''
@@ -66,7 +66,7 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
     const thrown = range.find(entry => entry.type === 'Thrown')
     if (thrown) thrown.val = Math.max(5, Number(thrown.val) || 0)
     else range.push({ type: 'Thrown', val: 5 })
-    sources.push('Hunter II: Thrown 5 (or existing higher Thrown); thrown weapons return at end of turn.')
+    sources.push('Hunter II: Thrown 5. Thrown weapons return at end of turn.')
   }
   const damage = selected.damage.map(damage => {
     const entries = bonuses.filter(entry => entry.bonus.id === 'damage' && matches(entry, selected, undefined, damage.type)).flatMap(entry => {
@@ -74,7 +74,7 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
       const expression = numeric === null ? String(entry.bonus.val) : String(numeric)
       return typeof flatDamage(expression) === 'number' ? [{ source: entry.source, expression }] : []
     })
-    for (const entry of entries) sources.push(`${entry.source}: ${entry.expression.startsWith('-') ? '' : '+'}${entry.expression} ${damage.type.toLowerCase()} damage (added before the flat conversion)`)
+    for (const entry of entries) sources.push(`${entry.source}: ${entry.expression.startsWith('-') ? '' : '+'}${entry.expression} ${damage.type.toLowerCase()} damage`)
     // Round once after summing the complete dice expression and its modifiers.
     return { ...damage, val: flatDamage(`${damage.val}${entries.map(entry => `${entry.expression.startsWith('-') ? '' : '+'}${entry.expression}`).join('')}`) }
   })
@@ -100,22 +100,22 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
     if (tag.id !== 'tg_limited') return tag
     const entries = applicable(['limited_bonus'])
     const extra = Math.floor(limited) + entries.reduce((sum, entry) => sum + entry.value, 0)
-    if (Math.floor(limited)) sources.push(`engineering: +${Math.floor(limited)} limited uses`)
+    if (Math.floor(limited)) sources.push(`Engineering: +${Math.floor(limited)} limited uses`)
     for (const entry of entries) sources.push(`${entry.source}: +${entry.value} limited uses`)
     const base = bonusValue(tag.val, variables)
     return { ...tag, val: base === null ? `${tag.val}${extra ? `+${extra}` : ''}` : base + extra }
   })
   const accuracy = bonuses.filter(entry => ['attack', 'melee'].includes(entry.bonus.id) && matches(entry, selected)).reduce((sum, entry) => sum + (entry.bonus.id !== 'melee' || selected.type === 'Melee' ? bonusValue(entry.bonus.accuracy, variables) ?? 0 : 0), 0)
   const attack = applicable(['attack']).reduce((sum, entry) => sum + entry.value, 0)
-  if (attack) sources.push(`attack roll bonus: ${attack >= 0 ? '+' : ''}${attack}`)
+  if (attack) sources.push(`Attack roll: ${attack >= 0 ? '+' : ''}${attack}`)
   const auto = location && !location.integrated && sheet.core_bonuses?.includes('cb_auto_stabilizing_hardpoints') && coreMounts.cb_auto_stabilizing_hardpoints === location.mount ? 1 : 0
   const optics = item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && options?.accuracy !== false ? 1 : 0
-  if (accuracy + (auto || 0) + optics) sources.push(`attack accuracy: +${accuracy + (auto || 0) + optics}${auto ? ' (Auto-Stabilizing Hardpoints)' : ''}${optics ? ' (Tweaked Optics)' : ''}`)
+  if (accuracy + (auto || 0) + optics) sources.push(`Accuracy: +${accuracy + (auto || 0) + optics}${auto ? ' (Auto-Stabilizing Hardpoints)' : ''}${optics ? ' (Tweaked Optics)' : ''}`)
   if (options?.smart !== false && item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2) tags.push({ id: 'tg_smart' })
   if (mod) for (const tag of [...added('added_tags'), { id: 'tg_modded' }]) if (!tags.some(have => have.id === tag.id)) tags.push(tag)
-  if (item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && (options?.accuracy === false || options?.smart === false)) sources.push('Stripped reactor shielding: spend 2 Heat when attacking to use the alternate area pattern (conditional).')
+  if (item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && (options?.accuracy === false || options?.smart === false)) sources.push('Stripped reactor shielding: Spend 2 Heat to use the alternate area pattern.')
   if (location && sheet.core_bonuses?.includes('cb_overpower_caliber') && coreMounts.cb_overpower_caliber === location.mount * 2 + location.position)
-    sources.push('Overpower Caliber: +4 bonus damage on hit, once per round (not included in base damage).')
+    sources.push('Overpower Caliber: +4 damage on hit, once per round. Not in the damage above.')
   const deployables = Array.isArray(selected.raw?.deployables) ? selected.raw.deployables.map((raw: Record<string, unknown>) => {
     const result = { ...raw }
     for (const key of ['hp', 'evasion', 'edef', 'armor', 'speed', 'heatcap', 'size']) {

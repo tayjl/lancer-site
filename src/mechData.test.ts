@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { allowedSizes, mechEffects, mechStats, mountSize, type EffectCatalogue, type Frame, type StatModifier } from './mechData'
+import { allowedSizes, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type StatModifier } from './mechData'
 import { toItem } from './gameData'
 import type { Sheet } from './myPilot'
 import { coreContent } from './coreContent'
@@ -84,7 +84,7 @@ describe('mechStats', () => {
     expect(value(stats, 'system_points')).toBe(7)
     expect(value(stats, 'speed')).toBe(5)
     expect(stats.find(stat => stat.id === 'hp')!.contributors).toEqual([
-      'Blackbeard: 12', 'hull: +4', 'Personalizations: +2', 'Reinforced Frame: +5', 'Test talent 2: Second: +3',
+      'Base: 12', 'Hull: +4', 'Personalizations: +2', 'Reinforced Frame: +5', 'Test talent 2: Second: +3',
     ])
     expect(effects.reminders).toContainEqual(expect.objectContaining({ source: 'Superior by Design', text: 'Immunity to Impaired; +2 Heat Cap.' }))
     const reduced = mechEffects({}, { talents: { test: 1 } }, catalogue)
@@ -135,7 +135,7 @@ describe('mechStats', () => {
       weapons: new Map([['weapon', weapon]]), integrated: new Map([['builtin', builtIn]]),
     })
     expect(value(mechStats(blackbeard, undefined, effects.modifiers), 'hp')).toBe(15)
-    expect(effects.reminders).toContainEqual(expect.objectContaining({ kind: 'missing', source: 'missing', text: 'Content unavailable; its bonuses are not included.' }))
+    expect(effects.reminders).toContainEqual(expect.objectContaining({ kind: 'missing', source: 'missing', text: "Missing item. Its bonuses aren't counted." }))
   })
 
   it('handles replacement and overwrite precedence without crediting discarded bonuses', () => {
@@ -143,7 +143,7 @@ describe('mechStats', () => {
     const modifiers = [modifier('add', 4), modifier('replace A', 3, true), modifier('replace B', 2, true), modifier('override A', 5, false, true), modifier('override B', 2, false, true)]
     const stats = mechStats(blackbeard, undefined, modifiers)
     expect(value(stats, 'hp')).toBe(10)
-    expect(stats.find(stat => stat.id === 'hp')!.contributors).toEqual(['replace A: sets base to 3', 'replace B: sets base to 2', 'override A: +5 (highest override)'])
+    expect(stats.find(stat => stat.id === 'hp')!.contributors).toEqual(['replace A: sets to 3', 'replace B: sets to 2', 'override A: +5 (highest wins)'])
     expect(value(mechStats(blackbeard, undefined, [...modifiers, modifier('final', 2, true, true)]), 'hp')).toBe(2)
     expect(value(mechStats(blackbeard, undefined, [modifier('add', 4), modifier('replace', 3, true)]), 'hp')).toBe(7)
   })
@@ -152,8 +152,17 @@ describe('mechStats', () => {
     const modifiers = [{ stat: 'armour', source: 'Plating', value: 5, replace: false, overwrite: false }]
     const stats = mechStats(blackbeard, undefined, modifiers)
     expect(value(stats, 'armour')).toBe(4)
-    expect(stats.find(stat => stat.id === 'armour')!.contributors).toContain('armour maximum: 4')
+    expect(stats.find(stat => stat.id === 'armour')!.contributors).toContain('Armour maximum: 4')
     expect(value(stats, 'tech_attack')).toBe(-2)
     expect(mechStats(null, undefined, modifiers).every(stat => stat.value === null && !stat.contributors.length)).toBe(true)
+  })
+})
+
+describe('mechResources', () => {
+  const none = { modifiers: [], bonuses: [], reminders: [] }
+  it('shows overcharge heat as flat numbers, with no dice', () => {
+    expect(mechResources({}, none).overcharge).toBe('1 → 2 → 4 → 8')
+    const own = { ...none, bonuses: [{ source: 'Frame', bonus: { id: 'overcharge', val: ['1', '1d3', '1d6+2', 'odd'] as unknown as string } }] }
+    expect(mechResources({}, own).overcharge).toBe('1 → 2 → 6 → odd')
   })
 })

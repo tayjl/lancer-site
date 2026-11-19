@@ -19,14 +19,14 @@ const hidden = f.flag('hidden')
   <section class="panel" aria-labelledby="tag-basics">
     <h3 id="tag-basics" class="sheet-label">Basics</h3>
     <div class="grid">
-      <Field class="span2" label="Name" path="name" hint="Write {VAL} where the item's number goes, as in &quot;Limited {VAL}&quot;.">
+      <Field class="span2" label="Name" path="name" hint="Use {VAL} for the number, as in &quot;Limited {VAL}&quot;.">
         <input v-model="name" type="text" autocomplete="off" />
       </Field>
-      <Field class="span2" label="ID" path="id" :hint="locked ? 'Made when the item was created. It never changes, so pilots keep it if you rename it.' : 'Made from the name until you save it the first time.'">
+      <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
     </div>
-    <label class="check"><input v-model="hidden" type="checkbox" />Hidden: a note for the site, not shown to players</label>
+    <label class="check"><input v-model="hidden" type="checkbox" />Hidden from players</label>
   </section>
 
   <section class="panel" aria-labelledby="tag-rules">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RANK_NAMES, type BonusType, type Data } from '../../contentEditor'
+import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
@@ -41,12 +42,12 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
         class="span2"
         label="ID"
         path="id"
-        :hint="locked ? 'Made when the item was created. It never changes, so pilots keep it if you rename it.' : 'Made from the name until you save it the first time.'"
+        :hint="locked ? 'Fixed once created.' : 'Made from the name.'"
       >
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
     </div>
-    <Field label="Summary" hint="One line, shown in lists: what the talent is for.">
+    <Field label="Summary" hint="One line shown in lists.">
       <input v-model="terse" type="text" autocomplete="off" />
     </Field>
     <Field block label="Description" hint="Flavour text.">
@@ -65,7 +66,7 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
     <FieldError path="ranks" />
     <RepeatList v-model="ranks" noun="rank" path="ranks" fixed :make="() => ({ name: '', description: '' })">
       <template #title="{ item, index }">Rank {{ roman(index) }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
-      <template #summary="{ item }">{{ [list(item.actions).length ? `${list(item.actions).length} action(s)` : '', list(item.integrated).length || list(item.special_equipment).length ? 'Grants equipment' : ''].filter(Boolean).join(' · ') }}</template>
+      <template #summary="{ item }">{{ [list(item.actions).length ? plural(list(item.actions).length, 'action') : '', list(item.integrated).length || list(item.special_equipment).length ? 'Grants equipment' : ''].filter(Boolean).join(' · ') }}</template>
       <template #default="{ item, index, change }">
         <Field label="Rank name" :path="`ranks.${index}.name`">
           <input type="text" :value="item.name" autocomplete="off" @input="change({ name: input($event) })" />
@@ -79,15 +80,15 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
         <Field block label="Bonuses">
           <BonusListField :model-value="list<Data>(item.bonuses)" :types="bonusTypes" :path="`ranks.${index}.bonuses`" @update:model-value="change({ bonuses: clean($event) })" />
         </Field>
-        <Field block label="Built in" :path="`ranks.${index}.integrated`" hint="Equipment the pilot's mech gets for free with this rank, with no mount needed.">
+        <Field block label="Built in" :path="`ranks.${index}.integrated`" hint="Built in, needs no mount.">
           <ItemIdListField :model-value="list<string>(item.integrated)" :items="equipment" :label="`Rank ${roman(index)} built-in equipment`" add="Add built-in equipment" @update:model-value="change({ integrated: clean($event) })" />
         </Field>
-        <Field block label="May take" :path="`ranks.${index}.special_equipment`" hint="Special equipment the pilot may choose to add once they have this rank.">
+        <Field block label="May take" :path="`ranks.${index}.special_equipment`" hint="Optional equipment this rank unlocks.">
           <ItemIdListField :model-value="list<string>(item.special_equipment)" :items="equipment" :label="`Rank ${roman(index)} optional equipment`" add="Add optional equipment" @update:model-value="change({ special_equipment: clean($event) })" />
         </Field>
         <label class="check">
           <input type="checkbox" :checked="item.exclusive === true" @change="change({ exclusive: ($event.target as HTMLInputElement).checked || undefined })" />
-          Replaces the lower ranks' built-in equipment: only the highest rank the pilot has applies
+          Only the highest rank's built-in equipment applies.
         </label>
       </template>
     </RepeatList>

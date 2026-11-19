@@ -1,7 +1,8 @@
 import { HOMEBREW_PACK, KINDS, isObject, type Data, type EditorKind } from './contentEditor'
 import type { Json } from './lib/database.types'
 import { LCP_KINDS, writeLcp, type LcpKind } from './lcp'
-import { CHANGED_ELSEWHERE, checkWrite, fetchAll, supabase } from './lib/supabaseClient'
+import { CHANGED_ELSEWHERE, NOT_ALLOWED, checkWrite, fetchAll, supabase } from './lib/supabaseClient'
+import { plural } from './text'
 
 // The content editor's reads and writes (ContentEditorView.vue). Every write ends in .select() through checkWrite(),
 // and changes to a row it already has are guarded with the updated_at it loaded (so a newer save elsewhere is never
@@ -49,7 +50,7 @@ export async function loadCounts(): Promise<Record<string, number>> {
 export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; error: string | null }> {
   if (kind === 'bionics') {
     const { rows, error } = await fetchAll((from, to) => supabase.from('bionics').select('id, name, slot, source, manna_cost, mod_point_cost, retired').order('name').order('id').range(from, to))
-    return { rows: rows.map((b) => ({ key: String(b.id), kind, name: b.name, facts: [b.source, b.slot, `${b.mod_point_cost} mod ${b.mod_point_cost === 1 ? 'point' : 'points'}`, `${b.manna_cost} manna`, b.retired ? 'retired' : ''].filter(Boolean).join(' · '), packId: null, draft: false, edited: false })), error }
+    return { rows: rows.map((b) => ({ key: String(b.id), kind, name: b.name, facts: [b.source, b.slot, plural(b.mod_point_cost, 'mod point'), `${b.manna_cost} manna`, b.retired ? 'Retired' : ''].filter(Boolean).join(' · '), packId: null, draft: false, edited: false })), error }
   }
   if (kind === 'pilot_stats') {
     const { rows, error } = await fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))
@@ -108,7 +109,7 @@ export async function createItem(kind: EditorKind, working: Data, packId: number
   if (kind === 'bionics') {
     const { data, error } = await supabase.rpc('save_bionic', bionicArgs(working))
     const saved = data as { id: number; updated_at: string } | null
-    return error || !saved ? { error: error ? message(error) : 'The biomod was not saved.' } : { updatedAt: saved.updated_at, key: String(saved.id) }
+    return error || !saved ? { error: error ? message(error) : NOT_ALLOWED } : { updatedAt: saved.updated_at, key: String(saved.id) }
   }
   if (kind === 'pilot_stats') {
     const result = await checkWrite(await supabase.from('pilot_stats').insert({ id: String(working.id), name: String(working.name), sort_order: Number(working.sort_order) }).select('updated_at'))
@@ -125,7 +126,7 @@ export async function saveItem(item: Loaded, working: Data, homebrew: boolean): 
     const { data, error } = await supabase.rpc('save_bionic', { ...bionicArgs(working), target_id: Number(item.key), expected_updated_at: seen })
     const saved = data as { updated_at: string } | null
     if (error) return { error: /changed somewhere else/.test(error.message) ? CHANGED_ELSEWHERE : message(error) }
-    return saved ? { updatedAt: saved.updated_at } : { error: 'The biomod was not saved.' }
+    return saved ? { updatedAt: saved.updated_at } : { error: NOT_ALLOWED }
   }
   if (item.kind === 'pilot_stats') {
     const result = await checkWrite(
@@ -166,11 +167,11 @@ export async function usageOf(kind: EditorKind, key: string): Promise<{ pilots: 
 export async function exportHomebrew(): Promise<{ bytes: Uint8Array; filename: string; count: number } | { error: string }> {
   const pack = await supabase.from('content_packs').select('id, manifest').eq('name', HOMEBREW_PACK).maybeSingle()
   if (pack.error) return { error: pack.error.message }
-  if (!pack.data) return { error: 'There is no homebrew yet: make an item first.' }
+  if (!pack.data) return { error: 'No homebrew yet.' }
   const { rows, error } = await fetchAll((from, to) => supabase.from('content_items').select('id, kind, data').eq('pack_id', pack.data!.id).eq('draft', false).order('id').range(from, to))
   if (error) return { error }
   const items = rows.flatMap((row) => (Object.hasOwn(LCP_KINDS, row.kind) ? [{ kind: row.kind as LcpKind, data: row.data }] : []))
-  if (!items.length) return { error: 'There are no published homebrew items to export yet.' }
+  if (!items.length) return { error: 'No published homebrew to export.' }
   const manifest = pack.data.manifest as Record<string, Json>
   return { bytes: writeLcp(manifest, items), filename: `${HOMEBREW_PACK.toLowerCase().replaceAll(' ', '-')}-${String(manifest.version ?? '1.0.0')}.lcp`, count: items.length }
 }

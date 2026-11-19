@@ -2,6 +2,7 @@ import type { Json } from './lib/database.types'
 import type { MechPrivate, Sheet } from './myPilot'
 import type { PublicMech } from './pilots'
 import { rankName } from './rules'
+import { capitalise } from './text'
 
 // What a pending change changes, in plain words, for the GM review (/gm/changes/:id): the approved pilot
 // ("before") against the proposed one ("after"). Item ids are turned into names with "names".
@@ -97,12 +98,12 @@ export function changeDiff(
 
   // Public card.
   for (const column of ['pilot_name', 'callsign', 'age', 'gender', 'sexuality', 'height', 'weight', 'eye_colour', 'hair_colour'] as const)
-    if (!same(before.card[column], after.card[column])) field('identity', column.replace('_', ' '), before.card[column], after.card[column])
+    if (!same(before.card[column], after.card[column])) field('identity', capitalise(column.replace('_', ' ')), before.card[column], after.card[column])
   if (!same(before.card.pilot_image, after.card.pilot_image))
-    add('identity', 'portrait', !before.card.pilot_image ? 'added' : !after.card.pilot_image ? 'removed' : 'updated')
+    add('identity', 'Portrait', !before.card.pilot_image ? 'added' : !after.card.pilot_image ? 'removed' : 'updated')
   for (const column of ['appearance', 'personality', 'traits'] as const)
-    if (!same(before.card[column], after.card[column])) add(column, column, before.card[column] ? 'updated' : 'added', after.card[column])
-  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'backstory', before.sheet.backstory ? 'updated' : 'added', after.sheet.backstory)
+    if (!same(before.card[column], after.card[column])) add(column, capitalise(column), before.card[column] ? 'updated' : 'added', after.card[column])
+  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'Backstory', before.sheet.backstory ? 'updated' : 'added', after.sheet.backstory)
 
   // Stats and what manna buys.
   stats('personal stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 2)
@@ -120,43 +121,43 @@ export function changeDiff(
     const section = `mech: ${mech.name}`
     if (!old) {
       add('mech hangar', `${mech.name} (${mech.manufacturer_id})`, 'added')
-      if (mech.appearance) add(`${section} / appearance`, 'appearance', 'added', mech.appearance)
+      if (mech.appearance) add(`${section} / appearance`, 'Appearance', 'added', mech.appearance)
     }
     else {
-      if (old.name !== mech.name) field(`${section} / identity`, 'name', old.name, mech.name)
-      if (old.manufacturer_id !== mech.manufacturer_id) field(`${section} / identity`, 'manufacturer ID', old.manufacturer_id, mech.manufacturer_id)
-      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'appearance', old.appearance ? 'updated' : 'added', mech.appearance)
-      if (!same(old.image, mech.image)) add(`${section} / appearance`, 'image', !old.image ? 'added' : !mech.image ? 'removed' : 'updated')
+      if (old.name !== mech.name) field(`${section} / identity`, 'Name', old.name, mech.name)
+      if (old.manufacturer_id !== mech.manufacturer_id) field(`${section} / identity`, 'Manufacturer ID', old.manufacturer_id, mech.manufacturer_id)
+      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'Appearance', old.appearance ? 'updated' : 'added', mech.appearance)
+      if (!same(old.image, mech.image)) add(`${section} / appearance`, 'Image', !old.image ? 'added' : !mech.image ? 'removed' : 'updated')
     }
     const a: MechPrivate = before.sheet.mechs?.[id] ?? {}
     const b: MechPrivate = after.sheet.mechs?.[id] ?? {}
     if ((a.frame ?? null) !== (b.frame ?? null))
-      field(`${section} / frame`, 'frame', a.frame && names.frame(a.frame), b.frame && names.frame(b.frame))
+      field(`${section} / frame`, 'Frame', a.frame && names.frame(a.frame), b.frame && names.frame(b.frame))
     const weapons = (m: MechPrivate) => (m.mounts ?? []).flat().filter((x): x is string => !!x)
     listChanges(`${section} / weapon mounts`, weapons(a), weapons(b), names.weapon)
     const mountChanges = listDiff(weapons(a), weapons(b))
     if (!same(a.mounts ?? [], b.mounts ?? []) && !mountChanges.added.length && !mountChanges.removed.length)
-      add(`${section} / weapon mounts`, 'weapon mounts rearranged')
+      add(`${section} / weapon mounts`, 'Weapon mounts rearranged')
     listChanges(`${section} / systems`, a.systems, b.systems, names.system)
     const targetName = (m: MechPrivate, key: string) => {
       const target = m.core_mounts?.[key]
-      if (target === undefined) return 'unassigned'
-      if (key !== 'cb_overpower_caliber') return `mount ${target + 1}`
+      if (target === undefined) return 'Unassigned'
+      if (key !== 'cb_overpower_caliber') return `Mount ${target + 1}`
       const weapon = m.mounts?.[Math.floor(target / 2)]?.[target % 2]
-      return `mount ${Math.floor(target / 2) + 1}, ${weapon ? names.weapon(weapon) : 'empty weapon slot'}`
+      return `Mount ${Math.floor(target / 2) + 1}, ${weapon ? names.weapon(weapon) : 'empty weapon slot'}`
     }
     for (const key of new Set([...Object.keys(a.core_mounts ?? {}), ...Object.keys(b.core_mounts ?? {})]))
       if (!same(a.core_mounts?.[key], b.core_mounts?.[key]))
         add(`${section} / weapon mounts`, `${names.coreBonus(key)} target: ${targetName(a, key)} → ${targetName(b, key)}`)
     const configuration = (options: NonNullable<MechPrivate['weapon_options']>[string] = {}) => [
-      ...(options.profile !== undefined ? [`profile ${options.profile + 1}`] : []), options.type, options.damageType,
-      ...(options.accuracy !== undefined ? [options.accuracy ? 'optics' : 'reactor shielding'] : []),
-      ...(options.smart !== undefined ? [options.smart ? 'computer' : 'reactor shielding'] : []),
-    ].filter(Boolean).join(', ') || 'defaults'
+      ...(options.profile !== undefined ? [`Profile ${options.profile + 1}`] : []), options.type, options.damageType,
+      ...(options.accuracy !== undefined ? [options.accuracy ? 'Optics' : 'Reactor shielding'] : []),
+      ...(options.smart !== undefined ? [options.smart ? 'Computer' : 'Reactor shielding'] : []),
+    ].filter(Boolean).join(', ') || 'Defaults'
     for (const key of new Set([...Object.keys(a.weapon_options ?? {}), ...Object.keys(b.weapon_options ?? {})]))
       if (!same(a.weapon_options?.[key], b.weapon_options?.[key])) {
         const [mount, place] = key.split(':').map(Number)
-        const label = key.startsWith('integrated:') ? names.weapon(key.slice('integrated:'.length)) : `mount ${mount + 1}, weapon ${place + 1}`
+        const label = key.startsWith('integrated:') ? names.weapon(key.slice('integrated:'.length)) : `Mount ${mount + 1}, weapon ${place + 1}`
         add(`${section} / weapon mounts`, `${label} configuration: ${configuration(a.weapon_options?.[key])} → ${configuration(b.weapon_options?.[key])}`)
       }
     // A mod sits on a weapon's place: "Mod on Assault Rifle: Nanocomposite Adaptation".
@@ -165,12 +166,12 @@ export function changeDiff(
       if (from === to) continue
       const [mount, place] = key.split(':').map(Number)
       const weapon = (to ? b : a).mounts?.[mount]?.[place]
-      const label = `mod on ${weapon ? names.weapon(weapon) : `mount ${mount + 1}, weapon ${place + 1}`}`
+      const label = `Mod on ${weapon ? names.weapon(weapon) : `Mount ${mount + 1}, weapon ${place + 1}`}`
       if (!from) add(`${section} / weapon mounts`, `${label}: ${names.mod(to!)}`, 'added')
       else if (!to) add(`${section} / weapon mounts`, `${label}: ${names.mod(from)}`, 'removed')
       else add(`${section} / weapon mounts`, `${label}: ${names.mod(from)} → ${names.mod(to)}`)
     }
-    if (!same(a.history, b.history)) add(`${section} / history`, 'history', a.history ? 'updated' : 'added', b.history)
+    if (!same(a.history, b.history)) add(`${section} / history`, 'History', a.history ? 'updated' : 'added', b.history)
   }
   ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)
   // Which frame a licence gives (unset is the licence's own frame): "HA Genghis licence frame: HA Genghis → HA Worldkiller".

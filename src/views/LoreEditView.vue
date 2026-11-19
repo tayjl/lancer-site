@@ -63,7 +63,7 @@ async function save(extra: { published_at?: string | null } = {}) {
   saved.value = false
   const name = title.value.trim()
   const fields = { title: name, kind: kind.value, summary: summary.value, body, related: related.value, ...extra }
-  const failed = !name ? 'a title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await saveLore(id, fields)
+  const failed = !name ? 'A title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await saveLore(id, fields)
   saving.value--
   error.value = failed ?? ''
   saved.value = !failed
@@ -83,7 +83,7 @@ const saveBody = (doc: Json | null) => ((body = doc ?? { type: 'doc', content: [
 const draft = computed(() => (entry.value ? isDraft(entry.value) : false))
 const publish = () => save({ published_at: new Date().toISOString() })
 async function unpublish() {
-  if (await confirmAction(`Unpublish "${entry.value?.title}"? Only GMs will be able to read it.`, { confirmLabel: 'Unpublish' })) save({ published_at: null })
+  if (await confirmAction(`Unpublish ${entry.value?.title}? Only GMs can read it.`, { confirmLabel: 'Unpublish entry' })) save({ published_at: null })
 }
 
 // What the pickers offer: the other entries ("kind · Draft" under the title).
@@ -109,7 +109,7 @@ function addRelated(relatedId: string) {
 }
 
 async function remove() {
-  if (!(await confirmAction(`Delete "${entry.value?.title}"? This can't be undone. Links to it from other entries will stop working.`, { confirmLabel: 'Delete entry', danger: true }))) return
+  if (!(await confirmAction(`Delete ${entry.value?.title}? Links to it stop working. This can't be undone.`, { confirmLabel: 'Delete entry', danger: true }))) return
   const failed = await deleteLore(id)
   if (failed) error.value = failed
   else router.push({ name: 'lore' })
@@ -119,7 +119,7 @@ async function remove() {
 <template>
   <main class="page">
     <p v-if="!profile" class="dim">Loading…</p>
-    <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
     <p v-else-if="loadError" class="notice warn" role="alert">Lore didn't load: {{ loadError }}</p>
     <p v-else-if="!fresh" class="dim">Loading…</p>
     <p v-else-if="!entry" class="empty" role="status">
@@ -130,7 +130,7 @@ async function remove() {
     <template v-else>
       <PageHeader
         :title="entry.title"
-        summary="Write it here, then publish when it's ready."
+        summary="Publish when it's ready."
         :crumbs="[{ label: 'Lore', to: { name: 'lore' } }, { label: entry.title, to: { name: 'lore-entry', params: { id } } }, { label: 'Edit' }]"
       />
 
@@ -147,8 +147,8 @@ async function remove() {
         <SaveStatus :saving="saving > 0" :saved="saved" :error="error" :can-retry="!conflict" @retry="save()" />
         <div class="next-actions">
           <button type="button" class="small" @click="router.push({ name: 'lore-entry', params: { id } })">View entry</button>
-          <button v-if="draft" type="button" class="primary small" @click="publish">Publish</button>
-          <button v-else type="button" class="small" @click="unpublish">Unpublish</button>
+          <button v-if="draft" type="button" class="primary small" @click="publish">Publish entry</button>
+          <button v-else type="button" class="small" @click="unpublish">Unpublish entry</button>
         </div>
       </div>
 
@@ -173,7 +173,6 @@ async function remove() {
             <label class="field">
               <span>Summary</span>
               <input v-model="summary" type="text" maxlength="300" @change="saveSummary" />
-              <span class="hint">Shown in the list and under the title.</span>
             </label>
           </section>
 
@@ -194,7 +193,7 @@ async function remove() {
                 </button>
               </li>
             </ul>
-            <p v-else class="hint">None yet. They show under the entry.</p>
+            <p v-else class="hint">No related entries yet.</p>
             <div><button type="button" class="small" @click="relatedPicker?.open()"><Icon name="plus" />Link entry</button></div>
           </section>
         </div>
@@ -203,12 +202,12 @@ async function remove() {
       <section class="panel danger-zone">
         <h2 class="sheet-label">Danger zone</h2>
         <div class="danger-body">
-          <p class="dim">Deleting an entry removes it for everyone and can't be undone. Links to it from other entries will stop working.</p>
+          <p class="dim">Deleting this entry breaks links to it. This can't be undone.</p>
           <button type="button" class="danger" @click="remove">Delete entry</button>
         </div>
       </section>
 
-      <ItemPicker ref="relatedPicker" title="Link an entry" :options="relatable" empty="No other entries to link." @choose="addRelated" />
+      <ItemPicker ref="relatedPicker" title="Link entry" :options="relatable" empty="No other entries to link." @choose="addRelated" />
     </template>
   </main>
 </template>

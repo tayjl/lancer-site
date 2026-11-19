@@ -42,7 +42,7 @@ function chooseLicence(event: Event) {
         class="span2"
         label="ID"
         path="id"
-        :hint="locked ? 'Made when the item was created. It never changes, so pilots keep it if you rename it.' : 'Made from the name until you save it the first time.'"
+        :hint="locked ? 'Fixed once created.' : 'Made from the name.'"
       >
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
@@ -55,7 +55,7 @@ function chooseLicence(event: Event) {
       </Field>
       <Field class="span2" label="Licence" path="license_id">
         <select :value="licenceId" @change="chooseLicence">
-          <option value="">No licence: anyone can use it</option>
+          <option value="">None</option>
           <option v-if="licenceId && !licences.some((licence) => licence.id === licenceId)" :value="licenceId">{{ licenceId }}</option>
           <option v-for="licence in licences" :key="licence.id" :value="licence.id">{{ licence.source }} {{ licence.name }}</option>
         </select>

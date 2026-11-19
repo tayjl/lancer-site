@@ -25,7 +25,7 @@ const actions = f.list<Data>('actions')
     <h3 id="core-basics" class="sheet-label">Basics</h3>
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
-      <Field class="span2" label="ID" path="id" :hint="locked ? 'Made when the item was created. It never changes, so pilots keep it if you rename it.' : 'Made from the name until you save it the first time.'">
+      <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
       <Field class="span2" label="Manufacturer" path="source">
@@ -41,7 +41,7 @@ const actions = f.list<Data>('actions')
   <section class="panel" aria-labelledby="core-rules">
     <h3 id="core-rules" class="sheet-label">Rules</h3>
     <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
-    <Field block label="Mounted effect" hint="Optional: what it does while a weapon sits on a mount it changes.">
+    <Field block label="Mounted effect" hint="What it does on the mount it changes.">
       <RichTextEditor label="Mounted effect" html basic v-model="mounted" />
     </Field>
     <Field block label="Description" hint="Flavour text."><RichTextEditor label="Description" html basic v-model="description" /></Field>

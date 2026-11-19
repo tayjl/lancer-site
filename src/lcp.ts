@@ -2,8 +2,8 @@ import { strToU8, unzip, zipSync } from 'fflate'
 import type { Json, Tables } from './lib/database.types'
 
 export const LCP_KINDS = {
-  frames: 'frames', weapons: 'mech weapons', systems: 'mech systems', mods: 'weapon mods', pilot_gear: 'pilot gear',
-  talents: 'talents', core_bonuses: 'core bonuses', tags: 'tags', manufacturers: 'manufacturers',
+  frames: 'Frames', weapons: 'Mech weapons', systems: 'Mech systems', mods: 'Weapon mods', pilot_gear: 'Pilot gear',
+  talents: 'Talents', core_bonuses: 'Core bonuses', tags: 'Tags', manufacturers: 'Manufacturers',
 } as const
 export type LcpKind = keyof typeof LCP_KINDS
 export type LcpManifest = { name: string; author: string; version: string; description: string } & Record<string, Json>
@@ -36,7 +36,7 @@ export const plainPackText = (value: string) => value.replace(/<[^>]*>/g, ' ').r
 
 // Read only the root files used by this character manager. Never extract files onto disk.
 export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
-  if (bytes.length > MAX_LCP_BYTES) throw new LcpError('Choose an LCP smaller than 15 MB.')
+  if (bytes.length > MAX_LCP_BYTES) throw new LcpError('That file is over 15 MB.')
   const ignored: string[] = []
   const seen = new Set<string>()
   let size = 0
@@ -45,29 +45,29 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
   try {
     files = await new Promise((resolve, reject) => {
       unzip(bytes, { filter(file) {
-        if (++count > 2000) throw new LcpError('This archive contains too many files.')
+        if (++count > 2000) throw new LcpError('That pack has too many files.')
         const root = !file.name.includes('/') && !file.name.includes('\\')
         const kind = file.name.replace(/\.json$/, '')
         const supported = root && (file.name === 'lcp_manifest.json' || (file.name.endsWith('.json') && Object.hasOwn(LCP_KINDS, kind)))
         if (!supported) { if (!file.name.endsWith('/')) ignored.push(file.name); return false }
-        if (seen.has(file.name)) throw new LcpError(`The archive contains two copies of ${file.name}.`)
+        if (seen.has(file.name)) throw new LcpError(`The pack has two copies of ${file.name}.`)
         seen.add(file.name)
         size += file.originalSize
-        if (file.originalSize > MAX_JSON_BYTES || size > MAX_TOTAL_BYTES) throw new LcpError('The JSON content is too large. Split this into smaller packs.')
+        if (file.originalSize > MAX_JSON_BYTES || size > MAX_TOTAL_BYTES) throw new LcpError('That pack is too large.')
         return true
       } }, (error, result) => error ? reject(error) : resolve(result))
     })
   } catch (error) {
     if (error instanceof LcpError) throw error
-    throw new LcpError('Could not open this archive. Choose a valid .lcp file, not an extracted folder.')
+    throw new LcpError("That isn't a valid .lcp file.")
   }
   const read = (name: string): unknown => {
     try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(files[name])) }
-    catch { throw new LcpError(`${name} is not valid UTF-8 JSON. Fix it and export the pack again.`) }
+    catch { throw new LcpError(`${name} isn't valid JSON.`) }
   }
-  if (!files['lcp_manifest.json']) throw new LcpError('Missing lcp_manifest.json at the top level of the archive.')
+  if (!files['lcp_manifest.json']) throw new LcpError('The pack has no lcp_manifest.json.')
   const raw = read('lcp_manifest.json')
-  if (!object(raw)) throw new LcpError('The pack manifest must be a JSON object.')
+  if (!object(raw)) throw new LcpError("The manifest isn't valid.")
   for (const key of ['name', 'author', 'version'] as const)
     if (typeof raw[key] !== 'string' || !raw[key].trim() || raw[key].length > 300) throw new LcpError(`The manifest needs a valid ${key}.`)
   if (typeof raw.description !== 'string') throw new LcpError('The manifest needs a description.')
@@ -82,18 +82,18 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
     if (!Array.isArray(values)) throw new LcpError(`${filename} must contain a list of items.`)
     for (const value of values) {
       if (!object(value) || typeof value.id !== 'string' || !value.id.trim() || value.id !== value.id.trim() || value.id.length > 300)
-        throw new LcpError(`Every item in ${filename} needs a non-empty ID without surrounding spaces.`)
+        throw new LcpError(`Every item in ${filename} needs an ID.`)
       if (typeof value.name !== 'string' || !value.name.trim()) throw new LcpError(`Item ${value.id} in ${filename} needs a name.`)
-      if (ids.has(value.id)) throw new LcpError(`Duplicate item ID: ${value.id}. Every item in a pack needs its own ID.`)
+      if (ids.has(value.id)) throw new LcpError(`Duplicate item ID: ${value.id}.`)
       ids.add(value.id)
       items.push({ id: value.id, kind, data: value })
-      if (items.length > MAX_ITEMS) throw new LcpError('Import at most 10,000 items at once. Split this into smaller packs.')
+      if (items.length > MAX_ITEMS) throw new LcpError('A pack can have at most 10,000 items.')
     }
   }
-  if (!items.length) throw new LcpError('This pack contains no supported pilot or mech content.')
+  if (!items.length) throw new LcpError('This pack has no content the site uses.')
   const warnings: string[] = []
-  if (raw.v3 === true) warnings.push('This is a COMP/CON v3 pack. Some advanced effects are not displayed by this site yet.')
-  if (Array.isArray(raw.dependencies) && raw.dependencies.length) warnings.push('This pack declares dependencies. Check its required packs and versions before importing; dependency requirements are not verified automatically.')
+  if (raw.v3 === true) warnings.push("This is a COMP/CON v3 pack. Some advanced effects aren't shown.")
+  if (Array.isArray(raw.dependencies) && raw.dependencies.length) warnings.push('This pack needs other packs. Check they are imported.')
   return { manifest, items, ignored, warnings }
 }
 
@@ -119,8 +119,8 @@ export function planLcp(pack: LcpPack, packs: InstalledPack[], installed: Instal
   for (const item of pack.items) {
     const old = byId.get(item.id)
     if (!old) added++
-    else if (old.pack_id !== existing?.id) conflicts.push({ id: item.id, reason: `belongs to ${packs.find(row => row.id === old.pack_id)?.name ?? 'another pack'}` })
-    else if (old.kind !== item.kind) conflicts.push({ id: item.id, reason: 'would change the item type' })
+    else if (old.pack_id !== existing?.id) conflicts.push({ id: item.id, reason: `Belongs to ${packs.find(row => row.id === old.pack_id)?.name ?? 'another pack'}` })
+    else if (old.kind !== item.kind) conflicts.push({ id: item.id, reason: 'Would change the item type' })
     else {
       updated++
       if (old.edited) edited++

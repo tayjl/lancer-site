@@ -24,7 +24,7 @@ defineProps<{
       <h2 id="queue-title">Waiting for review <span class="badge">{{ items.length }}</span></h2>
       <p class="dim">{{ description }}</p>
     </header>
-    <p v-if="!items.length" class="empty">Nothing waiting on a GM.</p>
+    <p v-if="!items.length" class="empty">No items to review.</p>
     <ol v-else class="card-grid">
       <li v-for="item in items" :key="item.id">
         <PilotCard :to="item.to" :image="item.image" :callsign="item.callsign" :name="item.name" :player="item.player">

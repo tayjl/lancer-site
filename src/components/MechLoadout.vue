@@ -4,9 +4,9 @@ import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { tagNames, toItem, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
-import { itemDetails, itemFacts, statLine } from '../itemDetails'
 import { itemInfo } from '../info'
-import { plainText } from '../rulesText'
+import { itemPick } from '../pickerRows'
+import { useManufacturers } from '../archive'
 import { modBlockedBy, modsRefused } from '../equipment'
 import { allowedSizes, fittedMods, MOUNT_HINTS, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
@@ -43,11 +43,12 @@ const props = defineProps<{
   save: (changes: Partial<MechPrivate>) => Promise<string | null>
 }>()
 
+const manufacturers = useManufacturers()
 const weaponsById = computed(() => new Map(props.weapons.map((item) => [item.id, item])))
 const systemsById = computed(() => new Map(props.systems.map((item) => [item.id, item])))
 const modsById = computed(() => new Map(props.mods.map((item) => [item.id, item])))
 // An id missing from the catalogue (e.g. its pack was removed) still shows, by its id.
-const find = (byId: Map<string, Item>, id: string) => byId.get(id) ?? props.integrated.get(id) ?? toItem(id, { name: `unknown item (${id})` })
+const find = (byId: Map<string, Item>, id: string) => byId.get(id) ?? props.integrated.get(id) ?? toItem(id, { name: `Unknown item (${id})` })
 
 // A Superheavy weapon's mount, and the empty mount it braces against (-1 when there's none).
 const sizeOf = (id: string) => weaponsById.value.get(id)?.mount
@@ -110,16 +111,16 @@ const withWeapon = (m: number, i: number, id: string | null) =>
 
 async function unequip(m: number, i: number, id: string) {
   const mod = modOn(m, i)
-  if (await confirmAction(`Remove ${find(weaponsById.value, id).name}${mod ? ` and its mod, ${mod.name}` : ''}?`, { confirmLabel: 'Remove', danger: true }))
+  if (await confirmAction(`Remove ${find(weaponsById.value, id).name}${mod ? ` and its mod, ${mod.name}` : ''}? It leaves the mount empty.`, { confirmLabel: 'Remove weapon', danger: true }))
     store({ mounts: withWeapon(m, i, null), weapon_mods: withoutMod(`${m}:${i}`) })
 }
 
 async function removeMod(m: number, i: number) {
-  if (await confirmAction(`Remove ${modOn(m, i)!.name}?`, { confirmLabel: 'Remove', danger: true })) store({ weapon_mods: withoutMod(`${m}:${i}`) })
+  if (await confirmAction(`Remove ${modOn(m, i)!.name}? The weapon keeps no mod.`, { confirmLabel: 'Remove mod', danger: true })) store({ weapon_mods: withoutMod(`${m}:${i}`) })
 }
 
 async function uninstall(index: number) {
-  if (await confirmAction(`Remove ${find(systemsById.value, props.installed[index]).name}?`, { confirmLabel: 'Remove', danger: true }))
+  if (await confirmAction(`Remove ${find(systemsById.value, props.installed[index]).name}? It frees its system points.`, { confirmLabel: 'Remove system', danger: true }))
     store({ systems: props.installed.filter((_, k) => k !== index) })
 }
 
@@ -146,30 +147,21 @@ const options = computed(() => {
     const swapped = leaving.reduce((sum, id) => sum + (id ? (weaponsById.value.get(id) ?? modsById.value.get(id))?.sp ?? 0 : 0), 0)
     if (!isLicensed(item, props.licences)) return `Needs ${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}`
     if (t.kind === 'mod') { const why = modBlockedBy(item, t.weapon, props.frame?.mounts[t.m] ?? '', props.details.weapon_options?.[key]); if (why) return why }
-    if (has('tg_unique') && onMech.includes(item.id)) return 'Unique: already on this mech'
-    if (has('tg_ai') && aiCount >= capacity.ai) return `AI capacity ${capacity.ai}`
-    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !props.superheavyMounting && !canBrace(t.m)) return 'Needs an empty mount to brace it'
-    if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough SP'
+    if (has('tg_unique') && onMech.includes(item.id)) return 'Already on this mech'
+    if (has('tg_ai') && aiCount >= capacity.ai) return 'Not enough AI capacity'
+    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !props.superheavyMounting && !canBrace(t.m)) return 'Needs an empty mount'
+    if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough system points'
     return ''
   }
-  // Licensed items first (for a mod, ones that fit), then the rest (shown, so players can see what a licence would unlock).
-  // GM-only ones (HORUS, NHC, Exotic) are blocked for players and go last.
-  return list
-    .map((item) => {
-      const details = itemDetails(item, tagNames.value)
-      const restricted = !isGm.value && gmOnly(item, props.frames)
-      const blocked = restricted ? GM_ONLY_REASON : blockedBy(item)
-      return {
-        id: item.id,
-        name: item.name,
-        meta: [...itemFacts(item), statLine(details)].filter(Boolean),
-        text: plainText(details.text),
-        info: () => itemInfo(item),
-        blocked,
-        licensed: !restricted && (t.kind === 'mod' ? !blocked : isLicensed(item, props.licences)),
-      }
-    })
-    .sort((a, b) => Number(b.licensed) - Number(a.licensed))
+  // The picker puts what can be chosen first in each manufacturer's box (PickList.vue). GM-only ones (HORUS, NHC, Exotic)
+  // are blocked for players.
+  return list.map((item) => ({
+    id: item.id,
+    name: item.name,
+    ...itemPick(item, tagNames.value, manufacturers.value),
+    info: () => itemInfo(item),
+    blocked: !isGm.value && gmOnly(item, props.frames) ? GM_ONLY_REASON : blockedBy(item),
+  }))
 })
 
 const pickerTitle = computed(() => {
@@ -198,7 +190,7 @@ function openSystem() {
 async function choose(id: string) {
   if (!props.editable || saving.value) return
   const offered = options.value.find(option => option.id === id)
-  if (!offered || offered.blocked) { error.value = offered?.blocked ?? 'Item unavailable'; return }
+  if (!offered || offered.blocked) { error.value = offered?.blocked ?? 'That item is unavailable.'; return }
   const t = target.value!
   const key = t.kind === 'system' ? '' : `${t.m}:${t.i}`
   const saved = t.kind === 'weapon' ? await store({ mounts: withWeapon(t.m, t.i, id), weapon_options: { ...props.details.weapon_options, [key]: {} }, weapon_mods: withoutMod(key) })
@@ -209,12 +201,12 @@ async function choose(id: string) {
 // "main or auxiliary weapon"; a Heavy mount takes any size, so it just says so.
 const placeLabel = (allowed: string[]) => (allowed.length >= 4 ? 'any weapon' : `${allowed.join(' or ').toLowerCase()} weapon`)
 // What an empty mount takes, in its empty state; one not listed says what its first place takes.
-const placeHint = (allowed: string[]) => `Empty. Takes ${allowed.length >= 4 ? 'a weapon of any size' : `one ${allowed.join(' or ')} weapon`}.`
-const mountHint = (mount: string, allowed: string[]) => (MOUNT_HINTS[mount] ? `Empty. ${MOUNT_HINTS[mount]}` : placeHint(allowed))
+const placeHint = (allowed: string[]) => `Takes ${allowed.length >= 4 ? 'a weapon of any size' : `one ${allowed.join(' or ')} weapon`}.`
+const mountHint = (mount: string, allowed: string[]) => (MOUNT_HINTS[mount] ?? placeHint(allowed))
 // The system points meter: how full, and what's left.
 const spNote = computed(() => {
   const left = (props.spTotal ?? 0) - spUsed.value
-  return left < 0 ? `${-left} over` : left === 0 ? 'All used.' : `${left} left`
+  return left < 0 ? `${-left} over` : left === 0 ? 'All used' : `${left} left`
 })
 const coreChoices = [
   { id: 'cb_mount_retrofitting', name: 'Mount Retrofitting' },
@@ -223,8 +215,8 @@ const coreChoices = [
 ]
 function targets(id: string) {
   return (props.frame?.mounts ?? []).flatMap((mount, m) => id === 'cb_overpower_caliber'
-    ? (props.mounts[m] ?? []).flatMap((weapon, i) => weapon ? [{ value: m * 2 + i, name: `mount ${m + 1} · ${find(weaponsById.value, weapon).name}` }] : [])
-    : mount === 'Integrated Auxiliary' ? [] : [{ value: m, name: `mount ${m + 1} · ${mount}` }])
+    ? (props.mounts[m] ?? []).flatMap((weapon, i) => weapon ? [{ value: m * 2 + i, name: `Mount ${m + 1} · ${find(weaponsById.value, weapon).name}` }] : [])
+    : mount === 'Integrated Auxiliary' ? [] : [{ value: m, name: `Mount ${m + 1} · ${mount}` }])
 }
 async function setCore(id: string, event: Event) {
   const value = Number((event.target as HTMLSelectElement).value)
@@ -254,7 +246,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       <div v-for="choice in coreChoices.filter(choice => sheet.core_bonuses?.includes(choice.id))" :key="choice.id" class="core-choice">
         <label :for="choice.id">{{ choice.name }}</label>
         <select :id="choice.id" :value="details.core_mounts?.[choice.id] ?? -1" :disabled="!editable || saving" @change="setCore(choice.id, $event)">
-          <option :value="-1" disabled>Choose target</option>
+          <option :value="-1" disabled>Choose…</option>
           <option v-for="target in targets(choice.id)" :key="target.value" :value="target.value">{{ target.name }}</option>
         </select>
       </div>
@@ -270,7 +262,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
     </div>
     <section class="panel">
       <h2 class="sheet-label">Weapon mounts<span class="private">Private</span></h2>
-      <p v-if="!frame" class="empty">Choose a frame (in the strip above) to fit its mounts.</p>
+      <p v-if="!frame" class="empty">Choose a frame first.</p>
       <ul v-else class="slot-grid">
         <SlotCard v-for="weapon in builtInWeapons" :key="weapon.id" label="Integrated mount">
           <BuildItem :item="weapon" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${weapon.id}`" :editable="editable" :save="save" integrated />
@@ -282,7 +274,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
           :empty="card.bracing ? 'Bracing the Superheavy weapon.' : card.places.every((place) => !place.id) ? mountHint(card.mount, card.places[0]?.allowed ?? []) : ''"
         >
           <template v-if="editable && !card.bracing && card.places[0]" #action>
-            <button type="button" class="small" :disabled="saving" @click="openWeapon(card.m, 0, null, card.places[0].allowed)">Equip weapon</button>
+            <button type="button" class="small" :disabled="saving" @click="openWeapon(card.m, 0, null, card.places[0].allowed)">Add weapon</button>
           </template>
           <div class="places">
             <template v-for="place in card.places" :key="place.index">
@@ -309,7 +301,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
               </BuildItem>
               <div v-else class="empty">
                 <p>{{ placeHint(place.allowed) }}</p>
-                <button v-if="editable" type="button" class="small" :disabled="saving" @click="openWeapon(card.m, place.index, null, place.allowed)">Equip weapon</button>
+                <button v-if="editable" type="button" class="small" :disabled="saving" @click="openWeapon(card.m, place.index, null, place.allowed)">Add weapon</button>
               </div>
             </template>
           </div>
@@ -322,7 +314,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
         <h2 class="sheet-label">Systems<span class="private">Private</span></h2>
         <button v-if="frame && editable" type="button" class="small" :disabled="saving" @click="openSystem"><Icon name="plus" />Add system</button>
       </header>
-      <p v-if="!frame" class="empty">Choose a frame (in the strip above) to see its system points.</p>
+      <p v-if="!frame" class="empty">Choose a frame first.</p>
       <ul v-else-if="installed.length || builtInSystems.length" class="slot-grid">
         <SlotCard v-for="system in builtInSystems" :key="system.id" label="Integrated system">
           <BuildItem :item="system" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${system.id}`" :editable="editable" :save="save" integrated />
@@ -335,7 +327,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
           </BuildItem>
         </SlotCard>
       </ul>
-      <p v-else class="empty">No systems installed.</p>
+      <p v-else class="empty">No systems yet.</p>
     </section>
 
     <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>

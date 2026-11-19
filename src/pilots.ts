@@ -15,13 +15,13 @@ export type PublicMech = {
 }
 
 // Only what the cards and the list search use. "player" is the owner's profile, joined in for their display name.
-export type PublicPilot = Pick<Tables<'characters'>, 'id' | 'status' | 'created_at' | 'callsign' | 'pilot_name' | 'pilot_image'> & {
+export type PublicPilot = Pick<Tables<'characters'>, 'id' | 'status' | 'created_at' | 'submitted_at' | 'callsign' | 'pilot_name' | 'pilot_image'> & {
   mechs: PublicMech[]
   player: { display_name: string } | null
 }
 
 // Shared with the GM roster, which adds the private sheet's few columns.
-export const PILOT_FIELDS = 'id, status, created_at, callsign, pilot_name, pilot_image, mechs, player:profiles(display_name)'
+export const PILOT_FIELDS = 'id, status, created_at, submitted_at, callsign, pilot_name, pilot_image, mechs, player:profiles(display_name)'
 
 // The mechs column is plain JSON to the database; the site always saves it in the PublicMech shape.
 const toPilot = (row: object) => {
@@ -29,9 +29,11 @@ const toPilot = (row: object) => {
   return { ...pilot, mechs: Array.isArray(pilot.mechs) ? pilot.mechs : [] }
 }
 
-// Every pilot with this status, oldest first. Returns the pilots, or an error message.
+// Every pilot with this status, oldest first. Pending means submitted: drafts aren't listed, and the oldest submission
+// comes first. Returns the pilots, or an error message.
 export async function fetchPilots(status: Tables<'characters'>['status']) {
-  const { data, error } = await supabase.from('characters').select(PILOT_FIELDS).eq('status', status).order('created_at')
+  const query = supabase.from('characters').select(PILOT_FIELDS).eq('status', status)
+  const { data, error } = await (status === 'pending' ? query.not('submitted_at', 'is', null).order('submitted_at') : query.order('created_at'))
   return { pilots: (data ?? []).map(toPilot), error: error?.message ?? '' }
 }
 

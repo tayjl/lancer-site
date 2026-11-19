@@ -141,8 +141,8 @@ describe('changeDiff', () => {
       { card: { mechs: [mech] }, sheet: { mechs: { m1: { mounts: [['rifle']], core_mounts: { cb_overpower_caliber: 0 }, weapon_options: { '0:0': { profile: 1, type: 'Melee' } } } } } }, names,
     )
     expect(lines.map(line => line.text)).toEqual([
-      'CB:cb_overpower_caliber target: unassigned → mount 1, W:rifle',
-      'Mount 1, weapon 1 configuration: defaults → profile 2, Melee',
+      'CB:cb_overpower_caliber target: Unassigned → Mount 1, W:rifle',
+      'Mount 1, weapon 1 configuration: Defaults → Profile 2, Melee',
     ])
   })
 })

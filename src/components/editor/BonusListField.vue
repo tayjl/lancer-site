@@ -38,7 +38,7 @@ const add = () => (model.value = [...model.value, { id: props.types[0]?.id ?? ''
         <FieldError :path="`${path}.${index}`" deep />
       </li>
     </ul>
-    <p v-else class="hint dim">No bonuses.</p>
+    <p v-else class="hint dim">No bonuses yet.</p>
     <div><button type="button" class="small" @click="add"><Icon name="plus" />Add bonus</button></div>
   </div>
 </template>

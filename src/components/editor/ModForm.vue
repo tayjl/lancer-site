@@ -55,7 +55,7 @@ const addedDamage = f.list<Entry>('added_damage')
   <section class="panel" aria-labelledby="mod-adds">
     <h3 id="mod-adds" class="sheet-label">What it adds to the weapon</h3>
     <Field block label="Added range"><DamageField v-model="addedRange" kind="range" path="added_range" noun="Added range" /></Field>
-    <Field block label="Added damage" hint="Added damage isn't counted in the weapon's numbers; it's conditional, so say when in the effect.">
+    <Field block label="Added damage" hint="Not counted in the weapon's numbers. Say when it applies in the effect.">
       <DamageField v-model="addedDamage" kind="damage" path="added_damage" noun="Added damage" />
     </Field>
     <Field block label="Added tags"><TagListField v-model="addedTags" :tags="tags" path="added_tags" label="Added tags" /></Field>
@@ -64,7 +64,7 @@ const addedDamage = f.list<Entry>('added_damage')
   <section class="panel" aria-labelledby="mod-text">
     <h3 id="mod-text" class="sheet-label">Text</h3>
     <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
-    <Field label="Lore" hint="Optional flavour text, plain.">
+    <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>
   </section>

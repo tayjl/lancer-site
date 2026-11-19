@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { FRAME_MOUNTS, FRAME_ROLES, FRAME_SIZES, FRAME_STATS, FRAME_USES, type BonusType, type Data } from '../../contentEditor'
 import { itemInfo } from '../../info'
 import { alternateOf, MOUNT_HINTS, toFrame, useMechData } from '../../mechData'
+import { plural } from '../../text'
 import Icon from '../Icon.vue'
 import InfoButton from '../InfoButton.vue'
 import RichTextEditor from '../RichTextEditor.vue'
@@ -76,12 +77,12 @@ const unlocks = computed(() => {
 const unlockCount = computed(() => unlocks.value.reduce((sum, rung) => sum + rung.items.length + (rung.frame ? 1 : 0), 0))
 
 const identitySummary = computed(() => [String(model.value.name ?? ''), source.value, roles.value.join(' / ')].filter(Boolean).join(' · '))
-const traitsSummary = computed(() => (traits.value.length ? `${traits.value.length} ${traits.value.length === 1 ? 'trait' : 'traits'}: ${traits.value.map((trait) => trait.name || 'unnamed').join(', ')}` : 'No traits'))
+const traitsSummary = computed(() => (traits.value.length ? `${plural(traits.value.length, 'trait')}: ${traits.value.map((trait) => trait.name || 'Unnamed').join(', ')}` : 'No traits yet'))
 const coreSummary = computed(() => {
   const parts = [core.value.passive_name || core.value.passive_effect ? '1 passive' : '', core.value.active_name || core.value.active_effect ? '1 power' : ''].filter(Boolean)
   return `${core.value.name || 'Unnamed'}${parts.length ? `: ${parts.join(', ')}` : ''}`
 })
-const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
+const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 </script>
 
 <template>
@@ -92,7 +93,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
         class="span2"
         label="ID"
         path="id"
-        :hint="locked ? 'Made when the item was created. It never changes, so pilots keep it if you rename it.' : 'Made from the name until you save it the first time.'"
+        :hint="locked ? 'Fixed once created.' : 'Made from the name.'"
       >
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
@@ -103,29 +104,29 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
           <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
         </select>
       </Field>
-      <Field class="span2" label="Alternate of" path="license_id" hint="An alternate frame, such as an alternate Genghis, shares its original's licence: pilots choose between them.">
+      <Field class="span2" label="Alternate of" path="license_id" hint="Shares the original frame's licence.">
         <select v-model="alternate">
-          <option value="">None: its own licence</option>
+          <option value="">None</option>
           <option v-for="frame in originals" :key="frame.id" :value="frame.id">{{ frame.source }} {{ frame.name }}</option>
         </select>
       </Field>
-      <Field class="span2" label="Licence" path="license_id" :hint="alternate ? 'The ID of the original frame.' : 'A frame is its own licence, so this is its own ID.'">
+      <Field class="span2" label="Licence" path="license_id" :hint="alternate ? 'ID of the original frame.' : 'Its own ID.'">
         <input class="code" :value="String(model.license_id ?? '')" type="text" readonly />
       </Field>
     </div>
     <Field block label="Mech type" path="mechtype">
       <ToggleChips v-model="roles" :options="FRAME_ROLES" label="Mech type" />
     </Field>
-    <Field block label="Unlocked at licence rank" path="license_level" hint="The rank pilots need in this frame's licence to use it: II for most. None for a frame anyone can use, like GMS's.">
+    <Field block label="Unlocked at licence rank" path="license_level" hint="Rank needed to use this frame. None for GMS frames.">
       <ChoiceField v-model="rank" label="Unlocked at licence rank" :options="[0, 1, 2, 3].map((value) => ({ value, label: roman(value) }))" />
     </Field>
-    <Field block label="Description" hint="Flavour text, shown in the frame's information.">
+    <Field block label="Description" hint="Flavour text.">
       <RichTextEditor label="Frame description" html basic v-model="description" />
     </Field>
   </FoldPanel>
 
   <FoldPanel title="Stats" open :paths="['stats']">
-    <p class="hint">What the frame gives before pilot skills and gear.</p>
+    <p class="hint">Before HASE and gear.</p>
     <div class="stats">
       <Field v-for="stat in FRAME_STATS" :key="stat.key" :label="stat.unused ? `${stat.label} (not used)` : stat.label" :path="`stats.${stat.key}`" :class="{ unused: stat.unused }">
         <select v-if="stat.key === 'size'" class="num" :value="String(stats.size ?? 1)" @change="setStat('size', input($event))">
@@ -134,11 +135,10 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
         <input v-else class="num" type="number" step="1" :min="stat.key === 'tech_attack' ? undefined : 0" :value="stats[stat.key] ?? ''" @input="setStat(stat.key, input($event))" />
       </Field>
     </div>
-    <p class="hint">Sensors and save target are game data the site's mech maths leaves out, so nothing here changes them.</p>
   </FoldPanel>
 
   <FoldPanel title="Weapon mounts" open :summary="mountsSummary" :paths="['mounts']">
-    <p class="hint">Players see the mounts in this order.</p>
+    <p class="hint">Shown in this order.</p>
     <FieldError path="mounts" />
     <ol v-if="mounts.length" class="mounts">
       <li v-for="(mount, index) in mounts" :key="index">
@@ -160,18 +160,17 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
   </FoldPanel>
 
   <FoldPanel title="Traits" :summary="traitsSummary" :paths="['traits']">
-    <p class="hint">Each trait is a name and its rules, with optional actions, bonuses and deployables.</p>
-    <RepeatList v-model="traits" noun="trait" path="traits" empty="No traits." :make="() => ({ name: '', description: '' })">
+    <RepeatList v-model="traits" noun="trait" path="traits" empty="No traits yet." :make="() => ({ name: '', description: '' })">
       <template #title="{ item, index }">Trait {{ index + 1 }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
-      <template #summary="{ item }">{{ [item.use, list(item.actions).length ? `${list(item.actions).length} action(s)` : ''].filter(Boolean).join(' · ') }}</template>
+      <template #summary="{ item }">{{ [item.use, list(item.actions).length ? plural(list(item.actions).length, 'action') : ''].filter(Boolean).join(' · ') }}</template>
       <template #default="{ item, index, change }">
         <div class="pair">
           <Field label="Name" :path="`traits.${index}.name`">
             <input type="text" :value="item.name" autocomplete="off" @input="change({ name: input($event) })" />
           </Field>
-          <Field label="Use limit" hint="A reminder of how often it can be used.">
+          <Field label="Use limit" >
             <select :value="String(item.use ?? '')" @change="change({ use: input($event) || undefined })">
-              <option value="">No limit (always on)</option>
+              <option value="">None</option>
               <option v-if="item.use && !FRAME_USES.includes(String(item.use))" :value="item.use">{{ item.use }}</option>
               <option v-for="use in FRAME_USES" :key="use" :value="use">{{ use }}</option>
             </select>
@@ -197,8 +196,8 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
     <CoreSystemFields :model-value="core" :bonus-types="mechBonuses" @update:model-value="model = { ...model, core_system: $event }" />
   </FoldPanel>
 
-  <FoldPanel title="Licence unlocks" :summary="unlockCount ? `${unlockCount} ${unlockCount === 1 ? 'item' : 'items'}` : 'Nothing unlocked yet'">
-    <p class="hint">What each rank of this licence unlocks. Set on each item's own licence field.</p>
+  <FoldPanel title="Licence unlocks" :summary="unlockCount ? plural(unlockCount, 'item') : 'No unlocks'">
+    <p class="hint">Set on each item's licence field.</p>
     <ul class="ranks">
       <li v-for="rung in unlocks" :key="rung.level">
         <b class="label">Rank {{ roman(rung.level) }}</b>
@@ -206,7 +205,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts')
           <li v-if="rung.frame"><span class="dim kind">Frame</span>{{ String(model.name || 'This frame') }}</li>
           <li v-for="{ kind, item } in rung.items" :key="item.id"><span class="dim kind">{{ kind }}</span><InfoButton :label="item.name" :info="() => itemInfo(item)" /></li>
         </ul>
-        <p v-else class="dim">Nothing.</p>
+        <p v-else class="dim">No unlocks.</p>
       </li>
     </ul>
   </FoldPanel>

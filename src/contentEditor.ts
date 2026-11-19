@@ -1,3 +1,4 @@
+import { capitalise } from './text'
 import { bonusValue } from './bonuses'
 import { flatDamage } from './damage'
 import type { LcpKind } from './lcp'
@@ -76,7 +77,7 @@ export type RawResult = { value: Data } | { error: string }
 export function parseRaw(text: string): RawResult {
   try {
     const value: unknown = JSON.parse(text)
-    return isObject(value) ? { value } : { error: 'The data must be one JSON object, in curly braces.' }
+    return isObject(value) ? { value } : { error: 'The data must be one JSON object.' }
   } catch (error) {
     return { error: `Not valid JSON: ${error instanceof Error ? error.message : 'unreadable'}` }
   }
@@ -109,11 +110,11 @@ export type BonusType = { id: string; label: string; group: 'Pilot' | 'Personal 
 const bonus = (group: BonusType['group'], id: string, label: string): BonusType => ({ group, id, label })
 export const BONUS_TYPES: BonusType[] = [
   bonus('Pilot', 'pilot_hp', 'Pilot HP'), bonus('Pilot', 'pilot_armor', 'Pilot armour'),
-  bonus('Pilot', 'pilot_speed', 'Pilot speed'), bonus('Pilot', 'pilot_edef', 'Pilot e-defence'),
+  bonus('Pilot', 'pilot_speed', 'Pilot speed'), bonus('Pilot', 'pilot_edef', 'Pilot E-defence'),
   bonus('Mech', 'structure', 'Structure'), bonus('Mech', 'stress', 'Stress'), bonus('Mech', 'hp', 'HP'),
-  bonus('Mech', 'heatcap', 'Heat capacity'), bonus('Mech', 'armor', 'Armour'), bonus('Mech', 'armor_max', 'Armour maximum'),
+  bonus('Mech', 'heatcap', 'Heat cap'), bonus('Mech', 'armor', 'Armour'), bonus('Mech', 'armor_max', 'Armour maximum'),
   bonus('Mech', 'evasion', 'Evasion'), bonus('Mech', 'speed', 'Speed'), bonus('Mech', 'edef', 'E-defence'),
-  bonus('Mech', 'tech_attack', 'Tech attack'), bonus('Mech', 'repcap', 'Repair capacity'), bonus('Mech', 'sp', 'System points'),
+  bonus('Mech', 'tech_attack', 'Tech attack'), bonus('Mech', 'repcap', 'Repair cap'), bonus('Mech', 'sp', 'System points'),
   bonus('Mech', 'size', 'Size'), bonus('Mech', 'ai_cap', 'AI capacity'), bonus('Mech', 'limited_bonus', 'Limited uses'),
 ]
 export const personalBonusTypes = (stats: { id: string; name: string }[]): BonusType[] =>
@@ -163,7 +164,7 @@ const isNumber = (value: unknown) => (typeof value === 'number' && Number.isFini
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
 const entry = (value: unknown): Data => (isObject(value) ? value : {})
 // "Profile 1: range 1 needs a type." inside a part of the item, "Range 1 needs a type." at the top.
-const say = (who: string, text: string) => (who ? `${who}: ${text}` : text[0].toUpperCase() + text.slice(1))
+const say = (who: string, text: string) => (who ? `${who}: ${capitalise(text)}` : capitalise(text))
 
 // A list of range or damage entries: a type and a number (damage may be dice).
 function checkEntries(value: unknown, noun: 'range' | 'damage', label: string, at: string, who: string, out: Problem[]) {
@@ -186,7 +187,7 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
     const id = String(row.id ?? '')
     const name = ctx.tags.get(id)
     if (!id) out.push(error(say(who, `tag ${index + 1} needs choosing.`), `${at}tags.${index}`))
-    else if (!name) out.push(warn(say(who, `Tag "${id}" isn't in the loaded tags.`), `${at}tags.${index}`))
+    else if (!name) out.push(warn(say(who, `Tag "${id}" doesn't exist.`), `${at}tags.${index}`))
     else if (name.includes('{VAL}') && !isNumber(row.val)) out.push(error(say(who, `${name.replace('{VAL}', '').trim()} needs a number.`), `${at}tags.${index}.val`))
   }
 
@@ -195,7 +196,7 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
     const row = entry(bonus)
     const id = String(row.id ?? '')
     if (!id) out.push(error(say(who, `bonus ${index + 1} needs a type.`), `${at}bonuses.${index}.id`))
-    else if (!known.has(id)) out.push(warn(say(who, `Bonus "${id}" isn't counted by the site's build maths.`), `${at}bonuses.${index}.id`))
+    else if (!known.has(id)) out.push(warn(say(who, `Bonus "${id}" isn't counted in the stats.`), `${at}bonuses.${index}.id`))
     // A bonus the build maths doesn't count (an accuracy bonus has no "val") is kept as it is, not evaluated.
     if (known.has(id) && bonusValue(row.val, FORMULA_VARIABLES) === null) out.push(error(say(who, `bonus ${index + 1} needs a number, or a formula such as {systems}/2.`), `${at}bonuses.${index}.val`))
   }
@@ -207,9 +208,9 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
   for (const [index, action] of list(data.actions).entries()) {
     const row = entry(action)
     if (typeof row.name !== 'string' || !row.name.trim()) out.push(error(say(who, `action ${index + 1} needs a name.`), `${at}actions.${index}.name`))
-    if (row.activation !== undefined && !ACTIVATIONS.includes(String(row.activation))) out.push(warn(say(who, `action ${index + 1} has an activation the site doesn't know.`), `${at}actions.${index}.activation`))
+    if (row.activation !== undefined && !ACTIVATIONS.includes(String(row.activation))) out.push(warn(say(who, `action ${index + 1} has an unknown activation.`), `${at}actions.${index}.activation`))
     // Cards and the information dialog only show an action that says what it does.
-    if (typeof row.name === 'string' && row.name.trim() && !String(row.detail ?? '').trim()) out.push(warn(say(who, `action ${index + 1} has no rules text, so players won't see it.`), `${at}actions.${index}.detail`))
+    if (typeof row.name === 'string' && row.name.trim() && !String(row.detail ?? '').trim()) out.push(warn(say(who, `action ${index + 1} has no rules text and won't show.`), `${at}actions.${index}.detail`))
   }
 }
 
@@ -220,7 +221,7 @@ function checkDeployables(value: unknown, ctx: Context, out: Problem[], base = '
     const at = `${base}.${index}`
     const who = `Deployable ${index + 1}`
     if (typeof row.name !== 'string' || !row.name.trim()) out.push(error(`${who} needs a name.`, `${at}.name`))
-    for (const [key, label] of [['size', 'size'], ['hp', 'HP'], ['evasion', 'evasion'], ['edef', 'e-defence'], ['armor', 'armour']] as const) {
+    for (const [key, label] of [['size', 'Size'], ['hp', 'HP'], ['evasion', 'Evasion'], ['edef', 'E-defence'], ['armor', 'Armour']] as const) {
       const number = row[key]
       if (number !== undefined && number !== '' && (!isNumber(number) || Number(number) < 0)) out.push(error(`${who}: ${label} needs a number, 0 or more.`, `${at}.${key}`))
     }
@@ -232,13 +233,13 @@ function checkDeployables(value: unknown, ctx: Context, out: Problem[], base = '
 function checkLicence(data: Data, ctx: Context, out: Problem[]) {
   const id = String(data.license_id ?? '')
   if (!id) return
-  if (ctx.licences && !ctx.licences.has(id)) out.push(error(`The licence "${id}" isn't a frame that exists.`, 'license_id'))
+  if (ctx.licences && !ctx.licences.has(id)) out.push(error(`Licence "${id}" isn't a frame.`, 'license_id'))
   const rank = data.license_level
   if (!Number.isInteger(rank) || (rank as number) < 1 || (rank as number) > 3) out.push(error('A licence rank is I, II or III.', 'license_level'))
 }
 
 const checkPoints = (data: Data, out: Problem[]) => {
-  if (data.sp !== undefined && (!Number.isInteger(data.sp) || (data.sp as number) < 0)) out.push(error('System points need a whole number, 0 or more.', 'sp'))
+  if (data.sp !== undefined && (!Number.isInteger(data.sp) || (data.sp as number) < 0)) out.push(error('System points must be a whole number, 0 or more.', 'sp'))
 }
 
 function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
@@ -291,7 +292,7 @@ function checkTalent(data: Data, ctx: Context, out: Problem[]) {
     checkParts(row, `ranks.${index}.`, who, ctx, out, false)
     for (const key of ['integrated', 'special_equipment'] as const) {
       for (const id of list(row[key])) {
-        if (ctx.known && !ctx.known.has(String(id))) out.push(error(`${who}: "${id}" isn't an item that exists.`, `ranks.${index}.${key}`))
+        if (ctx.known && !ctx.known.has(String(id))) out.push(error(`${who}: Item "${id}" doesn't exist.`, `ranks.${index}.${key}`))
       }
     }
   }
@@ -300,15 +301,15 @@ function checkTalent(data: Data, ctx: Context, out: Problem[]) {
 // A frame: who made it, its numbers, at least one mount, named traits and a named core system. Written to the same shape
 // as lancer-data's frames.json; fields the form has no input for (counters, art) aren't looked at.
 function checkFrame(data: Data, ctx: Context, out: Problem[]) {
-  if (typeof data.source !== 'string' || !data.source.trim()) out.push(error('Choose the manufacturer.', 'source'))
+  if (typeof data.source !== 'string' || !data.source.trim()) out.push(error('Choose a manufacturer.', 'source'))
   const rank = data.license_level
   if (!Number.isInteger(rank) || (rank as number) < 0 || (rank as number) > 3) out.push(error('A licence rank is none (0), I, II or III.', 'license_level'))
   const licence = String(data.license_id ?? '')
   if (data.variant || (licence !== ctx.id && ctx.licences?.has(licence))) {
     if (licence === ctx.id || (data.variant && data.variant === data.name)) out.push(error("A frame can't be an alternate of itself.", 'license_id'))
-    else if (ctx.alternates?.has(licence)) out.push(error('Choose the original frame: an alternate frame is already an alternate of another.', 'license_id'))
+    else if (ctx.alternates?.has(licence)) out.push(error('Choose the original frame, not another alternate.', 'license_id'))
   }
-  else if (licence !== ctx.id) out.push(warn(`A frame is its own licence: licence id should be "${ctx.id}".`, 'license_id'))
+  else if (licence !== ctx.id) out.push(warn(`Licence ID should be "${ctx.id}".`, 'license_id'))
 
   const stats = entry(data.stats)
   for (const { key, label, unused } of FRAME_STATS) {
@@ -317,13 +318,13 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
     const field = `stats.${key}`
     if (!isNumber(value)) out.push(error(`${label} needs a number.`, field))
     else if (key === 'size') { if (!FRAME_SIZES.includes(Number(value))) out.push(error('Size is ½, 1, 2 or 3.', field)) }
-    else if (!Number.isInteger(Number(value)) || (Number(value) < 0 && key !== 'tech_attack')) out.push(error(`${label} needs a whole number${key === 'tech_attack' ? '' : ', 0 or more'}.`, field))
+    else if (!Number.isInteger(Number(value)) || (Number(value) < 0 && key !== 'tech_attack')) out.push(error(`${label} must be a whole number${key === 'tech_attack' ? '' : ', 0 or more'}.`, field))
   }
 
   const mounts = list(data.mounts)
   if (!mounts.length) out.push(error('A frame needs at least one weapon mount.', 'mounts'))
   for (const [index, mount] of mounts.entries()) {
-    if (!FRAME_MOUNTS.includes(String(mount))) out.push(error(`Mount ${index + 1} needs a mount the site knows.`, `mounts.${index}`))
+    if (!FRAME_MOUNTS.includes(String(mount))) out.push(error(`Mount ${index + 1} isn't a known mount.`, `mounts.${index}`))
   }
 
   const seen = new Set<string>()
@@ -343,25 +344,25 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
   checkParts({ actions: core.active_actions, bonuses: core.active_bonuses }, 'core_system.active_', 'Core power', ctx, out, false)
   checkParts({ actions: core.passive_actions, bonuses: core.passive_bonuses }, 'core_system.passive_', 'Core passive', ctx, out, false)
   for (const id of list(core.integrated)) {
-    if (ctx.known && !ctx.known.has(String(id))) out.push(error(`Core system: "${id}" isn't an item that exists.`, 'core_system.integrated'))
+    if (ctx.known && !ctx.known.has(String(id))) out.push(error(`Core system: Item "${id}" doesn't exist.`, 'core_system.integrated'))
   }
   checkDeployables(core.deployables, ctx, out, 'core_system.deployables')
 }
 
 function checkManufacturer(data: Data, out: Problem[]) {
-  if (typeof data.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(data.id)) out.push(error('The ID is a short code of letters, numbers, - and _, such as IPS-N.', 'id'))
-  if (!HEX.test(String(data.dark ?? ''))) out.push(error('The main colour needs a hex colour such as #1c9ae8.', 'dark'))
-  if (data.light !== undefined && data.light !== '' && !HEX.test(String(data.light))) out.push(error('The darker colour needs a hex colour such as #0c4d99.', 'light'))
+  if (typeof data.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(data.id)) out.push(error('Use letters, numbers, - and _, like IPS-N.', 'id'))
+  if (!HEX.test(String(data.dark ?? ''))) out.push(error('Main colour needs a hex value like #1c9ae8.', 'dark'))
+  if (data.light !== undefined && data.light !== '' && !HEX.test(String(data.light))) out.push(error('Darker colour needs a hex value like #0c4d99.', 'light'))
 }
 
 // Everything wrong with one pack item's data. Lists the form has fields for are checked wherever they appear, so the
 // raw-data box gets the same checks as the form.
 export function validateItem(kind: EditorKind, data: Data, ctx: Context): Problem[] {
   const problems: Problem[] = []
-  if (data.id !== ctx.id) problems.push(error(`The ID can't change: it has to stay "${ctx.id}", so pilots keep this item.`, 'id'))
+  if (data.id !== ctx.id) problems.push(error(`The ID must stay "${ctx.id}".`, 'id'))
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
-  if (kind === 'pilot_gear' && !GEAR_TYPES.includes(String(data.type))) problems.push(error('Choose what kind of gear this is.', 'type'))
-  if (kind === 'core_bonuses' && typeof data.source !== 'string') problems.push(error('Choose the manufacturer of this core bonus.', 'source'))
+  if (kind === 'pilot_gear' && !GEAR_TYPES.includes(String(data.type))) problems.push(error('Choose a gear type.', 'type'))
+  if (kind === 'core_bonuses' && typeof data.source !== 'string') problems.push(error('Choose a manufacturer.', 'source'))
 
   if (kind === 'weapons') checkWeapon(data, ctx, problems)
   else if (kind === 'systems') checkSystem(data, ctx, problems)
@@ -379,10 +380,10 @@ export type BionicData = { id: string; name: string; description: string; slot: 
 export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Problem[] {
   const problems: Problem[] = []
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
-  if (typeof data.slot !== 'string' || !data.slot.trim()) problems.push(warn('No slot: pilots will not see where on the body it goes.', 'slot'))
-  if (typeof data.source !== 'string' || !data.source.trim()) problems.push(warn("No manufacturer: it's listed under Other.", 'source'))
-  if (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0) problems.push(error('The price needs a whole number of manna, 0 or more.', 'manna_cost'))
-  if (!Number.isInteger(data.mod_point_cost) || (data.mod_point_cost as number) < 0) problems.push(error('Mod points need a whole number, 0 or more.', 'mod_point_cost'))
+  if (typeof data.slot !== 'string' || !data.slot.trim()) problems.push(warn('No slot set.', 'slot'))
+  if (typeof data.source !== 'string' || !data.source.trim()) problems.push(warn("No manufacturer. It's listed under Other.", 'source'))
+  if (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0) problems.push(error('Price must be a whole number, 0 or more.', 'manna_cost'))
+  if (!Number.isInteger(data.mod_point_cost) || (data.mod_point_cost as number) < 0) problems.push(error('Mod points must be a whole number, 0 or more.', 'mod_point_cost'))
   const seen = new Set<string>()
   for (const [index, bonus] of list(data.bonuses).entries()) {
     const row = entry(bonus)
@@ -390,7 +391,7 @@ export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Probl
     if (!ctx.statIds.includes(stat)) problems.push(error(`Bonus ${index + 1} needs a stat that exists.`, `bonuses.${index}.stat_id`))
     else if (seen.has(stat)) problems.push(error(`Only one bonus per stat: ${stat} is there twice.`, `bonuses.${index}.stat_id`))
     seen.add(stat)
-    if (!Number.isInteger(row.amount) || row.amount === 0) problems.push(error(`Bonus ${index + 1} needs a whole number other than 0.`, `bonuses.${index}.amount`))
+    if (!Number.isInteger(row.amount) || row.amount === 0) problems.push(error(`Bonus ${index + 1} must be a whole number, not 0.`, `bonuses.${index}.amount`))
   }
   return problems
 }
@@ -398,7 +399,7 @@ export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Probl
 export function validateStat(data: Data): Problem[] {
   const problems: Problem[] = []
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
-  if (!Number.isInteger(data.sort_order)) problems.push(error('The order needs a whole number.', 'sort_order'))
+  if (!Number.isInteger(data.sort_order)) problems.push(error('Order must be a whole number.', 'sort_order'))
   return problems
 }
 

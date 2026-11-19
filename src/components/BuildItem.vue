@@ -39,7 +39,7 @@ async function set(key: string, value: string) {
     <div v-if="editable && ((item.profiles?.length ?? 0) > 1 || prototype)" class="choices">
       <label v-if="(item.profiles?.length ?? 0) > 1">Profile
         <select aria-label="profile" :value="options.profile ?? 0" :disabled="saving" @change="set('profile', ($event.target as HTMLSelectElement).value)">
-          <option v-for="(profile, index) in item.profiles" :key="index" :value="index">{{ profile.name ?? `profile ${index + 1}` }}</option>
+          <option v-for="(profile, index) in item.profiles" :key="index" :value="index">{{ profile.name ?? `Profile ${index + 1}` }}</option>
         </select>
       </label>
       <template v-if="prototype">
@@ -51,7 +51,7 @@ async function set(key: string, value: string) {
         </select></label>
         <label v-if="Number(item.id.at(-1)) >= 2">Prototype improvements
           <select aria-label="prototype improvements" :value="options.accuracy === false ? 'smart-reactor' : options.smart === false ? 'accuracy-reactor' : 'accuracy-smart'" :disabled="saving" @change="set('tuning', ($event.target as HTMLSelectElement).value)">
-            <option value="accuracy-smart">optics + computer</option><option value="accuracy-reactor">optics + reactor shielding</option><option value="smart-reactor">computer + reactor shielding</option>
+            <option value="accuracy-smart">Optics + computer</option><option value="accuracy-reactor">Optics + reactor shielding</option><option value="smart-reactor">Computer + reactor shielding</option>
           </select>
         </label>
       </template>

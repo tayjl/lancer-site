@@ -7,6 +7,7 @@ import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
 import { confirmAction } from '../confirm'
 import { LCP_KINDS, MAX_LCP_BYTES, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
+import { plural } from '../text'
 import { formatDate } from '../time'
 
 // Preview locally, then save the complete pack with one owner-only database call.
@@ -40,8 +41,8 @@ const previewKinds = computed(() => Object.entries(LCP_KINDS)
   .filter(row => row.count))
 const totals = computed(() => Object.entries(LCP_KINDS).map(([kind, label]) => ({ kind, label, count: items.value.filter(item => item.kind === kind).length })))
 // Why the import can't run yet, if it can't.
-const blocker = computed(() => plan.value?.conflicts.length ? 'Fix the item IDs above first.'
-  : loadError.value ? 'Installed content failed to load.' : loading.value ? 'Loading installed content…' : '')
+const blocker = computed(() => plan.value?.conflicts.length ? 'Fix the item IDs first'
+  : loadError.value ? "Content didn't load" : loading.value ? 'Loading…' : '')
 const packCount = (id: number) => items.value.filter(item => item.pack_id === id).length
 // Pilots using items from a pack, each named once: it can't be removed while there are any.
 const usersOf = (id: number) => [...new Set(usage.value.filter(row => row.pack_id === id).map(row => row.pilot))]
@@ -73,10 +74,10 @@ async function load() {
     items.value = all.rows.map((row) => ({ id: row.id, pack_id: row.pack_id, kind: row.kind, edited: (row as unknown as { edited_id: string | null }).edited_id !== null }))
     // A failed check only blocks removing, never importing.
     usage.value = usageRows.data ?? []
-    usageError.value = usageRows.error ? "Couldn't check which pilots use it." : ''
+    usageError.value = usageRows.error ? "Couldn't check who uses it." : ''
     biomods.value = modRows.count ?? 0
   } catch (error) {
-    loadError.value = `Could not load installed content. ${error instanceof Error ? error.message : String((error as { message?: string }).message ?? error)}`
+    loadError.value = `Content didn't load: ${error instanceof Error ? error.message : String((error as { message?: string }).message ?? error)}`
   } finally { loading.value = false }
 }
 watch(isOwner, owner => owner && load(), { immediate: true })
@@ -95,14 +96,14 @@ async function inspect(file: File) {
   saveError.value = ''
   filename.value = file.name
   try {
-    if (!/\.(lcp|zip)$/i.test(file.name)) throw new Error('Choose an .lcp file or a ZIP export of one.')
-    if (file.size > MAX_LCP_BYTES) throw new Error('Choose an LCP smaller than 15 MB.')
+    if (!/\.(lcp|zip)$/i.test(file.name)) throw new Error('Choose an .lcp file.')
+    if (file.size > MAX_LCP_BYTES) throw new Error('That file is over 15 MB.')
     const parsed = await readLcp(new Uint8Array(await file.arrayBuffer()))
     if (targetName.value && parsed.manifest.name !== targetName.value)
-      throw new Error(`This file is for ${parsed.manifest.name}. Choose an update for ${targetName.value}, or use Import a pack to add it separately.`)
+      throw new Error(`This file is for ${parsed.manifest.name}, not ${targetName.value}.`)
     candidate.value = parsed
   } catch (error) {
-    fileError.value = error instanceof Error ? error.message : 'Could not read this pack. Choose a valid .lcp file.'
+    fileError.value = error instanceof Error ? error.message : "That isn't a valid .lcp file."
   } finally { reading.value = false }
 }
 function onFile(event: Event) {
@@ -133,7 +134,7 @@ async function loadCoreContent() {
     // A partial or conflicting installation needs the normal conflict preview.
     if (!plan.value?.conflicts.length) await importPack()
   } catch (error) {
-    fileError.value = `Could not load core content. ${error instanceof Error ? error.message : 'Please try again.'}`
+    fileError.value = `Core content didn't load: ${error instanceof Error ? error.message : 'Try again.'}`
   } finally {
     reading.value = false
     loadingCore.value = false
@@ -160,7 +161,7 @@ async function importPack() {
     filename.value = ''
     await load()
   } catch (error) {
-    saveError.value = `Import failed. ${String((error as { message?: string }).message ?? error)} No partial import was saved.`
+    saveError.value = `Not imported: ${String((error as { message?: string }).message ?? error)}`
     // Refresh metadata so a retry previews the current catalogue after a conflict.
     await load()
   } finally { saving.value = false }
@@ -168,7 +169,7 @@ async function importPack() {
 async function removePack(pack: InstalledPack) {
   if (loading.value || loadError.value || reading.value || saving.value) return
   const count = packCount(pack.id)
-  const ok = await confirmAction(`Remove ${pack.name} and its ${count} ${count === 1 ? 'item' : 'items'}? This can't be undone. Importing the pack again brings them back.`, { confirmLabel: 'Remove pack', danger: true })
+  const ok = await confirmAction(`Remove ${pack.name} and its ${plural(count, 'item')}? This can't be undone.`, { confirmLabel: 'Remove pack', danger: true })
   if (!ok) return
   saving.value = true
   result.value = null
@@ -186,32 +187,31 @@ async function removePack(pack: InstalledPack) {
 
 <template>
   <main class="page">
-    <PageHeader title="GM content" summary="The packs behind your pilots, mechs and equipment.">
+    <PageHeader title="GM content" summary="Game content packs.">
       <div v-if="isOwner" class="actions">
-        <button v-if="!loading && !loadError && !coreInstalled" type="button" :class="{ primary: !candidate }" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'Loading core content…' : 'Load core content' }}</button>
-        <button type="button" :class="{ primary: coreInstalled && !candidate }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">Import a pack</button>
+        <button v-if="!loading && !loadError && !coreInstalled" type="button" :class="{ primary: !candidate }" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'Loading…' : 'Load core content' }}</button>
+        <button type="button" :class="{ primary: coreInstalled && !candidate }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">Import pack</button>
         <RouterLink :to="{ name: 'gm-content-editor' }" class="link-button">Open editor</RouterLink>
       </div>
     </PageHeader>
     <p v-if="!profile" class="dim">Loading…</p>
-    <p v-else-if="!isOwner" class="notice warn" role="alert">Access denied. This page is for owners.</p>
+    <p v-else-if="!isOwner" class="notice warn" role="alert">Only owners can see this page.</p>
     <template v-else>
-      <input ref="fileInput" class="file-input" type="file" accept=".lcp,.zip" aria-label="Choose Lancer content pack" :disabled="reading || saving" @change="onFile" />
+      <input ref="fileInput" class="file-input" type="file" accept=".lcp,.zip" aria-label="Choose pack file" :disabled="reading || saving" @change="onFile" />
       <div v-if="loadError" class="notice warn" role="alert">
         <div class="notice-head">
           <p>{{ loadError }}</p>
-          <button type="button" class="small" :disabled="loading" @click="load">Try again</button>
+          <button type="button" class="small" :disabled="loading" @click="load">Retry</button>
         </div>
       </div>
-      <p v-if="loading" class="dim" role="status">Loading installed content…</p>
+      <p v-if="loading" class="dim" role="status">Loading…</p>
       <div v-if="result" class="notice ok" role="status">
-        <p class="notice-title">{{ result.name }} is ready</p>
-        <p>Version <span class="num">{{ result.version }}</span> imported: <span class="num">{{ result.added }}</span> new, <span class="num">{{ result.updated }}</span> updated, <span class="num">{{ result.retained }}</span> older items kept.</p>
-        <p>Its content is now in the pilot and mech pickers.</p>
+        <p class="notice-title">{{ result.name }} imported</p>
+        <p>Version <span class="num">{{ result.version }}</span>: <span class="num">{{ result.added }}</span> new, <span class="num">{{ result.updated }}</span> updated.</p>
       </div>
       <p v-if="removal" class="notice" :class="removal.ok ? 'ok' : 'warn'" :role="removal.ok ? 'status' : 'alert'">{{ removal.text }}</p>
       <p v-if="fileError" class="notice warn" role="alert">{{ fileError }}</p>
-      <p v-if="reading" role="status" class="dim">Checking {{ filename }}…</p>
+      <p v-if="reading" role="status" class="dim">Loading…</p>
 
       <section v-if="candidate && plan" class="panel" aria-labelledby="preview-title">
         <header class="panel-head">
@@ -234,24 +234,21 @@ async function removePack(pack: InstalledPack) {
         </ul>
         <div class="checks">
           <p v-if="plan.edited" class="notice">
-            <span><span class="num">{{ plan.edited }}</span> of this pack's {{ plan.edited === 1 ? 'items has' : 'items have' }} campaign edits (made in the content editor). The update keeps them.</span>
+            <span><span class="num">{{ plan.edited }}</span> {{ plan.edited === 1 ? 'item has' : 'items have' }} campaign edits. The update keeps them.</span>
           </p>
-          <p v-if="plan.retained" class="dim">Older items missing from this update stay available, so existing pilots keep their equipment.</p>
           <p v-for="warning in candidate.warnings" :key="warning" class="notice">{{ warning }}</p>
           <details v-if="candidate.ignored.length" class="ignored">
-            <summary><span class="num">{{ candidate.ignored.length }}</span> {{ candidate.ignored.length === 1 ? 'file' : 'files' }} not used by this site</summary>
-            <p class="dim">Only supported content files at the top level are imported.</p>
+            <summary><span class="num">{{ candidate.ignored.length }}</span> {{ candidate.ignored.length === 1 ? 'file' : 'files' }} not used</summary>
             <ul><li v-for="file in candidate.ignored" :key="file" class="code">{{ file }}</li></ul>
           </details>
           <div v-if="plan.conflicts.length" class="notice warn" role="alert">
-            <p class="notice-title">Item IDs need attention</p>
-            <p>This import is blocked. Give these items unique IDs in the LCP editor, or choose an update for their original pack.</p>
+            <p class="notice-title">Item ID conflict</p>
+            <p>Give these items unique IDs, or update their original pack.</p>
             <ul><li v-for="conflict in plan.conflicts" :key="conflict.id"><span class="code">{{ conflict.id }}</span>: {{ conflict.reason }}</li></ul>
           </div>
           <p v-if="saveError" class="notice warn" role="alert">{{ saveError }}</p>
         </div>
         <footer class="preview-foot">
-          <p v-if="saving || !blocker" class="dim">{{ saving ? 'Importing the pack and all its items…' : plan.existing ? 'Updated rules apply wherever these items are used. Older items stay available.' : 'Import this pack to make its content available to character sheets.' }}</p>
           <div class="actions">
             <button type="button" class="quiet" :disabled="saving" @click="cancel">Cancel</button>
             <span v-if="blocker && !saving" class="blocked">
@@ -271,8 +268,8 @@ async function removePack(pack: InstalledPack) {
         <div v-if="packs.length" class="search">
           <label class="field"><span>Search</span><input v-model="search" type="search" placeholder="Pack name or author" /></label>
         </div>
-        <p v-if="!loading && !packs.length && !loadError" class="empty">No packs installed yet. Import an LCP to fill the pilot and mech pickers.</p>
-        <p v-else-if="!loading && packs.length && !filteredPacks.length" class="empty">No packs match that search.</p>
+        <p v-if="!loading && !packs.length && !loadError" class="empty">No packs yet.</p>
+        <p v-else-if="!loading && packs.length && !filteredPacks.length" class="empty">Nothing matches that search.</p>
         <div v-else-if="filteredPacks.length" class="table-window" role="region" aria-label="Installed packs" tabindex="0">
           <table class="table">
             <thead><tr><th scope="col">Pack</th><th scope="col">Version</th><th scope="col" class="number">Items</th><th scope="col">Last imported</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -297,11 +294,11 @@ async function removePack(pack: InstalledPack) {
       <section v-if="!loading && !loadError" class="panel" aria-labelledby="library-title">
         <header class="panel-head">
           <h2 id="library-title">Content library</h2>
-          <p class="dim">Everything available to character sheets. Biomods are campaign content, managed apart from LCPs.</p>
+          
         </header>
         <ul class="counts">
           <li v-for="row in totals" :key="row.kind"><span class="label">{{ row.label }}</span><span class="num">{{ row.count }}</span></li>
-          <li><span class="label">biomods</span><span class="num">{{ biomods }}</span></li>
+          <li><span class="label">Biomods</span><span class="num">{{ biomods }}</span></li>
         </ul>
       </section>
     </template>

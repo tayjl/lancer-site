@@ -34,7 +34,7 @@ async function flush() {
 
 watch(draft, () => {
   clearTimeout(timer)
-  status.value = 'Not saved yet'
+  status.value = 'Unsaved changes'
   timer = setTimeout(flush, DELAY)
 })
 
@@ -54,7 +54,7 @@ onBeforeUnmount(() => {
     </h2>
     <RichTextEditor v-if="editable" v-model="draft" :label="title" :links="links" />
     <RichText v-else-if="doc" :doc="doc" class="readonly prose" />
-    <p v-else class="empty">Nothing on file.</p>
+    <p v-else class="empty">No text.</p>
   </section>
 </template>
 

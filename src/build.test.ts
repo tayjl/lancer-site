@@ -53,9 +53,9 @@ describe('complete core character builds', () => {
     const sheet: Sheet = { mech_skills: { engineering: 3 }, core_bonuses: ['cb_integrated_ammo_feeds', 'cb_the_lesson_of_shaping', 'cb_heatfall_coolant_system'] }
     const effects = mechEffects({ frame: frame().id }, sheet, catalogue)
     const resources = mechResources(sheet, effects)
-    expect(resources).toMatchObject({ aiCap: 2, limited: 3, structureRepairs: 1, overcharge: '1 → 1d3 → 1d6 → 1d6', superheavyMounting: false })
+    expect(resources).toMatchObject({ aiCap: 2, limited: 3, structureRepairs: 1, overcharge: '1 → 2 → 4 → 4', superheavyMounting: false })
     const death = mechEffects({ frame: 'mf_deaths_head' }, {}, catalogue)
-    expect(equipmentDetails(weapons.get('mw_assault_rifle')!, {}, death.bonuses).sources).toContain('attack roll bonus: +1')
+    expect(equipmentDetails(weapons.get('mw_assault_rifle')!, {}, death.bonuses).sources).toContain('Attack roll: +1')
     expect(death.reminders.some(entry => entry.text.includes('first ranged attack'))).toBe(true)
   })
   it('adds the check supplement only when the frame’s data lacks it', () => {
@@ -114,17 +114,17 @@ describe('complete core character builds', () => {
     const result = equipmentDetails(item, { core_bonuses: ['cb_auto_stabilizing_hardpoints', 'cb_overpower_caliber'] }, [], {}, { mount: 1, position: 0 }, { cb_auto_stabilizing_hardpoints: 1, cb_overpower_caliber: 2 })
     expect(result.damage[0].val).toBe(4)
     expect(result.sources.some(source => source.includes('once per round'))).toBe(true)
-    expect(result.sources.some(source => source.includes('attack accuracy: +1'))).toBe(true)
+    expect(result.sources.some(source => source.includes('Accuracy: +1'))).toBe(true)
   })
   it('checks lost mounts, talent-only equipment, core targets and AI capacity', () => {
     const ai = ['ms_sekhmet_class_nhp', 'ms_tlaloc_class_nhp']
     const mech = { frame: frame().id, systems: ai, mounts: [[], [], [], ['mw_assault_rifle']] }
     expect(mechProblems(mech, {}, catalogue).some(problem => problem.includes('Only one AI'))).toBe(true)
     expect(mechProblems(mech, { core_bonuses: ['cb_the_lesson_of_shaping'] }, catalogue).some(problem => problem.includes('Only one AI'))).toBe(false)
-    expect(mechProblems(mech, {}, catalogue).some(problem => problem.includes('mounts this build no longer has'))).toBe(true)
-    expect(mechProblems({ frame: frame().id, mounts: [[], [], ['mw_assault_rifle', 'mw_tactical_knife']] }, {}, catalogue).some(problem => problem.includes('extra slots'))).toBe(true)
-    expect(mechProblems({ frame: frame().id, systems: ['ms_technophile_2'] }, {}, catalogue).some(problem => problem.includes('no longer granted'))).toBe(true)
-    expect(mechProblems({ frame: frame().id }, { core_bonuses: ['cb_mount_retrofitting'] }, catalogue).some(problem => problem.includes('choose a normal mount'))).toBe(true)
+    expect(mechProblems(mech, {}, catalogue).some(problem => problem.includes('mounts the frame'))).toBe(true)
+    expect(mechProblems({ frame: frame().id, mounts: [[], [], ['mw_assault_rifle', 'mw_tactical_knife']] }, {}, catalogue).some(problem => problem.includes('slots the mount'))).toBe(true)
+    expect(mechProblems({ frame: frame().id, systems: ['ms_technophile_2'] }, {}, catalogue).some(problem => problem.includes('needs its talent rank'))).toBe(true)
+    expect(mechProblems({ frame: frame().id }, { core_bonuses: ['cb_mount_retrofitting'] }, catalogue).some(problem => problem.includes('needs a normal mount'))).toBe(true)
   })
   it('keeps pilot e-defence, excludes pilot evasion and includes permanent talent bonuses', () => {
     const armour = toItem('suit', { type: 'Armor', name: 'Suit', bonuses: [{ id: 'pilot_evasion', val: 6, replace: true }, { id: 'pilot_edef', val: 2 }] })
@@ -142,7 +142,7 @@ describe('weapon mods', () => {
   it('fits a mod to a weapon by type and size, and refuses weapons and mounts that take none', () => {
     const rifle = weapon('mw_assault_rifle')
     expect(modBlockedBy(mod('wm_nanocomposite_adaptation'), rifle, 'Main')).toBe('')
-    expect(modBlockedBy(mod('wm_stabilizer_mod'), rifle, 'Main')).toBe('Fits Launcher, Cannon weapons only')
+    expect(modBlockedBy(mod('wm_stabilizer_mod'), rifle, 'Main')).toBe('Fits Launcher, Cannon only')
     expect(modBlockedBy(mod('wm_stabilizer_mod'), weapon('mw_assault_cannon'), 'Main')).toBe('')
     expect(modBlockedBy(mod('wm_uncle_class_comp_con'), weapon('mw_siege_cannon'), 'Heavy')).toBe("Can't go on Superheavy weapons")
     expect(modBlockedBy(mod('wm_nanocomposite_adaptation'), weapon('mw_mimic_gun'), 'Heavy')).toBe("Mimic Gun can't take mods")
@@ -175,15 +175,15 @@ describe('weapon mods', () => {
     expect(mechProblems(licensed, {}, custom)).toEqual(['Nanocomposite Adaptation needs mf_balor licence rank II.'])
     expect(mechProblems(licensed, { licences: { mf_balor: 2 } }, custom)).toEqual([])
     expect(mechProblems({ ...mech, weapon_mods: { '0:0': 'wm_stabilizer_mod' } }, { licences: { mf_monarch: 2 } }, custom))
-      .toEqual(["Stabilizer Mod can't go on Assault Rifle. Fits Launcher, Cannon weapons only."])
+      .toEqual(["Stabilizer Mod can't go on Assault Rifle. Fits Launcher, Cannon only."])
     // Its system points are spent too: a 2 SP mod and a 5 SP system on a 6 SP frame.
     const big = toItem('big', { name: 'Big system', sp: 5 })
     const full = { ...custom, systems: new Map([...systems, ['big', big]]) }
-    expect(mechProblems({ ...licensed, systems: ['big'] }, { licences: { mf_balor: 2 } }, full)).toEqual(['Its system points are over: 7/6.'])
+    expect(mechProblems({ ...licensed, systems: ['big'] }, { licences: { mf_balor: 2 } }, full)).toEqual(['Uses 7 system points, but only 6 are available.'])
     expect(mechProblems({ ...mech, systems: ['big'] }, {}, full)).toEqual([])
     // A mod whose place holds no weapon, or that isn't in the packs, is flagged and costs nothing.
-    expect(mechProblems({ ...mech, weapon_mods: { '2:0': 'wm_test_hp' } }, {}, custom)).toEqual(['Test mod is on a weapon that is no longer there; remove it.'])
-    expect(mechProblems({ ...mech, weapon_mods: { '0:0': 'wm_gone' } }, {}, custom)).toEqual(["A mod (wm_gone) isn't in the loaded content packs."])
+    expect(mechProblems({ ...mech, weapon_mods: { '2:0': 'wm_test_hp' } }, {}, custom)).toEqual(['Test mod has no weapon to sit on.'])
+    expect(mechProblems({ ...mech, weapon_mods: { '0:0': 'wm_gone' } }, {}, custom)).toEqual(["Mod wm_gone isn't in any loaded pack."])
     // Integrated mounts take none, and a Unique mod only once.
     const integratedMount = { frame: frame().id, mounts: [[], [], [], ['mw_assault_rifle']], weapon_mods: { '3:0': 'wm_test_hp' } }
     expect(mechProblems(integratedMount, { core_bonuses: ['cb_integrated_weapon'] }, custom)).toContain("Test mod can't go on Assault Rifle. An integrated mount can't be modified.")

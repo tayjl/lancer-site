@@ -14,13 +14,13 @@ defineEmits<{ done: []; retry: [] }>()
   <div class="gm-edit">
     <div class="bar">
       <span class="badge">GM edit</span>
-      <p>Changes save straight to this pilot, without approval.</p>
+      <p>Saves go straight to this pilot.</p>
       <SaveStatus :saving="saving" :saved="saved" :error="error" :can-retry="canRetry" @retry="$emit('retry')" />
       <button type="button" class="small done" @click="$emit('done')">Done</button>
     </div>
     <p v-if="waiting" class="notice warn" role="note">
-      {{ name }} has a change waiting for review. Editing directly will stop it from being approved: review it first.
-      <RouterLink v-if="waiting.submitted_at" :to="{ name: 'gm-change', params: { id: waiting.id } }">Open the change</RouterLink>
+      {{ name }} has a change waiting. Editing blocks its approval.
+      <RouterLink v-if="waiting.submitted_at" :to="{ name: 'gm-change', params: { id: waiting.id } }">Open change</RouterLink>
     </p>
   </div>
 </template>

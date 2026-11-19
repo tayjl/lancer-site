@@ -978,8 +978,51 @@ dialog.dialog::backdrop {
   padding: var(--space-l);
 }
 
-/* A picker's options (ItemPicker.vue, LoadoutBox.vue): name, facts and rules on the left, the button at the right,
-   and why it can't be chosen beside it. */
+/* A picker's options (PickList.vue, used by ItemPicker.vue and LoadoutBox.vue): a box per manufacturer (its colour only
+   on the logo and the 3px top border), a row each: a symbol on its type colour, the name, a strip of numbers and chips,
+   and the button at the right with why it can't be chosen under it. */
+.pick-box + .pick-box {
+  margin-top: var(--space-m);
+}
+
+.pick-box.branded {
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--mf);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.pick-box-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m);
+  border-bottom: 1px solid var(--rule);
+}
+
+.pick-box-head h3 {
+  margin: 0;
+  font-size: var(--fs-s);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pick-box-head .pick-maker {
+  min-width: 0;
+  font-size: var(--fs-s);
+}
+
+.pick-box-head .pick-count {
+  margin-left: auto;
+  font-size: var(--fs-s);
+}
+
+.pick-logo {
+  width: 22px;
+  height: 22px;
+  color: var(--mf);
+}
+
 .pick-list {
   margin: 0;
   padding: 0;
@@ -989,8 +1032,8 @@ dialog.dialog::backdrop {
 .pick-list > li {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-s) var(--space-l);
-  padding: var(--space-s);
+  gap: var(--space-s) var(--space-m);
+  padding: var(--space-s) var(--space-m);
   border-top: 1px solid var(--rule);
 }
 
@@ -1003,10 +1046,36 @@ dialog.dialog::backdrop {
   background: var(--raised);
 }
 
+.pick-list .pick-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--raised);
+  color: #fff;
+  font-size: 20px;
+}
+
+.pick-icon.weapon { background: var(--type-weapon); }
+.pick-icon.system { background: var(--type-system); }
+.pick-icon.frame { background: var(--type-frame); }
+.pick-icon.pilot { background: var(--type-pilot); }
+.pick-icon.talent { background: var(--type-talent); }
+.pick-icon.core { background: var(--type-core); color: var(--void); }
+
+.pick-list .pick-art {
+  flex: none;
+  width: 44px;
+  height: 44px;
+}
+
 .pick-list .pick-about {
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -1019,12 +1088,63 @@ dialog.dialog::backdrop {
   font-size: var(--fs-s);
 }
 
+.pick-list .pick-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-list .pick-chips {
+  gap: 4px;
+}
+
+.pick-list .pick-chips .chip {
+  height: 20px;
+  padding: 0 6px;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.pick-list .pick-chips .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-dim);
+}
+
+@media (max-width: 40rem) {
+  .pick-list > li {
+    gap: var(--space-s);
+    padding-inline: var(--space-s);
+  }
+
+  .pick-list .pick-art,
+  .pick-list .pick-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* A blocked row gives its reason a line of its own under the symbols, so they keep the full width. */
+  .pick-list > li.blocked {
+    flex-wrap: wrap;
+  }
+
+  .pick-list > li.blocked .pick-action {
+    flex: 1 0 100%;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: space-between;
+    max-width: none;
+    text-align: left;
+  }
+}
+
+/* A lore summary (the lore pickers): one clipped line. */
 .pick-list .pick-text {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   color: var(--text-dim);
   font-size: var(--fs-s);
   line-height: 1.45;
@@ -1046,8 +1166,14 @@ dialog.dialog::backdrop {
   font-size: var(--fs-s);
 }
 
-.pick-list > li.blocked .pick-about {
+.pick-list > li.blocked .pick-about,
+.pick-list > li.blocked .pick-icon,
+.pick-list > li.blocked .pick-art {
   opacity: 0.6;
+}
+
+.pick-list > li.picked .pick-name::before {
+  content: '✓ ' / '';
 }
 
 /* ───────────────────────── Reading ───────────────────────── */

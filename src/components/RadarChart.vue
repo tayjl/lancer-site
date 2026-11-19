@@ -4,7 +4,8 @@ import { computed } from 'vue'
 // A radar ("spider") chart, like COMP/CON's frame stats: one spoke per stat, the shape reaching out as far as the
 // stat sits between the lowest and the highest any frame has ("at", 0 to 1). Labels name the stats; the numbers sit
 // beside the chart (InfoDialog.vue), and in "summary" for screen readers.
-const props = defineProps<{ axes: { label: string; value: string; at: number }[]; summary: string }>()
+// "mini" is the pickers' tiny version: no labels, just the shape on its rings.
+const props = defineProps<{ axes: { label: string; value: string; at: number }[]; summary: string; mini?: boolean; tight?: boolean; labelSize?: number }>()
 
 const SIZE = 520
 const CENTRE = SIZE / 2
@@ -19,6 +20,11 @@ const polygon = (r: (i: number) => number) => props.axes.map((_, i) => point(i, 
 
 const rings = computed(() => Array.from({ length: RINGS }, (_, k) => polygon(() => (RADIUS * (k + 1)) / RINGS)))
 const shape = computed(() => props.axes.map((axis, i) => point(i, RADIUS * (FLOOR + (1 - FLOOR) * Math.min(1, Math.max(0, axis.at))))))
+// "tight" crops the empty margin above and below, so a small chart has more room for its labels.
+const viewBox = computed(() => {
+  const edge = RADIUS + 12
+  return props.mini ? `${CENTRE - edge} ${CENTRE - edge} ${2 * edge} ${2 * edge}` : props.tight ? `0 ${CENTRE - RADIUS - 34} ${SIZE} ${2 * RADIUS + 68}` : `0 0 ${SIZE} ${SIZE}`
+})
 const labels = computed(() =>
   props.axes.map((axis, i) => {
     const [x, y] = point(i, RADIUS + 14)
@@ -29,12 +35,12 @@ const labels = computed(() =>
 </script>
 
 <template>
-  <svg class="radar" :viewBox="`0 0 ${SIZE} ${SIZE}`" role="img" :aria-label="summary">
+  <svg class="radar" :class="{ mini }" :viewBox="viewBox" role="img" :aria-label="summary">
     <polygon v-for="(ring, k) in rings" :key="k" :points="ring" class="ring" />
     <line v-for="(_, i) in axes" :key="`spoke-${i}`" :x1="CENTRE" :y1="CENTRE" :x2="point(i, RADIUS)[0]" :y2="point(i, RADIUS)[1]" class="ring" />
     <polygon :points="shape.map((p) => p.join(',')).join(' ')" class="shape" />
     <circle v-for="(p, i) in shape" :key="`dot-${i}`" :cx="p[0]" :cy="p[1]" r="3.5" class="dot" />
-    <text v-for="label in labels" :key="label.label" :x="label.x" :y="label.y" :text-anchor="label.anchor" dominant-baseline="middle" class="label">
+    <text v-for="label in mini ? [] : labels" :key="label.label" :x="label.x" :y="label.y" :text-anchor="label.anchor" dominant-baseline="middle" class="label" :style="labelSize ? { fontSize: `${labelSize}px` } : undefined">
       {{ label.label }}
     </text>
   </svg>
@@ -48,6 +54,23 @@ const labels = computed(() =>
   max-width: 30rem;
   margin: 0 auto;
   overflow: visible;
+}
+
+.radar.mini {
+  max-width: none;
+  margin: 0;
+}
+
+.mini .ring {
+  stroke-width: 5;
+}
+
+.mini .shape {
+  stroke-width: 12;
+}
+
+.mini .dot {
+  display: none;
 }
 
 .ring {

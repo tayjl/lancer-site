@@ -57,7 +57,7 @@ export const MANUFACTURER_ID = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 // Checks a mech's name and manufacturer id before saving. Returns a message for the player, or null.
 export function mechProblem(name: string, manufacturerId: string) {
   if (!name) return 'A mech needs a name.'
-  if (!MANUFACTURER_ID.test(manufacturerId)) return 'The manufacturer ID should look like XXXX-XXXX-XXXX (letters and digits).'
+  if (!MANUFACTURER_ID.test(manufacturerId)) return 'The manufacturer ID should look like XXXX-XXXX-XXXX.'
   return null
 }
 
@@ -77,7 +77,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // Level (gained narratively) and manna received. They live beside the sheet, not in it, and only GMs can
   // change them (the database enforces it). See src/rules.ts for what they give.
   const gm = ref<GmFields>({ level: 0, manna: 0 })
-  // A GM's note when they send a pending pilot back. Cleared when the pilot is approved.
+  // A GM's note when they send a pilot back (it's a draft again). Cleared when it's submitted again.
   const reviewNote = ref('')
   const playerName = ref('')
   const canSeePrivate = ref(false)
@@ -98,7 +98,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const editable = computed(
     () =>
       gmEditing.value ||
-      (!pilotId && (!character.value || character.value.status === 'pending' || (!!draft.value && !draft.value.submitted_at))),
+      (!pilotId && (!character.value || (character.value.status === 'pending' && !character.value.submitted_at) || (!!draft.value && !draft.value.submitted_at))),
   )
   // The mechs column is plain JSON to the database; we always save it in the PublicMech shape.
   const mechs = computed(() => {
@@ -192,7 +192,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const unsaved = new Set<Kind>()
   // Set when a save found the row had been saved somewhere else (another tab, a GM): the page shows a notice.
   const conflict = ref(false)
-  const unsavedError = () => (unsaved.size ? 'your last edit is not saved yet. Retry saving it first.' : null)
+  const unsavedError = () => (unsaved.size ? 'Your last edit is not saved yet. Retry it first.' : null)
 
   // The card as it is now (only the public columns, which is all a draft holds).
   const card = () => Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, character.value![column]])) as NonNullable<Json>
@@ -335,13 +335,26 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       return error?.message ?? null
     })
 
-  // After a GM sends the pilot back: clearing their note puts it back in the GM review queue.
-  const resubmit = () =>
+  // A new pilot is a draft until you submit it (the GM queue and the Pending tab only list submitted pilots). Taking
+  // it back makes it a draft again. The database stamps the time and clears a GM's sent-back note. It won't submit a
+  // pilot whose latest edits didn't save.
+  const setPilotSubmitted = (submitted: boolean) =>
     queued(async () => {
-      if (unsaved.size) return unsavedError()
-      const { error } = await checkWrite(await supabase.from('character_sheets').update({ review_note: null }).eq('character_id', character.value!.id).select('character_id'))
-      if (!error) reviewNote.value = ''
-      return error
+      if (submitted && unsaved.size) return unsavedError()
+      const c = character.value!
+      const result = await checkWrite(
+        await supabase
+          .from('characters')
+          .update({ submitted_at: submitted ? new Date().toISOString() : null })
+          .eq('id', c.id)
+          .eq('updated_at', c.updated_at)
+          .select('updated_at, submitted_at'),
+        { seen: c.updated_at, recheck: () => supabase.from('characters').select('updated_at').eq('id', c.id).maybeSingle() },
+      )
+      if (result.row) character.value = { ...character.value!, ...result.row }
+      if (result.row && submitted) reviewNote.value = ''
+      if (result.error === CHANGED_ELSEWHERE) conflict.value = true
+      return result.error
     })
 
   // This clears only the approval message, including while a proposed edit is open.
@@ -383,7 +396,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     create,
     updateCharacter,
     updateSheet,
-    resubmit,
+    submitPilot: () => setPilotSubmitted(true),
+    reopenPilot: () => setPilotSubmitted(false),
     dismissApprovalNote,
     proposeChange,
     submitChange: () => setSubmitted(true),

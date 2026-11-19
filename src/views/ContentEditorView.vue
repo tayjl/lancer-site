@@ -79,7 +79,7 @@ watch([kind, itemKey], async ([k, key]) => {
   if (token !== loadToken) return
   loadingItem.value = false
   loaded.value = result.item
-  itemError.value = result.error ?? (result.item ? '' : 'This item isn\'t available. It may have been deleted.')
+  itemError.value = result.error ?? (result.item ? '' : "This item isn't available.")
 }, { immediate: true })
 
 // A new item starts blank; its id is made from its name (src/contentEditor.ts).
@@ -91,7 +91,7 @@ const pane = useTemplateRef<InstanceType<typeof EditorPane>>('editor')
 const paneBox = useTemplateRef<HTMLElement>('paneBox')
 const listBox = useTemplateRef<HTMLElement>('listBox')
 async function leave() {
-  return !pane.value?.dirty || (await confirmAction('Discard your unsaved changes?', { confirmLabel: 'Discard changes', danger: true }))
+  return !pane.value?.dirty || (await confirmAction("Discard unsaved changes? This can't be undone.", { confirmLabel: 'Discard changes', danger: true }))
 }
 onBeforeRouteLeave(leave)
 async function choose(key: string | undefined) { if (key !== itemKey.value && (await leave())) setQuery({ item: key }) }
@@ -173,11 +173,11 @@ async function exportLcp() {
     <div v-show="showList" class="head">
       <PageHeader
         title="Content editor"
-        summary="Make and change the game content pilots are built from. Imported items can be edited too; pack updates keep your edits."
+        summary="Make and change game content."
         :crumbs="[{ label: 'GM' }, { label: 'Content', to: { name: 'gm-content' } }, { label: 'Editor' }]"
       >
         <div class="actions">
-          <span class="private">Owners only</span>
+          <span class="private">Owner only</span>
           <RouterLink :to="{ name: 'gm-content' }" class="link-button">Packs and imports</RouterLink>
           <button type="button" @click="exportLcp"><Icon name="download" />Export as .lcp</button>
         </div>
@@ -185,7 +185,7 @@ async function exportLcp() {
     </div>
 
     <p v-if="!profile" class="dim">Loading…</p>
-    <p v-else-if="!isOwner" class="notice warn" role="alert">Access denied. This page is for owners.</p>
+    <p v-else-if="!isOwner" class="notice warn" role="alert">Only owners can see this page.</p>
     <template v-else>
       <p v-if="exportNote" class="notice" :class="exportNote.ok ? 'ok' : 'warn'" :role="exportNote.ok ? 'status' : 'alert'">{{ exportNote.text }}</p>
 
@@ -196,7 +196,7 @@ async function exportLcp() {
       <div class="browser">
         <nav v-show="showList" ref="listBox" class="list" :aria-label="info.label" @keydown="step">
           <label class="field search">
-            <span class="sr-only">Search {{ info.label.toLowerCase() }}</span>
+            <span class="sr-only">Search</span>
             <input v-model="query" type="search" :placeholder="`Search ${info.label.toLowerCase()}`" @keydown.esc="query = ''" />
           </label>
           <p v-if="listError" class="notice warn" role="alert">The list didn't load: {{ listError }}</p>
@@ -220,7 +220,7 @@ async function exportLcp() {
                   </button>
                 </li>
               </ul>
-              <p v-if="!group.rows.length && !group.more" class="none dim">{{ query.trim() ? 'No matches.' : 'None yet.' }}</p>
+              <p v-if="!group.rows.length && !group.more" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
               <div v-if="group.more" class="more"><button type="button" class="quiet small" @click="showMore(group.id)">Show {{ group.more }} more</button></div>
             </section>
           </template>
@@ -265,7 +265,7 @@ async function exportLcp() {
             :wide="wide"
             @created="created"
           />
-          <p v-else class="empty">Choose an item to edit, or make a new one.</p>
+          <p v-else class="empty">Choose an item.</p>
         </div>
       </div>
     </template>

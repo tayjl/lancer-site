@@ -30,14 +30,14 @@ function build(data: Data): Built {
     if (kind === 'talents') return { info: talentInfo(toTalent(id, data)) }
     if (kind === 'core_bonuses') { const bonus = toCoreBonus(id, data); return { info: coreBonusInfo(bonus), bonus } }
     if (kind === 'manufacturers') return { info: manufacturerInfo(toManufacturer(id, data), frames.value) }
-    if (kind === 'tags') return { info: { kind: 'tag', name: String(data.name ?? id), facts: [], stats: [], groups: [{ title: 'what it means', cards: [{ heading: 'meaning', html: String(data.description ?? '') }] }] } }
+    if (kind === 'tags') return { info: { kind: 'Tag', name: String(data.name ?? id), facts: [], stats: [], groups: [{ title: 'Meaning', cards: [{ heading: 'Meaning', html: String(data.description ?? '') }] }] } }
     if (kind === 'bionics') {
       const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), source: String(data.source ?? '') || null, effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
       return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name]))) }
     }
-    return { info: { kind: 'personal stat', name: String(data.name ?? id), facts: [{ text: `Key: ${id}` }], stats: [], groups: [] } }
+    return { info: { kind: 'Personal stat', name: String(data.name ?? id), facts: [{ text: `Key: ${id}` }], stats: [], groups: [] } }
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'unreadable data' }
+    return { error: error instanceof Error ? error.message : 'Unreadable data' }
   }
 }
 
@@ -62,7 +62,7 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
     <SheetTabs v-if="tabs.length > 1" v-model="view" :tabs="tabs" label="Preview" />
     <p v-else class="label">Preview</p>
 
-    <p v-if="'error' in now" class="notice warn" role="alert">The preview can't be drawn from this data: {{ now.error }}</p>
+    <p v-if="'error' in now" class="notice warn" role="alert">Preview failed: {{ now.error }}</p>
     <template v-else-if="view === 'Item card'">
       <ItemDetails v-if="now.item" :item="now.item" />
       <ItemCard v-else-if="now.bonus" type="core" icon="corebonus" :name="now.bonus.name" :meta="now.bonus.source">
@@ -71,8 +71,8 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
       </ItemCard>
     </template>
     <template v-else-if="view === 'Original'">
-      <p class="dim note">The pack's own version, before the campaign's edits.</p>
-      <p v-if="was && 'error' in was" class="notice warn">The original can't be drawn: {{ was.error }}</p>
+      <p class="dim note">The pack's version.</p>
+      <p v-if="was && 'error' in was" class="notice warn">Original failed: {{ was.error }}</p>
       <InfoBody v-else-if="was" :info="was.info" />
     </template>
     <template v-else>

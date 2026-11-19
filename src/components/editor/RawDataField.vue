@@ -38,7 +38,7 @@ function input(event: Event) {
   <details class="panel raw" :open="props.open">
     <summary>
       <h3 class="sheet-label">Advanced: raw data</h3>
-      <span class="hint">The same data as the form, as JSON. For things the form has no field for.</span>
+      <span class="hint">JSON, for fields the form lacks.</span>
     </summary>
     <textarea
       class="code"

@@ -44,7 +44,7 @@ const add = () => {
     <h3 id="bio-basics" class="sheet-label">Basics</h3>
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
-      <Field class="span2" label="Slot" path="slot" hint="Where on the body it goes. Pick a suggestion or type your own.">
+      <Field class="span2" label="Slot" path="slot" hint="Pick one or type your own.">
         <input v-model="slot" type="text" autocomplete="off" :list="listId" />
         <datalist :id="listId"><option v-for="option in slots" :key="option" :value="option"></option></datalist>
       </Field>
@@ -58,7 +58,7 @@ const add = () => {
       <Field class="span2" label="Price (manna)" path="manna_cost"><input v-model="price" type="number" min="0" step="1" /></Field>
       <Field class="span2" label="Mod points" path="mod_point_cost"><input v-model="cost" type="number" min="0" step="1" /></Field>
     </div>
-    <label class="check"><input v-model="retired" type="checkbox" />Retired: no longer offered. Pilots who have it keep it.</label>
+    <label class="check"><input v-model="retired" type="checkbox" />Retired. Pilots who have it keep it.</label>
   </section>
 
   <section class="panel" aria-labelledby="bio-bonuses">
@@ -74,13 +74,13 @@ const add = () => {
         <FieldError :path="`bonuses.${index}`" deep />
       </li>
     </ul>
-    <p v-else class="hint">No bonuses. Use a negative number for a drawback.</p>
+    <p v-else class="hint">No bonuses yet. Use a negative number for a drawback.</p>
     <div><button type="button" class="small" :disabled="bonuses.length >= stats.length" @click="add"><Icon name="plus" />Add bonus</button></div>
   </section>
 
   <section class="panel" aria-labelledby="bio-text">
     <h3 id="bio-text" class="sheet-label">Text</h3>
-    <Field label="Description" hint="Flavour text, plain.">
+    <Field label="Description" hint="Flavour text.">
       <textarea v-model="description" rows="4"></textarea>
     </Field>
     <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>

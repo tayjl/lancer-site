@@ -77,7 +77,7 @@ describe('archives', () => {
     expect(goblinWeapons.entries.map(entry => entry.level)).toEqual([...goblinWeapons.entries.map(entry => entry.level)].sort())
     expect(frameGroups[3].entries.map(entry => entry.name)).toContain('Blackbeard')
     const gearGroups = archiveGroups(entries.filter(entry => entry.category === 'pilot gear'), content.manufacturers)
-    expect(gearGroups.map(group => group.title)).toEqual(['pilot armour', 'pilot weapons', 'pilot gear'])
+    expect(gearGroups.map(group => group.title)).toEqual(['Pilot armour', 'Pilot weapons', 'Pilot gear'])
     const talentGroups = archiveGroups(entries.filter(entry => entry.category === 'talents'), content.manufacturers)
     expect(talentGroups).toHaveLength(1)
     expect(talentGroups[0]).toMatchObject({ title: '', colour: 'var(--lilac)' })
@@ -89,7 +89,7 @@ describe('archives', () => {
     expect(archiveGroups(list, content.manufacturers).map(group => group.key)).toEqual(['HORUS', 'IPS-N', 'EXOTIC', 'other'])
     expect(listFacts(list[0])).toEqual(['Eyes', '2 mod points'])
     expect(listFacts(list[1])).toEqual(['Head', '1 mod point'])
-    expect(list[0].info()).toMatchObject({ kind: 'biomod', source: 'IPS-N' })
+    expect(list[0].info()).toMatchObject({ kind: 'Biomod', source: 'IPS-N' })
     // The maker filter applies to them; searching reaches the slot, effect and description.
     expect(filterByMakers(list, ['IPS-N']).map(entry => entry.name)).toEqual(['Ocular implant'])
     for (const word of ['head', 'dark', 'cold']) expect(searchArchive(list, word).length).toBeGreaterThan(0)

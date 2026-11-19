@@ -6,6 +6,9 @@ import { sourceOf, type CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
 import { coreBonusProblems, gmOnly, GM_ONLY_REASON } from '../rules'
 import { plainText } from '../rulesText'
+import { bonusStats, makerGroup } from '../pickerRows'
+import { useManufacturers } from '../archive'
+import { plural } from '../text'
 import { coreBonusInfo } from '../info'
 import ItemCard from './ItemCard.vue'
 import ItemPicker from './ItemPicker.vue'
@@ -38,7 +41,7 @@ async function store(ids: string[]) {
 }
 
 async function remove(id: string) {
-  if (await confirmAction(`Remove ${byId.value.get(id)?.name ?? id}?`, { confirmLabel: 'Remove', danger: true }))
+  if (await confirmAction(`Remove ${byId.value.get(id)?.name ?? id}? It frees a core bonus pick.`, { confirmLabel: 'Remove core bonus', danger: true }))
     store(props.taken.filter((other) => other !== id))
 }
 
@@ -46,12 +49,24 @@ const picker = useTemplateRef('picker')
 // HORUS, NHC and Exotic bonuses are GM-only: blocked for players, and listed last.
 const blocked = (id: string) =>
   (!isGm.value && gmOnly(byId.value.get(id) ?? {}) ? GM_ONLY_REASON : '') ||
-  (coreBonusProblems({ licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '')
+  (coreBonusProblems({ licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '').replace(/\.$/, '')
+// Listed by manufacturer, each with the permanent numbers it adds; what it needs is the blocked reason beside the button.
+const manufacturers = useManufacturers()
 const offered = computed(() =>
   props.options
     .filter((bonus) => !props.taken.includes(bonus.id))
-    .map((bonus) => ({ id: bonus.id, name: bonus.name, meta: bonus.source, text: plainText(bonus.effect), blocked: blocked(bonus.id), info: () => coreBonusInfo(bonus) }))
-    .sort((a, b) => Number(a.blocked === GM_ONLY_REASON) - Number(b.blocked === GM_ONLY_REASON)),
+    .map((bonus) => {
+      return {
+        id: bonus.id,
+        name: bonus.name,
+        look: { type: 'core' as const, icon: 'corebonus' },
+        stats: bonusStats(bonus.bonuses),
+        group: makerGroup(bonus.source, manufacturers.value),
+        search: plainText(bonus.effect),
+        blocked: blocked(bonus.id),
+        info: () => coreBonusInfo(bonus),
+      }
+    }),
 )
 
 function open() {
@@ -73,7 +88,7 @@ async function choose(id: string) {
       <h2 class="sheet-label">Core bonuses<span class="private">Private</span></h2>
       <span class="meter-inline" :class="{ over: left < 0 }"><span class="num">{{ taken.length }}</span> of <span class="num">{{ picks }}</span> picks used</span>
     </header>
-    <p v-if="editable" class="dim note">One free pick per 3 licence ranks. Each non-GMS bonus needs another 3 licence ranks from its manufacturer.</p>
+    <p v-if="editable" class="dim note">One pick per 3 licence ranks. Non-GMS bonuses also need 3 ranks with their manufacturer.</p>
 
     <ul v-if="taken.length || editable" class="slot-grid">
       <li v-for="id in taken" :key="id">
@@ -86,8 +101,8 @@ async function choose(id: string) {
       </li>
       <li v-if="editable" class="empty">
         <template v-if="left > 0">
-          <p>{{ left }} {{ left === 1 ? 'pick' : 'picks' }} left.</p>
-          <button type="button" class="small" :disabled="saving" @click="open">Choose core bonus</button>
+          <p>{{ plural(left, 'pick') }} left.</p>
+          <button type="button" class="small" :disabled="saving" @click="open">Add core bonus</button>
         </template>
         <p v-else>Next pick at <span class="num">{{ (picks + 1) * 3 }}</span> licence ranks.</p>
       </li>

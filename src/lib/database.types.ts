@@ -166,6 +166,7 @@ export type Database = {
           player_id: string
           sexuality: string | null
           status: Database["public"]["Enums"]["character_status"]
+          submitted_at: string | null
           traits: Json | null
           updated_at: string
           weight: string | null
@@ -189,6 +190,7 @@ export type Database = {
           player_id: string
           sexuality?: string | null
           status?: Database["public"]["Enums"]["character_status"]
+          submitted_at?: string | null
           traits?: Json | null
           updated_at?: string
           weight?: string | null
@@ -212,6 +214,7 @@ export type Database = {
           player_id?: string
           sexuality?: string | null
           status?: Database["public"]["Enums"]["character_status"]
+          submitted_at?: string | null
           traits?: Json | null
           updated_at?: string
           weight?: string | null
@@ -609,6 +612,10 @@ export type Database = {
         Returns: undefined
       }
       remove_pack: { Args: { target_pack_id: number }; Returns: undefined }
+      send_back_pilot: {
+        Args: { note: string; target_character_id: number }
+        Returns: undefined
+      }
       save_bionic: {
         Args: {
           expected_updated_at?: string

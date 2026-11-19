@@ -212,10 +212,10 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
   const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
   const bonuses = pilotBonuses(sheet, gear, talents, coreBonuses)
   const stats = [
-    { id: 'pilot_hp', name: 'hp', value: 6, icon: hpIcon },
-    { id: 'pilot_armor', name: 'armour', value: 0, icon: armourIcon },
-    { id: 'pilot_speed', name: 'speed', value: 4, icon: speedIcon },
-    { id: 'pilot_edef', name: 'e-defence', value: 10, icon: eDefIcon },
+    { id: 'pilot_hp', name: 'HP', value: 6, icon: hpIcon },
+    { id: 'pilot_armor', name: 'Armour', value: 0, icon: armourIcon },
+    { id: 'pilot_speed', name: 'Speed', value: 4, icon: speedIcon },
+    { id: 'pilot_edef', name: 'E-defence', value: 10, icon: eDefIcon },
   ]
   return stats.map(stat => {
     const matching = bonuses.filter(entry => entry.bonus.id === stat.id && permanentBonus(entry.bonus)).flatMap(({ bonus, source }) => {
@@ -224,8 +224,8 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
     })
     const result = resolveBonuses(stat.value, matching)
     return { ...stat, value: layout.unknown.length ? null : Math.max(0, result.value), contributors: layout.unknown.length ? [] : [
-      ...(result.usesBase ? [`pilot base: ${stat.value}`] : []),
-      ...result.used.map(entry => `${entry.source}: ${entry.replace ? 'sets base to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
+      ...(result.usesBase ? [`Base: ${stat.value}`] : []),
+      ...result.used.map(entry => `${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
     ] }
   })
 }

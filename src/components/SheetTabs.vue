@@ -5,7 +5,7 @@
 // right edge until the last tab is in view.
 import { onMounted, onUnmounted, onUpdated, useTemplateRef } from 'vue'
 
-withDefaults(defineProps<{ tabs: readonly string[]; label?: string; counts?: Record<string, number> }>(), { label: 'pilot sheet sections' })
+withDefaults(defineProps<{ tabs: readonly string[]; label?: string; counts?: Record<string, number> }>(), { label: 'Pilot sheet sections' })
 const current = defineModel<string>({ required: true })
 
 const row = useTemplateRef<HTMLElement>('row')

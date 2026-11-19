@@ -79,7 +79,7 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
       </span>
     </div>
     <EditorContent :editor="editor" />
-    <ItemPicker v-if="links" ref="picker" title="Link to an entry" :options="links" empty="No other entries to link to." @choose="linkTo" />
+    <ItemPicker v-if="links" ref="picker" title="Link entry" :options="links" empty="No other entries to link." @choose="linkTo" />
   </div>
 </template>
 

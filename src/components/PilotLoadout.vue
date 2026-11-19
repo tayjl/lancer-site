@@ -3,10 +3,10 @@ import { computed, ref, useTemplateRef } from 'vue'
 import { isGm } from '../auth'
 import { confirmAction } from '../confirm'
 import { loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
-import { itemDetails, statLine } from '../itemDetails'
 import { itemInfo } from '../info'
 import { gmOnly, GM_ONLY_REASON } from '../rules'
-import { plainText } from '../rulesText'
+import { itemPick } from '../pickerRows'
+import { plural } from '../text'
 import ItemDetails from './ItemDetails.vue'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
@@ -30,7 +30,7 @@ const shownSlots = computed(() => layout.value.slots.filter((slot) => props.edit
 // Each slot's name over its card ("Armour", "Weapon 1"), and the word for what it holds.
 const KINDS: Record<string, string> = { Armor: 'armour', Weapon: 'weapon', Gear: 'gear' }
 const slotName = (slot: Slot) => (slot.type === 'Armor' ? 'Armour' : `${slot.type} ${slot.index + 1}`)
-const emptyText = (slot: Slot) => (slot.id && byId.value.get(slot.id) ? '' : `No ${KINDS[slot.type]} in this slot.`)
+const emptyText = (slot: Slot) => (slot.id && byId.value.get(slot.id) ? '' : `No ${KINDS[slot.type]} yet.`)
 
 // --- Changing a slot: rebuilds the whole list from the slots ---
 const error = ref('')
@@ -45,7 +45,7 @@ async function store(target: Slot, id: string | null) {
 }
 
 async function unequip(slot: Slot) {
-  if (await confirmAction(`Remove ${nameOf(slot.id!)}?`, { confirmLabel: 'Remove', danger: true })) store(slot, null)
+  if (await confirmAction(`Remove ${nameOf(slot.id!)}? It leaves the slot empty.`, { confirmLabel: 'Remove gear', danger: true })) store(slot, null)
 }
 
 // --- The picker: items of the slot's type ---
@@ -57,9 +57,8 @@ const options = computed(() =>
   props.items
     .filter((item) => item.type === target.value?.type)
     .map((item) => {
-      const details = itemDetails(item, tagNames.value)
       const blocked = !isGm.value && gmOnly(item) ? GM_ONLY_REASON : ''
-      return { id: item.id, name: item.name, meta: statLine(details), text: plainText(details.text), info: () => itemInfo(item), blocked }
+      return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked }
     })
     .sort((a, b) => Number(!!a.blocked) - Number(!!b.blocked)),
 )
@@ -82,7 +81,7 @@ async function equip(id: string) {
     <ul v-if="shownSlots.length" class="slot-grid">
       <SlotCard v-for="slot in shownSlots" :key="`${slot.type}-${slot.index}`" :label="slotName(slot)" :empty="emptyText(slot)">
         <template #action>
-          <button type="button" class="small" :disabled="saving" @click="open(slot)">Equip {{ KINDS[slot.type] }}</button>
+          <button type="button" class="small" :disabled="saving" @click="open(slot)">Add {{ KINDS[slot.type] }}</button>
         </template>
         <ItemDetails :item="byId.get(slot.id!)!">
           <template v-if="editable" #foot>
@@ -92,14 +91,14 @@ async function equip(id: string) {
         </ItemDetails>
       </SlotCard>
     </ul>
-    <p v-else class="empty">No gear equipped.</p>
+    <p v-else class="empty">No gear.</p>
 
     <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
     <p v-if="layout.overflow.length" class="notice warn note">
-      No free slot for {{ layout.overflow.map(nameOf).join(', ') }}. They're dropped at the next loadout change.
+      No free slot for {{ layout.overflow.map(nameOf).join(', ') }}.
     </p>
     <p v-if="items.length && layout.unknown.length" class="dim note">
-      Also on file: {{ layout.unknown.length }} item(s) from content packs that aren't loaded.
+      {{ plural(layout.unknown.length, 'item') }} not in any loaded pack.
     </p>
 
     <ItemPicker

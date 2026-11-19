@@ -30,7 +30,7 @@ const type = f.text('type')
     <Field label="Kind of system" path="type">
       <select :value="type || 'System'" @change="type = ($event.target as HTMLSelectElement).value">
         <option v-if="type && !SYSTEM_TYPES.includes(type)" :value="type">{{ type }}</option>
-        <option v-for="option in SYSTEM_TYPES" :key="option" :value="option">{{ option }}</option>
+        <option v-for="option in SYSTEM_TYPES" :key="option" :value="option">{{ option === 'Armor' ? 'Armour' : option }}</option>
       </select>
     </Field>
   </ItemBasics>
@@ -38,7 +38,7 @@ const type = f.text('type')
   <section class="panel" aria-labelledby="system-text">
     <h3 id="system-text" class="sheet-label">Text</h3>
     <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
-    <Field label="Lore" hint="Optional flavour text, plain.">
+    <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>
   </section>

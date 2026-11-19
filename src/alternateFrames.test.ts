@@ -60,7 +60,7 @@ describe('the frame a licence gives', () => {
   })
 
   it('still needs the rank, and leaves GMS frames alone', () => {
-    expect(frameBlockedBy(worldkiller, frames, sheet({ [GENGHIS]: 1 }, { [GENGHIS]: WORLDKILLER }))).toBe('Needs licence II')
+    expect(frameBlockedBy(worldkiller, frames, sheet({ [GENGHIS]: 1 }, { [GENGHIS]: WORLDKILLER }))).toBe('Needs HA Genghis II')
     expect(frameBlockedBy(sagarmatha, frames, sheet({}))).toBe('')
   })
 })
@@ -71,14 +71,14 @@ describe('rule check for alternate frames', () => {
 
   it('flags a mech whose frame is not the one its licence gives', () => {
     const held = { licences: { [GENGHIS]: 2 }, mech_skills: {} }
-    expect(mechProblems(mech, held, catalogue)).toEqual([`${WK_NAME} isn't the frame the Genghis licence gives this pilot.`])
+    expect(mechProblems(mech, held, catalogue)).toEqual([`${WK_NAME} isn't the frame chosen for the Genghis licence.`])
     expect(mechProblems(mech, { ...held, frame_choices: { [GENGHIS]: WORLDKILLER } }, catalogue)).toEqual([])
     expect(mechProblems(mech, { licences: {}, mech_skills: {} }, catalogue)).toEqual([`The ${WK_NAME} frame needs HA Genghis licence rank II.`])
   })
 
   it('flags a licence held under an alternate frame', () => {
     const problems = pilotProblems({ licences: { [WORLDKILLER]: 1 } }, { level: 0, manna: 600 }, catalogue, {})
-    expect(problems).toEqual([`${WK_NAME} is now part of the Genghis licence, not a licence of its own: a GM should move its ranks there.`])
+    expect(problems).toEqual([`${WK_NAME} is part of the Genghis licence. A GM should move its ranks there.`])
   })
 })
 
@@ -105,6 +105,6 @@ describe('the frame editor', () => {
   })
   it('refuses an alternate of itself or of another alternate', () => {
     expect(errors({ license_id: 'hb_f_x', variant: 'Genghis' })).toEqual(["A frame can't be an alternate of itself."])
-    expect(errors({ license_id: WORLDKILLER, variant: WK_NAME })).toEqual(['Choose the original frame: an alternate frame is already an alternate of another.'])
+    expect(errors({ license_id: WORLDKILLER, variant: WK_NAME })).toEqual(['Choose the original frame, not another alternate.'])
   })
 })

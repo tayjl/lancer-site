@@ -28,7 +28,7 @@ const optional = (value: unknown) => (value as string) || undefined
 
 <template>
   <Field label="Name" path="core_system.name"><input type="text" autocomplete="off" :value="val('name')" @input="set({ name: input($event) })" /></Field>
-  <Field block label="Lore" hint="Flavour text, shown above the passive and the power.">
+  <Field block label="Lore" hint="Flavour text.">
     <RichTextEditor label="Core system lore" html basic :model-value="val('description')" @update:model-value="set({ description: optional($event) })" />
   </Field>
 
@@ -58,14 +58,14 @@ const optional = (value: unknown) => (value as string) || undefined
     </Field>
     <Field label="Lasts for">
       <select :value="val('use')" @change="set({ use: optional(input($event)) })">
-        <option value="">Not stated</option>
+        <option value="">None</option>
         <option v-if="val('use') && !FRAME_USES.includes(val('use'))" :value="val('use')">{{ val('use') }}</option>
         <option v-for="use in FRAME_USES" :key="use" :value="use">{{ use }}</option>
       </select>
     </Field>
     <Field label="Switch off with">
       <select :value="val('deactivation')" @change="set({ deactivation: optional(input($event)) })">
-        <option value="">Not stated</option>
+        <option value="">None</option>
         <option v-if="val('deactivation') && !ACTIVATIONS.includes(val('deactivation'))" :value="val('deactivation')">{{ val('deactivation') }}</option>
         <option v-for="activation in ACTIVATIONS" :key="activation" :value="activation">{{ activation }}</option>
       </select>
@@ -77,12 +77,12 @@ const optional = (value: unknown) => (value as string) || undefined
   <Field block label="Power actions">
     <ActionListField :model-value="list<Data>('active_actions')" path="core_system.active_actions" label="Power action" @update:model-value="set({ active_actions: clean($event) })" />
   </Field>
-  <Field block label="Power bonuses" hint="Only apply while the power is on, so the mech's numbers leave them out. Say when in the rules.">
+  <Field block label="Power bonuses" hint="Not counted in the mech's numbers. Say when they apply in the rules.">
     <BonusListField :model-value="list<Data>('active_bonuses')" :types="bonusTypes" path="core_system.active_bonuses" @update:model-value="set({ active_bonuses: clean($event) })" />
   </Field>
 
   <h4 class="label sub">Equipment and deployables</h4>
-  <Field block label="Built in" path="core_system.integrated" hint="Weapons or systems the mech gets for free with this frame, with no mount needed.">
+  <Field block label="Built in" path="core_system.integrated" hint="Built in, needs no mount.">
     <ItemIdListField :model-value="list<string>('integrated')" :items="equipment" label="Core system built-in equipment" add="Add built-in equipment" @update:model-value="set({ integrated: clean($event) })" />
   </Field>
   <Field block label="Deployables">

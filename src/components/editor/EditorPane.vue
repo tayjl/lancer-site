@@ -7,6 +7,7 @@ import { invalidateCatalogues } from '../../gameData'
 import { alternateOf, licensedFrames, useMechData } from '../../mechData'
 import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
 import { useSaveStatus } from '../../saveStatus'
+import { plural } from '../../text'
 import ConflictNotice from '../ConflictNotice.vue'
 import Icon from '../Icon.vue'
 import SaveStatus from '../SaveStatus.vue'
@@ -145,7 +146,7 @@ async function save() {
 
 async function publish() {
   if (busy.value || dirty.value || conflict.value) return
-  if (!(await confirmAction(`Publish "${title.value}"? Players can pick it as soon as it's published, and it can't go back to a draft.`, { confirmLabel: 'Publish' }))) return
+  if (!(await confirmAction(`Publish ${title.value}? Players can use it at once. This can't be undone.`, { confirmLabel: 'Publish item' }))) return
   await run(() => publishItem(current()), (result) => {
     updatedAt.value = result.updatedAt!
     draft.value = false
@@ -155,7 +156,7 @@ async function publish() {
 
 async function revertToOriginal() {
   if (busy.value || conflict.value) return
-  if (!(await confirmAction(`Put "${title.value}" back to the pack's own version? The campaign's edits are lost, and every pilot using it sees the original.`, { confirmLabel: 'Revert to original', danger: true }))) return
+  if (!(await confirmAction(`Revert ${title.value} to the pack's version? Your edits are lost. This can't be undone.`, { confirmLabel: 'Revert to original', danger: true }))) return
   await run(() => revertItem(current()), (result) => {
     updatedAt.value = result.updatedAt!
     hasEdit.value = false
@@ -173,7 +174,7 @@ const discard = () => {
 
 const deleteError = ref('')
 async function remove() {
-  if (!(await confirmAction(`Delete "${title.value}"? This can't be undone. It's in no pilot's sheet.`, { confirmLabel: 'Delete item', danger: true }))) return
+  if (!(await confirmAction(`Delete ${title.value}? This can't be undone.`, { confirmLabel: 'Delete item', danger: true }))) return
   deleteError.value = (await deleteItem(props.item!.key)) ?? ''
   if (!deleteError.value) {
     invalidateCatalogues()
@@ -201,17 +202,17 @@ defineExpose({ dirty })
       <span v-if="dirty && !busy" class="dim status">Unsaved changes</span>
       <SaveStatus :saving="busy" :saved="status.saved.value && !dirty" :error="status.error.value" :can-retry="!conflict" @retry="save" />
       <div class="btn-row">
-        <button type="button" class="quiet small" :disabled="!dirty || busy" @click="discard">Revert</button>
+        <button type="button" class="quiet small" :disabled="!dirty || busy" @click="discard">Discard changes</button>
         <template v-if="draft">
           <span v-if="dirty" class="blocked">
-            <button type="button" class="small" disabled aria-describedby="publish-why">Publish</button>
-            <span id="publish-why" class="blocked-reason">Save your changes first.</span>
+            <button type="button" class="small" disabled aria-describedby="publish-why">Publish item</button>
+            <span id="publish-why" class="blocked-reason">Save your changes first</span>
           </span>
-          <button v-else type="button" class="small" :disabled="busy || conflict" @click="publish">Publish</button>
+          <button v-else type="button" class="small" :disabled="busy || conflict" @click="publish">Publish item</button>
         </template>
         <span v-if="errorCount" class="blocked">
           <button type="button" class="primary small" disabled aria-describedby="save-why">{{ isNew ? (info.site ? 'Create' : 'Create draft') : 'Save changes' }}</button>
-          <span id="save-why" class="blocked-reason">Fix {{ errorCount }} {{ errorCount === 1 ? 'problem' : 'problems' }} first.</span>
+          <span id="save-why" class="blocked-reason">Fix {{ plural(errorCount, 'problem') }} first</span>
         </span>
         <button v-else type="button" class="primary small" :disabled="busy || conflict || (!isNew && !dirty)" @click="save">{{ isNew ? (info.site ? 'Create' : 'Create draft') : 'Save changes' }}</button>
       </div>
@@ -227,20 +228,20 @@ defineExpose({ dirty })
               <p class="notice-title">Edited from {{ packName }}</p>
               <button type="button" class="small" :disabled="busy || conflict" @click="revertToOriginal">Revert to original</button>
             </div>
-            <p>The campaign's version replaces the pack's everywhere, and pack updates keep it. The pack's own is under Original in the preview.</p>
+            <p>The pack's version is under Original in the preview.</p>
           </template>
           <template v-else>
             <p class="notice-title">Official content from {{ packName }}</p>
-            <p>Saving makes the campaign's own version of it. Pack updates keep your version.</p>
+            <p>Saving makes a campaign version.</p>
           </template>
         </div>
         <div v-if="pilots.length" class="notice" role="status">
           <p class="notice-title">{{ usedBy(pilots) }}</p>
-          <p>Saving changes their sheets. Players see the new numbers straight away; nothing needs approving.</p>
+          <p>Saving changes their sheets.</p>
         </div>
-        <p v-else-if="usageError" class="dim hint">Couldn't check which pilots use this.</p>
+        <p v-else-if="usageError" class="dim hint">Couldn't check who uses this.</p>
         <div v-if="problems.length" class="notice" :class="{ warn: errorCount }" :role="errorCount ? 'alert' : 'status'">
-          <p class="notice-title">{{ errorCount ? `Fix ${errorCount} ${errorCount === 1 ? 'problem' : 'problems'} before saving` : 'Worth a look' }}</p>
+          <p class="notice-title">{{ errorCount ? `Fix ${plural(errorCount, 'problem')} before saving` : plural(problems.length, 'warning') }}</p>
           <ul class="problems">
             <li v-for="(problem, index) in problems" :key="index"><b>{{ problem.level === 'error' ? 'Error' : 'Warning' }}:</b> {{ problem.text }}</li>
           </ul>
@@ -258,17 +259,17 @@ defineExpose({ dirty })
         <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
         <StatForm v-else-if="kind === 'pilot_stats'" v-model="working" :locked="!isNew" />
         <p v-else class="notice" role="note">
-          <span>There's no form for {{ info.label.toLowerCase() }} yet. Edit the data below; the preview shows the result.</span>
+          <span>No form for {{ info.label.toLowerCase() }} yet. Edit the raw data.</span>
         </p>
         <RawDataField v-if="!info.site" v-model="working" :open="!info.form" @error="rawError = $event" />
 
         <section v-if="homebrew" class="panel danger-zone" aria-labelledby="danger-title">
           <h3 id="danger-title" class="sheet-label">Danger zone</h3>
           <div class="danger-body">
-            <p class="dim">Deleting removes this item for everyone and can't be undone. Official items can't be deleted.</p>
+            <p class="dim">Deleting removes this item. This can't be undone.</p>
             <span v-if="pilots.length" class="blocked">
               <button type="button" class="danger" disabled aria-describedby="delete-why">Delete item</button>
-              <span id="delete-why" class="blocked-reason">{{ usedBy(pilots) }}. Swap it out of their sheets first.</span>
+              <span id="delete-why" class="blocked-reason">{{ usedBy(pilots) }}</span>
             </span>
             <button v-else type="button" class="danger" :disabled="busy || usageError" @click="remove">Delete item</button>
             <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>

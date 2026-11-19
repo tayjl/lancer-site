@@ -31,14 +31,14 @@ const description = f.text('description')
         class="span2"
         label="ID"
         path="id"
-        :hint="locked ? 'Items name their manufacturer by this code, so it never changes.' : 'A short code of letters and numbers, such as CHI. Items name their manufacturer by it, so it can\'t change once you create it.'"
+        :hint="locked ? 'Fixed once created.' : 'A short code, like CHI. Fixed once created.'"
       >
         <input v-if="locked" class="code" :value="id" type="text" readonly />
         <input v-else v-model="id" class="code" type="text" autocomplete="off" spellcheck="false" placeholder="CHI" />
       </Field>
-      <Field class="span2" label="Logo" hint="Homebrew manufacturers can use one of the bundled logos, or none.">
+      <Field class="span2" label="Logo" >
         <select v-model="logo">
-          <option value="">No logo</option>
+          <option value="">None</option>
           <option v-if="logo && !LOGO_NAMES.includes(logo)" :value="logo">{{ logo }}</option>
           <option v-for="option in LOGO_NAMES" :key="option" :value="option">{{ option }}</option>
         </select>
@@ -49,10 +49,10 @@ const description = f.text('description')
   <section class="panel" aria-labelledby="maker-colours">
     <h3 id="maker-colours" class="sheet-label">Colours</h3>
     <div class="grid">
-      <Field class="span2" label="Main colour" path="dark" hint="The colour the site draws: the logo and a thin line on cards.">
+      <Field class="span2" label="Main colour" path="dark" hint="Used for the logo and card border.">
         <ColourField v-model="dark" label="Main colour" />
       </Field>
-      <Field class="span2" label="Darker colour" path="light" hint="Optional. Kept with the manufacturer; the site doesn't draw it yet.">
+      <Field class="span2" label="Darker colour" path="light" hint="Optional.">
         <ColourField v-model="light" label="Darker colour" />
       </Field>
     </div>

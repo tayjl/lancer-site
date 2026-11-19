@@ -18,9 +18,10 @@ import { loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bonus, typ
 import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
 import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
-import { flatDamageText } from './damage'
+import { flatDamage, flatDamageText } from './damage'
 import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES } from './coreRules'
+import { capitalise } from './text'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
 // which weapons fit which mount, and the mech's stats. Mechs only store ids; everything else comes from here.
@@ -77,18 +78,18 @@ export function allowedSizes(mount: string, index: number, sizesOnMount: (string
 // Design's heart and shield, as COMP/CON uses for hp and armour). Worked out from the frame and the pilot's
 // HASE (unset skills count as 0, like the pilot sheet), never stored. No grit (homebrew rule).
 const MECH_STATS = [
-  ['structure', 'structure', structureIcon],
-  ['stress', 'stress', stressIcon],
-  ['hp', 'hp', hpIcon],
-  ['heat', 'heat cap', heatIcon],
-  ['armour', 'armour', armourIcon],
-  ['evasion', 'evasion', evasionIcon],
-  ['speed', 'speed', speedIcon],
-  ['edef', 'e-defence', eDefIcon],
-  ['tech_attack', 'tech attack', techAttackIcon],
-  ['repair', 'repair cap', repairIcon],
-  ['system_points', 'system points', systemPointIcon],
-  ['size', 'size', undefined],
+  ['structure', 'Structure', structureIcon],
+  ['stress', 'Stress', stressIcon],
+  ['hp', 'HP', hpIcon],
+  ['heat', 'Heat cap', heatIcon],
+  ['armour', 'Armour', armourIcon],
+  ['evasion', 'Evasion', evasionIcon],
+  ['speed', 'Speed', speedIcon],
+  ['edef', 'E-defence', eDefIcon],
+  ['tech_attack', 'Tech attack', techAttackIcon],
+  ['repair', 'Repair cap', repairIcon],
+  ['system_points', 'System points', systemPointIcon],
+  ['size', 'Size', undefined],
 ] as const
 // Size's symbol shows the size itself.
 const SIZE_ICONS: Record<string, string> = { 0.5: sizeHalfIcon, 1: size1Icon, 2: size2Icon, 3: size3Icon }
@@ -190,7 +191,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
       const selected = selectWeaponProfile(item, mech.weapon_options?.[key]?.profile ?? 0)
       addRaw(selected.name, '', { ...selected.raw, bonuses: selected.bonuses }, { kind: 'item', name: selected.name }, false)
     }
-    else reminders.push({ kind: 'missing', name: id, source: id, text: 'Content unavailable; its bonuses are not included.' })
+    else reminders.push({ kind: 'missing', name: id, source: id, text: "Missing item. Its bonuses aren't counted." })
   }
   // A Unique item duplicated on an invalid loadout must not grant its bonuses twice.
   const baseFrame = catalogue.frames?.find(frame => frame.id === mech.frame)
@@ -295,12 +296,12 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
       const extra = missingFrom(CORE_CHECK_BONUSES[id], listOf(bonus.bonuses))
       if (extra.length) sources.push({ name: bonus.name, bonuses: extra, origin: { kind: 'core-bonus', name: bonus.name } })
     }
-    else reminders.push({ kind: 'missing', name: id, source: id, text: 'Core bonus unavailable; its bonuses are not included.' })
+    else reminders.push({ kind: 'missing', name: id, source: id, text: "Missing core bonus. Its bonuses aren't counted." })
   }
   for (const [id, rank] of Object.entries(sheet.talents ?? {})) {
     if (!Number.isInteger(rank) || rank <= 0) continue
     const talent = catalogue.talents?.find(talent => talent.id === id)
-    if (!talent) reminders.push({ kind: 'missing', name: id, source: id, text: 'Talent unavailable; its bonuses are not included.' })
+    if (!talent) reminders.push({ kind: 'missing', name: id, source: id, text: "Missing talent. Its bonuses aren't counted." })
     talent?.ranks.slice(0, Math.min(rank, 3)).forEach((entry, index) => {
       addRaw(`${talent.name} ${index + 1}: ${entry.name}`, entry.description, entry, { kind: 'talent', name: entry.name, from: `${talent.name} ${['I', 'II', 'III'][index]}` })
     })
@@ -328,7 +329,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   return { modifiers, bonuses, reminders }
 }
 
-// "+10 hp, only when exposed: not counted in the stats above." Bonus ids and {braces} are data, not wording.
+// "+10 hp, only when exposed." Bonus ids and {braces} are data, not wording.
 function bonusReminder(bonus: Bonus, value: number | null) {
   const what = `${value === null ? '' : `${value >= 0 ? '+' : ''}${value} `}${String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')}`
   const when = bonus.condition ? `, only when ${String(bonus.condition).replace(/[{}]/g, '')}` : ''
@@ -343,7 +344,7 @@ export function mechResources(sheet: Sheet, effects: ReturnType<typeof mechEffec
   return {
     aiCap: Math.max(0, count('ai_cap', 1)),
     limited: Math.floor((sheet.mech_skills?.engineering ?? 0) / 2) + count('limited_bonus'),
-    overcharge: overcharge ? (overcharge.bonus.val as unknown as string[]).join(' → ') : '1 → 1d3 → 1d6 → 1d6+4',
+    overcharge: (overcharge ? (overcharge.bonus.val as unknown as string[]) : ['1', '1d3', '1d6', '1d6+4']).map(step => flatDamage(step)).join(' → '),
     structureRepairs: effects.bonuses.some(entry => entry.bonus.id === 'cheap_struct' && permanentBonus(entry.bonus) && bonusValue(entry.bonus.val) === 1) ? 1 : 2,
     superheavyMounting: effects.bonuses.some(entry => entry.bonus.id === 'superheavy_mounting' && permanentBonus(entry.bonus) && entry.bonus.val !== 0 && entry.bonus.val !== '0'),
     checks,
@@ -378,12 +379,12 @@ export function mechStats(frame: Frame | null, skills: Record<string, number> | 
     const resolved = resolveBonuses(values[id], matching)
     let value = resolved.value
     const contributors = !resolved.usesBase ? [] : [
-      `${frame?.name ?? 'frame'}: ${values[id] - (hase[id]?.[1] ?? 0)}`,
-      ...(hase[id]?.[1] ? [`${hase[id][0]}: +${hase[id][1]}`] : []),
+      `Base: ${values[id] - (hase[id]?.[1] ?? 0)}`,
+      ...(hase[id]?.[1] ? [`${capitalise(hase[id][0])}: +${hase[id][1]}`] : []),
     ]
-    for (const entry of resolved.used) contributors.push(`${entry.source}: ${entry.replace ? 'sets base to ' : entry.value >= 0 ? '+' : ''}${entry.value}${entry.overwrite && !entry.replace ? ' (highest override)' : ''}`)
+    for (const entry of resolved.used) contributors.push(`${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}${entry.overwrite && !entry.replace ? ' (highest wins)' : ''}`)
     const armourMax = resolveBonuses(4, modifiers.filter(entry => entry.stat === 'armor_max')).value
-    if (id === 'armour' && value > armourMax) { value = armourMax; contributors.push(`armour maximum: ${armourMax}`) }
+    if (id === 'armour' && value > armourMax) { value = armourMax; contributors.push(`Armour maximum: ${armourMax}`) }
     if (id === 'size' && matching.length) {
       const steps = [0.5, 1, 2, 3]
       value = resolved.usesBase ? steps[Math.min(3, Math.max(0, steps.indexOf(s.size ?? 1) + Math.trunc(value - (s.size ?? 1))))] : Math.min(3, Math.max(0.5, value))

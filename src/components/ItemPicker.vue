@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import type { Info } from '../info'
-import InfoButton from './InfoButton.vue'
+import type { PickOption } from '../pickerRows'
+import PickList from './PickList.vue'
 
-// A picker dialog for one loadout slot (or the frame): a searchable list of options, each with its name, its facts
-// ("meta", a string or a list shown dot-separated), a short summary and a button to choose it. "blocked" on an option
-// disables the button, keeping its label, and says why beside it (e.g. "Not enough SP"). The parent opens it with
-// open(), saves the choice itself, then closes it with close(). With "info", an option's name opens its full
-// information on top of the picker.
-type Option = { id: string; name: string; meta?: string | string[]; text?: string; blocked?: string; info?: () => Info }
-const props = defineProps<{ title: string; options: Option[]; current?: string | null; saving?: boolean; error?: string; empty?: string }>()
+// A picker dialog for one loadout slot (or the frame, a licence...): a searchable list of options (PickList.vue: boxes per
+// manufacturer, rows of symbols and numbers, the long text only in each option's full information) with a button to
+// choose each. "blocked" on an option disables the button, keeping its label, and says why beside it (e.g. "Not enough
+// system points"). The parent opens it with open(), saves the choice itself, then closes it with close(). Search
+// looks through the name, the facts, the group and the option's hidden "search" text (the rules).
+const props = defineProps<{ title: string; options: PickOption[]; current?: string | null; saving?: boolean; error?: string; empty?: string }>()
 const emit = defineEmits<{ choose: [id: string] }>()
 
 const dialog = useTemplateRef('dialog')
@@ -17,7 +16,8 @@ const filter = ref('')
 
 const shown = computed(() => {
   const words = filter.value.trim().toLowerCase()
-  return props.options.filter((option) => !words || `${option.name} ${[option.meta ?? ''].flat().join(' ')}`.toLowerCase().includes(words))
+  const haystack = (option: PickOption) => [option.name, [option.meta ?? ''].flat().join(' '), option.text, option.search, option.group?.title, option.group?.name, ...(option.chips ?? []).map((chip) => chip.label), ...(option.stats ?? []).map((stat) => stat.label)].join(' ').toLowerCase()
+  return props.options.filter((option) => words.split(/\s+/).every((word) => haystack(option).includes(word)))
 })
 
 function open() {
@@ -44,32 +44,24 @@ defineExpose({ open, close: () => dialog.value?.close() })
     </div>
 
     <div class="dialog-body">
-      <ul v-if="shown.length" class="pick-list">
-        <li v-for="option in shown" :key="option.id" :class="{ blocked: option.blocked && option.id !== current }">
-          <div class="pick-about">
-            <span class="pick-name"><InfoButton v-if="option.info" :info="option.info" :label="option.name" /><template v-else>{{ option.name }}</template></span>
-            <span v-if="Array.isArray(option.meta)" class="pick-meta sep"><span v-for="fact in option.meta" :key="fact">{{ fact }}</span></span>
-            <span v-else-if="option.meta" class="pick-meta">{{ option.meta }}</span>
-            <span v-if="option.text" class="pick-text">{{ option.text }}</span>
-          </div>
-          <div class="pick-action">
-            <button v-if="option.id === current" type="button" class="small" disabled>Chosen</button>
-            <template v-else>
-              <button
-                type="button"
-                class="small"
-                :disabled="saving || !!option.blocked"
-                :aria-describedby="option.blocked ? `why-${option.id}` : undefined"
-                @click="emit('choose', option.id)"
-              >
-                Choose
-              </button>
-              <span v-if="option.blocked" :id="`why-${option.id}`" class="pick-reason">{{ option.blocked }}</span>
-            </template>
-          </div>
-        </li>
-      </ul>
-      <p v-else class="empty">{{ filter ? 'Nothing matches that search.' : empty ?? 'Nothing to choose from yet: the content packs may not be imported.' }}</p>
+      <PickList v-if="shown.length" :options="shown" :current="current">
+        <template #action="{ option }">
+          <button v-if="option.id === current" type="button" class="small" disabled>Chosen</button>
+          <template v-else>
+            <button
+              type="button"
+              class="small"
+              :disabled="saving || !!option.blocked"
+              :aria-describedby="option.blocked ? `why-${option.id}` : undefined"
+              @click="emit('choose', String(option.id))"
+            >
+              Choose
+            </button>
+            <span v-if="option.blocked" :id="`why-${option.id}`" class="pick-reason">{{ option.blocked }}</span>
+          </template>
+        </template>
+      </PickList>
+      <p v-else class="empty">{{ filter ? 'Nothing matches that search.' : empty ?? 'No options.' }}</p>
     </div>
   </dialog>
 </template>

@@ -18,11 +18,11 @@ const order = f.number('sort_order')
     <h3 id="stat-basics" class="sheet-label">Basics</h3>
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
-      <Field class="span2" label="Key" path="id" :hint="locked ? 'Sheets and bonuses use this key, so it never changes. Rename the stat freely.' : 'Made from the name until you save it the first time.'">
+      <Field class="span2" label="Key" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
       <Field class="span2" label="Order" path="sort_order"><input v-model="order" type="number" step="1" /></Field>
     </div>
-    <p class="hint">A new personal stat appears on every pilot's stats tab, starting at 2 like the others.</p>
+    <p class="hint">Every pilot gets it, starting at 2.</p>
   </section>
 </template>

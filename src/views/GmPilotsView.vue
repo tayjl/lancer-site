@@ -9,6 +9,7 @@ import { checkWrite, supabase } from '../lib/supabaseClient'
 import type { Sheet } from '../myPilot'
 import { useGameData } from '../gameData'
 import { formatAmount, licenceLevel, mannaSpent } from '../rules'
+import { capitalise } from '../text'
 
 // Waiting pilots are ordered by submission time. The searchable roster includes every pilot,
 // including sent-back and dead records. GM edits save directly; database policies enforce the role.
@@ -22,12 +23,17 @@ const items = shallowRef<Pilot[]>([])
 const loading = ref(true)
 const error = ref('')
 const search = ref('')
-const waiting = computed(() => items.value.filter((item) => item.status === 'pending' && !item.sheet?.review_note))
+const waiting = computed(() => items.value.filter((item) => item.status === 'pending' && item.submitted_at)
+  .sort((a, b) => Date.parse(a.submitted_at!) - Date.parse(b.submitted_at!)))
 const queueCards = computed(() => waiting.value.map(pilot => ({
   id: pilot.id, callsign: pilot.callsign, name: pilot.pilot_name, image: pilot.pilot_image,
-  player: pilot.player?.display_name ?? '-', submittedAt: pilot.created_at,
+  player: pilot.player?.display_name ?? '-', submittedAt: pilot.submitted_at!,
   to: { name: 'gm-review', params: { id: pilot.id } },
 })))
+// A pilot nobody has submitted is a Draft, or Sent back when a GM's note is waiting for its player.
+const sentBack = (pilot: Pilot) => pilot.status === 'pending' && !pilot.submitted_at && !!pilot.sheet?.review_note
+const statusClass = (pilot: Pilot) => (sentBack(pilot) ? 'rejected' : pilot.status === 'pending' && !pilot.submitted_at ? 'draft' : pilot.status)
+const statusLabel = (pilot: Pilot) => (sentBack(pilot) ? 'Sent back' : pilot.status === 'pending' && !pilot.submitted_at ? 'Draft' : capitalise(pilot.status))
 const roster = computed(() => {
   const query = search.value.trim().toLocaleLowerCase()
   return items.value
@@ -91,18 +97,18 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
 
 <template>
   <main class="page">
-    <PageHeader title="GM pilots" summary="Review new pilots, and level up or pay any pilot." />
+    <PageHeader title="GM pilots" summary="Review new pilots. Set levels and manna." />
     <p v-if="!profile" class="dim">Loading…</p>
-    <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
-    <p v-else-if="loading" class="dim">Loading pilot records…</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
+    <p v-else-if="loading" class="dim">Loading…</p>
     <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
     <template v-else>
-      <ReviewQueue :items="queueCards" description="New pilots, oldest first. Open one to review their sheet." />
+      <ReviewQueue :items="queueCards" description="New pilots, oldest first." />
 
       <section class="panel" aria-labelledby="roster-title">
         <header class="panel-head">
           <h2 id="roster-title">Pilot records</h2>
-          <p class="dim">Every pilot, including pending and dead. Level and manna save when you leave the field.</p>
+          <p class="dim">Level and manna save when you leave the field.</p>
         </header>
         <div class="search">
           <label class="field">
@@ -111,7 +117,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
           </label>
           <p class="dim" role="status"><span class="num">{{ roster.length }}</span> of <span class="num">{{ items.length }}</span> pilots</p>
         </div>
-        <p v-if="!roster.length" class="empty">{{ items.length ? 'No pilots match that search.' : 'No pilots on file.' }}</p>
+        <p v-if="!roster.length" class="empty">{{ items.length ? 'Nothing matches that search.' : 'No pilots yet.' }}</p>
         <div v-else class="record-window" role="region" aria-label="Pilot records" tabindex="0">
           <table class="table">
             <thead>
@@ -136,10 +142,10 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <td>
                   <span
                     class="badge"
-                    :class="pilot.status === 'pending' && pilot.sheet?.review_note ? 'rejected' : pilot.status"
+                    :class="statusClass(pilot)"
                     :title="pilot.status === 'pending' ? pilot.sheet?.review_note ?? '' : ''"
                   >
-                    {{ pilot.status === 'pending' && pilot.sheet?.review_note ? 'Sent back' : pilot.status }}
+                    {{ statusLabel(pilot) }}
                   </span>
                 </td>
                 <td class="number">
@@ -171,7 +177,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 </td>
                 <td>
                   <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }" class="link-button">Open sheet</RouterLink>
-                  <span v-if="!pilot.sheet" class="save-message error">Private sheet missing</span>
+                  <span v-if="!pilot.sheet" class="save-message error">Sheet missing</span>
                   <span v-if="rowError[pilot.id]" class="save-message error" role="alert">
                     Not saved: {{ rowError[pilot.id] }}
                     <button v-if="typed[pilot.id]" type="button" class="small quiet" @click="save(pilot, {})">Retry</button>

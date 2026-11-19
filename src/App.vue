@@ -101,10 +101,10 @@ async function disconnect() {
     <main v-if="profileError" class="page">
       <div class="notice warn" role="alert">
         <div class="notice-head">
-          <p class="notice-title">Couldn't load your profile</p>
+          <p class="notice-title">Profile didn't load</p>
           <button type="button" class="small" @click="loadProfile">Retry</button>
         </div>
-        <p>Can't reach the database. If the site has had a quiet week, the free Supabase project may be paused: an owner can restore it from the Supabase dashboard.</p>
+        <p>Can't reach the server. An owner may need to restore the paused project.</p>
       </div>
     </main>
     <RouterView v-else :key="route.meta.section === 'lore' ? 'lore' : route.path" />

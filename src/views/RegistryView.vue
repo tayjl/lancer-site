@@ -32,8 +32,8 @@ watch(
       <span v-if="!loading && !error && pilots.length" class="dim"><span class="num">{{ pilots.length }}</span> {{ pilots.length === 1 ? 'pilot' : 'pilots' }}</span>
     </PageHeader>
 
-    <p v-if="loading" class="dim">Loading pilots…</p>
-    <p v-else-if="error" class="notice warn" role="alert">Couldn't load the pilots: {{ error }}</p>
+    <p v-if="loading" class="dim">Loading…</p>
+    <p v-else-if="error" class="notice warn" role="alert">Pilots didn't load: {{ error }}</p>
     <p v-else-if="!pilots.length" class="empty">{{ route.meta.empty }}</p>
     <template v-else>
       <div class="search">
@@ -43,7 +43,7 @@ watch(
         </label>
         <p v-if="query.trim()" class="dim" role="status"><span class="num">{{ shown.length }}</span> of <span class="num">{{ pilots.length }}</span> pilots</p>
       </div>
-      <p v-if="!shown.length" class="empty">No pilots match that search.</p>
+      <p v-if="!shown.length" class="empty">Nothing matches that search.</p>
       <ul v-else class="card-grid">
         <li v-for="pilot in shown" :key="pilot.id">
           <PilotCard

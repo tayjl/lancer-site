@@ -6,9 +6,9 @@ const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
 export const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey)
 
-export const NOT_ALLOWED = "you don't have permission to change this, or it no longer exists."
-export const CHANGED_ELSEWHERE = 'this changed somewhere else.'
-export const OFFLINE = "can't reach the database. Check your connection, then retry."
+export const NOT_ALLOWED = "You don't have permission to change this."
+export const CHANGED_ELSEWHERE = 'Someone else changed this.'
+export const OFFLINE = "Can't reach the server. Check your connection."
 
 // Browsers word a failed request differently (Chrome "Failed to fetch", Firefox "NetworkError…", Safari "Load failed").
 const OFFLINE_MESSAGES = /failed to fetch|networkerror|load failed/i

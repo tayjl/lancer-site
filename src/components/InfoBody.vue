@@ -49,7 +49,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
       </ul>
     </div>
     <ItemStats v-else :stats="info.stats.filter((stat) => stat.kind !== 'sp')" />
-    <p v-if="sp" class="dim sp">Costs <span class="num">{{ sp.value }}</span> system points.</p>
+    <p v-if="sp" class="dim sp">Costs <span class="num">{{ sp.value }}</span> system {{ Number(sp.value) === 1 ? 'point' : 'points' }}.</p>
 
     <RulesText v-if="info.lore" class="lore" :html="info.lore" />
 
@@ -85,7 +85,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
       </section>
     </template>
 
-    <p v-if="!info.stats.length && !info.groups.length && !info.lore" class="dim">No further information.</p>
+    <p v-if="!info.stats.length && !info.groups.length && !info.lore" class="dim">No information.</p>
     <p v-if="source" class="pack-source">Source: {{ source }}</p>
   </div>
 </template>

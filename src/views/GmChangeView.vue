@@ -16,6 +16,7 @@ import { licenceName, mannaSpent, pilotProblems, personalStatProblems, formatAmo
 import { cardImages, deleteImage } from '../images'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
+import { capitalise, plural } from '../text'
 import { since } from '../time'
 
 // One pending change (opened from gm: changes): what it changes, in plain words, against the approved
@@ -50,7 +51,7 @@ async function load() {
     approved.value = sheetRow.data
       ? { ...sheetRow.data, sheet: sheetRow.data.sheet as unknown as Sheet }
       : null
-    error.value = card.error?.message ?? sheetRow.error?.message ?? (!card.data || !sheetRow.data ? 'Could not load the complete pilot record. Reload before reviewing.' : '')
+    error.value = card.error?.message ?? sheetRow.error?.message ?? (!card.data || !sheetRow.data ? "The pilot record didn't load fully." : '')
   }
   loading.value = false
 }
@@ -143,8 +144,8 @@ const note = ref('')
 const busy = ref(false)
 
 async function approve() {
-  const warning = problems.value.length ? ` The rule check lists ${problems.value.length} ${problems.value.length === 1 ? 'problem' : 'problems'}.` : ''
-  if (!(await confirmAction(`Approve this change to ${name.value}? It goes live straight away.${warning}`, { confirmLabel: 'Approve change' }))) return
+  const warning = problems.value.length ? ` It has ${plural(problems.value.length, 'problem')}.` : ''
+  if (!(await confirmAction(`Approve the change to ${name.value}? It goes live at once.${warning}`, { confirmLabel: 'Approve change' }))) return
   busy.value = true
   const { error: approveError } = await supabase.rpc('approve_change', {
     change_id: change.value!.id,
@@ -163,7 +164,7 @@ async function approve() {
 
 async function reject() {
   if (!note.value.trim()) {
-    error.value = 'Write a reason first, so the player knows what to fix.'
+    error.value = 'Write a reason before rejecting.'
     return
   }
   busy.value = true
@@ -178,9 +179,9 @@ async function reject() {
   <main class="page">
     <PageHeader :title="`Change to ${name}`" :crumbs="[{ label: 'GM changes', to: { name: 'gm-changes' } }, { label: name }]" />
 
-    <p v-if="!profile" class="dim">Loading change…</p>
-    <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
-    <p v-else-if="loading" class="dim">Loading change…</p>
+    <p v-if="!profile" class="dim">Loading…</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
+    <p v-else-if="loading" class="dim">Loading…</p>
     <p v-else-if="!change || !pilot || !approved" class="notice warn" role="alert">{{ error }}</p>
     <template v-else>
       <!-- The summary strip: whose change, and the manna. Sticks under the top bar on wide, tall screens. -->
@@ -188,12 +189,12 @@ async function reject() {
         <div>
           <p class="pilot-name">{{ pilot.pilot_name }}</p>
           <p class="sep dim">
-            <span>Player: {{ pilot.player?.display_name ?? '–' }}</span>
+            <span>Player: {{ pilot.player?.display_name ?? 'Unknown player' }}</span>
             <span v-if="waiting">Submitted {{ since(change.submitted_at!) }} ago</span>
-            <span v-else-if="pending">Draft: not submitted yet</span>
-            <span v-else><span class="badge" :class="change.status">{{ change.status }}</span></span>
+            <span v-else-if="pending">Not submitted</span>
+            <span v-else><span class="badge" :class="change.status">{{ capitalise(change.status) }}</span></span>
           </p>
-          <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }">Open the record and GM controls</RouterLink>
+          <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }">Open pilot record</RouterLink>
         </div>
         <div>
           <dl class="figures">
@@ -212,13 +213,13 @@ async function reject() {
               <dd class="num" :class="left < 0 ? 'tone-down' : 'tone-info'">{{ formatAmount(left) }}</dd>
             </div>
           </dl>
-          <p class="dim figures-note"><span class="num">{{ formatAmount(approved.manna) }}</span> received · <span class="num">{{ formatAmount(spentAfter) }}</span> spent on the proposed sheet</p>
+          <p class="dim figures-note"><span class="num">{{ formatAmount(approved.manna) }}</span> received · <span class="num">{{ formatAmount(spentAfter) }}</span> spent</p>
         </div>
       </section>
 
       <CatalogueNotice />
       <p v-if="stale && pending" class="notice warn" role="alert">
-        This pilot changed after the change was made. Approval is blocked, so the proposal can't overwrite newer edits.
+        This pilot changed after the change was made. Approval is blocked.
       </p>
       <RuleCheck v-if="pending" :problems="problems" />
 
@@ -229,7 +230,7 @@ async function reject() {
             <span class="num">{{ lines.filter((line) => KINDS[line.kind].tone === t.tone).length }}</span> {{ t.key }}
           </span>
         </p>
-        <p v-if="!lines.length" class="empty">No changes to the approved record.</p>
+        <p v-if="!lines.length" class="empty">No changes.</p>
         <div v-else class="change-groups">
           <section v-for="[section, items] in sections" :key="section" class="panel">
             <h2 class="sheet-label">{{ section }}</h2>
@@ -251,7 +252,7 @@ async function reject() {
           </section>
         </div>
       </section>
-      <p v-if="!pending" class="notice info">This change has been reviewed. Its original comparison and cost weren't stored, so the figures above use the proposal and the current manna received.</p>
+      <p v-if="!pending" class="notice info">Already reviewed. The figures use the current manna received.</p>
 
       <section v-if="waiting" class="panel" aria-labelledby="decision-title">
         <h2 id="decision-title" class="sheet-label">Decision<span class="private">GM only</span></h2>
@@ -259,13 +260,13 @@ async function reject() {
           <label class="field">
             <span>Note to the player</span>
             <textarea v-model="note" rows="3"></textarea>
-            <span class="hint">Optional when approving, required when rejecting.</span>
+            <span class="hint">Required when rejecting.</span>
           </label>
           <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
           <div class="actions">
             <span class="blocked">
               <button type="button" class="primary" :disabled="busy || stale" :aria-describedby="stale ? 'approve-why' : undefined" @click="approve">Approve change</button>
-              <span v-if="stale" id="approve-why" class="blocked-reason">The pilot changed after this change was made.</span>
+              <span v-if="stale" id="approve-why" class="blocked-reason">Pilot changed after this change</span>
             </span>
             <button type="button" class="danger" :disabled="busy" @click="reject">Reject change</button>
           </div>

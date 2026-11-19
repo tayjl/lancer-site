@@ -63,7 +63,7 @@ export const router = createRouter({
       component: () => import('./views/MechView.vue'),
       meta: { title: 'Mech', section: 'registry' },
     },
-    // New pilots waiting on a GM, for everyone to read. GMs review them from the gm pilots tab. Changes to
+    // New pilots a player has submitted and a GM hasn't decided on, for everyone to read. GMs review them from the gm pilots tab. Changes to
     // approved pilots hold private data, so they're only in the gm changes tab.
     {
       path: '/pending',
@@ -73,14 +73,14 @@ export const router = createRouter({
         title: 'Pending pilots',
         summary: 'New pilots waiting on a GM.',
         status: 'pending',
-        empty: 'Nothing waiting on a GM.',
+        empty: 'No pending pilots.',
       },
     },
     {
       path: '/memorial',
       name: 'memorial',
       component: () => import('./views/RegistryView.vue'),
-      meta: { title: 'Memorial', summary: 'Pilots who died. Their records are kept.', status: 'dead', empty: 'No one has died yet.' },
+      meta: { title: 'Memorial', summary: 'Pilots who died.', status: 'dead', empty: 'No dead pilots.' },
     },
     // Every piece of game content, browsable and searchable (ArchivesView.vue).
     {
@@ -99,7 +99,7 @@ export const router = createRouter({
       path: '/gm/pilots',
       name: 'gm-pilots',
       component: () => import('./views/GmPilotsView.vue'),
-      meta: { title: 'GM pilots', summary: 'Review new pilots, and level up or pay any pilot.', gm: true },
+      meta: { title: 'GM pilots', summary: 'Review new pilots. Set levels and manna.', gm: true },
     },
     // A pilot's record with the GM controls and, while pending, the decision. Opened from gm: pilots.
     {
@@ -112,7 +112,7 @@ export const router = createRouter({
       path: '/gm/changes',
       name: 'gm-changes',
       component: () => import('./views/GmChangesView.vue'),
-      meta: { title: 'GM changes', summary: 'Changes players want to make to their approved pilots.', gm: true },
+      meta: { title: 'GM changes', summary: 'Changes to approved pilots.', gm: true },
     },
     // One change: what it changes, then approve or reject.
     {
@@ -125,7 +125,7 @@ export const router = createRouter({
       path: '/gm/content',
       name: 'gm-content',
       component: () => import('./views/ContentView.vue'),
-      meta: { title: 'GM content', summary: 'The packs behind your pilots, mechs and equipment.', gm: true, owner: true },
+      meta: { title: 'GM content', summary: 'Game content packs.', gm: true, owner: true },
     },
     // The in-browser editor for game content (owners only), under the content tab.
     {

@@ -28,7 +28,7 @@ const choose = (id: string) => {
       </li>
     </ul>
     <div><button type="button" class="small" @click="picker?.open()"><Icon name="plus" />{{ add }}</button></div>
-    <ItemPicker ref="picker" :title="add" :options="options" empty="There are no weapons or systems to choose from." @choose="choose" />
+    <ItemPicker ref="picker" :title="add" :options="options" empty="No weapons or systems." @choose="choose" />
   </div>
 </template>
 

@@ -7,9 +7,9 @@ const reload = () => window.location.reload()
 <template>
   <div class="notice warn" role="alert">
     <div class="notice-head">
-      <p class="notice-title">Not saved: this changed somewhere else</p>
+      <p class="notice-title">Not saved</p>
       <button type="button" class="small" @click="reload">Reload</button>
     </div>
-    <p>Another tab or a GM saved a newer version. Reload to see it; your last edit here wasn't saved.</p>
+    <p>Someone else changed this. Reload to see their version.</p>
   </div>
 </template>

@@ -100,8 +100,8 @@ describe('talent checks', () => {
   it('refuses granted items that do not exist, but only when it knows which do', () => {
     const missing = { ...talent, ranks: [rank('One', { integrated: ['mw_nope'] }), rank('Two', { special_equipment: ['ms_shield', 'ms_nope'] }), rank('Three')] }
     expect(found('talents', missing).map((p) => [p.field, p.text])).toEqual([
-      ['ranks.0.integrated', 'Rank I: "mw_nope" isn\'t an item that exists.'],
-      ['ranks.1.special_equipment', 'Rank II: "ms_nope" isn\'t an item that exists.'],
+      ['ranks.0.integrated', 'Rank I: Item "mw_nope" doesn\'t exist.'],
+      ['ranks.1.special_equipment', 'Rank II: Item "ms_nope" doesn\'t exist.'],
     ])
     expect(found('talents', missing, { ...ctx, known: undefined })).toEqual([])
   })

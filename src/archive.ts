@@ -139,7 +139,7 @@ export const makerLogo = (maker?: Manufacturer) => LOGOS[`./assets/logos/${maker
 // by their best match, with one section each.
 export type ArchiveSection = { licence: string; entries: ArchiveEntry[] }
 export type ArchiveGroup = { key: string; title: string; colour: string; logo: string | null; entries: ArchiveEntry[]; sections: ArchiveSection[] }
-const GEAR_TYPES: Record<string, string> = { Armor: 'pilot armour', Weapon: 'pilot weapons', Gear: 'pilot gear' }
+const GEAR_TYPES: Record<string, string> = { Armor: 'Pilot armour', Weapon: 'Pilot weapons', Gear: 'Pilot gear' }
 const BY_LICENCE: ArchiveCategory[] = ['mech weapons', 'mech systems', 'weapon mods']
 const grouped = <T>(list: T[], keyOf: (item: T) => string) => {
   const groups = new Map<string, T[]>()
@@ -157,7 +157,7 @@ export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufactur
     const sections = grouped(list, (entry) => (!ranked && BY_LICENCE.includes(entry.category) ? entry.licence : ''))
       .sort(([a], [b]) => Number(Boolean(a)) - Number(Boolean(b)) || a.localeCompare(b))
       .map(([licence, entries]) => ({ licence, entries }))
-    return { key, title: maker ? maker.id : GEAR_TYPES[key] ?? key, colour: makerColour(maker), logo: makerLogo(maker), entries: list, sections }
+    return { key, title: maker ? maker.id : GEAR_TYPES[key] ?? (key === 'other' ? 'Other' : key), colour: makerColour(maker), logo: makerLogo(maker), entries: list, sections }
   })
 }
 

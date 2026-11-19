@@ -158,15 +158,15 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
 
 <template>
   <main class="page archives list-pane">
-    <PageHeader title="Archives" summary="Every manufacturer, licence, frame, weapon, system, weapon mod, piece of gear, biomod, talent and core bonus in the loaded content packs.">
+    <PageHeader title="Archives" summary="Every piece of game content, by manufacturer.">
       <span class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
     </PageHeader>
     <CatalogueNotice />
 
     <div class="search">
       <label class="field">
-        <span>Search every category</span>
-        <input ref="searchBox" v-model="query" type="search" placeholder="Name, maker or rules text" @keydown.esc="query = ''" />
+        <span>Search</span>
+        <input ref="searchBox" v-model="query" type="search" placeholder="Name, manufacturer or rules" @keydown.esc="query = ''" />
       </label>
       <button v-if="query" type="button" class="small" @click="(query = ''), searchBox?.focus()">Clear</button>
     </div>
@@ -212,7 +212,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
           </ul>
         </li>
       </ul>
-      <p v-else class="empty">No content yet: the content packs may still be loading, or none are imported.</p>
+      <p v-else class="empty">No content yet.</p>
     </template>
 
     <!-- Everything else: the list (a box per manufacturer or gear type, licence sub-headings for weapons and systems)
@@ -261,8 +261,8 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
     </div>
     <p v-else-if="searching" class="empty" role="status">Nothing matches that search.</p>
     <!-- The catalogues don't say when they've finished loading, so "nothing at all" can mean either. -->
-    <p v-else-if="entries.length" class="empty">Nothing in this category in the loaded content packs.</p>
-    <p v-else class="empty">No content yet: the content packs may still be loading, or none are imported.</p>
+    <p v-else-if="entries.length" class="empty">No entries.</p>
+    <p v-else class="empty">No content yet.</p>
   </main>
 </template>
 

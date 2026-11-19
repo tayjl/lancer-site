@@ -78,12 +78,12 @@ async function createMech() {
 
     <form v-if="addingMech" class="new-mech" @submit.prevent="createMech">
       <label class="field">
-        <span>Mech name (required)</span>
+        <span>Mech name</span>
         <input v-model="newMech.name" type="text" required />
       </label>
       <label class="field">
-        <span>Manufacturer ID (XXXX-XXXX-XXXX)</span>
-        <input v-model="newMech.manufacturerId" type="text" required />
+        <span>Manufacturer ID</span>
+        <input v-model="newMech.manufacturerId" type="text" placeholder="XXXX-XXXX-XXXX" required />
       </label>
       <p v-if="mechError" class="notice warn" role="alert">{{ mechError }}</p>
       <div class="actions">
@@ -91,7 +91,7 @@ async function createMech() {
         <button type="button" @click="addingMech = false">Cancel</button>
       </div>
     </form>
-    <p v-else-if="!mechs.length" class="empty">{{ editable ? 'No mechs yet.' : 'No mechs on file.' }}</p>
+    <p v-else-if="!mechs.length" class="empty">{{ editable ? 'No mechs yet.' : 'No mechs.' }}</p>
   </section>
 </template>
 

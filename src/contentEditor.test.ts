@@ -43,13 +43,13 @@ describe('item checks', () => {
   })
   it('needs a name, a gear type and an id that stays the same', () => {
     expect(texts({ id: 'other', name: ' ', type: 'Hat' })).toEqual([
-      'The ID can\'t change: it has to stay "hb_pg_vest", so pilots keep this item.',
+      'The ID must stay "hb_pg_vest".',
       'A name is needed.',
-      'Choose what kind of gear this is.',
+      'Choose a gear type.',
     ])
   })
   it('needs a core bonus to have a manufacturer', () => {
-    expect(texts({ id: 'hb_pg_vest', name: 'Bonus' }, 'core_bonuses')).toEqual(['Choose the manufacturer of this core bonus.'])
+    expect(texts({ id: 'hb_pg_vest', name: 'Bonus' }, 'core_bonuses')).toEqual(['Choose a manufacturer.'])
   })
   it('wants a number for a tag that takes one', () => {
     expect(texts({ ...vest, tags: [{ id: 'tg_limited' }] })).toEqual(['Limited needs a number.'])
@@ -58,13 +58,13 @@ describe('item checks', () => {
   })
   it('warns, but allows, a tag that is not loaded', () => {
     expect(texts({ ...vest, tags: [{ id: 'tg_mystery' }] })).toEqual([])
-    expect(texts({ ...vest, tags: [{ id: 'tg_mystery' }] }, 'pilot_gear', 'warn')).toEqual(['Tag "tg_mystery" isn\'t in the loaded tags.'])
+    expect(texts({ ...vest, tags: [{ id: 'tg_mystery' }] }, 'pilot_gear', 'warn')).toEqual(['Tag "tg_mystery" doesn\'t exist.'])
     expect(texts({ ...vest, tags: [{}] })).toEqual(['Tag 1 needs choosing.'])
   })
   it('checks bonus numbers and formulas, and warns about bonuses the build maths ignores', () => {
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 2 }, { id: 'physicality', val: '1' }, { id: 'sp', val: '{systems}/2' }] })).toEqual([])
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 'lots' }, { val: 1 }] })).toEqual(['Bonus 1 needs a number, or a formula such as {systems}/2.', 'Bonus 2 needs a type.'])
-    expect(texts({ ...vest, bonuses: [{ id: 'range', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Bonus "range" isn\'t counted by the site\'s build maths.'])
+    expect(texts({ ...vest, bonuses: [{ id: 'range', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Bonus "range" isn\'t counted in the stats.'])
   })
   it('accepts dice for damage and shows a missing number', () => {
     expect(texts({ ...vest, damage: [{ type: 'Kinetic', val: '2d6+1' }, { type: 'Energy', val: 3 }] })).toEqual([])
@@ -76,8 +76,8 @@ describe('item checks', () => {
   it('checks ranges and actions', () => {
     expect(texts({ ...vest, range: [{ type: 'Range', val: 5 }, { type: 'Mile', val: 'far' }] })).toEqual(['Range 2 needs a type.', 'Range 2 needs a number.'])
     expect(texts({ ...vest, actions: [{ name: 'Dash', activation: 'Quick' }, { name: '', activation: 'Quick' }] })).toEqual(['Action 2 needs a name.'])
-    expect(texts({ ...vest, actions: [{ name: 'Dash', activation: 'Sometimes', detail: 'Dash.' }] }, 'pilot_gear', 'warn')).toEqual(["Action 1 has an activation the site doesn't know."])
-    expect(texts({ ...vest, actions: [{ name: 'Dash', activation: 'Quick' }] }, 'pilot_gear', 'warn')).toEqual(["Action 1 has no rules text, so players won't see it."])
+    expect(texts({ ...vest, actions: [{ name: 'Dash', activation: 'Sometimes', detail: 'Dash.' }] }, 'pilot_gear', 'warn')).toEqual(["Action 1 has an unknown activation."])
+    expect(texts({ ...vest, actions: [{ name: 'Dash', activation: 'Quick' }] }, 'pilot_gear', 'warn')).toEqual(["Action 1 has no rules text and won't show."])
   })
   it('only lists errors as blocking', () => {
     expect(errorsOf(problemsFor('pilot_gear', { ...vest, tags: [{ id: 'tg_mystery' }] }, ctx))).toEqual([])
@@ -92,13 +92,13 @@ describe('bionic and personal stat checks', () => {
   it('refuses a missing stat, a repeated stat, zero and fractions', () => {
     expect(texts({ ...bionic, bonuses: [{ stat_id: 'luck', amount: 1 }, { stat_id: 'acuity', amount: 0 }, { stat_id: 'acuity', amount: 1 }] }, 'bionics')).toEqual([
       'Bonus 1 needs a stat that exists.',
-      'Bonus 2 needs a whole number other than 0.',
+      'Bonus 2 must be a whole number, not 0.',
       'Only one bonus per stat: acuity is there twice.',
     ])
-    expect(texts({ ...bionic, name: '', mod_point_cost: -1 }, 'bionics')).toEqual(['A name is needed.', 'Mod points need a whole number, 0 or more.'])
+    expect(texts({ ...bionic, name: '', mod_point_cost: -1 }, 'bionics')).toEqual(['A name is needed.', 'Mod points must be a whole number, 0 or more.'])
   })
   it('needs a whole price of 0 or more, and only warns about a missing slot', () => {
-    expect(texts({ ...bionic, manna_cost: 12.5 }, 'bionics')).toEqual(['The price needs a whole number of manna, 0 or more.'])
+    expect(texts({ ...bionic, manna_cost: 12.5 }, 'bionics')).toEqual(['Price must be a whole number, 0 or more.'])
     expect(texts({ ...bionic, manna_cost: -1 }, 'bionics')).toHaveLength(1)
     expect(texts({ ...bionic, manna_cost: 0 }, 'bionics')).toEqual([])
     expect(texts({ ...bionic, slot: ' ' }, 'bionics')).toEqual([])
@@ -106,11 +106,11 @@ describe('bionic and personal stat checks', () => {
   })
   it('only warns about a missing manufacturer', () => {
     expect(texts({ ...bionic, source: '' }, 'bionics')).toEqual([])
-    expect(texts({ ...bionic, source: '' }, 'bionics', 'warn')).toEqual(["No manufacturer: it's listed under Other."])
+    expect(texts({ ...bionic, source: '' }, 'bionics', 'warn')).toEqual(["No manufacturer. It's listed under Other."])
   })
   it('needs a personal stat to have a name and an order', () => {
     expect(texts({ name: 'Grit', sort_order: 6 }, 'pilot_stats')).toEqual([])
-    expect(texts({ name: '', sort_order: 1.5 }, 'pilot_stats')).toEqual(['A name is needed.', 'The order needs a whole number.'])
+    expect(texts({ name: '', sort_order: 1.5 }, 'pilot_stats')).toEqual(['A name is needed.', 'Order must be a whole number.'])
   })
 })
 

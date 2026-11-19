@@ -9,6 +9,7 @@ import ImageUpload from '../components/ImageUpload.vue'
 import SaveStatus from '../components/SaveStatus.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import ItemPicker from '../components/ItemPicker.vue'
+import MechOverview from '../components/MechOverview.vue'
 import MechLoadout from '../components/MechLoadout.vue'
 import Portrait from '../components/Portrait.vue'
 import RuleCheck from '../components/RuleCheck.vue'
@@ -20,6 +21,7 @@ import InfoRule from '../components/InfoRule.vue'
 import ItemCard from '../components/ItemCard.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { frameInfo } from '../info'
+import { frameRanges, framePick } from '../pickerRows'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
@@ -29,7 +31,7 @@ import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
 import { pilotList, sectionOverride } from '../router'
-import { frameBlockedBy, gmOnly, GM_ONLY_REASON, mechProblems, rankName, useCatalogue } from '../rules'
+import { frameBlockedBy, gmOnly, GM_ONLY_REASON, mechProblems, useCatalogue } from '../rules'
 import { isGm } from '../auth'
 
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
@@ -126,7 +128,7 @@ const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }> = {
   'core-bonus': { icon: 'corebonus', label: 'Core bonus' },
   talent: { icon: 'talent', label: 'Talent' },
   item: { icon: 'system', label: 'Equipment' },
-  missing: { icon: 'warning', label: 'Unavailable' },
+  missing: { icon: 'warning', label: 'Missing' },
 }
 
 // "Other effects and conditions": the frame's traits as a card each (their actions and uncounted bonuses inside), the
@@ -164,27 +166,20 @@ const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes
 // --- The frame, picked at the top right. A new frame has different mounts, so its weapons come off. ---
 // A licensed frame needs its rank in its licence, and, if the licence has alternate frames, to be the one the pilot chose for it; GMS frames need none. HORUS, NHC and Exotic frames are GM-only.
 const framePicker = useTemplateRef('framePicker')
-const frameOptions = computed(() =>
-  frames.value
-    .map((f) => {
-      const restricted = !isGm.value && gmOnly(f)
-      const why = restricted ? GM_ONLY_REASON : frameBlockedBy(f, frames.value, sheet.value)
-      const licensed = !why
-      return {
-        id: f.id,
-        name: `${f.source} ${f.name}`,
-        meta: [f.mechtype.join('/'), `Mounts: ${f.mounts.join(', ')}`, f.licenceLevel ? `Licence rank ${rankName(f.licenceLevel)}` : 'GMS'].filter(Boolean),
-        blocked: why,
-        info: () => frameInfo(f, frames.value),
-        licensed,
-      }
-    })
-    .sort((a, b) => Number(b.licensed) - Number(a.licensed)),
-)
+const frameOptions = computed(() => {
+  const ranges = frameRanges(frames.value)
+  return frames.value.map((f) => ({
+    id: f.id,
+    name: f.name,
+    ...framePick(f, ranges, manufacturers.value),
+    blocked: !isGm.value && gmOnly(f) ? GM_ONLY_REASON : frameBlockedBy(f, frames.value, sheet.value),
+    info: () => frameInfo(f, frames.value),
+  }))
+})
 
 async function chooseFrame(id: string) {
   const armed = (details.value.mounts ?? []).flat().some(Boolean)
-  if (armed && !(await confirmAction("A new frame has different mounts, so this mech's weapons, and their mods, come off. Go ahead?", { confirmLabel: 'Change frame', danger: true })))
+  if (armed && !(await confirmAction("Change the frame? This mech's weapons and mods come off.", { confirmLabel: 'Change frame', danger: true })))
     return
   await track(savePrivate({ frame: id, mounts: [], core_mounts: {}, weapon_options: {}, weapon_mods: {} }))
   if (!saveError.value) framePicker.value?.close()
@@ -209,7 +204,7 @@ function saveText(field: 'name' | 'manufacturer_id', event: Event) {
 const scrapError = ref('')
 
 async function scrap() {
-  if (!(await confirmAction(`Scrap ${mech.value!.name}? This can't be undone.`, { confirmLabel: 'Scrap mech', danger: true }))) return
+  if (!(await confirmAction(`Scrap ${mech.value!.name}? It leaves the hangar. This can't be undone.`, { confirmLabel: 'Scrap mech', danger: true }))) return
   const rest = { ...sheet.value.mechs }
   delete rest[mechId.value]
   scrapError.value =
@@ -234,9 +229,9 @@ async function scrap() {
       </ol>
     </nav>
 
-    <p v-if="loading" class="dim">Loading mech record…</p>
+    <p v-if="loading" class="dim">Loading…</p>
     <p v-else-if="loadError" class="notice warn" role="alert">{{ loadError }}</p>
-    <p v-else-if="!mech" class="notice warn" role="alert">No mech with that id in {{ own ? 'your' : 'this' }} hangar.</p>
+    <p v-else-if="!mech" class="notice warn" role="alert">No mech with that ID.</p>
 
     <div v-else class="sheet">
       <!-- The registration plate. The manufacturer's colour is only the logo and the 3px top border (--mf). -->
@@ -309,9 +304,9 @@ async function scrap() {
 
       <!-- Mech edits go into the pilot's open change (src/myPilot.ts), which this page otherwise wouldn't show. -->
       <div v-if="own && draft" class="next">
-        <span class="badge" :class="draft.submitted_at ? 'pending' : 'draft'">{{ draft.submitted_at ? 'Change submitted' : 'Draft change' }}</span>
-        <p v-if="!draft.submitted_at">Edits to this mech go into your draft change. Submit it from <RouterLink :to="{ name: 'pilot' }">My pilot</RouterLink>.</p>
-        <p v-else>Change submitted, waiting on a GM, so this mech is read-only. To edit it, choose Edit change on <RouterLink :to="{ name: 'pilot' }">My pilot</RouterLink>.</p>
+        <span class="badge" :class="draft.submitted_at ? 'pending' : 'draft'">{{ draft.submitted_at ? 'Submitted' : 'Draft' }}</span>
+        <p v-if="!draft.submitted_at">Edits here go into your draft change. Submit it from <RouterLink :to="{ name: 'pilot' }">My pilot</RouterLink>.</p>
+        <p v-else>Waiting on a GM. This mech is read-only.</p>
       </div>
 
       <RuleCheck v-if="canSeePrivate" :problems="problems" :fix="ruleFix" />
@@ -321,6 +316,24 @@ async function scrap() {
       <SheetTabs v-if="tabs.length > 1" v-model="tab" :tabs="tabs" label="Mech sections" class="sheet-tabs" />
 
       <div v-show="tab === 'profile'" class="tab-panel">
+        <MechOverview
+          v-if="canSeePrivate && frame && baseFrame"
+          :frame="frame"
+          :base-frame="baseFrame"
+          :frames="frames"
+          :maker="maker"
+          :logo="logo"
+          :stats="stats"
+          :sheet="sheet"
+          :details="details"
+          :bonuses="effects.bonuses"
+          :weapons="availableWeapons"
+          :systems="availableSystems"
+          :mods="mods"
+          :integrated="integrated"
+          :sp-used="spUsed"
+          :sp-total="spTotal"
+        />
         <div class="profile">
           <div class="writing">
             <SheetField class="panel" title="Appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
@@ -335,7 +348,7 @@ async function scrap() {
         <section v-if="editable" class="panel danger-zone">
           <h2 class="sheet-label">Danger zone</h2>
           <div class="danger-body">
-            <p class="dim">Scrapping {{ mech.name }} removes it and its loadout from {{ own ? 'your' : 'the' }} hangar for good.</p>
+            <p class="dim">Scrapping {{ mech.name }} removes it from the hangar. This can't be undone.</p>
             <button type="button" class="danger" @click="scrap">Scrap mech</button>
           </div>
           <p v-if="scrapError" class="notice warn" role="alert">{{ scrapError }}</p>
@@ -359,7 +372,7 @@ async function scrap() {
           </section>
           <section v-if="frame && effects.reminders.length" class="panel">
             <h2 class="sheet-label">Other effects and conditions<span class="private">Private</span></h2>
-            <p class="dim intro">Only the modifiers listed under the stats' sources are counted. These need you or the GM to apply them.</p>
+            <p class="dim intro">These aren't counted in the stats.</p>
             <ul v-if="traitCards.length" class="trait-cards">
               <li v-for="card in traitCards" :key="card.name">
                 <ItemCard type="frame" icon="trait" :name="card.name">
@@ -371,7 +384,7 @@ async function scrap() {
                     :activation="entry.activation"
                     :html="entry.text"
                   >
-                    <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats above.</p>
+                    <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats.</p>
                   </InfoRule>
                 </ItemCard>
               </li>
@@ -387,7 +400,7 @@ async function scrap() {
                 :activation="entry.activation"
                 :html="entry.text"
               >
-                <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats above.</p>
+                <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats.</p>
               </InfoRule>
             </ItemCard>
             <ul v-if="otherReminders.length" class="effects">
@@ -400,12 +413,12 @@ async function scrap() {
                     <b>{{ reminder.name }}</b>
                   </p>
                   <RulesText :html="reminder.text" />
-                  <p v-if="reminder.uncounted" class="dim uncounted">Not counted in the stats above.</p>
+                  <p v-if="reminder.uncounted" class="dim uncounted">Not counted in the stats.</p>
                 </div>
               </li>
             </ul>
           </section>
-          <p v-if="!frame" class="empty">Choose a frame to work out this mech's stats.</p>
+          <p v-if="!frame" class="empty">Choose a frame first.</p>
         </div>
 
         <div v-show="tab === 'loadout'" class="tab-panel">

@@ -5,16 +5,17 @@ import { isOwner } from '../auth'
 import { confirmAction } from '../confirm'
 import { cardImages, deleteImage } from '../images'
 import { checkWrite, supabase } from '../lib/supabaseClient'
+import { plural } from '../text'
 import type { Character } from '../myPilot'
 import RuleCheck from './RuleCheck.vue'
 
 // GMs and owners only, on the review page (opened from the gm: pilots tab or any record): a pilot's level and manna received
 // (homebrew; src/rules.ts), which only GMs set, after review. Pending pilots only get the decision and note.
-// Approving moves the pilot to the registry; refusing leaves it pending. Either decision saves the note
-// the player sees on their sheet. "problems" is the rule check, shown above the buttons; approving with
+// Approving moves the pilot to the registry; sending back makes it a draft again for its player. Either decision saves
+// the note the player sees on their sheet. "problems" is the rule check, shown above the buttons; approving with
 // problems asks first. The database enforces who can do this; the page only hides it from players.
 // "sheetUpdatedAt" is the sheet's updated_at from the same load as the pilot on the page (what the GM is looking at).
-const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name' | 'updated_at'>; sheetUpdatedAt: string; problems: string[] }>()
+const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name' | 'updated_at' | 'submitted_at'>; sheetUpdatedAt: string; problems: string[] }>()
 const emit = defineEmits<{ reviewed: [] }>()
 const router = useRouter()
 
@@ -28,6 +29,8 @@ const busy = ref(false)
 
 const name = computed(() => props.pilot.callsign ?? props.pilot.pilot_name)
 const pending = computed(() => props.pilot.status === 'pending')
+// Only a submitted pilot can be decided on; a draft is still its player's to finish.
+const submitted = computed(() => pending.value && !!props.pilot.submitted_at)
 
 async function load() {
   const { data, error: loadError } = await supabase
@@ -57,7 +60,7 @@ async function saveSheet(changes: { level?: number; manna?: number; review_note?
 // Level and manna save on their own button only; approving and sending back never need them.
 // GMs can mark an approved pilot dead too (mark_dead in the database). It can't be undone.
 async function markDead() {
-  if (!(await confirmAction(`Mark ${name.value} dead? This can't be undone. They move to the memorial.`, { confirmLabel: 'Mark dead', danger: true }))) return
+  if (!(await confirmAction(`Mark ${name.value} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))) return
   busy.value = true
   const { error: deathError } = await supabase.rpc('mark_dead', { target_character_id: props.pilot.id })
   busy.value = false
@@ -70,11 +73,11 @@ async function markDead() {
 const deleteError = ref('')
 
 async function deletePilot() {
-  if (!(await confirmAction(`Delete ${name.value} permanently? This removes the pilot, their sheet, mechs and every change. It can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
+  if (!(await confirmAction(`Delete ${name.value}? This removes their sheet, mechs and changes. This can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
   busy.value = true
   const { data, error: removeError } = await supabase.from('characters').delete().eq('id', props.pilot.id).select('id, pilot_image, mechs')
   busy.value = false
-  deleteError.value = removeError?.message ?? (data?.length ? '' : 'Nothing was deleted. Only owners can delete pilots.')
+  deleteError.value = removeError?.message ?? (data?.length ? '' : 'Not deleted: Only owners can delete pilots.')
   if (data?.length) cardImages(data[0]).forEach(deleteImage)
   if (!deleteError.value) router.push({ name: 'gm-pilots' })
 }
@@ -85,14 +88,14 @@ async function saveNumbers() {
   busy.value = true
   error.value = (await saveSheet({ level: level.value, manna: manna.value })) ?? ''
   busy.value = false
-  message.value = error.value ? '' : 'Saved.'
+  message.value = error.value ? '' : 'Saved'
   if (!error.value) emit('reviewed')
 }
 
 async function approve() {
   error.value = ''
-  const warning = props.problems.length ? ` The rule check lists ${props.problems.length} ${props.problems.length === 1 ? 'problem' : 'problems'}.` : ''
-  if (!(await confirmAction(`Approve ${name.value}? They'll appear in the pilot registry.${warning}`, { confirmLabel: 'Approve pilot' }))) return
+  const warning = props.problems.length ? ` It has ${plural(props.problems.length, 'problem')}.` : ''
+  if (!(await confirmAction(`Approve ${name.value}? They join the registry.${warning}`, { confirmLabel: 'Approve pilot' }))) return
   busy.value = true
   // approve_pilot saves the note and approves together, and refuses if the pilot changed since it was loaded. It
   // compares the later of the card's and the sheet's updated_at; the strings are sent back as they came (a Date
@@ -109,12 +112,15 @@ async function approve() {
 }
 
 async function sendBack() {
-  error.value = note.value.trim() ? '' : 'Write a note first, so the player knows what to change.'
+  error.value = note.value.trim() ? '' : 'Write a note before sending back.'
   if (error.value) return
   busy.value = true
-  error.value = (await saveSheet({ review_note: note.value.trim() })) ?? ''
+  // The note and the pilot going back to a draft are saved together.
+  const { error: backError } = await supabase.rpc('send_back_pilot', { target_character_id: props.pilot.id, note: note.value })
   busy.value = false
-  message.value = error.value ? '' : 'Sent back. The player sees your note on their sheet.'
+  error.value = backError?.message ?? ''
+  message.value = error.value ? '' : 'Sent back.'
+  if (!error.value) emit('reviewed')
 }
 </script>
 
@@ -134,19 +140,20 @@ async function sendBack() {
         </label>
         <button type="button" :disabled="busy" @click="saveNumbers">Save level and manna</button>
       </div>
-      <template v-if="pending">
+      <p v-if="pending && !submitted" class="dim">Not submitted yet.</p>
+      <template v-if="submitted">
         <label class="field">
           <span>Note to the player</span>
           <textarea v-model="note" rows="3"></textarea>
-          <span class="hint">Sent with either decision. Needed to refuse.</span>
+          <span class="hint">Required when sending back.</span>
         </label>
         <RuleCheck :problems="problems" />
       </template>
       <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
       <p v-else-if="message" class="notice ok" role="status">{{ message }}</p>
-      <div v-if="pending" class="actions">
+      <div v-if="submitted" class="actions">
         <button type="button" class="primary" :disabled="busy" @click="approve">Approve pilot</button>
-        <button type="button" class="danger" :disabled="busy" @click="sendBack">Refuse pilot</button>
+        <button type="button" class="danger" :disabled="busy" @click="sendBack">Send back</button>
       </div>
       <div v-else-if="pilot.status === 'approved'" class="actions">
         <button type="button" class="danger" :disabled="busy" @click="markDead">Mark pilot dead</button>
@@ -157,8 +164,8 @@ async function sendBack() {
   <section v-if="isOwner" class="panel danger-zone">
     <h2 class="sheet-label">Danger zone<span class="private">Owner only</span></h2>
     <div class="danger-body">
-      <p class="dim">Deleting {{ name }} removes the pilot, their sheet, mechs and every change. It can't be undone.</p>
-      <button type="button" class="danger" :disabled="busy" @click="deletePilot">Delete pilot permanently</button>
+      <p class="dim">Deleting {{ name }} removes their sheet, mechs and changes. This can't be undone.</p>
+      <button type="button" class="danger" :disabled="busy" @click="deletePilot">Delete pilot</button>
     </div>
     <p v-if="deleteError" class="notice warn" role="alert">{{ deleteError }}</p>
   </section>

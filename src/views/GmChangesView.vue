@@ -4,6 +4,7 @@ import { isGm, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
 import { supabase } from '../lib/supabaseClient'
+import { capitalise } from '../text'
 import { since } from '../time'
 
 // gm: changes: changes players have submitted to their approved pilots, oldest submission first,
@@ -54,21 +55,20 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
 
 <template>
   <main class="page">
-    <PageHeader title="GM changes" summary="Changes players want to make to their approved pilots." />
+    <PageHeader title="GM changes" summary="Changes to approved pilots." />
 
     <p v-if="!profile" class="dim">Loading…</p>
-    <p v-else-if="!isGm" class="notice warn" role="alert">Access denied. This page is for GMs.</p>
+    <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
     <template v-else>
-      <p v-if="loading" class="dim">Loading changes…</p>
+      <p v-if="loading" class="dim">Loading…</p>
       <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
-      <ReviewQueue v-else :items="queueCards" description="Changes to approved pilots, oldest first. Open one to review it." />
+      <ReviewQueue v-else :items="queueCards" description="Changes to approved pilots, oldest first." />
 
       <section v-if="!loading && !error" class="panel" aria-labelledby="history-title">
         <header class="panel-head">
           <h2 id="history-title">Reviewed</h2>
-          <p class="dim">The latest reviewed changes.</p>
         </header>
-        <p v-if="!reviewed.length" class="empty">No changes reviewed yet.</p>
+        <p v-if="!reviewed.length" class="empty">No reviewed changes yet.</p>
         <div v-else class="table-window" role="region" aria-label="Reviewed changes" tabindex="0">
           <table class="table">
             <thead>
@@ -83,7 +83,7 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
             <tbody>
               <tr v-for="item in reviewed" :key="item.id">
                 <td><RouterLink :to="{ name: 'gm-change', params: { id: item.id } }" class="callsign">{{ nameOf(item.character) }}</RouterLink></td>
-                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'rejected'">{{ item.status }}</span></td>
+                <td><span class="badge" :class="item.status === 'approved' ? 'approved' : 'rejected'">{{ capitalise(item.status) }}</span></td>
                 <td>{{ item.reviewer?.display_name ?? '–' }}</td>
                 <td class="dim"><template v-if="item.reviewed_at">{{ since(item.reviewed_at) }} ago</template></td>
                 <td class="dim reason" :title="item.review_reason ?? ''">{{ item.review_reason ?? '–' }}</td>

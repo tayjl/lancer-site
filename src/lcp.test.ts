@@ -18,29 +18,29 @@ describe('LCP files', () => {
   })
 
   it('requires the manifest at the archive root', async () => {
-    await expect(readLcp(zipSync({ 'folder/lcp_manifest.json': strToU8(JSON.stringify(manifest)) }))).rejects.toThrow('Missing lcp_manifest.json')
+    await expect(readLcp(zipSync({ 'folder/lcp_manifest.json': strToU8(JSON.stringify(manifest)) }))).rejects.toThrow('no lcp_manifest.json')
   })
 
   it.each([
     [{ 'lcp_manifest.json': { ...manifest, name: '' } }, 'name'],
     [{ 'lcp_manifest.json': { ...manifest, version: 'latest' } }, 'version'],
     [{ 'frames.json': {} }, 'list of items'],
-    [{ 'frames.json': [{ name: 'No ID' }] }, 'non-empty ID'],
+    [{ 'frames.json': [{ name: 'No ID' }] }, 'needs an ID'],
     [{ 'frames.json': [{ id: 'test', name: '' }] }, 'needs a name'],
     [{ 'weapons.json': [{ id: 'test_frame', name: 'Duplicate' }] }, 'Duplicate item ID'],
-    [{ 'frames.json': [] }, 'no supported'],
+    [{ 'frames.json': [] }, 'no content the site uses'],
   ])('rejects invalid content', async (files, message) => {
     await expect(readLcp(archive(files as Record<string, unknown>))).rejects.toThrow(message as string)
   })
 
   it('rejects malformed JSON and invalid archives', async () => {
-    await expect(readLcp(zipSync({ 'lcp_manifest.json': strToU8('{broken') }))).rejects.toThrow('not valid UTF-8 JSON')
+    await expect(readLcp(zipSync({ 'lcp_manifest.json': strToU8('{broken') }))).rejects.toThrow('valid JSON')
     await expect(readLcp(new Uint8Array([1, 2, 3]))).rejects.toThrow('valid .lcp file')
   })
 
   it('limits expanded file sizes before decompression', async () => {
     const data = zipSync({ 'lcp_manifest.json': strToU8(' '.repeat(8 * 1024 * 1024 + 1)) })
-    await expect(readLcp(data)).rejects.toThrow('JSON content is too large')
+    await expect(readLcp(data)).rejects.toThrow('That pack is too large')
   })
 
   it('warns about dependencies and advanced v3 effects', async () => {

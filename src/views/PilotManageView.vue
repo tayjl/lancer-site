@@ -30,6 +30,7 @@ import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
 import { pilotList, sectionOverride } from '../router'
 import { coreBonusPicks, gmOnly, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
+import { capitalise } from '../text'
 
 // my pilot: your pilot as one sheet. A compact header (portrait, callsign, name, player, status, then level, licence
 // level and manna), the "what happens next" bar under it, any notes and the rule check, then a slim sticky row of
@@ -68,7 +69,8 @@ const {
   create,
   updateCharacter,
   updateSheet,
-  resubmit,
+  submitPilot,
+  reopenPilot,
   dismissApprovalNote,
   change,
   draft,
@@ -78,6 +80,9 @@ const {
   withdrawChange,
   markDead,
 } = useMyPilot(pilotId, { gmEdit: () => route.query.edit === '1' })
+
+// A pilot that isn't submitted yet (a new one, or one a GM sent back): only its player and GMs see it in lists.
+const isDraft = computed(() => character.value?.status === 'pending' && !character.value.submitted_at)
 
 // Your approved pilot: changes are proposed, then a GM approves them (src/myPilot.ts).
 const approvedOwn = computed(() => own && character.value?.status === 'approved')
@@ -105,12 +110,12 @@ function clearChangeNote() {
 }
 async function confirmDeath() {
   const name = character.value!.callsign ?? character.value!.pilot_name
-  if (await confirmAction(`Mark ${name} dead? This can't be undone. They move to the memorial, and you can register a new pilot.`, { confirmLabel: 'Mark dead', danger: true }))
+  if (await confirmAction(`Mark ${name} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))
     track(markDead())
 }
 
 async function withdraw() {
-  if (await confirmAction('Withdraw this change? Everything in it is thrown away; your approved pilot stays as it is.', { confirmLabel: 'Withdraw', danger: true }))
+  if (await confirmAction("Withdraw this change? Your approved pilot won't change. This can't be undone.", { confirmLabel: 'Withdraw change', danger: true }))
     track(withdrawChange())
 }
 
@@ -224,7 +229,7 @@ const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({
 const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids }))
 
 // The rule check speaks to whoever can fix it: you, on your own editable sheet (a draft: before you submit it).
-const ruleFix = computed(() => (!own || !editable.value ? undefined : draft.value ? 'draft' : 'own'))
+const ruleFix = computed(() => (!own || !editable.value ? undefined : draft.value || isDraft.value ? 'draft' : 'own'))
 // Your own sheet (and any dead pilot's) has the next-step bar under the header; GMs on a record get a link to review.
 const hasNext = computed(() => own || character.value?.status === 'dead')
 const gmLink = computed(() => isGm.value && !own && !reviewing)
@@ -264,25 +269,25 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       </ol>
     </nav>
 
-    <p v-if="loading" class="dim">Loading pilot record…</p>
+    <p v-if="loading" class="dim">Loading…</p>
     <p v-else-if="loadError" class="notice warn" role="alert">{{ loadError }}</p>
-    <p v-else-if="!character && !own" class="notice warn" role="alert">No pilot record with that id.</p>
+    <p v-else-if="!character && !own" class="notice warn" role="alert">No pilot with that ID.</p>
 
     <!-- No pilot yet: a name registers one, then the full sheet opens. -->
     <section v-else-if="!character" class="register panel">
-      <h1 class="sheet-label">Register a pilot</h1>
+      <h1 class="sheet-label">New pilot</h1>
       <form class="register-form" @submit.prevent="register">
-        <p>No pilot on file. A name is all that's needed to start; everything else is filled in on the sheet.</p>
+        <p>Start with a name. Fill in the rest on the sheet.</p>
         <label class="field">
           <span>Callsign</span>
           <input v-model="newPilot.callsign" type="text" />
         </label>
         <label class="field">
-          <span>Name (required)</span>
+          <span>Name</span>
           <input v-model="newPilot.name" type="text" required />
         </label>
         <p v-if="registerError" class="notice warn" role="alert">{{ registerError }}</p>
-        <button type="submit" class="primary">Register pilot</button>
+        <button type="submit" class="primary">Create pilot</button>
       </form>
     </section>
 
@@ -319,10 +324,11 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               />
               <template v-else>{{ character.pilot_name }}</template>
             </span>
-            <span>Player: {{ playerName || '–' }}</span>
+            <span>Player: {{ playerName || 'Unknown player' }}</span>
             <span>
-              <span v-if="character.status === 'pending' && reviewNote" class="badge rejected">Sent back</span>
-              <span v-else class="badge" :class="character.status">{{ character.status }}</span>
+              <span v-if="isDraft && reviewNote" class="badge rejected">Sent back</span>
+              <span v-else-if="isDraft" class="badge draft">Draft</span>
+              <span v-else class="badge" :class="character.status">{{ capitalise(character.status) }}</span>
             </span>
           </div>
         </div>
@@ -366,40 +372,45 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       <!-- What happens next: a badge, a sentence and the actions that do it (secondary first, the primary last). Your
            own sheet's save status follows the sentence. -->
       <div v-if="hasNext" class="next">
-        <p v-if="character.status === 'dead'" class="next-text">This pilot is dead. The record is kept, read-only.</p>
-        <template v-else-if="character.status === 'pending' && reviewNote">
+        <p v-if="character.status === 'dead'" class="next-text">This pilot is dead. The record is read-only.</p>
+        <template v-else-if="isDraft && reviewNote">
           <span class="badge rejected">Sent back</span>
-          <p class="next-text">Sent back by a GM. Change what they asked (note below), then resubmit.</p>
+          <p class="next-text">A GM sent this back. Fix what they asked, then resubmit.</p>
+        </template>
+        <template v-else-if="isDraft">
+          <span class="badge draft">Draft</span>
+          <p class="next-text">GMs see it once you submit it.</p>
         </template>
         <template v-else-if="character.status === 'pending'">
-          <span class="badge pending">Waiting for review</span>
-          <p class="next-text">Waiting on a GM. You can keep editing.</p>
+          <span class="badge pending">Pending</span>
+          <p class="next-text">Waiting on a GM.</p>
         </template>
         <template v-else-if="!draft">
-          <span v-if="change?.status === 'rejected'" class="badge rejected">Change rejected</span>
-          <p class="next-text">{{ change?.status === 'rejected' ? 'Your last change was rejected (reason below).' : 'Approved. Changes go to a GM for review.' }}</p>
+          <span v-if="change?.status === 'rejected'" class="badge rejected">Rejected</span>
+          <p class="next-text">{{ change?.status === 'rejected' ? 'Your last change was rejected.' : 'Changes need GM approval.' }}</p>
         </template>
         <template v-else-if="!draft.submitted_at">
-          <span class="badge draft">Draft change</span>
-          <p class="next-text">Drafting a change. Your approved pilot stays as it is until a GM approves.</p>
+          <span class="badge draft">Draft</span>
+          <p class="next-text">Your approved pilot won't change until a GM approves this.</p>
         </template>
         <template v-else>
-          <span class="badge pending">Change submitted</span>
-          <p class="next-text">Change submitted, waiting on a GM. The sheet shows what you sent.</p>
+          <span class="badge pending">Submitted</span>
+          <p class="next-text">Waiting on a GM.</p>
         </template>
 
         <SaveStatus v-if="own" :saving="saving" :saved="saved" :error="saveError" :can-retry="!conflict" @retry="track(retry())" />
 
         <div v-if="own && character.status !== 'dead'" class="next-actions">
-          <button v-if="character.status === 'pending' && reviewNote" type="button" class="primary small" @click="track(resubmit())">Resubmit for review</button>
+          <button v-if="isDraft" type="button" class="primary small" @click="track(submitPilot())">{{ reviewNote ? 'Resubmit pilot' : 'Submit pilot' }}</button>
+          <button v-else-if="character.status === 'pending'" type="button" class="small" @click="track(reopenPilot())">Edit pilot</button>
           <button v-else-if="approvedOwn && !draft" type="button" class="primary small" @click="track(proposeChange())">Propose changes</button>
           <template v-else-if="approvedOwn && !draft!.submitted_at">
-            <button type="button" class="small" @click="withdraw">Withdraw</button>
-            <button type="button" class="primary small" @click="track(submitChange())">Submit for review</button>
+            <button type="button" class="small" @click="withdraw">Withdraw change</button>
+            <button type="button" class="primary small" @click="track(submitChange())">Submit change</button>
           </template>
           <template v-else-if="approvedOwn">
             <button type="button" class="small" @click="track(reopenChange())">Edit change</button>
-            <button type="button" class="small" @click="withdraw">Withdraw</button>
+            <button type="button" class="small" @click="withdraw">Withdraw change</button>
           </template>
         </div>
       </div>
@@ -408,7 +419,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       <CatalogueNotice />
 
       <!-- Long notes and the rule check sit under the header. -->
-      <div v-if="own && reviewNote && character.status === 'pending'" class="notice warn" role="note">
+      <div v-if="own && reviewNote && isDraft" class="notice warn" role="note">
         <p class="notice-title">Note from the GM</p>
         <p class="note-text">{{ reviewNote }}</p>
       </div>
@@ -471,7 +482,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <section v-if="approvedOwn" class="panel danger-zone">
           <h2 class="sheet-label">Danger zone</h2>
           <div class="danger-body">
-            <p class="dim">If your pilot dies in the story, mark them dead. This can't be undone.</p>
+            <p class="dim">Mark this pilot dead if they die in the story. This can't be undone.</p>
             <button type="button" class="danger" @click="confirmDeath">Mark pilot dead</button>
           </div>
         </section>
@@ -506,7 +517,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <div v-show="tab === 'equipment'" class="tab-panel">
           <LoadoutBox
             class="panel"
-            title="biomods"
+            title="Biomods"
             tag="Private"
             :items="bionicOptions"
             :chosen="sheet.bionics ?? []"
@@ -520,7 +531,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <div v-show="tab === 'licences'" class="tab-panel">
           <RankPanel
             class="panel"
-            title="licences"
+            title="Licences"
             noun="licence"
             :options="licenceOptions"
             :held="sheet.licences ?? {}"
@@ -550,7 +561,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <div v-show="tab === 'talents'" class="tab-panel">
           <RankPanel
             class="panel"
-            title="talents"
+            title="Talents"
             noun="talent"
             :options="talentOptions"
             :held="sheet.talents ?? {}"

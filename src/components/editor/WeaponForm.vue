@@ -66,18 +66,18 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
   <section v-if="!profiles.length" class="panel" aria-labelledby="weapon-numbers">
     <h3 id="weapon-numbers" class="sheet-label">Range and damage</h3>
     <Field block label="Range"><DamageField v-model="range" kind="range" /></Field>
-    <Field block label="Damage" hint="Type a number or dice such as 1d6+2. This homebrew has no dice, so the site turns dice into one flat number, rounded up, and that is all players see.">
+    <Field block label="Damage" hint="A number or dice, like 1d6+2.">
       <DamageField v-model="damage" kind="damage" />
     </Field>
     <div class="profiles-note">
-      <p class="hint">One set of numbers. If the weapon can be used in different modes, such as spun up or not, give it profiles.</p>
+      <p class="hint">One set of numbers. Split into profiles for modes.</p>
       <button type="button" class="small" @click="model = splitProfiles(model)">Split into profiles</button>
     </div>
   </section>
 
   <section v-else class="panel" aria-labelledby="weapon-profiles">
     <h3 id="weapon-profiles" class="sheet-label">Profiles</h3>
-    <p class="hint">The pilot picks one when equipping the weapon. Each has its own range and damage. Leave a profile's tags, rules or actions empty to use the weapon's own, below.</p>
+    <p class="hint">The pilot picks one profile.</p>
     <RepeatList :model-value="profiles" noun="profile" path="profiles" :make="() => ({ name: `Mode ${profiles.length + 1}`, range: [], damage: [] })" @update:model-value="model = setProfiles(model, $event)">
       <template #title="{ item, index }">Profile {{ index + 1 }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
       <template #summary="{ item }">{{ summary(item) }}</template>
@@ -91,10 +91,10 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
         <Field block label="Damage">
           <DamageField :model-value="listOf<Entry>(item.damage)" kind="damage" :path="`profiles.${index}.damage`" @update:model-value="change({ damage: $event })" />
         </Field>
-        <Field block label="Tags" hint="Leave empty to use the weapon's tags.">
+        <Field block label="Tags" hint="Empty uses the weapon's tags.">
           <TagListField :model-value="listOf<TagEntry>(item.tags)" :tags="tags" :path="`profiles.${index}.tags`" @update:model-value="change({ tags: clean($event) })" />
         </Field>
-        <Field block label="Rules text" hint="Leave empty to use the weapon's rules text.">
+        <Field block label="Rules text" hint="Empty uses the weapon's rules text.">
           <RichTextEditor :label="`Profile ${index + 1} rules text`" html basic :model-value="String(item.effect ?? '')" @update:model-value="change({ effect: text($event) })" />
         </Field>
         <Field block label="On attack">
@@ -106,7 +106,7 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
         <Field block label="On critical hit">
           <RichTextEditor :label="`Profile ${index + 1} on critical hit`" html basic :model-value="String(item.on_crit ?? '')" @update:model-value="change({ on_crit: text($event) })" />
         </Field>
-        <Field block label="Actions" hint="Leave empty to use the weapon's actions.">
+        <Field block label="Actions" hint="Empty uses the weapon's actions.">
           <ActionListField :model-value="listOf<Data>(item.actions)" :path="`profiles.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />
         </Field>
       </template>
@@ -141,7 +141,7 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
       <Field block label="On hit"><RichTextEditor label="On hit" html basic v-model="onHit" /></Field>
       <Field block label="On critical hit"><RichTextEditor label="On critical hit" html basic v-model="onCrit" /></Field>
     </template>
-    <Field label="Lore" hint="Optional flavour text, plain.">
+    <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>
   </section>

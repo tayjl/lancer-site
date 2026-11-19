@@ -43,7 +43,7 @@ const setValue = (index: number, text: string) =>
       </li>
     </ul>
     <select class="add" aria-label="Add a tag" @change="add">
-      <option value="">Add a tag…</option>
+      <option value="">Add tag…</option>
       <option v-for="tag in available" :key="tag.id" :value="tag.id">{{ tag.name.replace('{VAL}', '').trim() }}</option>
     </select>
     <FieldError v-for="(entry, index) in model" :key="entry.id" :path="`${path}.${index}`" deep />

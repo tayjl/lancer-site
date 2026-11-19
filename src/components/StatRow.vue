@@ -30,9 +30,9 @@ const shown = (stat: { value: number | null; bonus?: number }) => {
   return total === 0.5 ? '½' : String(total)
 }
 // Why a step button is off, for its tooltip.
-const lowerBlocked = (value: number | null) => (value !== null && value <= props.min ? `Already at the minimum (${props.min})` : undefined)
+const lowerBlocked = (value: number | null) => (value !== null && value <= props.min ? `At the minimum (${props.min})` : undefined)
 const raiseBlocked = (value: number | null) =>
-  value === null ? undefined : value >= props.max ? `Already at the maximum (${props.max})` : spent.value && value >= props.min ? 'No points left' : undefined
+  value === null ? undefined : value >= props.max ? `At the maximum (${props.max})` : spent.value && value >= props.min ? 'No points left' : undefined
 </script>
 
 <template>

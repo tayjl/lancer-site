@@ -6,6 +6,7 @@ import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type Co
 import { activationOf, itemDetails, itemRules } from './itemDetails'
 import { alternateOf, licenceFrames, licenceNames, mechStats, sameName, type Frame } from './mechData'
 import { PRICES, rankName } from './rules'
+import { capitalise, plural } from './text'
 
 // Everything about one thing a pilot can buy or equip, for the full-information dialog (InfoDialog.vue, opened by
 // InfoButton.vue from cards, licence ranks and pickers). Every kind has the same layout, from the developer's frame
@@ -68,7 +69,7 @@ function tagCards(tags: Item['tags']): InfoCard[] {
     })
 }
 
-const PILOT_KINDS: Record<string, string> = { Armor: 'pilot armour', Weapon: 'pilot weapon', Gear: 'pilot gear' }
+const PILOT_KINDS: Record<string, string> = { Armor: 'Pilot armour', Weapon: 'Pilot weapon', Gear: 'Pilot gear' }
 
 // A mech weapon or system, or pilot gear.
 export function itemInfo(item: Item): Info {
@@ -76,7 +77,7 @@ export function itemInfo(item: Item): Info {
   const pilot = PILOT_KINDS[item.type] && !item.mount
   const effect = text(item.effect)
   return {
-    kind: pilot ? PILOT_KINDS[item.type] : item.type === 'Mod' ? 'weapon mod' : item.mount ? `${item.mount} ${item.type} weapon`.toLowerCase() : (item.type || 'system').toLowerCase(),
+    kind: pilot ? PILOT_KINDS[item.type] : item.type === 'Mod' ? 'Weapon mod' : capitalise((item.mount ? `${item.mount} ${item.type} weapon` : item.type || 'system').toLowerCase()),
     id: item.id,
     name: item.name,
     source: text(raw.source),
@@ -88,8 +89,8 @@ export function itemInfo(item: Item): Info {
     lore: effect ? merged(text(item.description)) : '',
     stats: itemDetails(item, tagNames.value).stats,
     groups: groups(
-      { title: 'rules', stack: true, cards: [...(effect ? card('effect', effect) : card('description', merged(text(item.description)))), ...rules(raw)] },
-      { title: 'tags', tags: true, cards: tagCards(item.tags) },
+      { title: 'Rules', stack: true, cards: [...(effect ? card('Effect', effect) : card('Description', merged(text(item.description)))), ...rules(raw)] },
+      { title: 'Tags', tags: true, cards: tagCards(item.tags) },
     ),
   }
 }
@@ -124,12 +125,12 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     groups: groups(
       // One card per trait, its other actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
       { look: 'traits', cards: traits.flatMap((trait) => {
-        const name = text(trait.name) || 'trait'
+        const name = text(trait.name) || 'Trait'
         const { card: main, rest } = absorb({ heading: name, html: flatDamageText(text(trait.description)) }, name, rules(trait))
         return main.html || rest.length ? [{ ...main, ...(rest.length ? { actions: rest } : {}) }] : []
       }) },
       {
-        title: text(core.name) || 'core system',
+        title: text(core.name) || 'Core system',
         look: 'core',
         lore: paragraphs(text(core.description)),
         cards: coreCards(core),
@@ -148,7 +149,7 @@ function coreCards(core: Record<string, unknown>): InfoCard[] {
     actions = rest
     return card
   }
-  const passive = fold({ heading: `passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, html: flatDamageText(text(core.passive_effect)) }, text(core.passive_name))
+  const passive = fold({ heading: `Passive${text(core.passive_name) ? `: ${text(core.passive_name)}` : ''}`, html: flatDamageText(text(core.passive_effect)) }, text(core.passive_name))
   const powerName = text(core.active_name) || text(core.name)
   const power = text(core.active_effect)
     ? [fold({ heading: powerName, html: flatDamageText(text(core.active_effect)), ...(activationOf(core.activation) ? { activation: text(core.activation) } : {}) }, powerName)]
@@ -158,13 +159,13 @@ function coreCards(core: Record<string, unknown>): InfoCard[] {
 
 export function talentInfo(talent: Talent): Info {
   return {
-    kind: 'talent',
+    kind: 'Talent',
     id: talent.id,
     name: talent.name,
     facts: [],
     lore: text(talent.terse),
     stats: [],
-    groups: groups({ title: 'ranks', cards: talent.ranks.flatMap((rank, index) => card(`rank ${rankName(index + 1)}: ${rank.name}`, rank.description)) }),
+    groups: groups({ title: 'Ranks', cards: talent.ranks.flatMap((rank, index) => card(`Rank ${rankName(index + 1)}: ${rank.name}`, rank.description)) }),
   }
 }
 
@@ -177,25 +178,25 @@ export function coreBonusInfo(bonus: CoreBonus): Info {
     facts: [],
     lore: paragraphs(text(bonus.description)),
     stats: [],
-    groups: groups({ title: 'rules', stack: true, cards: [...card('effect', bonus.effect), ...card('mounted effect', bonus.mounted_effect)] }),
+    groups: groups({ title: 'Rules', stack: true, cards: [...card('Effect', bonus.effect), ...card('Mounted effect', bonus.mounted_effect)] }),
   }
 }
 
 // Bionics are campaign content (plain text descriptions); "statNames" turns stat ids into their names.
 // "1 mod point", "2 mod points": the one wording for a biomod's mod-point cost (info, archives, picker).
-export const modPoints = (n: number) => `${n} mod ${n === 1 ? 'point' : 'points'}`
+export const modPoints = (n: number) => plural(n, 'mod point')
 
 export function bionicInfo(bionic: Bionic, statNames: Map<string, string>): Info {
   return {
-    kind: 'biomod',
+    kind: 'Biomod',
     id: String(bionic.id), // so the archives can tell whether the dialog already shows it
     name: bionic.name,
     source: bionic.source ?? undefined,
-    facts: facts(bionic.source ?? '', bionic.slot, modPoints(bionic.mod_point_cost), `${bionic.manna_cost} manna`, bionic.retired ? 'retired: no longer offered' : ''),
+    facts: facts(bionic.source ?? '', bionic.slot, modPoints(bionic.mod_point_cost), `${bionic.manna_cost} manna`, bionic.retired ? 'Retired' : ''),
     stats: bionic.bonuses.map((bonus) => ({ label: statNames.get(bonus.stat_id) ?? bonus.stat_id, icon: STAT_ICONS[bonus.stat_id], value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}` })),
     // The description is flavour, drawn as lore like a frame's; it's plain text, so escaped.
     lore: text(bionic.description) ? `<p>${text(bionic.description).replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</p>` : '',
-    groups: groups({ title: 'rules', cards: card('effect', bionic.effect) }),
+    groups: groups({ title: 'Rules', cards: card('Effect', bionic.effect) }),
   }
 }
 
@@ -206,14 +207,14 @@ export type Manufacturer = { id: string; name: string; quote: string; descriptio
 export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = []): Info {
   const made = frames.filter((frame) => frame.source === manufacturer.id)
   return {
-    kind: 'manufacturer',
+    kind: 'Manufacturer',
     id: manufacturer.id,
     name: manufacturer.name,
     source: manufacturer.id,
-    facts: facts(manufacturer.id !== manufacturer.name ? manufacturer.id : '', made.length ? `${made.length} frames` : ''),
+    facts: facts(manufacturer.id !== manufacturer.name ? manufacturer.id : '', made.length ? plural(made.length, 'frame') : ''),
     lore: [text(manufacturer.quote) ? `<p>${text(manufacturer.quote)}</p>` : '', paragraphs(text(manufacturer.description))].join(''),
     stats: [],
-    groups: groups({ title: 'frames', cards: made.flatMap((frame) => card(frame.name, frame.mechtype.join(' / ') || 'Frame')) }),
+    groups: groups({ title: 'Frames', cards: made.flatMap((frame) => card(frame.name, frame.mechtype.join(' / ') || 'Frame')) }),
   }
 }
 
@@ -243,9 +244,9 @@ export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] 
     facts: facts({ text: frame.mechtype.join(' / ') }, `${PRICES.licenceRank} manna per rank`),
     lore: '',
     stats: [],
-    groups: groups({ title: 'ranks', cards: [1, 2, 3].map((level) => {
+    groups: groups({ title: 'Ranks', cards: [1, 2, 3].map((level) => {
       const unlocks = licenceUnlocks(frame, weapons, systems, mods, level, frames)
-      return { heading: `rank ${rankName(level)}`, html: unlocks.length ? '' : 'Nothing new at this rank.', unlocks }
+      return { heading: `Rank ${rankName(level)}`, html: unlocks.length ? '' : 'No unlocks.', unlocks }
     }) }),
   }
 }

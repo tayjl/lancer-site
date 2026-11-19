@@ -43,7 +43,7 @@ const add = () => (model.value = [...model.value, { type: types[0], val: props.k
         <FieldError :path="`${path ?? kind}.${index}`" deep />
       </li>
     </ul>
-    <p v-else class="hint dim">None.</p>
+    <p v-else class="hint dim">No {{ kind === 'range' ? 'ranges' : 'damage' }} yet.</p>
     <div><button type="button" class="small" @click="add"><Icon name="plus" />Add {{ kind }}</button></div>
   </div>
 </template>

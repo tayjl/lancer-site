@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { isGm } from '../auth'
-import { modPoints, type Info } from '../info'
+import { useManufacturers } from '../archive'
+import type { Info } from '../info'
+import { makerGroup, type PickOption } from '../pickerRows'
+import { plainText } from '../rulesText'
 import { GM_ONLY_REASON } from '../rules'
-import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
 import ItemStats from './ItemStats.vue'
+import PickList from './PickList.vue'
 import RulesText from './RulesText.vue'
 
 // A loadout section (bionics): the chosen items as item cards (pilot colour, the cost at the right, any stats with
@@ -34,24 +37,46 @@ const saving = ref(false)
 
 const byId = computed(() => new Map(props.items.map((item) => [item.id, item])))
 const chosenItems = computed(() =>
-  props.chosen.map((id) => byId.value.get(id) ?? { id, name: `unknown item (${id})`, description: 'its content pack may have been removed.' }),
+  props.chosen.map((id) => byId.value.get(id) ?? { id, name: `Unknown item (${id})` }),
 )
 const used = computed(() => chosenItems.value.reduce((sum, item) => sum + (item.cost ?? 0), 0))
 
-// Retired items stay on sheets that have them, but can't be newly picked. GM-only ones (HORUS, NHC, Exotic) are listed last.
+// Retired items stay on sheets that have them, but can't be newly picked. The picker's rows are visual (PickList.vue):
+// a box per manufacturer, the slot, the stat bonuses with their symbols, mod points and price; the effect and
+// description are only searched. GM-only ones (HORUS, NHC, Exotic) are blocked for players and listed last.
+const manufacturers = useManufacturers()
 const offered = computed(() => {
-  const words = filter.value.trim().toLowerCase()
-  return props.items.filter(
-    (item) =>
-      (!item.retired || props.chosen.includes(item.id)) &&
-      (!words || `${item.name} ${item.facts?.join(' ') ?? ''}`.toLowerCase().includes(words)),
-  ).sort((a, b) => Number(restricted(a)) - Number(restricted(b)))
+  const words = filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  return props.items
+    .filter((item) => !item.retired || props.chosen.includes(item.id))
+    .map((item): PickOption & { item: Item } => {
+      const picked = props.chosen.includes(item.id)
+      const group = makerGroup(item.source, manufacturers.value)
+      return {
+        item,
+        id: item.id,
+        name: item.name,
+        info: item.info,
+        picked,
+        blocked: picked ? '' : blockedBy(item),
+        look: { type: 'pilot', icon: 'generic_item' },
+        stats: [
+          ...(item.stats ?? []).map((stat) => ({ ...stat, icon: stat.icon ?? null, kind: 'bonus' })),
+          ...(item.cost != null ? [{ kind: 'cost', label: 'mod points', value: String(item.cost), icon: null }] : []),
+          ...(item.price != null ? [{ kind: 'price', label: 'manna', value: String(item.price), icon: null }] : []),
+        ],
+        chips: item.slot ? [{ label: item.slot }] : [],
+        group,
+        search: [item.facts?.join(' '), plainText(item.effect ?? ''), item.description, group.title, group.name].join(' '),
+      }
+    })
+    .filter((row) => words.every((word) => `${row.name} ${row.search}`.toLowerCase().includes(word)))
 })
 
 const restricted = (item: Item) => !isGm.value && !!item.gmOnly
 const tooCostly = (item: Item) => !!props.limit && used.value + (item.cost ?? 0) > props.limit.max
 // Why an item can't be added, or '' if it can.
-const blockedBy = (item: Item) => (restricted(item) ? GM_ONLY_REASON : tooCostly(item) ? 'Over the limit' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
+const blockedBy = (item: Item) => (restricted(item) ? GM_ONLY_REASON : tooCostly(item) ? 'Not enough mod points' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
 
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]
@@ -87,7 +112,7 @@ function open() {
         </ItemCard>
       </li>
     </ul>
-    <p v-else class="empty">No {{ title.toLowerCase() }} installed.</p>
+    <p v-else class="empty">No {{ title.toLowerCase() }} yet.</p>
 
     <dialog ref="dialog" class="dialog" :aria-label="`Choose ${title.toLowerCase()}`">
       <header class="dialog-head">
@@ -102,32 +127,21 @@ function open() {
           <span>Search</span>
           <input v-model="filter" type="search" autofocus />
         </label>
-        <p class="dim count" aria-live="polite"><span class="num">{{ offered.length }}</span> shown</p>
+        <p class="dim count" aria-live="polite"><span class="num">{{ offered.length }}</span> of <span class="num">{{ items.length }}</span></p>
         <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
       </div>
 
       <div class="dialog-body">
-        <ul v-if="offered.length" class="pick-list">
-          <li v-for="item in offered" :key="item.id" :class="{ picked: chosen.includes(item.id), blocked: !chosen.includes(item.id) && blockedBy(item) }">
-            <div class="pick-about">
-              <span class="pick-name"><InfoButton v-if="item.info" :info="item.info" :label="item.name" /><template v-else>{{ item.name }}</template></span>
-              <span class="pick-meta sep">
-                <span v-for="fact in item.facts" :key="fact">{{ fact }}</span>
-                <span v-if="item.cost != null">{{ modPoints(item.cost) }}</span>
-                <span v-if="item.price != null">{{ item.price }} manna</span>
-              </span>
-              <span v-if="item.description" class="pick-text">{{ item.description }}</span>
-            </div>
-            <div class="pick-action">
-              <button v-if="chosen.includes(item.id)" type="button" class="small danger" :disabled="saving" @click="toggle(item)">Remove</button>
-              <template v-else>
-                <button type="button" class="small" :disabled="saving || !!blockedBy(item)" :aria-describedby="blockedBy(item) ? `why-${item.id}` : undefined" @click="toggle(item)">Add</button>
-                <span v-if="blockedBy(item)" :id="`why-${item.id}`" class="pick-reason">{{ blockedBy(item) }}</span>
-              </template>
-            </div>
-          </li>
-        </ul>
-        <p v-else class="empty">Nothing {{ filter ? 'matches that search' : 'to choose from yet: the content packs may not be imported' }}.</p>
+        <PickList v-if="offered.length" :options="offered">
+          <template #action="{ option }">
+            <button v-if="chosen.includes(option.id)" type="button" class="small danger" :disabled="saving" @click="toggle(byId.get(option.id)!)">Remove</button>
+            <template v-else>
+              <button type="button" class="small" :disabled="saving || !!option.blocked" :aria-describedby="option.blocked ? `why-${option.id}` : undefined" @click="toggle(byId.get(option.id)!)">Add</button>
+              <span v-if="option.blocked" :id="`why-${option.id}`" class="pick-reason">{{ option.blocked }}</span>
+            </template>
+          </template>
+        </PickList>
+        <p v-else class="empty">{{ filter ? 'Nothing matches that search.' : 'No options.' }}</p>
       </div>
     </dialog>
   </section>
@@ -151,10 +165,5 @@ function open() {
   color: var(--text-dim);
   font-size: var(--fs-s);
   font-style: italic;
-}
-
-/* --- The picker (dialog and option rows from style.css) --- */
-.pick-list li.picked .pick-name::before {
-  content: '✓ ' / '';
 }
 </style>
