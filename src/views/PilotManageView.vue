@@ -201,7 +201,11 @@ const saveBackstory = (doc: Json | null) => track(updateSheet({ backstory: doc }
 // Bionics for their box, each opening its full information.
 const bionicOptions = computed(() => {
   const statNames = new Map(pilotStats.value.map((stat) => [stat.id, stat.name]))
-  return bionicItems(bionics.value).map((item, i) => ({ ...item, ...restrictionOf(bionics.value[i]), info: () => bionicInfo(bionics.value[i], statNames) }))
+  // HORUS and NHC biomods are as strict as Exotic ones (the developer, 2026-11-19): GM edit mode only, for everyone.
+  return bionicItems(bionics.value).map((item, i) => {
+    const r = restrictionOf(bionics.value[i])
+    return { ...item, gmOnly: false, exotic: r.exotic || r.gmOnly, info: () => bionicInfo(bionics.value[i], statNames) }
+  })
 })
 const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
 // Grit is LANCER's: half the level, rounded up. Shown only; the mech maths doesn't use it.
