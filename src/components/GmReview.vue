@@ -3,11 +3,13 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { isOwner } from '../auth'
 import { confirmAction } from '../confirm'
+import type { usePilotAwards } from '../commendations'
 import { cardImages, deleteImage } from '../images'
 import { supabase } from '../lib/supabaseClient'
 import { EXPERIENCE_MAX, award, levelUp, rewardsProblem } from '../rewards'
 import { plural } from '../text'
 import type { Character } from '../myPilot'
+import CommendationAward from './CommendationAward.vue'
 import ReputationPanel from './ReputationPanel.vue'
 import RewardHistory from './RewardHistory.vue'
 import RuleCheck from './RuleCheck.vue'
@@ -19,8 +21,8 @@ import RuleCheck from './RuleCheck.vue'
 // the note the player sees on their sheet. "problems" is the rule check, shown above the buttons; approving with
 // problems asks first. The database enforces who can do this; the page only hides it from players.
 // "sheetUpdatedAt" is the sheet's updated_at from the same load as the pilot on the page (what the GM is looking at).
-const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name' | 'updated_at' | 'submitted_at'>; sheetUpdatedAt: string; problems: string[] }>()
-const emit = defineEmits<{ reviewed: [] }>()
+const props = defineProps<{ pilot: Pick<Character, 'id' | 'status' | 'callsign' | 'pilot_name' | 'updated_at' | 'submitted_at'>; sheetUpdatedAt: string; problems: string[]; awards: ReturnType<typeof usePilotAwards> }>()
+const emit = defineEmits<{ reviewed: []; awarded: [] }>()
 const router = useRouter()
 
 const level = ref(0)
@@ -195,6 +197,7 @@ async function sendBack() {
   </section>
 
   <ReputationPanel v-if="pilot.status !== 'dead'" :character-id="pilot.id" />
+  <CommendationAward :awards="awards" @awarded="emit('awarded')" />
 
   <RewardHistory :character-id="pilot.id" :refresh="historyKey" />
 

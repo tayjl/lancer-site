@@ -3,6 +3,7 @@ import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { isOwner, profile } from '../auth'
 import EditorPane from '../components/editor/EditorPane.vue'
+import CommendationPane from '../components/editor/CommendationPane.vue'
 import FactionPane from '../components/editor/FactionPane.vue'
 import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -112,8 +113,8 @@ const matches = (row: ListRow) => {
 }
 const groups = computed<{ id: number; name: string; rows: ListRow[]; total: number; more: number; add: boolean; logo?: string | null; colour?: string }[]>(() => {
   const found = rows.value.filter(matches)
-  // Factions: one box.
-  if (kind.value === 'factions') return found.length ? [{ id: 0, name: 'Factions', rows: found, total: rows.value.length, more: 0, add: false }] : []
+  // Factions and commendations: one box.
+  if (kind.value === 'factions' || kind.value === 'commendations') return found.length ? [{ id: 0, name: info.value.label, rows: found, total: rows.value.length, more: 0, add: false }] : []
   // Biomods: a box per manufacturer like the archives' (archiveGroups: the maker's logo and colour, "Other" for none, Exotic last).
   if (info.value.site) {
     const entries = found.map((row) => ({ category: 'biomods', id: row.key, name: row.name, group: makerId(row.source ?? '') || 'other', level: 0, licence: '', exotic: false, summary: '', search: '' }) as unknown as ArchiveEntry)
@@ -245,6 +246,16 @@ async function exportLcp() {
           <FactionPane
             v-else-if="kind === 'factions' && (loaded || isNewItem)"
             :key="`factions:${loaded?.key ?? 'new'}`"
+            ref="editor"
+            :item="loaded"
+            :others="rows.filter((row) => row.key !== loaded?.key).map((row) => row.name)"
+            @created="created"
+            @changed="changed"
+            @deleted="deleted"
+          />
+          <CommendationPane
+            v-else-if="kind === 'commendations' && (loaded || isNewItem)"
+            :key="`commendations:${loaded?.key ?? 'new'}`"
             ref="editor"
             :item="loaded"
             :others="rows.filter((row) => row.key !== loaded?.key).map((row) => row.name)"

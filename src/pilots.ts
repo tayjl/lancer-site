@@ -18,10 +18,14 @@ export type PublicMech = {
 export type PublicPilot = Pick<Tables<'characters'>, 'id' | 'status' | 'created_at' | 'submitted_at' | 'callsign' | 'pilot_name' | 'pilot_image'> & {
   mechs: PublicMech[]
   player: { display_name: string } | null
+  // The pilot's chosen colour (pilot_profiles), if they set one. It decorates their card.
+  profile: { colour: string | null } | null
+  // How many commendations they have: the embedded count (one row, {count}), so it comes in the same query.
+  awards?: { count: number }[]
 }
 
 // Shared with the GM roster, which adds the private sheet's few columns.
-export const PILOT_FIELDS = 'id, status, created_at, submitted_at, callsign, pilot_name, pilot_image, mechs, player:profiles(display_name)'
+export const PILOT_FIELDS = 'id, status, created_at, submitted_at, callsign, pilot_name, pilot_image, mechs, player:profiles(display_name), profile:pilot_profiles(colour), awards:pilot_commendations(count)'
 
 // The mechs column is plain JSON to the database; the site always saves it in the PublicMech shape.
 const toPilot = (row: object) => {

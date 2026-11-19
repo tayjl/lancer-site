@@ -19,7 +19,9 @@ const name = ref(String(props.item?.data.name ?? ''))
 const baseline = ref(name.value)
 const updatedAt = ref(props.item?.updatedAt ?? '')
 const dirty = computed(() => name.value !== baseline.value)
-const problems = computed(() => validateFaction(name.value, props.others))
+// Once created, the list already holds this faction's own name until the page switches to it: don't check against it.
+const created = ref(false)
+const problems = computed(() => (created.value ? [] : validateFaction(name.value, props.others)))
 const status = useSaveStatus()
 const conflict = ref(false)
 const busy = computed(() => status.saving.value)
@@ -33,7 +35,10 @@ async function save() {
     if (result.error !== undefined) return result.error
     baseline.value = snapshot
     name.value = snapshot
-    if (made?.key) emit('created', made.key)
+    if (made?.key) {
+      created.value = true
+      emit('created', made.key)
+    }
     else {
       updatedAt.value = result.updatedAt
       emit('changed')

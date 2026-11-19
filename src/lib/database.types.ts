@@ -229,6 +229,30 @@ export type Database = {
           },
         ]
       }
+      commendations: {
+        Row: {
+          description: string
+          icon: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          description?: string
+          icon: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          description?: string
+          icon?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       content_items: {
         Row: {
           data: Json
@@ -443,6 +467,90 @@ export type Database = {
           },
         ]
       }
+      pilot_commendations: {
+        Row: {
+          awarded_at: string
+          awarded_by: string | null
+          character_id: number
+          commendation_id: string
+          id: string
+          reason: string
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_by?: string | null
+          character_id: number
+          commendation_id: string
+          id?: string
+          reason?: string
+        }
+        Update: {
+          awarded_at?: string
+          awarded_by?: string | null
+          character_id?: number
+          commendation_id?: string
+          id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_commendations_awarded_by_fkey"
+            columns: ["awarded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pilot_commendations_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pilot_commendations_commendation_id_fkey"
+            columns: ["commendation_id"]
+            isOneToOne: false
+            referencedRelation: "commendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pilot_profiles: {
+        Row: {
+          banner_image: string | null
+          character_id: number
+          colour: string | null
+          gallery: Json
+          motto: string | null
+          updated_at: string
+        }
+        Insert: {
+          banner_image?: string | null
+          character_id: number
+          colour?: string | null
+          gallery?: Json
+          motto?: string | null
+          updated_at?: string
+        }
+        Update: {
+          banner_image?: string | null
+          character_id?: number
+          colour?: string | null
+          gallery?: Json
+          motto?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_profiles_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: true
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pilot_progress: {
         Row: {
           character_id: number
@@ -563,6 +671,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pilot_timeline: {
+        Row: {
+          body: Json | null
+          character_id: number
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          occurred_on: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: Json | null
+          character_id: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind: string
+          occurred_on?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: Json | null
+          character_id?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          occurred_on?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_timeline_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pilot_timeline_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

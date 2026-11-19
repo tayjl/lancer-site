@@ -4,11 +4,10 @@
 // SVG's url as "src" (the manufacturer logos, the stat symbols in gameData.ts). The url is quoted, because Vite
 // inlines small SVGs as data urls with spaces in them.
 import { computed } from 'vue'
-
-const ICONS = import.meta.glob<string>('../assets/icons/*.svg', { eager: true, query: '?url', import: 'default' })
+import { iconUrl } from '../icons'
 
 const props = defineProps<{ name?: string; src?: string }>()
-const url = computed(() => props.src ?? ICONS[`../assets/icons/${props.name}.svg`])
+const url = computed(() => props.src ?? iconUrl(props.name ?? ''))
 </script>
 
 <template>

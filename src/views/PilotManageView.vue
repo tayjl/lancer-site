@@ -9,8 +9,13 @@ import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
+import CommendationBadges from '../components/CommendationBadges.vue'
 import GmReview from '../components/GmReview.vue'
+import PilotIdCard from '../components/PilotIdCard.vue'
+import ServiceRecord from '../components/ServiceRecord.vue'
 import ImageUpload from '../components/ImageUpload.vue'
+import PilotColourField from '../components/PilotColourField.vue'
+import PilotGallery from '../components/PilotGallery.vue'
 import MechHangar from '../components/MechHangar.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
@@ -23,7 +28,11 @@ import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
 import Icon from '../components/Icon.vue'
 import StatRow from '../components/StatRow.vue'
-import { imageUrl } from '../images'
+import { BANNER_SIDE, imageUrl } from '../images'
+import { usePilotAwards } from '../commendations'
+import { displayColour } from '../pilotColour'
+import { useServiceRecord } from '../serviceRecord'
+import { MOTTO_MAX, usePilotProfile, type ProfileFields } from '../pilotProfile'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { chosenFrame, licenceFrames, licensedFrames, useMechData, type Frame } from '../mechData'
@@ -69,6 +78,7 @@ const {
   editable,
   gmEditing,
   waiting,
+  approved,
   mechs,
   load,
   create,
@@ -138,6 +148,31 @@ const mechLink = (mechId: string) =>
   own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId }, query: gmEditing.value ? { edit: '1' } : undefined }
 // A GM's edit mode (?edit=1) on a living pilot's record or review page; Done leaves it. On your own approved pilot (a GM or
 // owner's) the button is on My pilot too: it opens your own record in edit mode (a pending pilot is already yours to edit).
+// The profile (colour, motto, banner, gallery) is cosmetic: it saves live with no approval, even on an approved pilot, so it
+// has its own editable flag (your own living pilot, or a GM in edit mode) and its own saves (src/pilotProfile.ts).
+const profile = usePilotProfile(() => character.value?.id)
+const profileEditable = computed(() => profile.ready.value && !!character.value && character.value.status !== 'dead' && (own || gmEditing.value))
+// The pilot's colour as drawn: the picker's live value while you drag it, else the saved one (lightened if too dark).
+const previewColour = ref<string | undefined>()
+const pilotColour = computed(() => (previewColour.value ? displayColour(previewColour.value) : profile.colour.value))
+const pilotStyle = computed(() => (pilotColour.value ? { '--pilot': pilotColour.value } : undefined))
+const bannerUrl = computed(() => imageUrl(profile.fields.value.banner_image))
+const saveProfile = (changes: Partial<ProfileFields>) => track(profile.update(changes))
+const saveMotto = (event: Event) => saveProfile({ motto: (event.target as HTMLTextAreaElement).value.trim().slice(0, MOTTO_MAX) || null })
+const saveColour = (colour: string | null) => {
+  previewColour.value = undefined
+  return saveProfile({ colour })
+}
+// Retry sends whatever is unsaved, on the sheet and the profile.
+const retryAll = async () => (await Promise.all([retry(), profile.retry()])).find(Boolean) ?? null
+const anyConflict = computed(() => conflict.value || profile.conflict.value)
+// The service record and commendations: public to every logged-in user, saved live with no approval. Your own living
+// pilot's player writes "log" entries; a GM, editing or reviewing, writes GM entries and can delete any (the database
+// decides, these only show the buttons).
+const record = useServiceRecord(() => character.value?.id)
+const awards = usePilotAwards(() => character.value?.id)
+const canLog = computed(() => own && !!character.value && character.value.status !== 'dead')
+const canGmRecord = computed(() => isGm.value && (gmEditing.value || reviewing))
 // Backstory privacy: the pilot's own player or a GM editing can change it; other viewers see only a public copy.
 const backstory = useBackstoryVisibility(() => character.value?.id)
 const canToggleBackstory = computed(() => gmEditing.value || (!!character.value && character.value.player_id === session.value?.user.id))
@@ -317,9 +352,18 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       </form>
     </section>
 
-    <div v-else class="sheet">
+    <div v-else class="sheet" :class="{ 'has-pilot': !!pilotColour }" :style="pilotStyle">
       <!-- The header: who this is and the figures that matter (the prototype's compact header). -->
       <header class="header" :class="{ joined: hasNext || gmEditing }">
+        <div v-if="bannerUrl" class="banner"><img :src="bannerUrl" alt="" /></div>
+        <ImageUpload
+          v-if="profileEditable"
+          class="banner-upload"
+          noun="banner"
+          :side="BANNER_SIDE"
+          :path="profile.fields.value.banner_image"
+          :save="(path: string | null) => saveProfile({ banner_image: path })"
+        />
         <div class="thumb">
           <img v-if="imageUrl(character.pilot_image)" :src="imageUrl(character.pilot_image)!" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
           <Icon v-else name="pilot" />
@@ -337,6 +381,20 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             @change="saveText('callsign', $event)"
           />
           <h1 v-else class="callsign">{{ character.callsign ?? character.pilot_name }}</h1>
+          <div v-if="profileEditable || profile.fields.value.motto" class="motto">
+            <textarea
+              v-if="profileEditable"
+              class="inline motto-input"
+              rows="1"
+              aria-label="Motto"
+              placeholder="Motto"
+              :maxlength="MOTTO_MAX"
+              :value="profile.fields.value.motto ?? ''"
+              @keydown.enter.prevent="($event.target as HTMLTextAreaElement).blur()"
+              @change="saveMotto"
+            ></textarea>
+            <template v-else>{{ profile.fields.value.motto }}</template>
+          </div>
           <div class="subline sep">
             <span>
               <input
@@ -390,8 +448,8 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         :saving="saving"
         :saved="saved"
         :error="saveError"
-        :can-retry="!conflict"
-        @retry="track(retry())"
+        :can-retry="!anyConflict"
+        @retry="track(retryAll())"
         @done="setEdit(false)"
       />
 
@@ -425,7 +483,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           <p class="next-text">Waiting on a GM.</p>
         </template>
 
-        <SaveStatus v-if="own" :saving="saving" :saved="saved" :error="saveError" :can-retry="!conflict" @retry="track(retry())" />
+        <SaveStatus v-if="own" :saving="saving" :saved="saved" :error="saveError" :can-retry="!anyConflict" @retry="track(retryAll())" />
 
         <div v-if="own && character.status !== 'dead'" class="next-actions">
           <button v-if="isDraft" type="button" class="primary small" @click="track(submitPilot())">{{ reviewNote ? 'Resubmit pilot' : 'Submit pilot' }}</button>
@@ -442,7 +500,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         </div>
       </div>
 
-      <ConflictNotice v-if="conflict" />
+      <ConflictNotice v-if="anyConflict" />
       <CatalogueNotice />
 
       <!-- Long notes and the rule check sit under the header. -->
@@ -475,7 +533,8 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
            unsaved field. Only this slim row sticks (under the top bar). -->
       <SheetTabs v-model="tab" :tabs="tabs" class="sheet-tabs" :counts="{ mechs: mechs.length }" />
 
-      <div v-show="tab === 'profile'" class="tab-panel">
+      <div v-show="tab === 'profile'" class="tab-panel profile-tab">
+        <CommendationBadges :awards="awards.awards.value" />
         <div class="profile">
           <div class="writing">
             <SheetField class="panel" title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
@@ -507,7 +566,36 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
                 </dd>
               </template>
             </dl>
+            <PilotColourField
+              v-if="profileEditable"
+              class="identity-colour"
+              :colour="profile.fields.value.colour"
+              @preview="previewColour = $event ?? undefined"
+              @save="saveColour"
+            />
           </section>
+        </div>
+        <PilotGallery
+          :items="profile.fields.value.gallery"
+          :editable="profileEditable"
+          :name="character.callsign ?? character.pilot_name"
+          :save="(items) => saveProfile({ gallery: items })"
+        />
+        <div class="record-row">
+          <PilotIdCard
+            :id="character.id"
+            :callsign="(approved?.character ?? character).callsign"
+            :name="(approved?.character ?? character).pilot_name"
+            :status="character.status"
+            :approved-at="character.approved_at"
+            :level="gm.level"
+            :licence-level="licenceLevel(approved?.sheet ?? sheet)"
+            :portrait="(approved?.character ?? character).pilot_image"
+            :draft-open="!!approved"
+            :colour="pilotColour"
+            :medals="awards.awards.value.map((a) => a.commendation.icon)"
+          />
+          <ServiceRecord :record="record" :can-log="canLog" :can-gm="canGmRecord" />
         </div>
         <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
         <section v-if="approvedOwn" class="panel danger-zone">
@@ -606,7 +694,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       </div>
 
       <!-- :key resets the decision box after a decision, so it shows the new status. -->
-      <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" @reviewed="load" />
+      <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" :awards="awards" @reviewed="load" @awarded="record.load" />
     </div>
   </main>
 </template>
@@ -623,11 +711,97 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-l);
-  padding: var(--space-l);
+  --pad: var(--space-l);
+  padding: var(--pad);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--panel);
   overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
+}
+
+/* The pilot's colour (decoration only: it never marks a control or a status) is the header's top edge. */
+.has-pilot .header {
+  border-top: 3px solid var(--pilot);
+}
+
+/* The banner: a strip across the header's top, fading into the panel at its foot, with the pilot's colour under it. */
+.banner {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 9rem;
+  margin: calc(-1 * var(--pad)) calc(-1 * var(--pad)) 0;
+  overflow: hidden;
+  border-bottom: 2px solid var(--pilot, var(--rule));
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.banner img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.banner::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 60%;
+  background: linear-gradient(transparent, var(--panel));
+}
+
+.banner-upload {
+  grid-column: 1 / -1;
+  margin: calc(-1 * var(--space-s)) 0 0;
+}
+
+/* The motto, with the pilot's colour as a small bar at its left. */
+.motto {
+  align-self: stretch;
+  margin-top: 4px;
+  padding-left: var(--space-s);
+  border-left: 3px solid var(--pilot, var(--rule));
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+  font-style: italic;
+}
+
+.motto .inline {
+  max-width: 100%;
+  min-width: 14ch;
+  color: inherit;
+  font: inherit;
+}
+
+/* A long motto wraps (a growing textarea, not a one-line box that clips it). */
+.motto .motto-input {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+/* The ID card beside the service record; stacked on narrow screens. */
+.record-row {
+  display: grid;
+  grid-template-columns: minmax(0, 36rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-m);
+}
+
+@media (max-width: 64rem) {
+  .record-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.has-pilot .profile-tab .panel:not(.danger-zone) {
+  border-top: 3px solid var(--pilot);
+}
+
+.identity-colour {
+  margin-top: var(--space-l);
 }
 
 /* With the next-step bar under it, the two read as one block. */
@@ -847,9 +1021,13 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
 /* --- Phones: the compact header (56px portrait, the figures on one tight row under it) --- */
 @media (max-width: 48rem) {
   .header {
+    --pad: var(--space-m);
     grid-template-columns: auto minmax(0, 1fr);
     gap: var(--space-s) var(--space-m);
-    padding: var(--space-m);
+  }
+
+  .banner {
+    height: 6rem;
   }
 
   .thumb {

@@ -53,6 +53,8 @@ watch(
             :name="pilot.pilot_name"
             :mechs="pilot.mechs.map((mech) => mech.name).join(', ')"
             :player="pilot.player?.display_name"
+            :colour="pilot.profile?.colour"
+            :awards="pilot.awards?.[0]?.count"
             :dead="pilot.status === 'dead'"
           />
         </li>

@@ -25,6 +25,9 @@ describe('scaledSize', () => {
     expect(scaledSize(4000, 2000)).toEqual({ width: 1024, height: 512 })
     expect(scaledSize(1500, 3000)).toEqual({ width: 512, height: 1024 })
   })
+  it('takes another long side, for banners', () => {
+    expect(scaledSize(4000, 1000, 1600)).toEqual({ width: 1600, height: 400 })
+  })
   it('never scales up', () => {
     expect(scaledSize(300, 200)).toEqual({ width: 300, height: 200 })
   })

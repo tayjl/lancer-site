@@ -40,6 +40,7 @@ export async function loadCounts(): Promise<Record<string, number>> {
   const counts = await Promise.all(KINDS.map(async ({ key }) => {
     const query = key === 'bionics' ? supabase.from('bionics').select('id', { count: 'exact', head: true })
       : key === 'factions' ? supabase.from('organisations').select('id', { count: 'exact', head: true })
+      : key === 'commendations' ? supabase.from('commendations').select('id', { count: 'exact', head: true })
       : supabase.from('content_items').select('id', { count: 'exact', head: true }).eq('kind', key)
     return [key, (await query).count ?? 0] as const
   }))
@@ -55,6 +56,10 @@ export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; err
   if (kind === 'factions') {
     const { rows, error } = await fetchAll((from, to) => supabase.from('organisations').select('id, name').order('name').order('id').range(from, to))
     return { rows: rows.map((f) => ({ key: String(f.id), kind, name: f.name, facts: '', packId: null, draft: false, edited: false })), error }
+  }
+  if (kind === 'commendations') {
+    const { rows, error } = await fetchAll((from, to) => supabase.from('commendations').select('id, name, description').order('name').order('id').range(from, to))
+    return { rows: rows.map((c) => ({ key: c.id, kind, name: c.name, facts: c.description, packId: null, draft: false, edited: false })), error }
   }
   const { rows, error } = await fetchAll((from, to) =>
     supabase.from('content_items')
@@ -81,6 +86,11 @@ export async function loadItem(kind: EditorKind, key: string): Promise<{ item: L
     const { data, error } = await supabase.from('organisations').select('id, name, updated_at').eq('id', Number(key)).maybeSingle()
     if (error || !data) return { item: null, error: error?.message ?? null }
     return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: key, name: data.name } }, error: null }
+  }
+  if (kind === 'commendations') {
+    const { data, error } = await supabase.from('commendations').select('id, name, description, icon, updated_at').eq('id', key).maybeSingle()
+    if (error || !data) return { item: null, error: error?.message ?? null }
+    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: data.id, name: data.name, description: data.description, icon: data.icon } }, error: null }
   }
   const { data, error } = await supabase.from('content_items').select('id, pack_id, draft, data, edited, updated_at').eq('id', key).maybeSingle()
   if (error || !data) return { item: null, error: error?.message ?? null }
@@ -164,6 +174,24 @@ export async function saveFaction(item: Loaded, name: string): Promise<Saved> {
 }
 export async function deleteFaction(key: string): Promise<string | null> {
   return (await checkWrite(await supabase.from('organisations').delete().eq('id', Number(key)).select('id'))).error
+}
+
+// Commendations: a name, a description and an icon. Deleting one takes it from every pilot who has it.
+export type CommendationFields = { name: string; description: string; icon: string }
+export async function createCommendation(fields: CommendationFields): Promise<{ updatedAt: string; key: string; error?: undefined } | { error: string; updatedAt?: undefined; key?: undefined }> {
+  const result = await checkWrite(await supabase.from('commendations').insert({ ...fields, name: fields.name.trim() }).select('id, updated_at'))
+  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: result.row.id }
+}
+export async function saveCommendation(item: Loaded, fields: CommendationFields): Promise<Saved> {
+  const seen = item.updatedAt
+  const result = await checkWrite(
+    await supabase.from('commendations').update({ ...fields, name: fields.name.trim() }).eq('id', item.key).eq('updated_at', seen).select('updated_at'),
+    { seen, recheck: () => supabase.from('commendations').select('updated_at').eq('id', item.key).maybeSingle() },
+  )
+  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at }
+}
+export async function deleteCommendation(key: string): Promise<string | null> {
+  return (await checkWrite(await supabase.from('commendations').delete().eq('id', key).select('id'))).error
 }
 
 // The pilots using an item, each named once, in their sheet or an open change.

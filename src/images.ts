@@ -13,10 +13,11 @@ export const IMAGE_PATH = new RegExp(`^${UUID}/${UUID}\\.(webp|jpg)$`)
 
 const MAX_INPUT = 20 * 1024 * 1024
 const MAX_SIDE = 1024
+export const BANNER_SIDE = 1600 // a banner is a wide strip, so it keeps more width
 
-// The picture's size once its long side is at most MAX_SIDE (never scaled up).
-export function scaledSize(width: number, height: number) {
-  const scale = Math.min(1, MAX_SIDE / Math.max(width, height))
+// The picture's size once its long side is at most "side" (never scaled up).
+export function scaledSize(width: number, height: number, side = MAX_SIDE) {
+  const scale = Math.min(1, side / Math.max(width, height))
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
 }
 
@@ -27,15 +28,15 @@ export const imageUrl = (path: string | null | undefined) =>
 const toBlob = (canvas: HTMLCanvasElement, type: string) =>
   new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, 0.85))
 
-// Shrinks the picture and uploads it. Returns the stored path; throws an Error with a plain message when it can't.
+// Shrinks the picture (long side at most "side") and uploads it. Returns the stored path; throws an Error with a plain message when it can't.
 // Animated GIFs become still pictures.
-export async function uploadImage(file: File) {
+export async function uploadImage(file: File, side = MAX_SIDE) {
   if (!file.type.startsWith('image/')) throw new Error('That file is not an image.')
   if (file.size > MAX_INPUT) throw new Error('That image is over 20 MB.')
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => {
     throw new Error("That image can't be read. Try a PNG, JPEG or WebP.")
   })
-  const { width, height } = scaledSize(bitmap.width, bitmap.height)
+  const { width, height } = scaledSize(bitmap.width, bitmap.height, side)
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height

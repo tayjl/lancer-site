@@ -4,7 +4,7 @@ import { uploadImage } from '../images'
 
 // Under a portrait while the page is editable: pick a picture (shrunk and uploaded by src/images.ts), then "save"
 // stores its path on the card, the same way every other field saves. "path" is the stored path now, if any.
-const props = defineProps<{ path: string | null; save: (path: string | null) => Promise<string | null> }>()
+const props = withDefaults(defineProps<{ path: string | null; save: (path: string | null) => Promise<string | null>; noun?: string; side?: number }>(), { noun: 'image' })
 
 const input = useTemplateRef('input')
 const busy = ref('') // what's happening, while something is
@@ -24,7 +24,7 @@ async function change(doing: string, next: () => Promise<string | null>) {
 function pick(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   ;(event.target as HTMLInputElement).value = '' // so picking the same file again still counts
-  if (file) change('Uploading…', async () => props.save(await uploadImage(file)))
+  if (file) change('Uploading…', async () => props.save(await uploadImage(file, props.side)))
 }
 </script>
 
@@ -32,8 +32,8 @@ function pick(event: Event) {
   <div class="image-upload">
     <input ref="input" type="file" accept="image/*" class="sr-only" tabindex="-1" @change="pick" />
     <div class="buttons">
-      <button type="button" class="small" :disabled="!!busy" @click="input?.click()">{{ path ? 'Replace image' : 'Upload image' }}</button>
-      <button v-if="path" type="button" class="quiet small" :disabled="!!busy" @click="change('Saving…', () => save(null))">Remove image</button>
+      <button type="button" class="small" :disabled="!!busy" @click="input?.click()">{{ path ? 'Replace' : 'Upload' }} {{ noun }}</button>
+      <button v-if="path" type="button" class="quiet small" :disabled="!!busy" @click="change('Saving…', () => save(null))">Remove {{ noun }}</button>
     </div>
     <p v-if="busy" class="dim status" role="status">{{ busy }}</p>
     <p v-else-if="error" class="error status" role="alert">Not saved: {{ error }}</p>

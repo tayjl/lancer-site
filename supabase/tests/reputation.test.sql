@@ -53,7 +53,7 @@ select is((select name from public.organisations where id = 900), 'Test Union', 
 set local role authenticated;
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 
-select is((select count(*)::int from public.organisations), 1, 'GMs can read factions');
+select is((select count(*)::int from public.organisations where id = 900), 1, 'GMs can read factions');
 select is((select count(*)::int from public.reputation_levels), 5, 'GMs can read levels');
 select lives_ok($$ insert into public.reputation (character_id, organisation_id, level_id, updated_by)
   values (100, 900, (select id from public.reputation_levels where name = 'Allied'), '33333333-3333-3333-3333-333333333333')

@@ -13,7 +13,7 @@ export const HOMEBREW_PACK = 'Campaign homebrew'
 
 // The "site" kinds (bionics, factions) aren't pack content: they're rows in their own tables. "form": has a form
 // here; the other kinds are edited through the raw-data box (still with the live preview). "prefix" starts a new id.
-export type EditorKind = LcpKind | 'bionics' | 'factions'
+export type EditorKind = LcpKind | 'bionics' | 'factions' | 'commendations'
 export type KindInfo = { key: EditorKind; label: string; singular: string; icon: string; prefix: string; site: boolean; form: boolean }
 const kind = (key: EditorKind, label: string, singular: string, icon: string, prefix: string, form = false, site = false): KindInfo =>
   ({ key, label, singular, icon, prefix, form, site })
@@ -29,6 +29,7 @@ export const KINDS: KindInfo[] = [
   kind('manufacturers', 'Manufacturers', 'manufacturer', 'manufacturer', 'hb_mfr_', true),
   kind('bionics', 'Biomods', 'biomod', 'mod', '', true, true),
   kind('factions', 'Factions', 'faction', 'manufacturer', '', true, true),
+  kind('commendations', 'Commendations', 'commendation', 'medal', '', true, true),
 ]
 export const kindInfo = (key: EditorKind) => KINDS.find((k) => k.key === key)!
 
@@ -71,6 +72,7 @@ export function blankItem(kind: EditorKind, id: string): Data {
   // A manufacturer's id is a short code the player types (IPS-N), not made from its name.
   if (kind === 'manufacturers') return { id: '', name: '', logo: '', light: '#8a8a99', dark: '#b3b3c2', quote: '', description: '' }
   if (kind === 'factions') return { id: '', name: '' }
+  if (kind === 'commendations') return { id: '', name: '', description: '', icon: 'medal' }
   if (kind === 'bionics') return { id: '', name: '', description: '', slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, retired: false, bonuses: [] }
   return { id, name: '' }
 }
@@ -414,6 +416,20 @@ export function validateFaction(name: string, others: string[]): Problem[] {
   const key = (text: string) => text.trim().toLowerCase()
   if (!name.trim()) return [error('A name is needed.', 'name')]
   return others.some((other) => key(other) === key(name)) ? [error('Another faction already has that name.', 'name')] : []
+}
+
+// A commendation (an award GMs give pilots): a unique name, a short description and an icon from the site's set.
+export const COMMENDATION_NAME_MAX = 60
+export const COMMENDATION_DESCRIPTION_MAX = 300
+export function validateCommendation(name: string, description: string, icon: string, others: string[], icons: string[]): Problem[] {
+  const key = (text: string) => text.trim().toLowerCase()
+  const problems: Problem[] = []
+  if (!name.trim()) problems.push(error('A name is needed.', 'name'))
+  else if (name.trim().length > COMMENDATION_NAME_MAX) problems.push(error(`A name is at most ${COMMENDATION_NAME_MAX} characters.`, 'name'))
+  else if (others.some((other) => key(other) === key(name))) problems.push(error('Another commendation already has that name.', 'name'))
+  if (description.length > COMMENDATION_DESCRIPTION_MAX) problems.push(error(`A description is at most ${COMMENDATION_DESCRIPTION_MAX} characters.`, 'description'))
+  if (!icons.includes(icon)) problems.push(error('Pick an icon.', 'icon'))
+  return problems
 }
 
 // The same checks for any kind, as the editor calls them.

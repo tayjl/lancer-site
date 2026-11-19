@@ -92,6 +92,9 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // When the sheet last changed, as loaded with the page (the raw string): with the card's updated_at it says what
   // this page is showing, for "based_on" below and for a GM's approve_pilot.
   const sheetUpdatedAt = ref('')
+  // While a draft change is shown instead of the pilot, the approved card and sheet as loaded (null otherwise): the pilot ID card
+  // shows the approved pilot, never an open draft.
+  const approved = shallowRef<{ character: Character; sheet: Sheet } | null>(null)
   // The change being written or waiting on a GM. "draft" is only ever your own (it redirects your saves); a GM in
   // edit mode sees "waiting" instead, to warn that editing directly stops the change from being approved.
   const waiting = computed(() => (change.value?.status === 'pending' ? change.value : null))
@@ -156,6 +159,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       canSeeBackstory.value = !pilotId || !!fullRow
       change.value = null
       approvedImages = new Set()
+      approved.value = null
       if (data.status === 'approved' && (!pilotId || gmEditing.value)) {
         const latest = await latestChange(data.id)
         change.value = latest
@@ -165,6 +169,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
           : null
         if (proposed) {
           approvedImages = cardImages(character.value!)
+          approved.value = { character: character.value!, sheet: sheet.value }
           character.value = { ...character.value!, ...(proposed.proposed_public as object) }
           sheet.value = proposed.proposed_sheet as unknown as Sheet
         }
@@ -398,6 +403,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     editable,
     gmEditing,
     waiting,
+    approved,
     mechs,
     change,
     draft,
