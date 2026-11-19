@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, provide, reactive, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { isGm } from '../auth'
+import { isGm, session } from '../auth'
+import { useBackstoryVisibility } from '../backstory'
+import BackstoryVisibility from '../components/BackstoryVisibility.vue'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
@@ -134,6 +136,9 @@ const mechLink = (mechId: string) =>
   own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId }, query: gmEditing.value ? { edit: '1' } : undefined }
 // A GM's edit mode (?edit=1) on a living pilot's record or review page; Done leaves it. On your own approved pilot (a GM or
 // owner's) the button is on My pilot too: it opens your own record in edit mode (a pending pilot is already yours to edit).
+// Backstory privacy: the pilot's own player or a GM editing can change it; other viewers see only a public copy.
+const backstory = useBackstoryVisibility(() => character.value?.id)
+const canToggleBackstory = computed(() => gmEditing.value || (!!character.value && character.value.player_id === session.value?.user.id))
 const gmCanEdit = computed(() => isGm.value && character.value?.status !== 'dead' && (!own || character.value?.status === 'approved'))
 const setEdit = (on: boolean) =>
   own && on
@@ -202,7 +207,7 @@ const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, mods } = useMechData()
 const catalogue = useCatalogue()
-const balance = computed(() => gm.value.manna - mannaSpent(sheet.value, bionicPrices.value))
+const balance = computed(() => gm.value.manna - mannaSpent(sheet.value, bionicPrices.value, mechs.value.length))
 
 // Licences: one per original licensed frame (alternate frames share it). Each rank unlocks the frames and gear of that
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
@@ -355,7 +360,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             <div class="fact">
               <dt class="label">Manna left</dt>
               <dd class="fact-value num" :class="{ over: balance < 0 }">{{ formatAmount(balance) }}</dd>
-              <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet, bionicPrices)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
+              <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet, bionicPrices, mechs.length)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
             </div>
           </dl>
           <div v-if="gmLink || (gmCanEdit && !gmEditing)" class="gm-actions">
@@ -468,11 +473,15 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               v-if="canSeePrivate"
               class="panel"
               title="Backstory"
-              tag="Private"
               :doc="sheet.backstory ?? null"
               :editable="editable"
               :save="saveBackstory"
-            />
+            >
+              <template #head>
+                <BackstoryVisibility :is-public="backstory.isPublic.value" :can-change="canToggleBackstory" :set="backstory.set" />
+              </template>
+            </SheetField>
+            <SheetField v-else-if="backstory.isPublic.value" class="panel" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
           </div>
           <section class="panel">
             <h2 class="sheet-label">Identity</h2>
@@ -501,11 +510,10 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
 
       <template v-if="canSeePrivate">
         <div v-show="tab === 'stats'" class="tab-panel section-grid">
-          <StatRow class="panel span-all" title="General stats" tag="Private" :stats="vitals" :editable="false" :min="0" :max="0" />
+          <StatRow class="panel span-all" title="General stats" :stats="vitals" :editable="false" :min="0" :max="0" />
           <StatRow
             class="panel"
             title="Piloting stats (HASE)"
-            tag="Private"
             :stats="stats.piloting"
             :editable="editable"
             :min="STAT_MIN"
@@ -516,7 +524,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           <StatRow
             class="panel"
             title="Personal stats"
-            tag="Private"
             :stats="stats.personal"
             :editable="editable"
             :min="PERSONAL_STAT_MIN"
@@ -529,7 +536,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           <LoadoutBox
             class="panel"
             title="Biomods"
-            tag="Private"
             :items="bionicOptions"
             :chosen="sheet.bionics ?? []"
             :editable="editable"
@@ -587,7 +593,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       </template>
 
       <div v-show="tab === 'mechs'" class="tab-panel">
-        <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" />
+        <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" />
       </div>
 
       <!-- :key resets the decision box after a decision, so it shows the new status. -->

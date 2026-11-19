@@ -5,8 +5,9 @@ import type { Json, Tables, TablesUpdate } from './lib/database.types'
 import { cardImages, deleteImage } from './images'
 import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
 import { PUBLIC_COLUMNS } from './changeDiff'
+import { NOT_SUBMITTED } from './saveStatus'
 import type { PublicMech } from './pilots'
-import type { GmFields } from './rules'
+import { STARTING_MANNA, type GmFields } from './rules'
 
 // A pilot for pilot_management and the mech pages: the public card (characters table) and the private sheet
 // (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
@@ -76,7 +77,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const sheet = shallowRef<Sheet>({})
   // Level (gained narratively) and manna received. They live beside the sheet, not in it, and only GMs can
   // change them (the database enforces it). See src/rules.ts for what they give.
-  const gm = ref<GmFields>({ level: 0, manna: 0 })
+  const gm = ref<GmFields>({ level: 0, manna: STARTING_MANNA })
   // A GM's note when they send a pilot back (it's a draft again). Cleared when it's submitted again.
   const reviewNote = ref('')
   const playerName = ref('')
@@ -313,7 +314,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       )
       if (result.row) change.value = result.row
       if (result.error === CHANGED_ELSEWHERE) conflict.value = true
-      return result.error
+      return submitted && result.error ? NOT_SUBMITTED + result.error : result.error
     })
 
   // Withdrawing deletes the change; the approved pilot shows again.
@@ -355,7 +356,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       if (result.row) character.value = { ...character.value!, ...result.row }
       if (result.row && submitted) reviewNote.value = ''
       if (result.error === CHANGED_ELSEWHERE) conflict.value = true
-      return result.error
+      return submitted && result.error ? NOT_SUBMITTED + result.error : result.error
     })
 
   // This clears only the approval message, including while a proposed edit is open.

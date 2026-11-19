@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { IMAGE_PATH, cardImages, imageUrl, scaledSize } from './images'
+import { IMAGE_PATH, cardImages, frameArt, frameArtUrl, imageUrl, scaledSize } from './images'
+import { toFrame } from './mechData'
 
 // images.ts reads the session from auth.ts, which needs a real browser window.
 vi.mock('./auth', () => ({ session: { value: null } }))
@@ -44,5 +45,30 @@ describe('cardImages', () => {
     const mechs = [{ image: `${USER}/${FILE}.jpg` }, { image: 'https://evil.example/x.png' }, { image: null }, 'junk']
     expect(cardImages({ pilot_image: GOOD, mechs })).toEqual(new Set([GOOD, `${USER}/${FILE}.jpg`]))
     expect(cardImages({ pilot_image: null, mechs: null })).toEqual(new Set())
+  })
+})
+
+describe('frameArt', () => {
+  const frame = (id: string, extra: Record<string, unknown> = {}) => toFrame(id, { name: id, ...extra })
+  const frames = [frame('mf_blackbeard'), frame('mf_sagarmatha', { variant: 'Everest', license_id: 'mf_everest' }), frame('mf_everest', { name: 'Everest' }), frame('hb_mine')]
+  it('uses the bundled art for an official frame', () => {
+    expect(frameArt(frames[0], frames)).toEqual({ bundled: 'mf_blackbeard' })
+  })
+  it('lets an owner upload win over the bundled art', () => {
+    expect(frameArt(frame('mf_blackbeard', { image: GOOD }), frames)).toEqual({ path: GOOD })
+  })
+  it('ignores an image that is not an upload path', () => {
+    expect(frameArt(frame('mf_blackbeard', { image: 'https://evil.example/x.png' }), frames)).toEqual({ bundled: 'mf_blackbeard' })
+    expect(frameArt(frame('hb_mine', { image: 'https://evil.example/x.png' }), frames)).toBeNull()
+  })
+  it("gives an alternate with no art of its own its original's, and a homebrew frame nothing", () => {
+    const everest = frame('mf_standard_pattern_i_everest', { name: 'Everest' })
+    const alt = frame('mf_sagarmatha', { variant: 'Everest', license_id: everest.id })
+    expect(frameArt(alt, [everest, alt])).toEqual({ bundled: everest.id })
+    expect(frameArt(frames[3], frames)).toBeNull()
+  })
+  it('builds the link for an upload without loading anything, and none for no art', async () => {
+    expect(await frameArtUrl({ path: GOOD })).toBe(imageUrl(GOOD))
+    expect(await frameArtUrl(null)).toBeNull()
   })
 })

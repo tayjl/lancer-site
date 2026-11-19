@@ -20,6 +20,7 @@ import ActionChip from '../components/ActionChip.vue'
 import InfoRule from '../components/InfoRule.vue'
 import ItemCard from '../components/ItemCard.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
+import { frameArt } from '../images'
 import { frameInfo } from '../info'
 import { frameRanges, framePick } from '../pickerRows'
 import SheetField from '../components/SheetField.vue'
@@ -85,6 +86,8 @@ const baseFrame = computed(() => frames.value.find((f) => f.id === details.value
 const manufacturers = useManufacturers()
 const maker = computed(() => manufacturers.value.find((m) => m.id === baseFrame.value?.source))
 const logo = computed(() => makerLogo(maker.value))
+// With no image of its own the mech shows its frame's. The frame is private, so only viewers of the private sheet get it.
+const fallbackArt = computed(() => (canSeePrivate.value && baseFrame.value ? frameArt(baseFrame.value, frames.value) : null))
 const grants = computed(() => talentGrants(sheet.value, talents.value))
 const optional = computed(() => grants.value.optional.map(id => integrated.value.get(id)).filter(item => !!item))
 const availableWeapons = computed(() => [...weapons.value, ...optional.value.filter(item => !!item.mount)])
@@ -173,7 +176,7 @@ const frameOptions = computed(() => {
   return frames.value.map((f) => ({
     id: f.id,
     name: f.name,
-    ...framePick(f, ranges, manufacturers.value),
+    ...framePick(f, ranges, manufacturers.value, true, frames.value),
     exotic: isExotic(f),
     blocked: reasonFor(restrictionOf(f)) || frameBlockedBy(f, frames.value, sheet.value),
     info: () => frameInfo(f, frames.value),
@@ -340,11 +343,12 @@ async function scrap() {
         <div class="profile">
           <div class="writing">
             <SheetField class="panel" title="Appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-            <SheetField v-if="canSeePrivate" class="panel" title="History" tag="Private" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+            <SheetField v-if="canSeePrivate" class="panel" title="History" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
           </div>
           <section class="panel">
             <h2 class="sheet-label">Image</h2>
-            <Portrait class="mech-portrait" :src="mech.image" icon="frame" whole :alt="`Image of ${mech.name}`" />
+            <Portrait class="mech-portrait" :src="mech.image" :fallback="fallbackArt" icon="frame" whole :alt="`Image of ${mech.name}`" />
+            <p v-if="!mech.image && fallbackArt" class="dim frame-note">Frame image{{ editable ? '. Upload your own to replace it.' : '.' }}</p>
             <ImageUpload v-if="editable" :path="mech.image" :save="saveImage" />
           </section>
         </div>
@@ -360,9 +364,9 @@ async function scrap() {
 
       <template v-if="canSeePrivate">
         <div v-show="tab === 'stats'" class="tab-panel">
-          <StatRow class="panel mech-stats" title="Mech stats" tag="Private" :stats="stats" :editable="false" :min="0" :max="0" />
+          <StatRow class="panel mech-stats" title="Mech stats" :stats="stats" :editable="false" :min="0" :max="0" />
           <section v-if="frame" class="panel">
-            <h2 class="sheet-label">Resources<span class="private">Private</span></h2>
+            <h2 class="sheet-label">Resources</h2>
             <ul class="resources">
               <li><span class="value num">{{ resources.aiCap }}</span><span class="name">AI capacity</span></li>
               <li v-if="resources.limited">
@@ -374,7 +378,7 @@ async function scrap() {
             <p v-for="(check, index) in resources.checks" :key="index" class="check"><b>{{ check.source }}:</b> {{ check.text }}</p>
           </section>
           <section v-if="frame && effects.reminders.length" class="panel">
-            <h2 class="sheet-label">Other effects and conditions<span class="private">Private</span></h2>
+            <h2 class="sheet-label">Other effects and conditions</h2>
             <p class="dim intro">These aren't counted in the stats.</p>
             <ul v-if="traitCards.length" class="trait-cards">
               <li v-for="card in traitCards" :key="card.name">
@@ -594,6 +598,11 @@ async function scrap() {
 
 .tab-panel * {
   scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-l));
+}
+
+.frame-note {
+  margin: var(--space-s) 0 0;
+  font-size: var(--fs-s);
 }
 
 .mech-portrait:not(.whole) {

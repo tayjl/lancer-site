@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { FRAME_MOUNTS, FRAME_ROLES, FRAME_SIZES, FRAME_STATS, FRAME_USES, type BonusType, type Data } from '../../contentEditor'
+import { frameArt } from '../../images'
 import { itemInfo } from '../../info'
 import { alternateOf, MOUNT_HINTS, toFrame, useMechData } from '../../mechData'
 import { plural } from '../../text'
+import FrameArt from '../FrameArt.vue'
 import Icon from '../Icon.vue'
+import ImageUpload from '../ImageUpload.vue'
 import InfoButton from '../InfoButton.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
@@ -76,6 +79,16 @@ const unlocks = computed(() => {
 })
 const unlockCount = computed(() => unlocks.value.reduce((sum, rung) => sum + rung.items.length + (rung.frame ? 1 : 0), 0))
 
+// The picture the frame shows now: an upload, else COMP/CON's bundled art. The upload goes in the frame's own `image` field
+// (a bucket path; the pack's image_url stays as it was and is ignored). Removing it brings the bundled art back.
+// shortcut: a replaced or removed upload stays in the bucket; a clean-up would need to know every other frame that uses it.
+const art = computed(() => frameArt(toFrame(String(model.value.id ?? ''), model.value), frames.value))
+const saveImage = async (path: string | null) => {
+  const { image: _image, ...rest } = model.value
+  model.value = path ? { ...rest, image: path } : rest
+  return null
+}
+
 const identitySummary = computed(() => [String(model.value.name ?? ''), source.value, roles.value.join(' / ')].filter(Boolean).join(' · '))
 const traitsSummary = computed(() => (traits.value.length ? `${plural(traits.value.length, 'trait')}: ${traits.value.map((trait) => trait.name || 'Unnamed').join(', ')}` : 'No traits yet'))
 const coreSummary = computed(() => {
@@ -86,7 +99,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 </script>
 
 <template>
-  <FoldPanel title="Identity" :open="!locked" :summary="identitySummary" :paths="['name', 'id', 'source', 'license_level', 'license_id', 'mechtype']">
+  <FoldPanel title="Identity" :open="!locked" :summary="identitySummary" :paths="['name', 'id', 'source', 'license_level', 'license_id', 'mechtype', 'image']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field
@@ -119,6 +132,13 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     </Field>
     <Field block label="Unlocked at licence rank" path="license_level" hint="Rank needed to use this frame. None for GMS frames.">
       <ChoiceField v-model="rank" label="Unlocked at licence rank" :options="[0, 1, 2, 3].map((value) => ({ value, label: roman(value) }))" />
+    </Field>
+    <Field block label="Image" path="image" hint="Shown on the frame's information, its licence and any mech with no picture of its own. An upload replaces the bundled art.">
+      <div class="art-edit">
+        <FrameArt v-if="art" :art="art" :alt="`${String(model.name ?? 'Frame')} image`" class="art-preview" />
+        <p v-else class="dim">No image.</p>
+        <ImageUpload :path="typeof model.image === 'string' ? model.image : null" :save="saveImage" />
+      </div>
     </Field>
     <Field block label="Description" hint="Flavour text.">
       <RichTextEditor label="Frame description" html basic v-model="description" />
@@ -215,6 +235,9 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 .hint { margin: 0; color: var(--text-dim); font-size: var(--fs-s); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: var(--space-m); }
 .unused { opacity: 0.7; }
+.art-edit { display: grid; justify-items: start; gap: var(--space-s); }
+.art-edit p { margin: 0; }
+.art-preview { max-width: 100%; max-height: 12rem; padding: var(--space-s); border: 1px solid var(--rule); border-radius: var(--radius); background: var(--raised); object-fit: contain; }
 .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-m); }
 .mounts { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
 .mounts li { display: grid; grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr) auto; gap: var(--space-s) var(--space-m); align-items: center; }

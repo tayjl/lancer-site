@@ -28,7 +28,7 @@ insert into public.characters (id, player_id, status, pilot_name, callsign)
 insert into public.character_sheets (character_id, sheet, level) values (100, '{"manna": 50}', 2);
 update public.character_sheets set review_note = 'Approval note' where character_id = 100;
 insert into public.organisations (id, name) overriding system value values (1, 'Harrison Armory');
-insert into public.reputation_levels (id, name) overriding system value values (1, 'Neutral');
+-- The levels are seeded by a migration (id 1 is Hostile).
 insert into public.reputation (character_id, organisation_id, level_id) values (100, 1, 1);
 
 
@@ -69,6 +69,9 @@ select lives_ok(
   $$ insert into public.character_sheets (character_id, sheet)
      select id, '{"manna": 0}' from public.characters where pilot_name = 'One' $$,
   'players can fill in the sheet of their pending character');
+select is(
+  (select manna from public.character_sheets where character_id = (select id from public.characters where pilot_name = 'One')),
+  1500, 'a new sheet starts with 1500 manna');
 select lives_ok(
   $$ update public.characters set callsign = 'Uno' where pilot_name = 'One' $$,
   'players can edit their pending character');

@@ -357,16 +357,19 @@ export type Database = {
           description: string | null
           id: number
           name: string
+          updated_at: string
         }
         Insert: {
           description?: string | null
           id?: never
           name: string
+          updated_at?: string
         }
         Update: {
           description?: string | null
           id?: never
           name?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -436,6 +439,106 @@ export type Database = {
             columns: ["submitted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pilot_progress: {
+        Row: {
+          character_id: number
+          experience: number
+          updated_at: string
+        }
+        Insert: {
+          character_id: number
+          experience?: number
+          updated_at?: string
+        }
+        Update: {
+          character_id?: number
+          experience?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_progress_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: true
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pilot_public_backstory: {
+        Row: {
+          backstory: Json | null
+          character_id: number
+          updated_at: string
+        }
+        Insert: {
+          backstory?: Json | null
+          character_id: number
+          updated_at?: string
+        }
+        Update: {
+          backstory?: Json | null
+          character_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_public_backstory_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: true
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pilot_reward_log: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          character_id: number
+          field: string
+          id: number
+          new_value: number
+          old_value: number
+          reason: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          character_id: number
+          field: string
+          id?: never
+          new_value: number
+          old_value: number
+          reason?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          character_id?: number
+          field?: string
+          id?: never
+          new_value?: number
+          old_value?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_reward_log_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pilot_reward_log_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
             referencedColumns: ["id"]
           },
         ]
@@ -574,6 +677,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      award: {
+        Args: {
+          new_experience?: number
+          new_level?: number
+          new_manna?: number
+          reason?: string
+          target_character_id: number
+        }
+        Returns: undefined
+      }
       delete_content_item: { Args: { target_id: string }; Returns: undefined }
       dismiss_approval_note: {
         Args: { expected_note: string; target_character_id: number }
@@ -596,6 +709,10 @@ export type Database = {
           character_id: number
           pilot: string
         }[]
+      }
+      level_up: {
+        Args: { reason?: string; target_character_id: number }
+        Returns: undefined
       }
       mark_dead: { Args: { target_character_id: number }; Returns: undefined }
       pack_usage: {
@@ -630,6 +747,10 @@ export type Database = {
       }
       send_back_pilot: {
         Args: { note: string; target_character_id: number }
+        Returns: undefined
+      }
+      set_backstory_public: {
+        Args: { make_public: boolean; target_character_id: number }
         Returns: undefined
       }
     }

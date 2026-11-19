@@ -1,5 +1,8 @@
 import { ref } from 'vue'
 
+// A submit that failed starts its error with this, and the status line shows it as written (not as "Not saved: …").
+export const NOT_SUBMITTED = 'Not submitted: '
+
 // The save status the pilot sheet and mech pages show ("Saving…", "Saved" or "Not saved: …", see SaveStatus.vue).
 // track() runs a save (one that resolves to an error message, or null) and updates the status; it returns the error.
 export function useSaveStatus() {

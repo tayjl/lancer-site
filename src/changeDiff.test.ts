@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { changeDiff, listDiff, type Names } from './changeDiff'
+import { changeDiff, listDiff, reviewSections, writingSummary, wordCount, type Names } from './changeDiff'
+import { mannaSpent } from './rules'
 
 const names: Names = {
   stat: (id) => id,
@@ -131,7 +132,7 @@ describe('changeDiff', () => {
       { card: { mechs: [mech] }, sheet: { mechs: { m1: { mounts: [['knife'], ['rifle']] } } } },
       names,
     )
-    expect(lines).toEqual([{ section: 'mech: Mech / weapon mounts', text: 'Weapon mounts rearranged', kind: 'updated' }])
+    expect(lines).toEqual([{ section: 'mech: Mech / weapon mounts', text: 'Weapon mounts rearranged', kind: 'updated', mechId: 'm1' }])
   })
 
   it('shows core target and per-weapon configuration changes in readable terms', () => {
@@ -144,5 +145,103 @@ describe('changeDiff', () => {
       'CB:cb_overpower_caliber target: Unassigned → Mount 1, W:rifle',
       'Mount 1, weapon 1 configuration: Defaults → Profile 2, Melee',
     ])
+  })
+})
+
+const doc = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
+const mech = (id: string, name: string) => ({ id, name, manufacturer_id: 'AAAA-AAAA-AAAA', appearance: null, image: null })
+
+describe('manna on lines', () => {
+  it('prices ranks, biomods and extra mechs, and adds up to what the sheet spends', () => {
+    const prices = { bionic: (id: number) => (id === 1 ? 500 : 800) }
+    const before = { card: { mechs: [mech('a', 'One')] }, sheet: { licences: { x: 1 }, bionics: [1], talents: { t: 2 } } }
+    const after = { card: { mechs: [mech('a', 'One'), mech('b', 'Two')] }, sheet: { licences: { x: 3 }, bionics: [2], talents: {} } }
+    const lines = changeDiff(before, after, names, prices)
+    const byText = Object.fromEntries(lines.map((line) => [line.text, line.manna]))
+    expect(byText['L:x licence, rank I → III']).toBe(1200)
+    expect(byText['B:2']).toBe(800)
+    expect(byText['B:1']).toBe(-500)
+    expect(byText['T:t, rank II']).toBe(-600)
+    expect(byText['New mech, ID AAAA-AAAA-AAAA']).toBe(500)
+    const map = new Map([[1, 500], [2, 800]])
+    const spend = (side: { sheet: Parameters<typeof mannaSpent>[0] }, mechs: number) => mannaSpent(side.sheet, map, mechs)
+    expect(lines.reduce((sum, line) => sum + (line.manna ?? 0), 0)).toBe(spend(after, 2) - spend(before, 1))
+  })
+
+  it('makes the first mech and the last mech free', () => {
+    const first = changeDiff({ card: { mechs: [] }, sheet: {} }, { card: { mechs: [mech('a', 'One'), mech('b', 'Two')] }, sheet: {} }, names)
+    expect(first.map((line) => line.manna)).toEqual([undefined, 500])
+    const last = changeDiff({ card: { mechs: [mech('a', 'One')] }, sheet: {} }, { card: { mechs: [] }, sheet: {} }, names)
+    expect(last).toEqual([{ section: 'mech: One', text: 'Mech scrapped', kind: 'removed', mechId: 'a' }])
+  })
+})
+
+describe('reviewSections', () => {
+  it('puts the sheet sections in sheet order, then mechs, whatever order the lines came in', () => {
+    const lines = changeDiff(
+      { card: { mechs: [] }, sheet: {} },
+      { card: { mechs: [mech('a', 'Lantern')], callsign: 'X' }, sheet: { talents: { t: 1 }, licences: { l: 1 }, mech_skills: { hull: 1 }, pilot_stats: { acuity: 3 }, backstory: doc('Hi') } },
+      names,
+    )
+    expect(reviewSections(lines).map((section) => section.title)).toEqual([
+      'Identity', 'Backstory', 'Personal stats', 'Piloting stats', 'Licences', 'Talents', 'Mech: Lantern',
+    ])
+  })
+
+  it('keeps one panel per mech with sub-groups in order, a new or scrapped state, counts and manna', () => {
+    const [m1, m2] = [mech('a', 'Lantern'), mech('b', 'Ghost')]
+    const lines = changeDiff(
+      { card: { mechs: [m1, m2] }, sheet: { mechs: { a: { frame: 'f1', systems: ['s1'], mounts: [['w1']] } } } },
+      { card: { mechs: [{ ...m1, name: 'Lantern II' }, mech('c', 'Fresh')] }, sheet: { mechs: { a: { frame: 'f2', systems: ['s2'], mounts: [['w2']], history: doc('x') } } } },
+      names,
+    )
+    const sections = reviewSections(lines)
+    const lantern = sections.find((section) => section.mech === 'Lantern II')!
+    expect(lantern.groups.map((group) => group.title)).toEqual(['identity', 'frame', 'history', 'weapon mounts', 'systems'])
+    // Within a group: added, then updated, then removed.
+    expect(lantern.groups[3].lines.map((line) => line.kind)).toEqual(['added', 'removed'])
+    expect(lantern.counts).toEqual({ up: 3, down: 2, info: 2 })
+    expect(sections.find((section) => section.mech === 'Fresh')).toMatchObject({ mechState: 'new', manna: 500, groups: [{ title: '' }] })
+    expect(sections.find((section) => section.mech === 'Ghost')).toMatchObject({ mechState: 'scrapped', manna: -500 })
+  })
+
+  it('orders lines added or raised, then updated, then removed or lowered', () => {
+    const lines = changeDiff(
+      { card: { callsign: 'A' }, sheet: { pilot_gear: ['x'], pilot_stats: { acuity: 3 } } },
+      { card: { callsign: 'B', age: '9' }, sheet: { pilot_gear: [], pilot_stats: { acuity: 3 } } },
+      names,
+    )
+    expect(reviewSections(lines)[0].groups[0].lines.map((line) => line.kind)).toEqual(['added', 'updated'])
+    expect(reviewSections(lines)[1].groups[0].lines.map((line) => line.kind)).toEqual(['removed'])
+  })
+})
+
+describe('writing', () => {
+  it('counts words', () => {
+    expect(wordCount(doc('One two  three'))).toBe(3)
+    expect(wordCount(null)).toBe(0)
+  })
+
+  it('summarises long writing, with before and after when there was something before', () => {
+    const [line] = changeDiff({ card: {}, sheet: { backstory: doc('one two three') } }, { card: {}, sheet: { backstory: doc('one two three four five') } }, names)
+    expect(line.before).toEqual(doc('one two three'))
+    expect(writingSummary(line)).toBe('Backstory rewritten · 3 → 5 words')
+    const [fresh] = changeDiff({ card: {}, sheet: {} }, { card: {}, sheet: { backstory: doc('one two') } }, names)
+    expect(writingSummary(fresh)).toBe('Backstory written · 2 words')
+    expect(writingSummary({ section: 'identity', text: 'Age: - → 3', kind: 'added' })).toBeNull()
+  })
+})
+
+describe('mechs with the same name', () => {
+  it('stay in their own panels, each carrying its id, and a rename keeps the same panel', () => {
+    const [a, b] = [mech('a', 'Twin'), mech('b', 'Twin')]
+    const lines = changeDiff(
+      { card: { mechs: [a, b] }, sheet: { mechs: { a: { frame: 'f1' }, b: { frame: 'f1' } } } },
+      { card: { mechs: [{ ...a, name: 'Twin Prime' }, b] }, sheet: { mechs: { a: { frame: 'f2' }, b: { frame: 'f3' } } } },
+      names,
+    )
+    const sections = reviewSections(lines)
+    expect(sections.map((section) => [section.mechId, section.title])).toEqual([['a', 'Mech: Twin Prime'], ['b', 'Mech: Twin']])
+    expect(sections.every((section) => section.groups.some((group) => group.title === 'frame'))).toBe(true)
   })
 })

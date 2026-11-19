@@ -1,6 +1,7 @@
 import { capitalise } from './text'
 import { bonusValue } from './bonuses'
 import { flatDamage } from './damage'
+import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
 import { EXOTIC, EXOTIC_TAG } from './rules'
 
@@ -10,9 +11,9 @@ import { EXOTIC, EXOTIC_TAG } from './rules'
 // The one pack every new item goes in, made the first time an owner makes one.
 export const HOMEBREW_PACK = 'Campaign homebrew'
 
-// "site" kinds (bionics, personal stats) aren't pack content: they're rows in their own tables. "form": has a form
+// The "site" kinds (bionics, factions) aren't pack content: they're rows in their own tables. "form": has a form
 // here; the other kinds are edited through the raw-data box (still with the live preview). "prefix" starts a new id.
-export type EditorKind = LcpKind | 'bionics' | 'pilot_stats'
+export type EditorKind = LcpKind | 'bionics' | 'factions'
 export type KindInfo = { key: EditorKind; label: string; singular: string; icon: string; prefix: string; site: boolean; form: boolean }
 const kind = (key: EditorKind, label: string, singular: string, icon: string, prefix: string, form = false, site = false): KindInfo =>
   ({ key, label, singular, icon, prefix, form, site })
@@ -27,7 +28,7 @@ export const KINDS: KindInfo[] = [
   kind('tags', 'Tags', 'tag', 'flag', 'hb_tg_', true),
   kind('manufacturers', 'Manufacturers', 'manufacturer', 'manufacturer', 'hb_mfr_', true),
   kind('bionics', 'Biomods', 'biomod', 'mod', '', true, true),
-  kind('pilot_stats', 'Personal stats', 'personal stat', 'skill', '', true, true),
+  kind('factions', 'Factions', 'faction', 'manufacturer', '', true, true),
 ]
 export const kindInfo = (key: EditorKind) => KINDS.find((k) => k.key === key)!
 
@@ -47,8 +48,7 @@ export const isObject = (value: unknown): value is Data => !!value && typeof val
 export const slug = (text: string) =>
   text.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
 
-// A new item's id: its kind's prefix and the name's slug, with a number on the end when that's taken. Personal stats
-// have no prefix: their id is the short key sheets and bonuses use (tech_fluency).
+// A new item's id: its kind's prefix and the name's slug, with a number on the end when that's taken.
 export function newId(kind: EditorKind, name: string, taken: Iterable<string>) {
   const used = new Set(taken)
   const base = `${kindInfo(kind).prefix}${slug(name) || 'new'}`
@@ -58,7 +58,7 @@ export function newId(kind: EditorKind, name: string, taken: Iterable<string>) {
 }
 
 // A new item's starting data. Kinds with a form start with its fields; the rest with an id and a name, to fill in the raw box.
-export function blankItem(kind: EditorKind, id: string, nextOrder = 1): Data {
+export function blankItem(kind: EditorKind, id: string): Data {
   if (kind === 'pilot_gear') return { id, name: '', type: 'Gear', effect: '', description: '' }
   if (kind === 'core_bonuses') return { id, name: '', source: '', effect: '', description: '' }
   if (kind === 'tags') return { id, name: '', description: '' }
@@ -70,8 +70,8 @@ export function blankItem(kind: EditorKind, id: string, nextOrder = 1): Data {
   if (kind === 'talents') return { id, name: '', terse: '', description: '', ranks: RANK_NAMES.map(() => ({ name: '', description: '' })) }
   // A manufacturer's id is a short code the player types (IPS-N), not made from its name.
   if (kind === 'manufacturers') return { id: '', name: '', logo: '', light: '#8a8a99', dark: '#b3b3c2', quote: '', description: '' }
+  if (kind === 'factions') return { id: '', name: '' }
   if (kind === 'bionics') return { id: '', name: '', description: '', slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, retired: false, bonuses: [] }
-  if (kind === 'pilot_stats') return { id, name: '', sort_order: nextOrder }
   return { id, name: '' }
 }
 
@@ -321,6 +321,9 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
   }
   else if (licence !== ctx.id) out.push(warn(`Licence ID should be "${ctx.id}".`, 'license_id'))
 
+  // The site's own image field: a path in the image bucket (src/images.ts), never a link.
+  if (data.image !== undefined && data.image !== null && data.image !== '' && !IMAGE_PATH.test(String(data.image))) out.push(error('The image must be one uploaded here.', 'image'))
+
   const stats = entry(data.stats)
   for (const { key, label, unused } of FRAME_STATS) {
     const value = stats[key]
@@ -406,16 +409,16 @@ export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Probl
   return problems
 }
 
-export function validateStat(data: Data): Problem[] {
-  const problems: Problem[] = []
-  if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
-  if (!Number.isInteger(data.sort_order)) problems.push(error('Order must be a whole number.', 'sort_order'))
-  return problems
+// A faction (the reputation tracker's organisation) needs a name no other faction has, whatever the capitals.
+export function validateFaction(name: string, others: string[]): Problem[] {
+  const key = (text: string) => text.trim().toLowerCase()
+  if (!name.trim()) return [error('A name is needed.', 'name')]
+  return others.some((other) => key(other) === key(name)) ? [error('Another faction already has that name.', 'name')] : []
 }
 
 // The same checks for any kind, as the editor calls them.
 export function problemsFor(kind: EditorKind, data: Data, ctx: Context): Problem[] {
-  return kind === 'bionics' ? validateBionic(data, ctx) : kind === 'pilot_stats' ? validateStat(data) : validateItem(kind, data, ctx)
+  return kind === 'bionics' ? validateBionic(data, ctx) : validateItem(kind, data, ctx)
 }
 
 // A weapon with one set of numbers becomes one with profiles: its range, damage and on-hit text go into the first

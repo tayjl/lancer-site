@@ -23,7 +23,6 @@ const props = defineProps<{
   items: Item[]
   chosen: Id[]
   editable: boolean
-  tag?: string
   limit?: { label: string; unit: string; max: number }
   balance?: number
   save: (ids: Id[]) => Promise<string | null>
@@ -95,7 +94,7 @@ function open() {
 <template>
   <section class="loadout">
     <header class="head sheet-head">
-      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="private">{{ tag }}</span></h2>
+      <h2 class="sheet-label">{{ title }}</h2>
       <span v-if="limit" class="meter-inline" :class="{ over: used > limit.max }">
         {{ limit.label }} <span class="num">{{ used }}</span> / <span class="num">{{ limit.max }}</span>
       </span>

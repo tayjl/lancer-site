@@ -20,7 +20,6 @@ import ManufacturerForm from './ManufacturerForm.vue'
 import FrameForm from './FrameForm.vue'
 import ModForm from './ModForm.vue'
 import RawDataField from './RawDataField.vue'
-import StatForm from './StatForm.vue'
 import SystemForm from './SystemForm.vue'
 import TagForm from './TagForm.vue'
 import TalentForm from './TalentForm.vue'
@@ -259,7 +258,6 @@ defineExpose({ dirty })
         <ManufacturerForm v-else-if="kind === 'manufacturers'" v-model="working" :locked="!isNew" />
         <TagForm v-else-if="kind === 'tags'" v-model="working" :locked="!isNew" />
         <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
-        <StatForm v-else-if="kind === 'pilot_stats'" v-model="working" :locked="!isNew" />
         <p v-else class="notice" role="note">
           <span>No form for {{ info.label.toLowerCase() }} yet. Edit the raw data.</span>
         </p>

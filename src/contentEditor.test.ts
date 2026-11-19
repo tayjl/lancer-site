@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blankItem, bonusTypesFor, errorsOf, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, withExoticTag, type Context } from './contentEditor'
+import { blankItem, bonusTypesFor, errorsOf, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, validateFaction, withExoticTag, type Context } from './contentEditor'
 
 const ctx: Context = {
   id: 'hb_pg_vest',
@@ -21,10 +21,6 @@ describe('new ids', () => {
     expect(newId('weapons', 'Cinder Lance', ['hb_mw_cinder_lance'])).toBe('hb_mw_cinder_lance_2')
     expect(newId('weapons', 'Cinder Lance', ['hb_mw_cinder_lance', 'hb_mw_cinder_lance_2'])).toBe('hb_mw_cinder_lance_3')
     expect(newId('pilot_gear', '', [])).toBe('hb_pg_new')
-  })
-  it('gives a personal stat its short key with no prefix', () => {
-    expect(newId('pilot_stats', 'Tech-fluency', ['physicality'])).toBe('tech_fluency')
-    expect(newId('pilot_stats', 'Acuity', ['acuity'])).toBe('acuity_2')
   })
 })
 
@@ -108,10 +104,6 @@ describe('bionic and personal stat checks', () => {
     expect(texts({ ...bionic, source: '' }, 'bionics')).toEqual([])
     expect(texts({ ...bionic, source: '' }, 'bionics', 'warn')).toEqual(["No manufacturer. It's listed under Other."])
   })
-  it('needs a personal stat to have a name and an order', () => {
-    expect(texts({ name: 'Grit', sort_order: 6 }, 'pilot_stats')).toEqual([])
-    expect(texts({ name: '', sort_order: 1.5 }, 'pilot_stats')).toEqual(['A name is needed.', 'Order must be a whole number.'])
-  })
 })
 
 describe('bonus choices', () => {
@@ -139,7 +131,6 @@ describe('new items', () => {
   it('start with an id and a name, so the raw box always has something valid to edit', () => {
     expect(blankItem('frames', 'hb_mf_new')).toMatchObject({ id: 'hb_mf_new', license_id: 'hb_mf_new', name: '', mounts: ['Main'] })
     expect(blankItem('pilot_gear', 'hb_pg_new')).toMatchObject({ id: 'hb_pg_new', type: 'Gear' })
-    expect(blankItem('pilot_stats', 'grit', 6)).toEqual({ id: 'grit', name: '', sort_order: 6 })
     expect(blankItem('bionics', '')).toMatchObject({ slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, bonuses: [] })
   })
 })
@@ -164,5 +155,13 @@ describe('the Exotic Gear tag', () => {
     expect(lockedTags({ source: 'EXOTIC' })).toEqual(['tg_exotic'])
     expect(lockedTags({ source: 'GMS' })).toEqual([])
     expect(lockedTags({})).toEqual([])
+  })
+})
+
+describe('validateFaction', () => {
+  it('needs a name no other faction has, whatever the capitals', () => {
+    expect(validateFaction('Harrison Armory', ['Union'])).toEqual([])
+    expect(validateFaction('  ', []).map((p) => p.field)).toEqual(['name'])
+    expect(validateFaction('union ', ['Union']).map((p) => p.text)).toEqual(['Another faction already has that name.'])
   })
 })

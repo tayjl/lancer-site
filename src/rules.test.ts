@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
+import submitRulesSql from '../supabase/migrations/20261119170000_enforce_picker_rules.sql?raw'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechProblems, personalPoints, personalStatProblems, pilotProblems, superheavyMount, type Catalogue } from './rules'
+import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -181,7 +182,7 @@ describe('homebrew levelling and manna', () => {
   it('flags invalid ranks and unavailable gear without granting negative spending refunds', () => {
     const sheet = { licences: { blackbeard: -3 }, talents: { missing: 1.5 }, mech_skills: { hull: -1 }, pilot_gear: ['missing'] }
     const problems = pilotProblems(sheet, { level: 0, manna: 10000 }, { ...catalogue, gear: [] }, {})
-    expect(mannaSpent({ licences: { blackbeard: -3 } }, new Map())).toBe(0)
+    expect(mannaSpent({ licences: { blackbeard: -3 } }, new Map(), 0)).toBe(0)
     expect(problems).toContain('blackbeard licence must be a whole rank from 0 to III.'.replace('blackbeard', 'IPS-N blackbeard'))
     expect(problems).toContain('Talent missing must be a whole rank from 0 to III.')
     expect(problems).toContain('Hull must be a whole number from 0 to 6.')
@@ -189,8 +190,19 @@ describe('homebrew levelling and manna', () => {
   })
   it('prices licence ranks at 600, talent ranks at 300 and each biomod at its own price', () => {
     const prices = new Map([[1, 500], [2, 750]])
-    expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } }, prices)).toBe(3 * 600 + 500 + 750 + 300)
-    expect(mannaSpent({ bionics: [1, 99] }, prices)).toBe(500)
+    expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } }, prices, 0)).toBe(3 * 600 + 500 + 750 + 300)
+    expect(mannaSpent({ bionics: [1, 99] }, prices, 0)).toBe(500)
+  })
+  it('gives the first mech free and charges 500 for each one after it', () => {
+    expect([0, 1, 2, 4].map((mechs) => mannaSpent({}, new Map(), mechs))).toEqual([0, 0, 500, 1500])
+    expect(mannaSpent({ talents: { t_ace: 1 } }, new Map(), 3)).toBe(300 + 1000)
+    expect([0, 1, 2].map(nextMechPrice)).toEqual([0, 500, 500])
+    expect(mechCount([{}, {}])).toBe(2)
+    expect(mechCount(null)).toBe(0)
+  })
+  it('counts the mechs in the manna check', () => {
+    expect(pilotProblems({}, { level: 0, manna: 400 }, catalogue, { a: 'One', b: 'Two' })).toEqual(['500 manna spent, but only 400 received.'])
+    expect(pilotProblems({}, { level: 0, manna: 400 }, catalogue, { a: 'One' })).toEqual([])
   })
 
   it('gives a core bonus for every 3 licence ranks', () => {
@@ -296,5 +308,14 @@ describe('what a picker refuses', () => {
     expect(restrictionOf({ source: 'HORUS' })).toEqual({ gmOnly: true, exotic: false })
     expect(restrictionOf({ source: 'EXOTIC' })).toEqual({ gmOnly: false, exotic: true })
     expect(restrictionReason(restrictionOf({ source: 'NHC', tags: ['tg_exotic'] }), gm)).toBe('GM edit only')
+  })
+})
+
+// The database refuses a submit that overspends manna (supabase/migrations/20261119170000_enforce_picker_rules.sql), so its
+// prices must be the page's.
+describe('manna prices', () => {
+  it('match the ones the submit check in the database uses', () => {
+    const price = (name: string) => Number(new RegExp(`${name} constant integer := (\\d+);`).exec(submitRulesSql)?.[1])
+    expect({ licenceRank: price('licence_rank_price'), talentRank: price('talent_rank_price'), extraMech: price('extra_mech_price') }).toEqual(PRICES)
   })
 })

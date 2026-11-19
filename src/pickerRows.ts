@@ -1,5 +1,6 @@
 import { EXOTIC_MAKER, makerColour, makerId, makerLogo } from './archive'
 import type { Bonus, Item } from './gameData'
+import { frameArt, type FrameArt } from './images'
 import type { Info, Manufacturer } from './info'
 import { itemCard, itemDetails, tagLabel, visibleTags, type CardType, type ItemStat } from './itemDetails'
 import { EXOTIC, rankName } from './rules'
@@ -27,6 +28,8 @@ export type PickOption = {
   look?: { type: CardType; icon: string }
   stats?: ItemStat[]
   chips?: PickChip[]
+  // A frame's picture (FrameArt.vue), in place of the radar when it has one.
+  art?: FrameArt | null
   // A tiny radar of a frame's stats, in place of the symbol.
   radar?: { label: string; value: string; at: number }[]
   group?: PickGroup
@@ -123,7 +126,7 @@ export function frameRanges(frames: Frame[]) {
 }
 
 // "rank": whether to show the licence rank that unlocks the frame (the frame picker does; a licence is bought at rank I).
-export function framePick(frame: Frame, ranges: Map<string, { min: number; max: number }>, manufacturers: Manufacturer[], rank = true): PickExtras {
+export function framePick(frame: Frame, ranges: Map<string, { min: number; max: number }>, manufacturers: Manufacturer[], rank = true, frames: Frame[] = []): PickExtras {
   const stats = mechStats(frame, undefined, [])
   const stat = (id: string) => stats.find((entry) => entry.id === id)!
   const at = (id: string) => {
@@ -134,6 +137,7 @@ export function framePick(frame: Frame, ranges: Map<string, { min: number; max: 
     look: { type: 'frame', icon: 'frame' },
     stats: STRIP.map((id) => ({ kind: 'frame', label: stat(id).name, icon: stat(id).icon, value: half(stat(id).value) })),
     chips: [...(rank && frame.licenceLevel > 0 ? [{ label: `Rank ${rankName(frame.licenceLevel)}`, icon: 'license' }] : []), ...frame.mechtype.map((label) => ({ label })), ...frame.mounts.map((label) => ({ label, icon: 'weapon' }))],
+    art: frameArt(frame, frames),
     radar: AXES.map((id) => ({ label: stat(id).name, value: half(stat(id).value), at: at(id) })),
     group: makerGroup(frame.source, manufacturers),
     search: [frame.source, ...frame.mechtype, ...frame.mounts, frame.description].join(' '),

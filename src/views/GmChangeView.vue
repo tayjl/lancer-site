@@ -3,8 +3,9 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm, profile } from '../auth'
 import { confirmAction } from '../confirm'
-import { changeDiff, PUBLIC_COLUMNS, type PublicCard, type DiffLine } from '../changeDiff'
+import { changeDiff, kindTone, PUBLIC_COLUMNS, reviewSections, writingSummary, type PublicCard, type DiffLine } from '../changeDiff'
 import Icon from '../components/Icon.vue'
+import ChangeTally from '../components/ChangeTally.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RuleCheck from '../components/RuleCheck.vue'
@@ -12,7 +13,7 @@ import RichText from '../components/RichText.vue'
 import { useGameData } from '../gameData'
 import type { Character, PendingChange, Sheet } from '../myPilot'
 import { useMechData } from '../mechData'
-import { licenceName, mannaSpent, pilotProblems, personalStatProblems, formatAmount, useCatalogue } from '../rules'
+import { licenceName, mannaSpent, mechCount, pilotProblems, personalStatProblems, formatAmount, useCatalogue } from '../rules'
 import { cardImages, deleteImage } from '../images'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
@@ -87,36 +88,34 @@ const lines = computed(() => {
   )
 })
 
-function grouped(items: DiffLine[]) {
-  const groups = new Map<string, DiffLine[]>()
-  for (const line of items) groups.set(line.section, [...(groups.get(line.section) ?? []), line])
-  return [...groups]
-}
-const sections = computed(() => {
-  const priority = ['personal stats', 'piloting stats', 'licences', 'biomods', 'loadout', 'core bonuses', 'talents']
-  const order = (section: string) => {
-    const index = priority.indexOf(section)
-    return index >= 0 ? index : section.startsWith('mech') ? priority.length : priority.length + 1
-  }
-  return grouped(lines.value).sort(([a], [b]) => order(a) - order(b))
-})
+const sections = computed(() => reviewSections(lines.value))
 // Each kind's word, symbol and tone (up = --ok, down = --danger, info = --info); the key line counts them by tone.
 const KINDS = {
-  added: { label: 'Added', icon: 'plus', tone: 'up' },
-  raised: { label: 'Raised', icon: 'plus', tone: 'up' },
-  removed: { label: 'Removed', icon: 'minus', tone: 'down' },
-  lowered: { label: 'Lowered', icon: 'minus', tone: 'down' },
-  updated: { label: 'Updated', icon: '', tone: 'info' },
-} as const satisfies Record<DiffLine['kind'], { label: string; icon: string; tone: string }>
+  added: { label: 'Added', icon: 'plus' },
+  raised: { label: 'Raised', icon: 'plus' },
+  removed: { label: 'Removed', icon: 'minus' },
+  lowered: { label: 'Lowered', icon: 'minus' },
+  updated: { label: 'Updated', icon: '' },
+} as const satisfies Record<DiffLine['kind'], { label: string; icon: string }>
 const tones = [
   { tone: 'up', icon: 'plus', key: 'added or raised' },
   { tone: 'down', icon: 'minus', key: 'removed or lowered' },
   { tone: 'info', icon: '', key: 'updated' },
 ] as const
 
+// A mech's frame, by the mech's id: the proposed one, else the approved one.
+const mechFrame = (id?: string) => {
+  const frame = id && (proposedSheet.value.mechs?.[id]?.frame ?? approved.value?.sheet.mechs?.[id]?.frame)
+  return frame ? licenceName(frames.value, frame) : ''
+}
+
+// The contents links scroll to a section (instantly, so reduced-motion is respected); the panels keep room for the sticky strip.
+const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ block: 'start' })
+
 // --- Manna: what the change costs, and what's left after it ---
-const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value))
-const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value))
+// The card holds the mechs (the cost of extra ones counts like any purchase): the approved card now, the proposed one after.
+const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value, mechCount(pilot.value?.mechs)))
+const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value, mechCount(proposedCard.value.mechs ?? pilot.value?.mechs)))
 const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
 
@@ -213,7 +212,7 @@ async function reject() {
               <dd class="num" :class="left < 0 ? 'tone-down' : 'tone-info'">{{ formatAmount(left) }}</dd>
             </div>
           </dl>
-          <p class="dim figures-note"><span class="num">{{ formatAmount(approved.manna) }}</span> received · <span class="num">{{ formatAmount(spentAfter) }}</span> spent</p>
+          <p class="dim figures-note"><span class="num">{{ formatAmount(approved.manna) }}</span> received · <span class="num">{{ formatAmount(spentAfter) }}</span> spent{{ pending ? ' after this change' : '' }}</p>
         </div>
       </section>
 
@@ -223,38 +222,78 @@ async function reject() {
       </p>
       <RuleCheck v-if="pending" :problems="problems" />
 
-      <section v-if="pending" aria-label="Proposed changes">
-        <p class="change-key">
-          <span v-for="t in tones" :key="t.tone" :class="`tone-${t.tone}`">
-            <Icon v-if="t.icon" :name="t.icon" /><span v-else aria-hidden="true">~</span>
-            <span class="num">{{ lines.filter((line) => KINDS[line.kind].tone === t.tone).length }}</span> {{ t.key }}
-          </span>
-        </p>
+      <section v-if="pending" class="changes" aria-label="Proposed changes">
         <p v-if="!lines.length" class="empty">No changes.</p>
-        <div v-else class="change-groups">
-          <section v-for="[section, items] in sections" :key="section" class="panel">
-            <h2 class="sheet-label">{{ section }}</h2>
-            <ul>
-              <li v-for="(line, i) in items" :key="i">
-                <span class="change-kind" :class="`tone-${KINDS[line.kind].tone}`">
-                  <Icon v-if="KINDS[line.kind].icon" :name="KINDS[line.kind].icon" /><span v-else aria-hidden="true">~</span>
-                  {{ KINDS[line.kind].label }}
-                </span>
-                <div class="change-content">
-                  <p>{{ line.text }}</p>
-                  <details v-if="line.doc" class="writing-preview">
-                    <summary>View proposed text</summary>
-                    <RichText :doc="line.doc" class="prose" />
-                  </details>
-                </div>
+        <template v-else>
+          <!-- Contents: one link per section with its counts and manna, and the key to the symbols, once. -->
+          <nav class="panel contents" aria-label="Contents">
+            <header class="panel-head sec-head">
+              <h2>Contents</h2>
+              <div class="sec-meta">
+                <p class="change-key">
+                  <span v-for="t in tones" :key="t.tone" :class="`tone-${t.tone}`">
+                    <Icon v-if="t.icon" :name="t.icon" /><span v-else aria-hidden="true">~</span>
+                    {{ t.key }}
+                  </span>
+                </p>
+                <a v-if="waiting" href="#decision" class="jump" @click.prevent="jump('decision')">Jump to decision</a>
+              </div>
+            </header>
+            <ol class="toc">
+              <li v-for="(section, i) in sections" :key="section.id">
+                <a :href="`#change-${i}`" @click.prevent="jump(`change-${i}`)">
+                  <span class="toc-name">{{ section.title }}</span>
+                  <ChangeTally :counts="section.counts" :manna="section.manna" />
+                </a>
               </li>
-            </ul>
-          </section>
-        </div>
+            </ol>
+          </nav>
+
+          <div class="change-groups">
+            <section v-for="(section, i) in sections" :id="`change-${i}`" :key="section.id" class="panel" :aria-labelledby="`change-${i}-title`">
+              <header class="panel-head sec-head">
+                <h2 :id="`change-${i}-title`">{{ section.title }}</h2>
+                <div class="sec-meta">
+                  <span v-if="mechFrame(section.mechId)" class="dim">{{ mechFrame(section.mechId) }}</span>
+                  <span v-if="section.mechState === 'new'" class="badge">New mech</span>
+                  <ChangeTally :counts="section.counts" :manna="section.manna" />
+                </div>
+              </header>
+              <div v-for="group in section.groups" :key="group.title" class="group">
+                <h3 v-if="group.title" class="label sub-head">{{ group.title }}</h3>
+                <ul>
+                  <li v-for="(line, j) in group.lines" :key="j">
+                    <span class="change-kind" :class="`tone-${kindTone(line.kind)}`">
+                      <Icon v-if="KINDS[line.kind].icon" :name="KINDS[line.kind].icon" /><span v-else aria-hidden="true">~</span>
+                      {{ KINDS[line.kind].label }}
+                    </span>
+                    <div class="change-content">
+                      <p>{{ writingSummary(line) ?? line.text }}</p>
+                      <details v-if="line.doc" class="writing-preview">
+                        <summary><span class="when-closed">Show text</span><span class="when-open">Hide text</span></summary>
+                        <div class="versions" :class="{ both: line.before }">
+                          <div v-if="line.before">
+                            <p class="label dim">Before</p>
+                            <RichText :doc="line.before" class="prose" />
+                          </div>
+                          <div>
+                            <p v-if="line.before" class="label">After</p>
+                            <RichText :doc="line.doc" class="prose" />
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                    <ChangeTally class="change-cost" :manna="line.manna" />
+                  </li>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </template>
       </section>
       <p v-if="!pending" class="notice info">Already reviewed. The figures use the current manna received.</p>
 
-      <section v-if="waiting" class="panel" aria-labelledby="decision-title">
+      <section v-if="waiting" id="decision" class="panel" aria-labelledby="decision-title">
         <h2 id="decision-title" class="sheet-label">Decision<span class="private">GM only</span></h2>
         <div class="decision">
           <label class="field">
@@ -316,19 +355,48 @@ main > * + * { margin-top: var(--space-l); }
 .tone-up { color: var(--ok); }
 .tone-down { color: var(--danger); }
 .tone-info { color: var(--info); }
-.change-key { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-xl); max-width: none; margin: 0 0 var(--space-m); font-size: var(--fs-s); }
+.change-key { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-l); max-width: none; margin: 0; font-size: var(--fs-s); }
 .change-key > span, .change-kind { display: inline-flex; align-items: center; gap: var(--space-xs); }
-.change-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-m); align-items: start; }
-.change-groups ul { margin: 0; padding: 0; list-style: none; }
-.change-groups li { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: var(--space-m); padding: var(--space-s) 0; border-top: 1px solid var(--rule); }
-.change-kind { align-self: start; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; line-height: 1.6; text-transform: uppercase; }
-.change-content { min-width: 0; overflow-wrap: anywhere; }
+.changes > * + * { margin-top: var(--space-m); }
+
+/* A panel's head: the title at the left, its figures at the right. */
+.sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-l); }
+.sec-head h2 { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
+.sec-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs) var(--space-l); font-size: var(--fs-s); }
+.jump { font-size: var(--fs-s); }
+
+/* The contents: a link per section, name at the left and its counts and manna at the right. */
+.toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); gap: 0 var(--space-xl); margin: 0; padding: 0; list-style: none; }
+.toc a { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); min-height: var(--tap); padding: var(--space-xs) 0; border-top: 1px solid var(--rule); }
+.toc-name { overflow-wrap: anywhere; }
+
+.change-groups { display: flex; flex-direction: column; gap: var(--space-m); }
+.group + .group { margin-top: var(--space-m); }
+.sub-head { margin: 0 0 var(--space-xs); color: var(--text-dim); font-size: var(--fs-xs); }
+.group ul { margin: 0; padding: 0; list-style: none; }
+/* Kind, then the text, then the manna: the same columns on every line. */
+.group li { display: grid; grid-template: 'kind text cost' auto / 6.5rem minmax(0, 1fr) 6rem; gap: var(--space-m); padding: var(--space-s) 0; border-top: 1px solid var(--rule); }
+.change-kind { grid-area: kind; align-self: start; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; line-height: 1.6; text-transform: uppercase; }
+.change-content { grid-area: text; min-width: 0; overflow-wrap: anywhere; }
 .change-content p { max-width: none; margin: 0; }
+.change-cost { grid-area: cost; align-self: start; justify-content: flex-end; line-height: 1.6; }
 .writing-preview { margin-top: var(--space-s); }
 /* A disclosure drawn as a small button, so it reads as something to open. */
 .writing-preview summary { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--edge); border-radius: var(--radius); color: var(--lilac); font: 700 var(--fs-xs) / 1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
 .writing-preview summary:hover { border-color: var(--lilac); }
 .writing-preview[open] summary { margin-bottom: var(--space-s); }
+.writing-preview .when-open, .writing-preview[open] .when-closed { display: none; }
+.writing-preview[open] .when-open { display: inline; }
+/* Old and new text side by side on wide screens, stacked on phones. */
+.versions { display: grid; gap: var(--space-m) var(--space-xl); }
+.versions.both { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.versions p.label { margin: 0 0 var(--space-xs); }
+
+/* Jumping to a section leaves room for the sticky strip. */
+section[id] { scroll-margin-top: calc(var(--topbar-h) + var(--space-m)); }
+@media (min-width: 48rem) and (min-height: 40rem) {
+  section[id] { scroll-margin-top: calc(var(--topbar-h) + 9rem); }
+}
 
 /* --- The decision --- */
 .decision { display: flex; flex-direction: column; gap: var(--space-m); }
@@ -336,11 +404,12 @@ main > * + * { margin-top: var(--space-l); }
 textarea { width: 100%; resize: vertical; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-s) var(--space-m); }
 
-@media (max-width: 70rem) {
-  .change-groups { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 47.99rem) {
+  .versions.both { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* Phones: the kind and the manna share a row, the text takes the full width under them. */
 @media (max-width: 35rem) {
-  .change-groups li { grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); }
+  .group li { grid-template: 'kind cost' auto 'text text' auto / minmax(0, 1fr) auto; gap: var(--space-xs) var(--space-m); }
 }
 </style>

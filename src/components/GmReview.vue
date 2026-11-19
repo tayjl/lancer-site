@@ -4,13 +4,17 @@ import { useRouter } from 'vue-router'
 import { isOwner } from '../auth'
 import { confirmAction } from '../confirm'
 import { cardImages, deleteImage } from '../images'
-import { checkWrite, supabase } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient'
+import { EXPERIENCE_MAX, award, levelUp, rewardsProblem } from '../rewards'
 import { plural } from '../text'
 import type { Character } from '../myPilot'
+import ReputationPanel from './ReputationPanel.vue'
+import RewardHistory from './RewardHistory.vue'
 import RuleCheck from './RuleCheck.vue'
 
 // GMs and owners only, on the review page (opened from the gm: pilots tab or any record): a pilot's level and manna received
-// (homebrew; src/rules.ts), which only GMs set, after review. Pending pilots only get the decision and note.
+// (homebrew; src/rules.ts) and experience (0 to 1000, GM only, in its own table), which only GMs set, after review; every
+// change is logged with an optional reason (src/rewards.ts), and the log is listed below. Pending pilots only get the decision and note.
 // Approving moves the pilot to the registry; sending back makes it a draft again for its player. Either decision saves
 // the note the player sees on their sheet. "problems" is the rule check, shown above the buttons; approving with
 // problems asks first. The database enforces who can do this; the page only hides it from players.
@@ -21,6 +25,11 @@ const router = useRouter()
 
 const level = ref(0)
 const manna = ref(0)
+const experience = ref(0)
+const reason = ref('')
+// What the database held when the fields were filled, so only the fields the GM changed are sent.
+const loaded = ref({ level: 0, manna: 0, experience: 0 })
+const historyKey = ref(0)
 const note = ref('')
 const loading = ref(true)
 const error = ref('')
@@ -33,31 +42,22 @@ const pending = computed(() => props.pilot.status === 'pending')
 const submitted = computed(() => pending.value && !!props.pilot.submitted_at)
 
 async function load() {
-  const { data, error: loadError } = await supabase
-    .from('character_sheets')
-    .select('level, manna, review_note')
-    .eq('character_id', props.pilot.id)
-    .maybeSingle()
-  error.value = loadError?.message ?? ''
+  const [{ data, error: loadError }, { data: progress, error: progressError }] = await Promise.all([
+    supabase.from('character_sheets').select('level, manna, review_note').eq('character_id', props.pilot.id).maybeSingle(),
+    supabase.from('pilot_progress').select('experience').eq('character_id', props.pilot.id).maybeSingle(),
+  ])
+  error.value = loadError?.message ?? progressError?.message ?? ''
   level.value = data?.level ?? 0
   manna.value = data?.manna ?? 0
+  experience.value = progress?.experience ?? 0
+  loaded.value = { level: level.value, manna: manna.value, experience: experience.value }
   note.value = data?.review_note ?? ''
   loading.value = false
 }
 
 load()
 
-function numbersProblem() {
-  const whole = (n: number) => Number.isInteger(n) && n >= 0
-  return whole(level.value) && whole(manna.value) ? '' : 'Level and manna must be whole numbers, 0 or more.'
-}
-
-async function saveSheet(changes: { level?: number; manna?: number; review_note?: string | null }) {
-  const { error } = await checkWrite(await supabase.from('character_sheets').update(changes).eq('character_id', props.pilot.id).select('character_id'))
-  return error
-}
-
-// Level and manna save on their own button only; approving and sending back never need them.
+// Rewards save on their own button only; approving and sending back never need them.
 // GMs can mark an approved pilot dead too (mark_dead in the database). It can't be undone.
 async function markDead() {
   if (!(await confirmAction(`Mark ${name.value} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))) return
@@ -82,14 +82,37 @@ async function deletePilot() {
   if (!deleteError.value) router.push({ name: 'gm-pilots' })
 }
 
-async function saveNumbers() {
-  error.value = numbersProblem()
+// After a reward change: show what the database now holds and refresh the history.
+async function rewarded(failure: string | null, done: string) {
+  error.value = failure ?? ''
+  message.value = failure ? '' : done
+  if (failure) return
+  reason.value = ''
+  await load()
+  historyKey.value++
+  emit('reviewed')
+}
+
+async function saveRewards() {
+  const changes = {
+    ...(level.value !== loaded.value.level && { level: level.value }),
+    ...(manna.value !== loaded.value.manna && { manna: manna.value }),
+    ...(experience.value !== loaded.value.experience && { experience: experience.value }),
+  }
+  error.value = rewardsProblem({ level: level.value, manna: manna.value, experience: experience.value }) || (Object.keys(changes).length ? '' : 'Nothing has changed.')
+  message.value = ''
   if (error.value) return
   busy.value = true
-  error.value = (await saveSheet({ level: level.value, manna: manna.value })) ?? ''
+  await rewarded(await award(props.pilot.id, changes, reason.value), 'Saved')
   busy.value = false
-  message.value = error.value ? '' : 'Saved'
-  if (!error.value) emit('reviewed')
+}
+
+// Spends 1000 experience on one level (level_up in the database), logged with the reason or "Level up".
+async function levelUpNow() {
+  if (!(await confirmAction(`Level ${name.value} up to level ${loaded.value.level + 1}? This spends ${EXPERIENCE_MAX} experience.`, { confirmLabel: 'Level up' }))) return
+  busy.value = true
+  await rewarded(await levelUp(props.pilot.id, reason.value), 'Levelled up')
+  busy.value = false
 }
 
 async function approve() {
@@ -138,7 +161,17 @@ async function sendBack() {
           <span>Manna received</span>
           <input v-model.number="manna" type="number" min="0" step="1" />
         </label>
-        <button type="button" :disabled="busy" @click="saveNumbers">Save level and manna</button>
+        <label class="field">
+          <span>Experience</span>
+          <input v-model.number="experience" type="number" min="0" :max="EXPERIENCE_MAX" step="1" />
+        </label>
+        <label class="field reason">
+          <span>Reason</span>
+          <input v-model="reason" type="text" maxlength="200" placeholder="Optional, e.g. Mission 3" />
+        </label>
+        <button type="button" :disabled="busy" @click="saveRewards">Save rewards</button>
+        <button v-if="loaded.experience >= EXPERIENCE_MAX" type="button" :disabled="busy" @click="levelUpNow">Level up</button>
+        <span v-if="loaded.experience >= EXPERIENCE_MAX" class="badge">Ready to level</span>
       </div>
       <p v-if="pending && !submitted" class="dim">Not submitted yet.</p>
       <template v-if="submitted">
@@ -160,6 +193,10 @@ async function sendBack() {
       </div>
     </form>
   </section>
+
+  <ReputationPanel v-if="pilot.status !== 'dead'" :character-id="pilot.id" />
+
+  <RewardHistory :character-id="pilot.id" :refresh="historyKey" />
 
   <section v-if="isOwner" class="panel danger-zone">
     <h2 class="sheet-label">Danger zone<span class="private">Owner only</span></h2>
@@ -189,6 +226,14 @@ textarea {
 
 input[type='number'] {
   width: 8rem;
+}
+
+.reason {
+  flex: 1 1 16rem;
+}
+
+.reason input {
+  width: 100%;
 }
 
 .numbers {

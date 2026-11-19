@@ -77,7 +77,7 @@ async function equip(id: string) {
 
 <template>
   <section class="pilot-loadout">
-    <h2 class="sheet-label">Loadout<span class="private">Private</span></h2>
+    <h2 class="sheet-label">Loadout</h2>
 
     <ul v-if="shownSlots.length" class="slot-grid">
       <SlotCard v-for="slot in shownSlots" :key="`${slot.type}-${slot.index}`" :label="slotName(slot)" :empty="emptyText(slot)">

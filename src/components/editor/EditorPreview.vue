@@ -35,7 +35,7 @@ function build(data: Data): Built {
       const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), source: String(data.source ?? '') || null, effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
       return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name]))) }
     }
-    return { info: { kind: 'Personal stat', name: String(data.name ?? id), facts: [{ text: `Key: ${id}` }], stats: [], groups: [] } }
+    return { error: 'No preview for this kind.' }
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unreadable data' }
   }

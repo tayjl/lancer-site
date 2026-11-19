@@ -11,10 +11,9 @@ const props = defineProps<{
   title: string
   doc: Json | null
   editable: boolean
-  tag?: string
   quiet?: boolean // no save status of its own (the page shows one)
   links?: { id: string; name: string; meta?: string; text?: string }[] // entries the writing may link to (lore only)
-  save: (doc: Json | null) => Promise<string | null>
+  save?: (doc: Json | null) => Promise<string | null> // none when read-only
 }>()
 
 // Only taken from "doc" once: the box keeps what you typed, even when the page reloads the pilot.
@@ -28,7 +27,7 @@ async function flush() {
   clearTimeout(timer)
   timer = undefined
   status.value = 'Saving…'
-  error.value = (await props.save(draft.value)) ?? ''
+  error.value = (await props.save?.(draft.value)) ?? ''
   status.value = error.value ? '' : 'Saved'
 }
 
@@ -46,12 +45,15 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="field">
-    <h2 class="sheet-label">
-      {{ title }}<span v-if="tag" class="private">{{ tag }}</span>
-      <span v-if="!quiet" class="status" role="status">{{ status }}</span>
-      <span v-if="error && !quiet" class="status error" role="alert">Not saved: {{ error }}</span>
-      <button v-if="error && !quiet && error !== CHANGED_ELSEWHERE" type="button" class="small quiet" @click="flush">Retry</button>
-    </h2>
+    <header class="sheet-head head">
+      <h2 class="sheet-label">
+        {{ title }}
+        <span v-if="!quiet" class="status" role="status">{{ status }}</span>
+        <span v-if="error && !quiet" class="status error" role="alert">Not saved: {{ error }}</span>
+        <button v-if="error && !quiet && error !== CHANGED_ELSEWHERE" type="button" class="small quiet" @click="flush">Retry</button>
+      </h2>
+      <slot name="head" />
+    </header>
     <RichTextEditor v-if="editable" v-model="draft" :label="title" :links="links" />
     <RichText v-else-if="doc" :doc="doc" class="readonly prose" />
     <p v-else class="empty">No text.</p>
@@ -59,6 +61,13 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+}
+
 .status {
   margin-left: 0.5rem;
   color: var(--text-dim);

@@ -5,7 +5,9 @@ import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
 import type { Json } from '../lib/database.types'
 import { PILOT_FIELDS, type PublicPilot } from '../pilots'
-import { checkWrite, supabase } from '../lib/supabaseClient'
+import { confirmAction } from '../confirm'
+import { supabase } from '../lib/supabaseClient'
+import { EXPERIENCE_MAX, award, levelUp, rewardsProblem, type Rewards } from '../rewards'
 import type { Sheet } from '../myPilot'
 import { useGameData } from '../gameData'
 import { formatAmount, licenceLevel, mannaSpent } from '../rules'
@@ -15,8 +17,11 @@ import { capitalise } from '../text'
 // including sent-back and dead records. GM edits save directly; database policies enforce the role.
 // The sheet is read only for what the roster's numbers use: the licences, talents and bionics that manna is spent on.
 const SHEET_FIELDS = 'review_note, level, manna, licences:sheet->licences, talents:sheet->talents, bionics:sheet->bionics'
+// Experience is GM-only and lives in its own table (pilot_progress); a pilot with no row has 0.
+const PROGRESS_FIELDS = 'progress:pilot_progress(experience)'
 type Pilot = PublicPilot & {
   sheet: { review_note: string | null; level: number; manna: number; licences: Json; talents: Json; bionics: Json } | null
+  progress: { experience: number } | null
 }
 
 const items = shallowRef<Pilot[]>([])
@@ -45,7 +50,7 @@ async function load() {
   loading.value = true
   const { data, error: loadError } = await supabase
     .from('characters')
-    .select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS})`)
+    .select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS}), ${PROGRESS_FIELDS}`)
     .order('created_at')
   items.value = (data ?? []).map((pilot) => ({ ...pilot, mechs: Array.isArray(pilot.mechs) ? pilot.mechs : [] })) as Pilot[]
   error.value = loadError?.message ?? ''
@@ -56,39 +61,59 @@ const saving = reactive<Record<number, boolean>>({})
 const rowError = reactive<Record<number, string>>({})
 const saved = reactive<Record<number, boolean>>({})
 // Numbers typed but not saved yet (a failed save keeps them on screen for Retry), by pilot.
-const typed = reactive<Record<number, { level?: number; manna?: number }>>({})
-const shown = (pilot: Pilot, field: 'level' | 'manna') => typed[pilot.id]?.[field] ?? pilot.sheet?.[field] ?? 0
+const typed = reactive<Record<number, Rewards>>({})
+type Field = keyof Rewards
+const shown = (pilot: Pilot, field: Field) => typed[pilot.id]?.[field] ?? (field === 'experience' ? pilot.progress?.experience : pilot.sheet?.[field]) ?? 0
+const ready = (pilot: Pilot) => (pilot.progress?.experience ?? 0) >= EXPERIENCE_MAX
+const percent = (pilot: Pilot) => `${Math.min(100, (shown(pilot, 'experience') / EXPERIENCE_MAX) * 100)}%`
 const { bionicPrices } = useGameData()
-const spent = (pilot: Pilot) => mannaSpent((pilot.sheet ?? {}) as Sheet, bionicPrices.value)
+const spent = (pilot: Pilot) => mannaSpent((pilot.sheet ?? {}) as Sheet, bionicPrices.value, pilot.mechs.length)
 const left = (pilot: Pilot) => (pilot.sheet?.manna ?? 0) - spent(pilot)
 const licenceRanks = (pilot: Pilot) => licenceLevel((pilot.sheet ?? {}) as Sheet)
 
-async function save(pilot: Pilot, changes: { level?: number; manna?: number }) {
+// Runs one reward write through the database (award or level_up: both log the change), then re-reads the pilot so the
+// row shows what the database now holds. A failed write keeps the typed numbers on screen for Retry.
+async function run(pilot: Pilot, write: () => Promise<string | null>) {
   if (saving[pilot.id]) return
   saving[pilot.id] = true
   saved[pilot.id] = false
-  typed[pilot.id] = { ...typed[pilot.id], ...changes }
-  const { row, error: saveError } = await checkWrite(
-    await supabase.from('character_sheets').update(typed[pilot.id]).eq('character_id', pilot.id).select(SHEET_FIELDS),
-  )
-  saving[pilot.id] = false
-  rowError[pilot.id] = saveError ?? ''
-  if (row) {
-    items.value = items.value.map((item) => item.id === pilot.id ? { ...item, sheet: row } : item)
+  let failure = await write()
+  if (!failure) {
+    const { data, error: loadError } = await supabase
+      .from('characters')
+      .select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS}), ${PROGRESS_FIELDS}`)
+      .eq('id', pilot.id)
+      .maybeSingle()
+    if (data) items.value = items.value.map((item) => item.id === pilot.id ? ({ ...data, mechs: Array.isArray(data.mechs) ? data.mechs : [] }) as Pilot : item)
+    failure = loadError?.message ? `Saved, but couldn't refresh the row: ${loadError.message}` : null
     delete typed[pilot.id]
-    saved[pilot.id] = true
   }
+  saving[pilot.id] = false
+  rowError[pilot.id] = failure ?? ''
+  saved[pilot.id] = !failure
 }
 
-async function saveNumber(pilot: Pilot, field: 'level' | 'manna', event: Event) {
+function save(pilot: Pilot, changes: Rewards) {
+  typed[pilot.id] = { ...typed[pilot.id], ...changes }
+  return run(pilot, () => award(pilot.id, typed[pilot.id]))
+}
+
+async function saveNumber(pilot: Pilot, field: Field, event: Event) {
   const input = event.target as HTMLInputElement
   const value = input.valueAsNumber
-  if (!Number.isSafeInteger(value) || value < 0) {
-    rowError[pilot.id] = 'Level and manna must be whole numbers, 0 or more.'
+  const problem = rewardsProblem({ [field]: value })
+  if (problem) {
+    rowError[pilot.id] = problem
     input.value = String(shown(pilot, field))
     return
   }
   await save(pilot, { [field]: value })
+}
+
+async function levelUpPilot(pilot: Pilot) {
+  const name = pilot.callsign || pilot.pilot_name
+  if (!(await confirmAction(`Level ${name} up to level ${(pilot.sheet?.level ?? 0) + 1}? This spends ${EXPERIENCE_MAX} experience.`, { confirmLabel: 'Level up' }))) return
+  await run(pilot, () => levelUp(pilot.id))
 }
 
 // The profile (and so the role) can arrive just after the page opens.
@@ -108,7 +133,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
       <section class="panel" aria-labelledby="roster-title">
         <header class="panel-head">
           <h2 id="roster-title">Pilot records</h2>
-          <p class="dim">Level and manna save when you leave the field.</p>
+          <p class="dim">Level, experience and manna save when you leave the field. Each change is logged on the pilot's review page.</p>
         </header>
         <div class="search">
           <label class="field">
@@ -127,6 +152,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <th scope="col">Player</th>
                 <th scope="col">Status</th>
                 <th scope="col" class="number">Level</th>
+                <th scope="col" class="number">Experience</th>
                 <th scope="col" class="number">Licence level</th>
                 <th scope="col" class="number">Manna received</th>
                 <th scope="col" class="number">Manna left</th>
@@ -157,6 +183,20 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                     :aria-label="`Level for ${pilot.callsign || pilot.pilot_name}`"
                     @change="saveNumber(pilot, 'level', $event)"
                   />
+                </td>
+                <td class="xp">
+                  <input
+                    type="number" min="0" :max="EXPERIENCE_MAX" step="1"
+                    :value="shown(pilot, 'experience')"
+                    :disabled="saving[pilot.id] || !pilot.sheet"
+                    :aria-label="`Experience for ${pilot.callsign || pilot.pilot_name}, out of ${EXPERIENCE_MAX}`"
+                    @change="saveNumber(pilot, 'experience', $event)"
+                  />
+                  <div class="meter-bar" aria-hidden="true"><span :style="{ '--fill': percent(pilot) }"></span></div>
+                  <span v-if="ready(pilot)" class="ready">
+                    <span class="badge">Ready to level</span>
+                    <button type="button" class="small" :disabled="saving[pilot.id]" @click="levelUpPilot(pilot)">Level up</button>
+                  </span>
                 </td>
                 <td class="number num">{{ licenceRanks(pilot) }}</td>
                 <td class="number">
@@ -206,6 +246,10 @@ section + section { margin-top: var(--space-l); }
 .table .number { text-align: right; }
 .table input { width: 8rem; text-align: right; }
 .table input.level { width: 5rem; }
+.xp { width: 9rem; text-align: right; }
+.xp input { width: 6rem; margin-bottom: var(--space-xs); }
+.xp .meter-bar { margin-left: auto; width: 6rem; }
+.ready { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-top: var(--space-xs); }
 .callsign { font-weight: 700; }
 .balance { font-weight: 700; }
 .balance.over { color: var(--danger); }

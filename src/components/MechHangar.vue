@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
-import { imageUrl } from '../images'
+import { frameArt, imageUrl } from '../images'
 import { useMechData } from '../mechData'
 import { mechProblem } from '../myPilot'
+import { nextMechPrice } from '../rules'
 import type { PublicMech } from '../pilots'
+import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 
 // The pilot sheet's mechs tab: a card per mech (opening its page), and, while editable, a small form for a new one.
@@ -17,6 +19,7 @@ const props = defineProps<{
   link: (mechId: string) => RouteLocationRaw
   frameId: (mechId: string) => string | undefined
   save: (mechs: PublicMech[]) => Promise<string | null>
+  balance: number
 }>()
 const router = useRouter()
 const { frames } = useMechData()
@@ -25,7 +28,16 @@ const { frames } = useMechData()
 // without the sheet there's no frame, so other players' view of the card stays neutral.
 const manufacturers = useManufacturers()
 const frameOf = (mechId: string) => frames.value.find((f) => f.id === props.frameId(mechId))
+// A mech without a picture of its own shows its frame's (also private: no frame, no picture).
+const artOf = (mechId: string) => {
+  const frame = frameOf(mechId)
+  return frame ? frameArt(frame, frames.value) : null
+}
 const makerOf = (mechId: string) => manufacturers.value.find((m) => m.id === frameOf(mechId)?.source)
+
+// The first mech is free; each one after it costs manna, and the button is blocked when the balance can't cover it.
+const price = computed(() => nextMechPrice(props.mechs.length))
+const affordable = computed(() => props.balance >= price.value)
 
 // A new mech starts with just a name and manufacturer id, then opens its own page.
 const addingMech = ref(false)
@@ -41,7 +53,7 @@ function openNewMech() {
 async function createMech() {
   const name = newMech.name.trim()
   const manufacturerId = newMech.manufacturerId.trim().toUpperCase()
-  mechError.value = mechProblem(name, manufacturerId) ?? ''
+  mechError.value = mechProblem(name, manufacturerId) ?? (affordable.value ? '' : 'Not enough manna.')
   if (mechError.value) return
   // shortcut: duplicate manufacturer ids aren't checked yet. Warn about them once the registry reads real pilots.
   const mech: PublicMech = { id: crypto.randomUUID(), name, manufacturer_id: manufacturerId, appearance: null, image: null }
@@ -54,13 +66,19 @@ async function createMech() {
   <section class="panel">
     <header class="sheet-head hangar-head">
       <h2 class="sheet-label">Mech hangar</h2>
-      <button v-if="editable && !addingMech" type="button" class="small" @click="openNewMech"><Icon name="plus" />New mech</button>
+      <span v-if="editable && !addingMech" class="blocked">
+        <button type="button" class="small" :disabled="!affordable" :aria-describedby="affordable ? undefined : 'mech-why'" @click="openNewMech">
+          <Icon name="plus" />New mech<template v-if="price"> · <span class="num">{{ price }}</span></template>
+        </button>
+        <span v-if="!affordable" id="mech-why" class="blocked-reason">Not enough manna</span>
+      </span>
     </header>
     <ul v-if="mechs.length" class="hangar">
       <li v-for="mech in mechs" :key="mech.id">
         <RouterLink :to="link(mech.id)" class="mech-card" :style="makerOf(mech.id) ? { '--mf': makerColour(makerOf(mech.id)) } : undefined">
-          <span class="mech-thumb">
+          <span class="mech-thumb" :class="{ art: !imageUrl(mech.image) && artOf(mech.id) }">
             <img v-if="imageUrl(mech.image)" :src="imageUrl(mech.image)!" :alt="`Image of ${mech.name}`" />
+            <FrameArt v-else-if="artOf(mech.id)" :art="artOf(mech.id)" class="frame-art" />
             <Icon v-else-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
             <Icon v-else name="frame" />
           </span>
@@ -159,6 +177,17 @@ async function createMech() {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* A frame's picture is whole mech art on a cut-out, so it's fitted, not cropped, in a square a little bigger (some frames are wide). */
+.mech-thumb.art {
+  width: 128px;
+  aspect-ratio: 1;
+}
+
+.mech-thumb .frame-art {
+  object-fit: contain;
+  padding: var(--space-xs);
 }
 
 .mech-thumb .icon {

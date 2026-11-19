@@ -244,7 +244,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       </div>
     </section>
     <section v-if="frame && coreChoices.some(choice => sheet.core_bonuses?.includes(choice.id))" class="panel">
-      <h2 class="sheet-label">Core bonus assignments<span class="private">Private</span></h2>
+      <h2 class="sheet-label">Core bonus assignments</h2>
       <div v-for="choice in coreChoices.filter(choice => sheet.core_bonuses?.includes(choice.id))" :key="choice.id" class="core-choice">
         <label :for="choice.id">{{ choice.name }}</label>
         <select :id="choice.id" :value="details.core_mounts?.[choice.id] ?? -1" :disabled="!editable || saving" @change="setCore(choice.id, $event)">
@@ -263,7 +263,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
       </div>
     </div>
     <section class="panel">
-      <h2 class="sheet-label">Weapon mounts<span class="private">Private</span></h2>
+      <h2 class="sheet-label">Weapon mounts</h2>
       <p v-if="!frame" class="empty">Choose a frame first.</p>
       <ul v-else class="slot-grid">
         <SlotCard v-for="weapon in builtInWeapons" :key="weapon.id" label="Integrated mount">
@@ -313,7 +313,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
 
     <section class="panel">
       <header class="sheet-head systems-head">
-        <h2 class="sheet-label">Systems<span class="private">Private</span></h2>
+        <h2 class="sheet-label">Systems</h2>
         <button v-if="frame && editable" type="button" class="small" :disabled="saving" @click="openSystem"><Icon name="plus" />Add system</button>
       </header>
       <p v-if="!frame" class="empty">Choose a frame first.</p>

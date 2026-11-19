@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { groupPicks, type PickOption } from '../pickerRows'
+import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 import ItemStats from './ItemStats.vue'
@@ -8,7 +9,7 @@ import RadarChart from './RadarChart.vue'
 
 // The options of a picker dialog (ItemPicker.vue, LoadoutBox.vue's biomod picker): a box per manufacturer where the
 // options have one (logo, id and name in the header, the colour only on the logo and a 3px top border), then a row
-// each. A row is visual: the kind's symbol on its type colour (or a tiny radar for a frame), the name (opening its full
+// each. A row is visual: the kind's symbol on its type colour (a frame's picture, or a tiny radar without one), the name (opening its full
 // information), a strip of symbols and mono numbers, a few chips. The button comes in through the "action" slot.
 // Something that can't be chosen is dimmed.
 const props = defineProps<{ options: PickOption[]; current?: string | number | null }>()
@@ -27,7 +28,8 @@ const lines = (meta: PickOption['meta']) => [meta ?? ''].flat().filter(Boolean)
     </header>
     <ul class="pick-list">
       <li v-for="option in box.options" :key="option.id" :class="{ blocked: blocked(option), picked: option.picked }">
-        <span v-if="option.radar" class="pick-art"><RadarChart :axes="option.radar" :summary="`${option.name}: ${option.radar.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`" mini /></span>
+        <span v-if="option.art" class="pick-art art"><FrameArt :art="option.art" class="pick-img" /></span>
+        <span v-else-if="option.radar" class="pick-art"><RadarChart :axes="option.radar" :summary="`${option.name}: ${option.radar.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`" mini /></span>
         <span v-else-if="option.look" class="pick-icon" :class="option.look.type"><Icon :name="option.look.icon" /></span>
         <div class="pick-about">
           <span class="pick-name"><InfoButton v-if="option.info" :info="option.info" :label="option.name" /><template v-else>{{ option.name }}</template></span>

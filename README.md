@@ -20,6 +20,8 @@ close, plus, minus, and the writing toolbar's list and heading) and the HASE and
 techfluency) are from [Lucide](https://lucide.dev) (ISC licence, Copyright (c) Lucide Contributors).
 The manufacturer logos in `src/assets/logos/` (GMS, HA, HORUS, IPS-N, SSC) are Massif Press's, from COMP/CON's `public/img/logo/`
 (same repo and licence), cleaned down to their shapes.
+The frame artwork in `src/assets/frames/` is Massif Press's too (art (c) Massif Press), the images COMP/CON shows for each frame, converted to smaller WebP files
+(the same GPL-3.0 licence as COMP/CON and the data packs; each frame's `image_url` in the packs points at the original).
 Game data comes from Massif Press's `lancer-data` and expansion packages (GPL-3.0-or-later).
 
 ## Database

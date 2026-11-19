@@ -3,10 +3,11 @@ import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { isOwner, profile } from '../auth'
 import EditorPane from '../components/editor/EditorPane.vue'
+import FactionPane from '../components/editor/FactionPane.vue'
 import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SheetTabs from '../components/SheetTabs.vue'
-import { EXOTIC_MAKER, useManufacturers } from '../archive'
+import { EXOTIC_MAKER, archiveGroups, makerId, useManufacturers, type ArchiveEntry } from '../archive'
 import { confirmAction } from '../confirm'
 import { HOMEBREW_PACK, KINDS, blankItem, kindInfo, newId, type EditorKind } from '../contentEditor'
 import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, type ListRow, type Loaded, type Pack } from '../editorStore'
@@ -84,8 +85,8 @@ watch([kind, itemKey], async ([k, key]) => {
 }, { immediate: true })
 
 // A new item starts blank; its id is made from its name (src/contentEditor.ts).
-const taken = computed(() => (kind.value === 'pilot_stats' ? new Set(stats.value.map((stat) => stat.id)) : takenIds.value ?? new Set<string>()))
-const blank = computed(() => blankItem(kind.value, newId(kind.value, '', taken.value), stats.value.length + 1))
+const taken = computed(() => takenIds.value ?? new Set<string>())
+const blank = computed(() => blankItem(kind.value, newId(kind.value, '', taken.value)))
 
 // Leaving or switching with unsaved changes asks first.
 const pane = useTemplateRef<InstanceType<typeof EditorPane>>('editor')
@@ -101,7 +102,7 @@ async function chooseKind(label: string) {
   if (next && next.key !== kind.value && (await leave())) setQuery({ cat: next.key, item: undefined })
 }
 
-// The list: a box per pack (Campaign homebrew first, always, so New is at hand), or one for a site table.
+// The list: a box per pack (Campaign homebrew first, always, so New is at hand), or one for a site table (biomods).
 const query = ref('')
 const SHOWN = 40
 const expanded = ref(new Set<number>())
@@ -109,9 +110,18 @@ const matches = (row: ListRow) => {
   const hay = `${row.name} ${row.key} ${row.facts}`.toLowerCase()
   return query.value.toLowerCase().split(/\s+/).filter(Boolean).every((word) => hay.includes(word))
 }
-const groups = computed(() => {
+const groups = computed<{ id: number; name: string; rows: ListRow[]; total: number; more: number; add: boolean; logo?: string | null; colour?: string }[]>(() => {
   const found = rows.value.filter(matches)
-  if (info.value.site) return [{ id: 0, name: 'Site content', rows: found, total: rows.value.length, more: 0, add: true }]
+  // Factions: one box.
+  if (kind.value === 'factions') return found.length ? [{ id: 0, name: 'Factions', rows: found, total: rows.value.length, more: 0, add: false }] : []
+  // Biomods: a box per manufacturer like the archives' (archiveGroups: the maker's logo and colour, "Other" for none, Exotic last).
+  if (info.value.site) {
+    const entries = found.map((row) => ({ category: 'biomods', id: row.key, name: row.name, group: makerId(row.source ?? '') || 'other', level: 0, licence: '', exotic: false, summary: '', search: '' }) as unknown as ArchiveEntry)
+    return archiveGroups(entries, manufacturers.value).map((group) => ({
+      id: 0, name: group.title, rows: group.entries.map((entry) => found.find((row) => row.key === entry.id)!), total: rows.value.filter((row) => (makerId(row.source ?? '') || 'other') === group.key).length,
+      more: 0, add: false, logo: group.logo, colour: group.colour,
+    }))
+  }
   const ids = [...new Set(rows.value.map((row) => row.packId))]
   const ordered = [...ids].sort((a, b) => (a === homebrewId.value ? -1 : b === homebrewId.value ? 1 : packName(a).localeCompare(packName(b))))
   if (homebrewId.value === null || !ids.includes(homebrewId.value)) ordered.unshift(homebrewId.value)
@@ -135,15 +145,13 @@ const showPane = computed(() => wide.value || !!itemKey.value)
 
 // What a pane's writes change in the page.
 async function created(key: string) {
-  takenIds.value = new Set([...(takenIds.value ?? []), key])
-  // The first homebrew item makes its pack: the new item belongs to it.
-  if (homebrewId.value === null) packs.value = (await loadPacks()).packs
-  if (kind.value === 'pilot_stats') stats.value = await loadStats()
+  // Factions and biomods aren't pack items. The first homebrew item makes its pack: the new item belongs to it.
+  if (!info.value.site) takenIds.value = new Set([...(takenIds.value ?? []), key])
+  if (!info.value.site && homebrewId.value === null) packs.value = (await loadPacks()).packs
   await refreshList()
   setQuery({ item: key })
 }
 async function changed() {
-  if (kind.value === 'pilot_stats') stats.value = await loadStats()
   if (kind.value === 'tags') loadTagNames()
   await refreshList()
 }
@@ -203,8 +211,11 @@ async function exportLcp() {
           <p v-if="listError" class="notice warn" role="alert">The list didn't load: {{ listError }}</p>
           <p v-else-if="loadingList" class="dim" role="status">Loading…</p>
           <template v-else>
-            <section v-for="group in groups" :key="group.name" class="group">
+            <button v-if="info.site" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
+            <p v-if="info.site && !groups.length" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+            <section v-for="group in groups" :key="group.name" class="group" :class="{ branded: group.logo || (group.colour && group.colour !== 'var(--lilac)') }" :style="group.colour ? { '--mf': group.colour } : undefined">
               <header class="group-head">
+                <Icon v-if="group.logo" :src="group.logo" class="group-logo" />
                 <h3>{{ group.name }}</h3>
                 <span class="num dim count">{{ group.total }}</span>
                 <button v-if="group.add" type="button" class="small add" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
@@ -231,6 +242,16 @@ async function exportLcp() {
           <button v-if="!wide" type="button" class="quiet small back" @click="choose(undefined)"><Icon name="arrow-left" />{{ info.label }}</button>
           <p v-if="loadingItem || (itemKey && !ready)" class="dim" role="status">Loading…</p>
           <p v-else-if="itemError" class="notice warn" role="alert">{{ itemError }}</p>
+          <FactionPane
+            v-else-if="kind === 'factions' && (loaded || isNewItem)"
+            :key="`factions:${loaded?.key ?? 'new'}`"
+            ref="editor"
+            :item="loaded"
+            :others="rows.filter((row) => row.key !== loaded?.key).map((row) => row.name)"
+            @created="created"
+            @changed="changed"
+            @deleted="deleted"
+          />
           <EditorPane
             v-else-if="loaded"
             :key="`${kind}:${loaded.key}`"
@@ -336,6 +357,20 @@ async function exportLcp() {
 .group-head .count {
   margin-left: 0;
   font-size: var(--fs-xs);
+}
+
+.group.branded {
+  border-top: 3px solid var(--mf);
+}
+
+.group-logo {
+  width: 22px;
+  height: 22px;
+  color: var(--mf);
+}
+
+.add-site {
+  justify-self: start;
 }
 
 .group-head .add {

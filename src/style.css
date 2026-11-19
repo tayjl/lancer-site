@@ -1071,6 +1071,19 @@ dialog.dialog::backdrop {
   height: 44px;
 }
 
+/* A frame's picture: bigger than a symbol so the mech reads, never cropped. */
+.pick-list .pick-art.art {
+  width: 64px;
+  height: 64px;
+}
+
+.pick-list .pick-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .pick-list .pick-about {
   display: flex;
   flex: 1;
@@ -1121,6 +1134,11 @@ dialog.dialog::backdrop {
   .pick-list .pick-icon {
     width: 28px;
     height: 28px;
+  }
+
+  .pick-list .pick-art.art {
+    width: 48px;
+    height: 48px;
   }
 
   /* A blocked row gives its reason a line of its own under the symbols, so they keep the full width. */

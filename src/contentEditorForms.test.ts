@@ -162,6 +162,8 @@ describe('frame checks', () => {
   })
   it('warns when a frame is not its own licence', () => {
     expect(problemsFor('frames', { ...frame, license_id: 'other' }, frameCtx)).toEqual([expect.objectContaining({ level: 'warn', field: 'license_id' })])
+    expect(problemsFor('frames', { ...frame, image: 'https://evil.example/x.png' }, frameCtx)).toEqual([expect.objectContaining({ level: 'error', field: 'image' })])
+    expect(problemsFor('frames', { ...frame, image: '11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222.webp' }, frameCtx)).toEqual([])
   })
   it('wants named, different traits, and checks their actions, bonuses and deployables', () => {
     expect(frameFields({ ...frame, traits: [{ name: '' }, { name: 'Slow' }, { name: 'slow' }] })).toEqual(['traits.0.name', 'traits.2.name'])

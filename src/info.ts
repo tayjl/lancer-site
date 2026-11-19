@@ -2,6 +2,7 @@ import { shallowRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import type { ArchiveCategory } from './archive'
 import { flatDamageText } from './damage'
+import { frameArt, type FrameArt } from './images'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, itemDetails, itemRules } from './itemDetails'
 import { alternateOf, licenceFrames, licenceNames, mechStats, sameName, type Frame } from './mechData'
@@ -27,7 +28,8 @@ export type InfoFact = { text: string }
 export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string; range?: { min: number; max: number; at: number } }
 // "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
 // "id": the thing's own id in the packs, for the "Source:" line (not for bionics, which aren't pack content).
-export type Info = { kind: string; id?: string; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
+// "art": a frame's picture, shown at the top (FrameArt.vue).
+export type Info = { kind: string; id?: string; art?: FrameArt | null; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
 
 // The one dialog's contents; null while it's closed.
 export const shownInfo = shallowRef<Info | null>(null)
@@ -104,6 +106,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
   return {
     kind: `${frame.source} frame`.trim(),
     id: frame.id,
+    art: frameArt(frame, frames),
     name: frame.name,
     source: frame.source,
     facts: facts(
@@ -239,6 +242,7 @@ export function licenceInfo(frame: Frame, weapons: Item[] = [], systems: Item[] 
   return {
     kind: `${frame.source} licence`.trim(),
     id: frame.id,
+    art: frameArt(frame, frames),
     name: frame.name,
     source: frame.source,
     facts: facts({ text: frame.mechtype.join(' / ') }, `${PRICES.licenceRank} manna per rank`),

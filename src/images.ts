@@ -1,6 +1,6 @@
-import { session } from './auth'
 import type { Json } from './lib/database.types'
 import { supabase } from './lib/supabaseClient'
+import { alternateOf, type Frame } from './mechData'
 
 // Pilot portraits and mech images. The browser shrinks each picture and uploads it to the public "character-images"
 // bucket as "<your user id>/<random id>.webp" (or .jpg). The card stores that path, never a URL, and imageUrl() builds
@@ -45,6 +45,8 @@ export async function uploadImage(file: File) {
   let blob = await toBlob(canvas, 'image/webp')
   if (blob?.type !== 'image/webp') blob = await toBlob(canvas, 'image/jpeg')
   if (!blob) throw new Error("That image can't be converted.")
+  // Loaded here, not at the top: auth.ts needs a browser window, and the pure parts of this file (frameArt) are tested without one.
+  const { session } = await import('./auth')
   const path = `${session.value!.user.id}/${crypto.randomUUID()}.${blob.type === 'image/webp' ? 'webp' : 'jpg'}`
   const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type, cacheControl: '31536000' })
   if (error) throw new Error(error.message)
@@ -65,4 +67,28 @@ export function cardImages(card: { pilot_image?: Json | null; mechs?: Json | nul
   const mechs = Array.isArray(card.mechs) ? card.mechs : []
   const paths = [card.pilot_image, ...mechs.map((mech) => (mech && typeof mech === 'object' && !Array.isArray(mech) ? mech.image : null))]
   return new Set(paths.filter((path): path is string => typeof path === 'string' && IMAGE_PATH.test(path)))
+}
+
+// --- Frame art ---
+// A frame's picture: COMP/CON's art bundled in src/assets/frames/<frame id>.webp (one lazy chunk each, so an image
+// downloads only when it's shown), or one an owner uploaded in the content editor (the frame's own `image` field, a
+// path in the bucket above, never a URL). The upload wins; an alternate frame with neither shows its original's.
+export type FrameArt = { path?: string; bundled?: string }
+
+const BUNDLED = import.meta.glob<string>('./assets/frames/*.webp', { query: '?url', import: 'default' })
+const bundledKey = (id: string) => `./assets/frames/${id}.webp`
+
+export function frameArt(frame: Frame, frames: Frame[] = []): FrameArt | null {
+  const path = String(frame.raw?.image ?? '')
+  if (IMAGE_PATH.test(path)) return { path }
+  if (bundledKey(frame.id) in BUNDLED) return { bundled: frame.id }
+  const original = alternateOf(frame, frames)
+  return original ? frameArt(original) : null
+}
+
+// The picture's link: the upload's public one at once, bundled art once its chunk has loaded.
+export async function frameArtUrl(art: FrameArt | null | undefined): Promise<string | null> {
+  if (art?.path) return imageUrl(art.path)
+  const load = art?.bundled ? BUNDLED[bundledKey(art.bundled)] : undefined
+  return load ? load().catch(() => null) : null
 }

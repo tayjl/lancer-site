@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { sourceOf } from '../gameData'
 import type { Info, InfoCard } from '../info'
+import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 import InfoRule from './InfoRule.vue'
 import ItemCard from './ItemCard.vue'
@@ -34,6 +35,9 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
 
 <template>
   <div class="info-body">
+    <!-- A frame's picture: a showcase, so centred, whole and never cropped. -->
+    <FrameArt v-if="info.art" :art="info.art" :alt="`${info.name} frame art`" class="art" />
+
     <p v-if="info.facts.length" class="facts sep">
       <span v-for="(fact, i) in info.facts" :key="i">{{ fact.text }}</span>
     </p>
@@ -97,6 +101,17 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
   grid-auto-rows: max-content;
   align-content: start;
   gap: var(--space-l);
+}
+
+.art {
+  justify-self: center;
+  max-width: 100%;
+  max-height: 18rem;
+  padding: var(--space-m);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--raised);
+  object-fit: contain;
 }
 
 .facts {

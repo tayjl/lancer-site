@@ -1,7 +1,8 @@
 import type { Json } from './lib/database.types'
 import type { MechPrivate, Sheet } from './myPilot'
 import type { PublicMech } from './pilots'
-import { rankName } from './rules'
+import { docText } from './richTextSafe'
+import { PRICES, rankName } from './rules'
 import { capitalise } from './text'
 
 // What a pending change changes, in plain words, for the GM review (/gm/changes/:id): the approved pilot
@@ -45,8 +46,14 @@ export type DiffLine = {
   section: string
   text: string
   kind: 'added' | 'raised' | 'removed' | 'lowered' | 'updated'
-  doc?: Json | null
+  doc?: Json | null // new writing, for the lines about long text
+  before?: Json | null // the writing it replaces, when there was some
+  manna?: number // what this line costs (positive) or refunds (negative); left out when it's free
+  mechId?: string // the mech a "mech: ..." line belongs to
 }
+
+// What a biomod costs, by id, so its line can show the manna.
+export type Prices = { bionic: (id: number) => number }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const shown = (value: unknown) => (value === null || value === undefined || value === '' ? '-' : String(value))
@@ -67,26 +74,32 @@ export function changeDiff(
   before: { card: PublicCard; sheet: Sheet },
   after: { card: PublicCard; sheet: Sheet },
   names: Names,
+  prices?: Prices,
 ): DiffLine[] {
   const lines: DiffLine[] = []
+  let mechId: string | undefined // the mech whose lines are being added, so they stay with it whatever its name
   // Sentence case: the first letter is a capital, whatever the name or id starts with.
-  const add = (section: string, text: string, kind: DiffLine['kind'] = 'updated', doc?: Json | null) =>
-    lines.push({ section, text: text.charAt(0).toUpperCase() + text.slice(1), kind, ...(doc !== undefined ? { doc } : {}) })
-  const listChanges = <T>(section: string, from: T[] | undefined, to: T[] | undefined, name: (item: T) => string) => {
+  const add = (section: string, text: string, kind: DiffLine['kind'] = 'updated', doc?: Json | null, extra: Pick<DiffLine, 'before' | 'manna'> = {}) =>
+    lines.push({
+      section, text: text.charAt(0).toUpperCase() + text.slice(1), kind, ...(mechId ? { mechId } : {}), ...(doc !== undefined ? { doc } : {}),
+      ...(extra.before ? { before: extra.before } : {}), ...(extra.manna ? { manna: extra.manna } : {}),
+    })
+  const listChanges = <T>(section: string, from: T[] | undefined, to: T[] | undefined, name: (item: T) => string, price?: (item: T) => number) => {
     const { added, removed } = listDiff(from, to)
-    added.forEach((item) => add(section, name(item), 'added'))
-    removed.forEach((item) => add(section, name(item), 'removed'))
+    added.forEach((item) => add(section, name(item), 'added', undefined, { manna: price?.(item) }))
+    removed.forEach((item) => add(section, name(item), 'removed', undefined, { manna: price ? -price(item) : undefined }))
   }
   // Before → after for a field: added when it was empty, removed when it's emptied, otherwise updated.
   const field = (section: string, label: string, a: unknown, b: unknown) =>
     add(section, `${label}: ${shown(a)} → ${shown(b)}`, shown(a) === '-' ? 'added' : shown(b) === '-' ? 'removed' : 'updated')
-  const ranks = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, name: (id: string) => string) => {
+  const ranks = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, name: (id: string) => string, unit: number) => {
     for (const id of new Set([...Object.keys(from), ...Object.keys(to)])) {
       const [a, b] = [from[id] ?? 0, to[id] ?? 0]
       if (a === b) continue
-      if (a === 0) add(section, `${name(id)}, rank ${rankName(b)}`, 'added')
-      else if (b === 0) add(section, `${name(id)}, rank ${rankName(a)}`, 'removed')
-      else add(section, `${name(id)}, rank ${rankName(a)} → ${rankName(b)}`, b > a ? 'raised' : 'lowered')
+      const extra = { manna: (b - a) * unit }
+      if (a === 0) add(section, `${name(id)}, rank ${rankName(b)}`, 'added', undefined, extra)
+      else if (b === 0) add(section, `${name(id)}, rank ${rankName(a)}`, 'removed', undefined, extra)
+      else add(section, `${name(id)}, rank ${rankName(a)} → ${rankName(b)}`, b > a ? 'raised' : 'lowered', undefined, extra)
     }
   }
   const stats = (section: string, from: Record<string, number> = {}, to: Record<string, number> = {}, start: number) => {
@@ -102,31 +115,39 @@ export function changeDiff(
   if (!same(before.card.pilot_image, after.card.pilot_image))
     add('identity', 'Portrait', !before.card.pilot_image ? 'added' : !after.card.pilot_image ? 'removed' : 'updated')
   for (const column of ['appearance', 'personality', 'traits'] as const)
-    if (!same(before.card[column], after.card[column])) add(column, capitalise(column), before.card[column] ? 'updated' : 'added', after.card[column])
-  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'Backstory', before.sheet.backstory ? 'updated' : 'added', after.sheet.backstory)
+    if (!same(before.card[column], after.card[column])) add(column, capitalise(column), before.card[column] ? 'updated' : 'added', after.card[column], { before: before.card[column] })
+  if (!same(before.sheet.backstory, after.sheet.backstory)) add('backstory', 'Backstory', before.sheet.backstory ? 'updated' : 'added', after.sheet.backstory, { before: before.sheet.backstory })
 
   // Stats and what manna buys.
   stats('personal stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 2)
   stats('piloting stats', before.sheet.mech_skills, after.sheet.mech_skills, 0)
-  listChanges('biomods', before.sheet.bionics, after.sheet.bionics, names.bionic)
+  listChanges('biomods', before.sheet.bionics, after.sheet.bionics, names.bionic, prices?.bionic)
   listChanges('loadout', before.sheet.pilot_gear, after.sheet.pilot_gear, names.gear)
 
   // Mechs: the public list and each mech's private details, by mech id.
   const mechsOf = (card: PublicCard) => (Array.isArray(card.mechs) ? (card.mechs as unknown as PublicMech[]) : [])
   const fromMechs = new Map(mechsOf(before.card).map((m) => [m.id, m]))
   const toMechs = new Map(mechsOf(after.card).map((m) => [m.id, m]))
-  for (const [id, mech] of fromMechs) if (!toMechs.has(id)) add('mech hangar', mech.name, 'removed')
+  // Every mech after the first costs manna: the first one into an empty hangar is free, and so is the last one out.
+  let freeAdds = fromMechs.size === 0 ? 1 : 0
+  let freeRemoves = toMechs.size === 0 ? 1 : 0
+  for (const [id, mech] of fromMechs)
+    if (!toMechs.has(id)) {
+      mechId = id
+      add(`mech: ${mech.name}`, 'Mech scrapped', 'removed', undefined, { manna: freeRemoves-- > 0 ? 0 : -PRICES.extraMech })
+    }
   for (const [id, mech] of toMechs) {
+    mechId = id
     const old = fromMechs.get(id)
     const section = `mech: ${mech.name}`
     if (!old) {
-      add('mech hangar', `${mech.name} (${mech.manufacturer_id})`, 'added')
+      add(section, `New mech, ID ${mech.manufacturer_id}`, 'added', undefined, { manna: freeAdds-- > 0 ? 0 : PRICES.extraMech })
       if (mech.appearance) add(`${section} / appearance`, 'Appearance', 'added', mech.appearance)
     }
     else {
       if (old.name !== mech.name) field(`${section} / identity`, 'Name', old.name, mech.name)
       if (old.manufacturer_id !== mech.manufacturer_id) field(`${section} / identity`, 'Manufacturer ID', old.manufacturer_id, mech.manufacturer_id)
-      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'Appearance', old.appearance ? 'updated' : 'added', mech.appearance)
+      if (!same(old.appearance, mech.appearance)) add(`${section} / appearance`, 'Appearance', old.appearance ? 'updated' : 'added', mech.appearance, { before: old.appearance })
       if (!same(old.image, mech.image)) add(`${section} / appearance`, 'Image', !old.image ? 'added' : !mech.image ? 'removed' : 'updated')
     }
     const a: MechPrivate = before.sheet.mechs?.[id] ?? {}
@@ -171,9 +192,10 @@ export function changeDiff(
       else if (!to) add(`${section} / weapon mounts`, `${label}: ${names.mod(from)}`, 'removed')
       else add(`${section} / weapon mounts`, `${label}: ${names.mod(from)} → ${names.mod(to)}`)
     }
-    if (!same(a.history, b.history)) add(`${section} / history`, 'History', a.history ? 'updated' : 'added', b.history)
+    if (!same(a.history, b.history)) add(`${section} / history`, 'History', a.history ? 'updated' : 'added', b.history, { before: a.history })
   }
-  ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`)
+  mechId = undefined
+  ranks('licences', before.sheet.licences, after.sheet.licences, (id) => `${names.licence(id)} licence`, PRICES.licenceRank)
   // Which frame a licence gives (unset is the licence's own frame): "HA Genghis licence frame: HA Genghis → HA Worldkiller".
   const [oldChoices, newChoices] = [before.sheet.frame_choices ?? {}, after.sheet.frame_choices ?? {}]
   for (const id of new Set([...Object.keys(oldChoices), ...Object.keys(newChoices)])) {
@@ -181,6 +203,67 @@ export function changeDiff(
     if (a !== b) add('licences', `${names.licence(id)} licence frame: ${names.frame(a)} → ${names.frame(b)}`)
   }
   listChanges('core bonuses', before.sheet.core_bonuses, after.sheet.core_bonuses, names.coreBonus)
-  ranks('talents', before.sheet.talents, after.sheet.talents, names.talent)
+  ranks('talents', before.sheet.talents, after.sheet.talents, names.talent, PRICES.talentRank)
   return lines
+}
+
+// --- Laying the lines out for the review page: sections in sheet order, with counts and manna ---
+
+export type Tone = 'up' | 'down' | 'info'
+// Each kind's tone: up (added, raised), down (removed, lowered) or info (updated).
+export const kindTone = (kind: DiffLine['kind']): Tone => (kind === 'added' || kind === 'raised' ? 'up' : kind === 'removed' || kind === 'lowered' ? 'down' : 'info')
+
+export type ReviewSection = {
+  id: string // 'identity', 'personal stats', ... or 'mech: Lantern II'
+  title: string // 'Identity', 'Mech: Lantern II'
+  mech?: string // the mech's name, for a mech
+  mechId?: string // and its id: two mechs can share a name
+  mechState?: 'new' | 'scrapped'
+  groups: { title: string; lines: DiffLine[] }[] // a mech's sub-heads; other sections have one group with no title
+  counts: Record<Tone, number>
+  manna: number // what the section costs (positive) or refunds (negative)
+}
+
+// The sheet's order; mechs follow, in the order the lines name them.
+const SECTION_ORDER = ['identity', 'appearance', 'personality', 'traits', 'backstory', 'personal stats', 'piloting stats', 'biomods', 'loadout', 'licences', 'core bonuses', 'talents']
+const MECH_GROUPS = ['', 'identity', 'frame', 'appearance', 'history', 'weapon mounts', 'systems']
+// Within a group: added and raised first, then updated, then removed and lowered.
+const TONE_ORDER: Record<Tone, number> = { up: 0, info: 1, down: 2 }
+
+export function reviewSections(lines: DiffLine[]): ReviewSection[] {
+  const sections = new Map<string, ReviewSection>()
+  const bySub = new Map<string, DiffLine[]>()
+  for (const line of lines) {
+    const mech = /^mech: (.+?)(?: \/ (identity|frame|appearance|history|weapon mounts|systems))?$/.exec(line.section)
+    const id = mech ? `mech: ${line.mechId ?? mech[1]}` : line.section
+    if (!sections.has(id))
+      sections.set(id, { id, title: mech ? `Mech: ${mech[1]}` : capitalise(id), ...(mech ? { mech: mech[1], ...(line.mechId ? { mechId: line.mechId } : {}) } : {}), groups: [], counts: { up: 0, down: 0, info: 0 }, manna: 0 })
+    const section = sections.get(id)!
+    section.counts[kindTone(line.kind)]++
+    section.manna += line.manna ?? 0
+    if (mech && !mech[2]) section.mechState = line.kind === 'added' ? 'new' : 'scrapped'
+    const key = `${id}|${mech?.[2] ?? ''}`
+    if (!bySub.has(key)) {
+      bySub.set(key, [])
+      section.groups.push({ title: mech?.[2] ?? '', lines: bySub.get(key)! })
+    }
+    bySub.get(key)!.push(line)
+  }
+  for (const section of sections.values()) {
+    section.groups.sort((a, b) => MECH_GROUPS.indexOf(a.title) - MECH_GROUPS.indexOf(b.title))
+    for (const group of section.groups) group.lines.sort((a, b) => TONE_ORDER[kindTone(a.kind)] - TONE_ORDER[kindTone(b.kind)])
+  }
+  const rank = (section: ReviewSection) => (section.mech ? SECTION_ORDER.length : SECTION_ORDER.indexOf(section.id))
+  return [...sections.values()].sort((a, b) => rank(a) - rank(b)) // stable: mechs keep their order
+}
+
+export const wordCount = (doc: unknown) => docText(doc).split(' ').filter(Boolean).length
+
+// "Backstory rewritten · 412 → 530 words", or "Backstory written · 530 words" when there was nothing before.
+// Only for lines that carry writing (a doc); every other line is its own text.
+export function writingSummary(line: DiffLine): string | null {
+  if (line.doc === undefined) return null
+  const words = wordCount(line.doc)
+  if (!words) return `${line.text} cleared`
+  return line.before ? `${line.text} rewritten · ${wordCount(line.before)} → ${words} words` : `${line.text} written · ${words} words`
 }

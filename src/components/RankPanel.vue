@@ -5,8 +5,10 @@ import { MAX_LICENCE_RANK, rankName } from '../rules'
 import { useRestriction } from '../restriction'
 import { frameRanges, framePick } from '../pickerRows'
 import { useManufacturers } from '../archive'
-import { useMechData } from '../mechData'
+import { chosenFrame, useMechData } from '../mechData'
+import { frameArt } from '../images'
 import type { Info, Unlock } from '../info'
+import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
@@ -89,6 +91,14 @@ const picker = useTemplateRef('picker')
 const { frames } = useMechData()
 const manufacturers = useManufacturers()
 const ranges = computed(() => frameRanges(frames.value))
+// A licence card shows the art of the frame the licence gives (the pilot's choice among its alternates).
+const licenceArt = (id: string) => {
+  if (!props.columns) return null
+  const original = frames.value.find((f) => f.id === id)
+  if (!original) return null
+  const choice = props.details(id).find((step) => step.choice)?.choice?.value
+  return frameArt(chosenFrame(original, frames.value, choice ? { [id]: choice } : undefined), frames.value)
+}
 const offered = computed(() =>
   props.options
     .filter((option) => !props.held[option.id] && !option.stale)
@@ -96,7 +106,7 @@ const offered = computed(() =>
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
       const blocked = restricted(option.id) || (affordable.value ? '' : 'Not enough manna')
       return frame
-        ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, false), meta: undefined, blocked }
+        ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, false, frames.value), meta: undefined, blocked }
         : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }
     })
     .sort((a, b) => Number(!!optionOf(a.id)?.exotic) - Number(!!optionOf(b.id)?.exotic) || Number(!!restricted(a.id)) - Number(!!restricted(b.id))),
@@ -115,7 +125,7 @@ async function buy(id: string) {
 <template>
   <section class="ranks">
     <header class="head sheet-head">
-      <h2 class="sheet-label">{{ title }}<span class="private">Private</span></h2>
+      <h2 class="sheet-label">{{ title }}</h2>
       <slot name="summary" />
       <span v-if="editable" class="blocked">
         <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${noun}-why`" @click="open">
@@ -128,33 +138,36 @@ async function buy(id: string) {
     <div v-if="ranks.length" class="list">
       <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
         <template #meta>Rank {{ rankName(rank) }}</template>
-        <ol :class="columns ? 'ladder' : 'tiers'">
-          <li v-for="(step, i) in details(id).slice(0, MAX_LICENCE_RANK)" :key="i" class="rank" :class="{ locked: i >= rank }">
-            <span class="numeral">{{ rankName(i + 1) }}</span>
-            <div class="rank-body">
-              <p v-if="step.name || status(i, rank)" class="rank-head">
-                <span v-if="step.name" class="rank-name">{{ step.name }}</span>
-                <span v-if="status(i, rank) === 'held'" class="status held"><Icon name="check" />Held</span>
-                <span v-else-if="status(i, rank) === 'next'" class="status">Next: <span class="num">{{ price }}</span> manna</span>
-                <span v-else-if="status(i, rank) === 'locked'" class="status">Locked</span>
-              </p>
-              <RulesText v-if="step.html" :html="step.html" />
-              <fieldset v-if="step.choice && editable" class="frame-choice">
-                <legend class="label">Frame</legend>
-                <label v-for="option in step.choice.options" :key="option.value" class="frame-option">
-                  <input type="radio" :name="`${id}-frame`" :checked="step.choice.value === option.value" :disabled="saving" @change="choose(id, option.value)" />
-                  <Icon name="frame" />{{ option.name }}
-                </label>
-              </fieldset>
-              <p v-else-if="step.choice" class="frame-chosen">
-                <Icon name="frame" /><span class="dim">Chosen frame:</span>
-                <InfoButton :label="chosen(step).name" :info="chosen(step).info" />
-              </p>
-              <UnlockList v-if="gear(step).length" :items="gear(step)" />
-              <p v-else-if="!step.html && !step.choice" class="dim nothing">No unlocks.</p>
-            </div>
-          </li>
-        </ol>
+        <div class="rank-wrap" :class="{ 'with-art': licenceArt(id) }">
+          <FrameArt v-if="licenceArt(id)" :art="licenceArt(id)" class="licence-art" />
+          <ol :class="columns ? 'ladder' : 'tiers'">
+            <li v-for="(step, i) in details(id).slice(0, MAX_LICENCE_RANK)" :key="i" class="rank" :class="{ locked: i >= rank }">
+              <span class="numeral">{{ rankName(i + 1) }}</span>
+              <div class="rank-body">
+                <p v-if="step.name || status(i, rank)" class="rank-head">
+                  <span v-if="step.name" class="rank-name">{{ step.name }}</span>
+                  <span v-if="status(i, rank) === 'held'" class="status held"><Icon name="check" />Held</span>
+                  <span v-else-if="status(i, rank) === 'next'" class="status">Next: <span class="num">{{ price }}</span> manna</span>
+                  <span v-else-if="status(i, rank) === 'locked'" class="status">Locked</span>
+                </p>
+                <RulesText v-if="step.html" :html="step.html" />
+                <fieldset v-if="step.choice && editable" class="frame-choice">
+                  <legend class="label">Frame</legend>
+                  <label v-for="option in step.choice.options" :key="option.value" class="frame-option">
+                    <input type="radio" :name="`${id}-frame`" :checked="step.choice.value === option.value" :disabled="saving" @change="choose(id, option.value)" />
+                    <Icon name="frame" />{{ option.name }}
+                  </label>
+                </fieldset>
+                <p v-else-if="step.choice" class="frame-chosen">
+                  <Icon name="frame" /><span class="dim">Chosen frame:</span>
+                  <InfoButton :label="chosen(step).name" :info="chosen(step).info" />
+                </p>
+                <UnlockList v-if="gear(step).length" :items="gear(step)" />
+                <p v-else-if="!step.html && !step.choice" class="dim nothing">No unlocks.</p>
+              </div>
+            </li>
+          </ol>
+        </div>
         <template v-if="editable" #foot>
           <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
           <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
@@ -190,6 +203,20 @@ async function buy(id: string) {
 .list {
   display: grid;
   gap: var(--space-m);
+}
+
+/* A licence's frame art beside its ladder (above it on phones); it's whole and never cropped. */
+.with-art {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-m);
+}
+
+.licence-art {
+  width: 100%;
+  max-height: 14rem;
+  object-fit: contain;
 }
 
 /* Licences: ranks I to III side by side (one column on phones). Talents: stacked tiers, numeral on the left. */
@@ -377,6 +404,15 @@ async function buy(id: string) {
 @media (max-width: 40rem) {
   .ladder {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .with-art {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .licence-art {
+    justify-self: center;
+    max-height: 8rem;
   }
 }
 </style>

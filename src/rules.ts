@@ -38,8 +38,14 @@ export function personalStatProblems(values: Record<string, number> = {}): strin
 // Manna and other big numbers with thousands separators ("2,900").
 export const formatAmount = (n: number) => n.toLocaleString('en-GB')
 
-// Manna prices.
-export const PRICES = { licenceRank: 600, talentRank: 300 }
+// Manna prices. A pilot's first mech is free; each one after it costs "extraMech".
+// The database refuses a player's submit that overspends, with its own copy of these three prices in
+// supabase/migrations/20261119170000_enforce_picker_rules.sql (private.guard_submit_rules); rules.test.ts checks they match.
+export const PRICES = { licenceRank: 600, talentRank: 300, extraMech: 500 }
+// New pilots start with this much manna received (the column's default, migration 20261119150000_starting_manna.sql).
+export const STARTING_MANNA = 1500
+// What the next mech costs, given how many the pilot has.
+export const nextMechPrice = (mechs: number) => (mechs > 0 ? PRICES.extraMech : 0)
 
 // Content only GMs and owners hand out (docs/lancer-rules.md). Two kinds:
 // - HORUS and NHC: blocked for players in every picker, free for GMs and owners anywhere ("GM only"). Matched by name,
@@ -115,10 +121,14 @@ export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBo
   return problems
 }
 
-// Manna spent on the sheet: licence ranks, biomods (each at its own price; an id missing from the catalogue costs 0, like
-// any unknown item) and talent ranks.
-export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>) =>
+// Manna spent: licence ranks, biomods (each at its own price; an id missing from the catalogue costs 0, like any unknown
+// item), talent ranks and every mech after the first. "mechs" is how many mechs are on the card (characters.mechs), which
+// isn't part of the sheet.
+export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>, mechs: number) =>
   licenceLevel(sheet) * PRICES.licenceRank + (sheet.bionics ?? []).reduce((total, id) => total + (bionicPrices.get(id) ?? 0), 0) + sum(sheet.talents) * PRICES.talentRank
+  + Math.max(0, mechs - 1) * PRICES.extraMech
+// How many mechs a card's mechs column holds.
+export const mechCount = (mechs: unknown) => (Array.isArray(mechs) ? mechs.length : 0)
 
 export const rankName = (rank: number) => ['0', 'I', 'II', 'III'][rank] ?? String(rank)
 
@@ -307,7 +317,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 // each mech by name.
 export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>): string[] {
   const problems = personalStatProblems(sheet.pilot_stats)
-  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map())
+  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length)
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 
   const skills = sum(sheet.mech_skills)

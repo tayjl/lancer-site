@@ -4,6 +4,7 @@ import type { NamedBonus } from '../bonuses'
 import { makerColour } from '../archive'
 import { equipmentDetails } from '../equipment'
 import { tagNames, type Item } from '../gameData'
+import { frameArt } from '../images'
 import type { Manufacturer } from '../info'
 import { itemCard, itemDetails, symbolOf } from '../itemDetails'
 import { damageTotals, radarAxes, reach } from '../mechOverview'
@@ -11,6 +12,7 @@ import { mountSize, type Frame, type mechStats } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { frameRanges } from '../pickerRows'
 import { rankName } from '../rules'
+import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 import ItemStats from './ItemStats.vue'
 import RadarChart from './RadarChart.vue'
@@ -36,6 +38,8 @@ const props = defineProps<{
   spUsed: number
   spTotal: number | null
 }>()
+
+const art = computed(() => frameArt(props.baseFrame, props.frames))
 
 const SHORT: Record<string, string> = { hp: 'HP', evasion: 'EVA', edef: 'E-DEF', speed: 'SPD', heat: 'HEAT', tech_attack: 'TECH', system_points: 'SP' }
 const axes = computed(() => radarAxes(props.stats, frameRanges(props.frames)).map((axis) => ({ ...axis, label: `${SHORT[axis.id] ?? axis.label} ${axis.value}` })))
@@ -87,13 +91,16 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
 
 <template>
   <section class="panel overview">
-    <h2 class="sheet-label">Overview<span class="private">Private</span></h2>
+    <h2 class="sheet-label">Overview</h2>
 
     <div class="top">
       <div class="identity">
-        <Icon v-if="logo" :src="logo" class="big-logo" :style="{ color: makerColour(maker) }" />
+        <!-- The frame's picture where the big logo was (the logo goes small, among the chips); no picture, the big logo. -->
+        <FrameArt v-if="art" :art="art" :alt="`${baseFrame.name} frame art`" class="frame-art" />
+        <Icon v-else-if="logo" :src="logo" class="big-logo" :style="{ color: makerColour(maker) }" />
         <Icon v-else name="frame" class="big-logo neutral" />
         <ul class="chips">
+          <li v-if="art && logo" class="maker-mark"><Icon :src="logo" class="small-logo" :style="{ color: makerColour(maker) }" /><span class="sr-only">{{ baseFrame.source }}</span></li>
           <li v-for="role in baseFrame.mechtype" :key="role" class="chip">{{ role }}</li>
           <li class="chip"><Icon :name="size?.value === 0.5 ? 'size-half' : `size-${size?.value ?? 1}`" />Size <span class="num">{{ sizeText }}</span></li>
           <li class="chip"><Icon name="license" />{{ baseFrame.licenceLevel ? `Rank ${rankName(baseFrame.licenceLevel)}` : 'GMS' }}</li>
@@ -210,6 +217,22 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
 .big-logo {
   width: 112px;
   height: 112px;
+}
+
+.frame-art {
+  max-width: 100%;
+  max-height: 16rem;
+  object-fit: contain;
+}
+
+.small-logo {
+  width: 28px;
+  height: 28px;
+}
+
+.maker-mark {
+  display: inline-flex;
+  align-items: center;
 }
 
 .big-logo.neutral {
@@ -439,6 +462,10 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
   .big-logo {
     width: 80px;
     height: 80px;
+  }
+
+  .frame-art {
+    max-height: 12rem;
   }
 }
 </style>

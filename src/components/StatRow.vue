@@ -11,7 +11,6 @@ import Icon from './Icon.vue'
 // under "Where these numbers come from".
 const props = defineProps<{
   title: string
-  tag?: string
   stats: { id: string; name: string; value: number | null; bonus?: number; icon?: string; contributors?: string[] }[]
   editable: boolean
   min: number
@@ -38,7 +37,7 @@ const raiseBlocked = (value: number | null) =>
 <template>
   <section class="stat-row">
     <header class="sheet-head head">
-      <h2 class="sheet-label">{{ title }}<span v-if="tag" class="private">{{ tag }}</span></h2>
+      <h2 class="sheet-label">{{ title }}</h2>
       <span v-if="budget !== undefined" class="meter-inline" :class="{ over: overspent }">
         <template v-if="overspent"><span class="num">{{ used - budget }}</span> over the <span class="num">{{ budget }}</span> points</template>
         <template v-else><span class="num">{{ budget - used }}</span> of <span class="num">{{ budget }}</span> points left</template>
