@@ -612,10 +612,6 @@ export type Database = {
         Returns: undefined
       }
       remove_pack: { Args: { target_pack_id: number }; Returns: undefined }
-      send_back_pilot: {
-        Args: { note: string; target_character_id: number }
-        Returns: undefined
-      }
       save_bionic: {
         Args: {
           expected_updated_at?: string
@@ -631,6 +627,10 @@ export type Database = {
           target_id?: number
         }
         Returns: Json
+      }
+      send_back_pilot: {
+        Args: { note: string; target_character_id: number }
+        Returns: undefined
       }
     }
     Enums: {
