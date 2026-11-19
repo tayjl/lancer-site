@@ -4,7 +4,7 @@ import type { NamedBonus } from '../bonuses'
 import { makerColour } from '../archive'
 import { equipmentDetails } from '../equipment'
 import { tagNames, type Item } from '../gameData'
-import { frameArt } from '../images'
+import { frameArt, imageUrl } from '../images'
 import type { Manufacturer } from '../info'
 import { itemCard, itemDetails, symbolOf } from '../itemDetails'
 import { damageTotals, radarAxes, reach } from '../mechOverview'
@@ -12,13 +12,12 @@ import { mountSize, type Frame, type mechStats } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { frameRanges } from '../pickerRows'
 import { rankName } from '../rules'
-import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 import ItemStats from './ItemStats.vue'
+import MechImage from './MechImage.vue'
 import RadarChart from './RadarChart.vue'
 
-// The mech page's at-a-glance panel (private: frames are private): the frame's identity (its maker's logo in the
-// maker's colour, name, roles, size, licence), a radar of this build's own stats against every frame, a diagram of the
+// The mech page's at-a-glance panel: the frame's identity (its picture, or its maker's logo; roles, size, licence), a radar of this build's own stats against every frame, a diagram of the
 // loadout (a box per mount, a cell per weapon place with its damage and range, empty places dashed, systems as chips,
 // the system points meter), and the damage and reach the equipped weapons add up to. Symbols and numbers, not text.
 const props = defineProps<{
@@ -27,6 +26,9 @@ const props = defineProps<{
   frames: Frame[]
   maker?: Manufacturer
   logo: string | null
+  // The mech's own uploaded image (a stored path) and its name: shown in place of the frame's art when there is one.
+  image: string | null
+  name: string
   stats: ReturnType<typeof mechStats>
   sheet: Sheet
   details: MechPrivate
@@ -95,12 +97,10 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
 
     <div class="top">
       <div class="identity">
-        <!-- The frame's picture where the big logo was (the logo goes small, among the chips); no picture, the big logo. -->
-        <FrameArt v-if="art" :art="art" :alt="`${baseFrame.name} frame art`" class="frame-art" />
-        <Icon v-else-if="logo" :src="logo" class="big-logo" :style="{ color: makerColour(maker) }" />
-        <Icon v-else name="frame" class="big-logo neutral" />
+        <!-- The mech's picture, the one place it shows on the profile tab: its upload, else the frame's art, else the maker's logo, dim. -->
+        <MechImage size="overview" :src="image" :art="art" :logo="logo" :alt="`Image of ${name}`" :art-alt="`${baseFrame.name} frame art`" />
         <ul class="chips">
-          <li v-if="art && logo" class="maker-mark"><Icon :src="logo" class="small-logo" :style="{ color: makerColour(maker) }" /><span class="sr-only">{{ baseFrame.source }}</span></li>
+          <li v-if="logo && (art || imageUrl(image))" class="maker-mark"><Icon :src="logo" class="small-logo" :style="{ color: makerColour(maker) }" /><span class="sr-only">{{ baseFrame.source }}</span></li>
           <li v-for="role in baseFrame.mechtype" :key="role" class="chip">{{ role }}</li>
           <li class="chip"><Icon :name="size?.value === 0.5 ? 'size-half' : `size-${size?.value ?? 1}`" />Size <span class="num">{{ sizeText }}</span></li>
           <li class="chip"><Icon name="license" />{{ baseFrame.licenceLevel ? `Rank ${rankName(baseFrame.licenceLevel)}` : 'GMS' }}</li>
@@ -214,17 +214,6 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
   min-width: 0;
 }
 
-.big-logo {
-  width: 112px;
-  height: 112px;
-}
-
-.frame-art {
-  max-width: 100%;
-  max-height: 16rem;
-  object-fit: contain;
-}
-
 .small-logo {
   width: 28px;
   height: 28px;
@@ -233,10 +222,6 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
 .maker-mark {
   display: inline-flex;
   align-items: center;
-}
-
-.big-logo.neutral {
-  color: var(--text-dim);
 }
 
 .identity .chips {

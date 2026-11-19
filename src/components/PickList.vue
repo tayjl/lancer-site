@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { groupPicks, type PickOption } from '../pickerRows'
-import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 import ItemStats from './ItemStats.vue'
+import MechImage from './MechImage.vue'
 import RadarChart from './RadarChart.vue'
 
 // The options of a picker dialog (ItemPicker.vue, LoadoutBox.vue's biomod picker): a box per manufacturer where the
@@ -28,7 +28,7 @@ const lines = (meta: PickOption['meta']) => [meta ?? ''].flat().filter(Boolean)
     </header>
     <ul class="pick-list">
       <li v-for="option in box.options" :key="option.id" :class="{ blocked: blocked(option), picked: option.picked }">
-        <span v-if="option.art" class="pick-art art"><FrameArt :art="option.art" class="pick-img" /></span>
+        <span v-if="option.art" class="pick-art art"><MechImage size="pick" :art="option.art" :art-alt="`${option.name} frame`" /></span>
         <span v-else-if="option.radar" class="pick-art"><RadarChart :axes="option.radar" :summary="`${option.name}: ${option.radar.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`" mini /></span>
         <span v-else-if="option.look" class="pick-icon" :class="option.look.type"><Icon :name="option.look.icon" /></span>
         <div class="pick-about">

@@ -41,8 +41,8 @@ import { capitalise } from '../text'
 // in place and saves itself. While a pilot is pending you can edit it directly; once it's approved, changes are
 // proposed as a draft that a GM approves (src/myPilot.ts).
 // The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
-// just like your own sheet. Private sections show only when the database hands over the sheet (the pilot's
-// player, GMs and owners). On the gm-review route (from the gm: pilots tab) GMs also get their controls: level,
+// just like your own sheet. Everything on it is public except the backstory (shown only to the pilot's player and
+// GMs, or as a public copy when its player toggles it; src/backstory.ts). On the gm-review route (from the gm: pilots tab) GMs also get their controls: level,
 // manna and, while pending, the decision.
 // Homebrew (src/rules.ts): level (set by GMs) gives HASE points and the mod limit; manna (received from GMs)
 // buys licence ranks, biomods and talent ranks; every 3 licence ranks give a free core bonus.
@@ -59,7 +59,8 @@ const {
   reviewNote,
   sheetUpdatedAt,
   playerName,
-  canSeePrivate,
+  canSeeBackstory,
+  canSeeManna,
   loading,
   loadError,
   conflict,
@@ -207,7 +208,8 @@ const vitals = computed(() => pilotVitals(sheet.value, gear.value, talents.value
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, mods } = useMechData()
 const catalogue = useCatalogue()
-const balance = computed(() => gm.value.manna - mannaSpent(sheet.value, bionicPrices.value, mechs.value.length))
+// Manna is private to the pilot's player and GMs: other viewers get no figure, and nothing to check it against.
+const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) - mannaSpent(sheet.value, bionicPrices.value, mechs.value.length))
 
 // Licences: one per original licensed frame (alternate frames share it). Each rank unlocks the frames and gear of that
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
@@ -230,7 +232,7 @@ const licenceDetails = (id: string): RankStep[] => {
   }))
 }
 const saveFrameChoice = (licence: string, frameId: string) => track(updateSheet({ frame_choices: { ...sheet.value.frame_choices, [licence]: frameId } }))
-// The hangar: a mech's frame is private, and a new mech joins the card's list.
+// The hangar: a mech's frame comes from the sheet, and a new mech joins the card's list.
 const frameId = (mechId: string) => sheet.value.mechs?.[mechId]?.frame
 const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
@@ -250,17 +252,17 @@ const hasNext = computed(() => own || character.value?.status === 'dead')
 const gmLink = computed(() => isGm.value && !own && !reviewing)
 
 // The sections, one shown at a time (SheetTabs.vue), remembered in the url as ?tab= so a mech page can link back to
-// the hangar. Players without the private sheet only get the public ones; anything else falls back to profile.
-const tabs = computed(() => (canSeePrivate.value ? ['profile', 'stats', 'equipment', 'licences', 'talents', 'mechs'] : ['profile', 'mechs']))
+// the hangar; anything unknown falls back to profile.
+const tabs = ['profile', 'stats', 'equipment', 'licences', 'talents', 'mechs']
 const tab = computed({
-  get: () => (tabs.value.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
+  get: () => (tabs.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
   set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
 })
 
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
   frames.value.length
-    ? pilotProblems(sheet.value, gm.value, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])))
+    ? pilotProblems(sheet.value, canSeeManna.value ? gm.value : { ...gm.value, manna: Infinity }, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])))
     : personalStatProblems(sheet.value.pilot_stats),
 )
 
@@ -347,8 +349,8 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             </span>
           </div>
         </div>
-        <div v-if="canSeePrivate || gmLink || gmCanEdit" class="header-side">
-          <dl v-if="canSeePrivate" class="facts">
+        <div class="header-side">
+          <dl class="facts">
             <div class="fact">
               <dt class="label">Level</dt>
               <dd class="fact-value num">{{ gm.level }}</dd>
@@ -357,7 +359,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               <dt class="label">Licence level</dt>
               <dd class="fact-value num">{{ licenceLevel(sheet) }}</dd>
             </div>
-            <div class="fact">
+            <div v-if="canSeeManna" class="fact">
               <dt class="label">Manna left</dt>
               <dd class="fact-value num" :class="{ over: balance < 0 }">{{ formatAmount(balance) }}</dd>
               <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet, bionicPrices, mechs.length)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
@@ -458,7 +460,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <p class="notice-title">Note from the GM</p>
         <p class="note-text">{{ sentBack }}</p>
       </div>
-      <RuleCheck v-if="canSeePrivate" :problems="problems" :fix="ruleFix" />
+      <RuleCheck :problems="problems" :fix="ruleFix" />
 
       <!-- One section at a time. v-show keeps every panel mounted, so switching never loses an open picker or an
            unsaved field. Only this slim row sticks (under the top bar). -->
@@ -470,7 +472,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             <SheetField class="panel" title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
             <SheetField class="panel" title="Personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
             <SheetField
-              v-if="canSeePrivate"
+              v-if="canSeeBackstory"
               class="panel"
               title="Backstory"
               :doc="sheet.backstory ?? null"
@@ -508,89 +510,87 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         </section>
       </div>
 
-      <template v-if="canSeePrivate">
-        <div v-show="tab === 'stats'" class="tab-panel section-grid">
-          <StatRow class="panel span-all" title="General stats" :stats="vitals" :editable="false" :min="0" :max="0" />
-          <StatRow
-            class="panel"
-            title="Piloting stats (HASE)"
-            :stats="stats.piloting"
-            :editable="editable"
-            :min="STAT_MIN"
-            :max="STAT_MAX"
-            :budget="skillPoints(gm.level)"
-            @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
-          />
-          <StatRow
-            class="panel"
-            title="Personal stats"
-            :stats="stats.personal"
-            :editable="editable"
-            :min="PERSONAL_STAT_MIN"
-            :max="PERSONAL_STAT_MAX"
-            :budget="PERSONAL_STAT_POINTS"
-            @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
-          />
-        </div>
-        <div v-show="tab === 'equipment'" class="tab-panel">
-          <LoadoutBox
-            class="panel"
-            title="Biomods"
-            :items="bionicOptions"
-            :chosen="sheet.bionics ?? []"
-            :editable="editable"
-            :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
-            :balance="balance"
-            :save="saveBionics"
-          />
-          <PilotLoadout class="panel" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
-        </div>
-        <div v-show="tab === 'licences'" class="tab-panel">
-          <RankPanel
-            class="panel"
-            title="Licences"
-            noun="licence"
-            :options="licenceOptions"
-            :held="sheet.licences ?? {}"
-            :details="licenceDetails"
-            columns
-            :price="PRICES.licenceRank"
-            :balance="balance"
-            :editable="editable"
-            :save="saveLicences"
-            :choose="saveFrameChoice"
-          >
-            <template #summary>
-              <span class="meter-inline">Licence level <span class="num">{{ licenceLevel(sheet) }}</span></span>
-            </template>
-          </RankPanel>
-          <CoreBonusPanel
-            class="panel"
-            :options="coreBonuses"
-            :licences="sheet.licences ?? {}"
-            :frames="frames"
-            :taken="sheet.core_bonuses ?? []"
-            :picks="coreBonusPicks(sheet)"
-            :editable="editable"
-            :save="saveCoreBonuses"
-          />
-        </div>
-        <div v-show="tab === 'talents'" class="tab-panel">
-          <RankPanel
-            class="panel"
-            title="Talents"
-            noun="talent"
-            :options="talentOptions"
-            :held="sheet.talents ?? {}"
-            :details="talentDetails"
-            tiers
-            :price="PRICES.talentRank"
-            :balance="balance"
-            :editable="editable"
-            :save="saveTalents"
-          />
-        </div>
-      </template>
+      <div v-show="tab === 'stats'" class="tab-panel section-grid">
+        <StatRow class="panel span-all" title="General stats" :stats="vitals" :editable="false" :min="0" :max="0" />
+        <StatRow
+          class="panel"
+          title="Piloting stats (HASE)"
+          :stats="stats.piloting"
+          :editable="editable"
+          :min="STAT_MIN"
+          :max="STAT_MAX"
+          :budget="skillPoints(gm.level)"
+          @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+        />
+        <StatRow
+          class="panel"
+          title="Personal stats"
+          :stats="stats.personal"
+          :editable="editable"
+          :min="PERSONAL_STAT_MIN"
+          :max="PERSONAL_STAT_MAX"
+          :budget="PERSONAL_STAT_POINTS"
+          @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
+        />
+      </div>
+      <div v-show="tab === 'equipment'" class="tab-panel">
+        <LoadoutBox
+          class="panel"
+          title="Biomods"
+          :items="bionicOptions"
+          :chosen="sheet.bionics ?? []"
+          :editable="editable"
+          :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
+          :balance="balance"
+          :save="saveBionics"
+        />
+        <PilotLoadout class="panel" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+      </div>
+      <div v-show="tab === 'licences'" class="tab-panel">
+        <RankPanel
+          class="panel"
+          title="Licences"
+          noun="licence"
+          :options="licenceOptions"
+          :held="sheet.licences ?? {}"
+          :details="licenceDetails"
+          columns
+          :price="PRICES.licenceRank"
+          :balance="balance"
+          :editable="editable"
+          :save="saveLicences"
+          :choose="saveFrameChoice"
+        >
+          <template #summary>
+            <span class="meter-inline">Licence level <span class="num">{{ licenceLevel(sheet) }}</span></span>
+          </template>
+        </RankPanel>
+        <CoreBonusPanel
+          class="panel"
+          :options="coreBonuses"
+          :licences="sheet.licences ?? {}"
+          :frames="frames"
+          :taken="sheet.core_bonuses ?? []"
+          :picks="coreBonusPicks(sheet)"
+          :editable="editable"
+          :save="saveCoreBonuses"
+        />
+      </div>
+      <div v-show="tab === 'talents'" class="tab-panel">
+        <RankPanel
+          class="panel"
+          title="Talents"
+          noun="talent"
+          :options="talentOptions"
+          :held="sheet.talents ?? {}"
+          :details="talentDetails"
+          tiers
+          :price="PRICES.talentRank"
+          :balance="balance"
+          :editable="editable"
+          :save="saveTalents"
+        />
+      </div>
 
       <div v-show="tab === 'mechs'" class="tab-panel">
         <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" />

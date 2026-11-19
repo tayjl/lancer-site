@@ -5,7 +5,7 @@ import { frameArt } from '../../images'
 import { itemInfo } from '../../info'
 import { alternateOf, MOUNT_HINTS, toFrame, useMechData } from '../../mechData'
 import { plural } from '../../text'
-import FrameArt from '../FrameArt.vue'
+import MechImage from '../MechImage.vue'
 import Icon from '../Icon.vue'
 import ImageUpload from '../ImageUpload.vue'
 import InfoButton from '../InfoButton.vue'
@@ -135,8 +135,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     </Field>
     <Field block label="Image" path="image" hint="Shown on the frame's information, its licence and any mech with no picture of its own. An upload replaces the bundled art.">
       <div class="art-edit">
-        <FrameArt v-if="art" :art="art" :alt="`${String(model.name ?? 'Frame')} image`" class="art-preview" />
-        <p v-else class="dim">No image.</p>
+        <MechImage size="editor" :art="art" :art-alt="`${String(model.name ?? 'Frame')} image`" />
         <ImageUpload :path="typeof model.image === 'string' ? model.image : null" :save="saveImage" />
       </div>
     </Field>
@@ -237,7 +236,6 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 .unused { opacity: 0.7; }
 .art-edit { display: grid; justify-items: start; gap: var(--space-s); }
 .art-edit p { margin: 0; }
-.art-preview { max-width: 100%; max-height: 12rem; padding: var(--space-s); border: 1px solid var(--rule); border-radius: var(--radius); background: var(--raised); object-fit: contain; }
 .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-m); }
 .mounts { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
 .mounts li { display: grid; grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr) auto; gap: var(--space-s) var(--space-m); align-items: center; }

@@ -28,7 +28,7 @@ export type InfoFact = { text: string }
 export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string; range?: { min: number; max: number; at: number } }
 // "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
 // "id": the thing's own id in the packs, for the "Source:" line (not for bionics, which aren't pack content).
-// "art": a frame's picture, shown at the top (FrameArt.vue).
+// "art": a frame's or licence's picture, shown at the top (MechImage.vue); null means it has none (a placeholder shows), undefined that it is not a frame.
 export type Info = { kind: string; id?: string; art?: FrameArt | null; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
 
 // The one dialog's contents; null while it's closed.

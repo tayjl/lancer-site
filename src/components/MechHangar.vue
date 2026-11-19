@@ -2,16 +2,16 @@
 import { computed, reactive, ref } from 'vue'
 import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
-import { frameArt, imageUrl } from '../images'
+import { frameArt } from '../images'
 import { useMechData } from '../mechData'
 import { mechProblem } from '../myPilot'
 import { nextMechPrice } from '../rules'
 import type { PublicMech } from '../pilots'
-import FrameArt from './FrameArt.vue'
 import Icon from './Icon.vue'
+import MechImage from './MechImage.vue'
 
 // The pilot sheet's mechs tab: a card per mech (opening its page), and, while editable, a small form for a new one.
-// "frameId" is a mech's frame (private, so none for viewers without the sheet); "save" stores the new list of mechs
+// "frameId" is a mech's frame (from the pilot's sheet); "save" stores the new list of mechs
 // and resolves to an error message, or null.
 const props = defineProps<{
   mechs: PublicMech[]
@@ -24,11 +24,10 @@ const props = defineProps<{
 const router = useRouter()
 const { frames } = useMechData()
 
-// Hangar cards show their frame's manufacturer as its logo and a thin top border, nothing more. Frames are private:
-// without the sheet there's no frame, so other players' view of the card stays neutral.
+// Hangar cards show their frame's manufacturer as a thin top border (and its logo when there's no picture to show).
 const manufacturers = useManufacturers()
 const frameOf = (mechId: string) => frames.value.find((f) => f.id === props.frameId(mechId))
-// A mech without a picture of its own shows its frame's (also private: no frame, no picture).
+// A mech without a picture of its own shows its frame's (MechImage.vue).
 const artOf = (mechId: string) => {
   const frame = frameOf(mechId)
   return frame ? frameArt(frame, frames.value) : null
@@ -76,12 +75,7 @@ async function createMech() {
     <ul v-if="mechs.length" class="hangar">
       <li v-for="mech in mechs" :key="mech.id">
         <RouterLink :to="link(mech.id)" class="mech-card" :style="makerOf(mech.id) ? { '--mf': makerColour(makerOf(mech.id)) } : undefined">
-          <span class="mech-thumb" :class="{ art: !imageUrl(mech.image) && artOf(mech.id) }">
-            <img v-if="imageUrl(mech.image)" :src="imageUrl(mech.image)!" :alt="`Image of ${mech.name}`" />
-            <FrameArt v-else-if="artOf(mech.id)" :art="artOf(mech.id)" class="frame-art" />
-            <Icon v-else-if="makerLogo(makerOf(mech.id))" :src="makerLogo(makerOf(mech.id))!" class="mech-logo" />
-            <Icon v-else name="frame" />
-          </span>
+          <MechImage size="card" :src="mech.image" :art="artOf(mech.id)" :logo="makerLogo(makerOf(mech.id))" :alt="`Image of ${mech.name}`" />
           <span class="mech-about">
             <span class="mech-name">{{ mech.name }}</span>
             <template v-if="frameOf(mech.id)">
@@ -159,44 +153,6 @@ async function createMech() {
 .mech-card:focus-visible {
   border-color: var(--lilac);
   border-top-color: var(--mf);
-}
-
-.mech-thumb {
-  display: grid;
-  place-items: center;
-  width: 96px;
-  aspect-ratio: 3 / 4;
-  overflow: hidden;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--raised);
-  color: var(--text-dim);
-}
-
-.mech-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* A frame's picture is whole mech art on a cut-out, so it's fitted, not cropped, in a square a little bigger (some frames are wide). */
-.mech-thumb.art {
-  width: 128px;
-  aspect-ratio: 1;
-}
-
-.mech-thumb .frame-art {
-  object-fit: contain;
-  padding: var(--space-xs);
-}
-
-.mech-thumb .icon {
-  width: 36px;
-  height: 36px;
-}
-
-.mech-logo {
-  color: var(--mf);
 }
 
 .mech-about {

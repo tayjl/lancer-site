@@ -4,6 +4,8 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();
+-- Ids are hard-coded below. Sequences aren't rolled back, so push the generated ids well past them, once and for good.
+select setval('public.characters_id_seq', greatest((select last_value from public.characters_id_seq), 1000));
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('cccccccc-0000-4000-8000-000000000001', 'ce-player@test.local', '{"full_name": "Player"}'),

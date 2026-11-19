@@ -724,6 +724,13 @@ export type Database = {
           pilot: string
         }[]
       }
+      pilot_sheet: {
+        Args: { target_character_id: number }
+        Returns: {
+          level: number
+          sheet: Json
+        }[]
+      }
       reject_change: {
         Args: { change_id: number; reason: string }
         Returns: undefined

@@ -28,7 +28,7 @@ export type PickOption = {
   look?: { type: CardType; icon: string }
   stats?: ItemStat[]
   chips?: PickChip[]
-  // A frame's picture (FrameArt.vue), in place of the radar when it has one.
+  // A frame's picture (MechImage.vue), in place of the radar when it has one.
   art?: FrameArt | null
   // A tiny radar of a frame's stats, in place of the symbol.
   radar?: { label: string; value: string; at: number }[]

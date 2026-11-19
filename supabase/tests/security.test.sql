@@ -3,6 +3,8 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select no_plan();
+-- Ids are hard-coded below. Sequences aren't rolled back, so push the generated ids well past them, once and for good.
+select setval('public.characters_id_seq', greatest((select last_value from public.characters_id_seq), 1000));
 
 -- Test users: two players, a GM and an owner. The sign-up trigger gives each one a player profile.
 insert into auth.users (id, email, raw_user_meta_data) values

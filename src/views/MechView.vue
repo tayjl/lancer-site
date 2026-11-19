@@ -11,7 +11,7 @@ import SheetTabs from '../components/SheetTabs.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import MechOverview from '../components/MechOverview.vue'
 import MechLoadout from '../components/MechLoadout.vue'
-import Portrait from '../components/Portrait.vue'
+import MechImage from '../components/MechImage.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import InfoButton from '../components/InfoButton.vue'
 import RulesText from '../components/RulesText.vue'
@@ -20,7 +20,7 @@ import ActionChip from '../components/ActionChip.vue'
 import InfoRule from '../components/InfoRule.vue'
 import ItemCard from '../components/ItemCard.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
-import { frameArt } from '../images'
+import { frameArt, imageUrl } from '../images'
 import { frameInfo } from '../info'
 import { frameRanges, framePick } from '../pickerRows'
 import SheetField from '../components/SheetField.vue'
@@ -38,18 +38,17 @@ import { GM_EDIT, useRestriction } from '../restriction'
 // One of your mechs, opened from the hangar on my pilot, laid out like the pilot sheet: the registration plate (the
 // maker's logo and a thin top border in its colour, the name, manufacturer id, frame and class, then pilot, size and
 // system points), then a slim sticky row of section tabs (profile, stats, loadout), each a stack of panels. Everything is edited in place and saves itself. The name, manufacturer id,
-// appearance and image are public (on the pilot's card); history, the frame, the stats and the loadout are
-// private. The frame is chosen in the strip; its mounts and system points shape the loadout, and the stats are
+// appearance and image are on the pilot's card; history, the frame, the stats and the loadout are in the sheet. All of
+// it is public (the sheet's only secrets are the backstory and the GM's notes). The frame is chosen in the strip; its mounts and system points shape the loadout, and the stats are
 // worked out from it. Quirks are off the page for now, like the pilot's traits (still in the sheet).
-// Opened from someone else's record (route param "id"), it's the same page read-only, with the private
-// sections only for their player, GMs and owners.
+// Opened from someone else's record (route param "id"), it's the same page, read-only.
 
 const route = useRoute()
 const router = useRouter()
 const pilotId = route.params.id ? Number(route.params.id) : undefined
 const own = !pilotId
 // ?edit=1 is a GM's edit mode on someone else's pilot (src/myPilot.ts): everything saves straight to the pilot.
-const { character, sheet, canSeePrivate, loading, loadError, conflict, retry, editable, gmEditing, waiting, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId, {
+const { character, sheet, loading, loadError, conflict, retry, editable, gmEditing, waiting, mechs, draft, updateCharacter, updateSheet } = useMyPilot(pilotId, {
   gmEdit: () => route.query.edit === '1',
 })
 provide(GM_EDIT, gmEditing) // so the loadout's and frame pickers know Exotic content may be chosen (rules.ts)
@@ -64,11 +63,10 @@ const hangar = computed(() =>
     : { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs', edit: gmEditing.value ? '1' : undefined } },
 )
 
-// The sections, one at a time, remembered as ?tab= like the pilot sheet. Without the private sheet there's only
-// the public profile, and no tab row.
-const tabs = computed(() => (canSeePrivate.value ? ['profile', 'stats', 'loadout'] : ['profile']))
+// The sections, one at a time, remembered as ?tab= like the pilot sheet.
+const tabs = ['profile', 'stats', 'loadout']
 const tab = computed({
-  get: () => (tabs.value.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
+  get: () => (tabs.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
   set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
 })
 
@@ -81,13 +79,12 @@ const { talents } = useGameData()
 const catalogue = useCatalogue()
 const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
 // The plate shows its manufacturer as the logo and a thin top border in its colour (nothing else), from the packs, so
-// new manufacturers just work. A frame is private: other players get no sheet, so no frame, and the neutral plate
-// gives nothing away.
+// new manufacturers just work.
 const manufacturers = useManufacturers()
 const maker = computed(() => manufacturers.value.find((m) => m.id === baseFrame.value?.source))
 const logo = computed(() => makerLogo(maker.value))
-// With no image of its own the mech shows its frame's. The frame is private, so only viewers of the private sheet get it.
-const fallbackArt = computed(() => (canSeePrivate.value && baseFrame.value ? frameArt(baseFrame.value, frames.value) : null))
+// With no image of its own the mech shows its frame's.
+const fallbackArt = computed(() => (baseFrame.value ? frameArt(baseFrame.value, frames.value) : null))
 const grants = computed(() => talentGrants(sheet.value, talents.value))
 const optional = computed(() => grants.value.optional.map(id => integrated.value.get(id)).filter(item => !!item))
 const availableWeapons = computed(() => [...weapons.value, ...optional.value.filter(item => !!item.mount)])
@@ -271,7 +268,7 @@ async function scrap() {
               />
               <span v-else class="maker-id code">{{ mech.manufacturer_id }}</span>
             </span>
-            <span v-if="canSeePrivate">
+            <span>
               <button v-if="editable" type="button" class="small" @click="framePicker?.open()">
                 {{ baseFrame ? `${baseFrame.source} ${baseFrame.name}` : 'Choose frame' }}
               </button>
@@ -315,7 +312,7 @@ async function scrap() {
         <p v-else>Waiting on a GM. This mech is read-only.</p>
       </div>
 
-      <RuleCheck v-if="canSeePrivate" :problems="problems" :fix="ruleFix" />
+      <RuleCheck :problems="problems" :fix="ruleFix" />
 
       <!-- One section at a time; v-show keeps every panel mounted, so switching never loses an open picker. Only this
            slim row sticks (under the top bar). -->
@@ -323,12 +320,14 @@ async function scrap() {
 
       <div v-show="tab === 'profile'" class="tab-panel">
         <MechOverview
-          v-if="canSeePrivate && frame && baseFrame"
+          v-if="frame && baseFrame"
           :frame="frame"
           :base-frame="baseFrame"
           :frames="frames"
           :maker="maker"
           :logo="logo"
+          :image="mech.image"
+          :name="mech.name"
           :stats="stats"
           :sheet="sheet"
           :details="details"
@@ -340,16 +339,21 @@ async function scrap() {
           :sp-used="spUsed"
           :sp-total="spTotal"
         />
-        <div class="profile">
+        <!-- A mech with no frame has no overview, so its picture gets a minimal one. -->
+        <section v-else class="panel">
+          <h2 class="sheet-label">Overview</h2>
+          <MechImage size="overview" :src="mech.image" :alt="`Image of ${mech.name}`" />
+        </section>
+        <div class="profile" :class="{ solo: !editable }">
           <div class="writing">
             <SheetField class="panel" title="Appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
-            <SheetField v-if="canSeePrivate" class="panel" title="History" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
+            <SheetField class="panel" title="History" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
           </div>
-          <section class="panel">
+          <!-- Upload controls only (the picture itself is in the overview above); read-only viewers don't get it. -->
+          <section v-if="editable" class="panel">
             <h2 class="sheet-label">Image</h2>
-            <Portrait class="mech-portrait" :src="mech.image" :fallback="fallbackArt" icon="frame" whole :alt="`Image of ${mech.name}`" />
-            <p v-if="!mech.image && fallbackArt" class="dim frame-note">Frame image{{ editable ? '. Upload your own to replace it.' : '.' }}</p>
-            <ImageUpload v-if="editable" :path="mech.image" :save="saveImage" />
+            <p class="dim frame-note">{{ imageUrl(mech.image) ? 'Showing your image.' : fallbackArt ? 'Showing the frame image. Upload your own to replace it.' : 'No image yet.' }}</p>
+            <ImageUpload :path="mech.image" :save="saveImage" />
           </section>
         </div>
         <section v-if="editable" class="panel danger-zone">
@@ -362,94 +366,92 @@ async function scrap() {
         </section>
       </div>
 
-      <template v-if="canSeePrivate">
-        <div v-show="tab === 'stats'" class="tab-panel">
-          <StatRow class="panel mech-stats" title="Mech stats" :stats="stats" :editable="false" :min="0" :max="0" />
-          <section v-if="frame" class="panel">
-            <h2 class="sheet-label">Resources</h2>
-            <ul class="resources">
-              <li><span class="value num">{{ resources.aiCap }}</span><span class="name">AI capacity</span></li>
-              <li v-if="resources.limited">
-                <span class="value num">{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }}</span><span class="name">Limited uses</span>
-              </li>
-              <li><span class="value num">{{ resources.structureRepairs }}</span><span class="name">Structure repair cost</span></li>
-              <li><span class="value num long">{{ resources.overcharge }}</span><span class="name">Overcharge heat</span></li>
-            </ul>
-            <p v-for="(check, index) in resources.checks" :key="index" class="check"><b>{{ check.source }}:</b> {{ check.text }}</p>
-          </section>
-          <section v-if="frame && effects.reminders.length" class="panel">
-            <h2 class="sheet-label">Other effects and conditions</h2>
-            <p class="dim intro">These aren't counted in the stats.</p>
-            <ul v-if="traitCards.length" class="trait-cards">
-              <li v-for="card in traitCards" :key="card.name">
-                <ItemCard type="frame" icon="trait" :name="card.name">
-                  <InfoRule
-                    v-for="(entry, index) in card.entries"
-                    :key="index"
-                    :class="{ ruled: index > 0 }"
-                    :heading="entry.name === card.name ? undefined : entry.name"
-                    :activation="entry.activation"
-                    :html="entry.text"
-                  >
-                    <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats.</p>
-                  </InfoRule>
-                </ItemCard>
-              </li>
-            </ul>
-            <ItemCard v-if="coreEntries.length" type="core" icon="corebonus" :name="coreSystem.name ?? 'Core system'" class="core-card">
-              <RulesText v-if="coreSystem.description" class="lore" :html="coreSystem.description" />
-              <InfoRule
-                v-for="(entry, index) in coreEntries"
-                :key="index"
-                :class="{ ruled: index > 0 || coreSystem.description }"
-                :label="coreLabel(entry)"
-                :heading="entry.name"
-                :activation="entry.activation"
-                :html="entry.text"
-              >
-                <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats.</p>
-              </InfoRule>
-            </ItemCard>
-            <ul v-if="otherReminders.length" class="effects">
-              <li v-for="(reminder, index) in otherReminders" :key="index">
-                <Icon :name="EFFECT_KINDS[reminder.kind].icon" />
-                <div class="effect">
-                  <p class="label">{{ EFFECT_KINDS[reminder.kind].label }}{{ reminder.from ? `: ${reminder.from}` : '' }}</p>
-                  <p class="effect-head">
-                    <ActionChip :activation="reminder.activation" />
-                    <b>{{ reminder.name }}</b>
-                  </p>
-                  <RulesText :html="reminder.text" />
-                  <p v-if="reminder.uncounted" class="dim uncounted">Not counted in the stats.</p>
-                </div>
-              </li>
-            </ul>
-          </section>
-          <p v-if="!frame" class="empty">Choose a frame first.</p>
-        </div>
+      <div v-show="tab === 'stats'" class="tab-panel">
+        <StatRow class="panel mech-stats" title="Mech stats" :stats="stats" :editable="false" :min="0" :max="0" />
+        <section v-if="frame" class="panel">
+          <h2 class="sheet-label">Resources</h2>
+          <ul class="resources">
+            <li><span class="value num">{{ resources.aiCap }}</span><span class="name">AI capacity</span></li>
+            <li v-if="resources.limited">
+              <span class="value num">{{ resources.limited > 0 ? '+' : '' }}{{ resources.limited }}</span><span class="name">Limited uses</span>
+            </li>
+            <li><span class="value num">{{ resources.structureRepairs }}</span><span class="name">Structure repair cost</span></li>
+            <li><span class="value num long">{{ resources.overcharge }}</span><span class="name">Overcharge heat</span></li>
+          </ul>
+          <p v-for="(check, index) in resources.checks" :key="index" class="check"><b>{{ check.source }}:</b> {{ check.text }}</p>
+        </section>
+        <section v-if="frame && effects.reminders.length" class="panel">
+          <h2 class="sheet-label">Other effects and conditions</h2>
+          <p class="dim intro">These aren't counted in the stats.</p>
+          <ul v-if="traitCards.length" class="trait-cards">
+            <li v-for="card in traitCards" :key="card.name">
+              <ItemCard type="frame" icon="trait" :name="card.name">
+                <InfoRule
+                  v-for="(entry, index) in card.entries"
+                  :key="index"
+                  :class="{ ruled: index > 0 }"
+                  :heading="entry.name === card.name ? undefined : entry.name"
+                  :activation="entry.activation"
+                  :html="entry.text"
+                >
+                  <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats.</p>
+                </InfoRule>
+              </ItemCard>
+            </li>
+          </ul>
+          <ItemCard v-if="coreEntries.length" type="core" icon="corebonus" :name="coreSystem.name ?? 'Core system'" class="core-card">
+            <RulesText v-if="coreSystem.description" class="lore" :html="coreSystem.description" />
+            <InfoRule
+              v-for="(entry, index) in coreEntries"
+              :key="index"
+              :class="{ ruled: index > 0 || coreSystem.description }"
+              :label="coreLabel(entry)"
+              :heading="entry.name"
+              :activation="entry.activation"
+              :html="entry.text"
+            >
+              <p v-if="entry.uncounted" class="dim uncounted">Not counted in the stats.</p>
+            </InfoRule>
+          </ItemCard>
+          <ul v-if="otherReminders.length" class="effects">
+            <li v-for="(reminder, index) in otherReminders" :key="index">
+              <Icon :name="EFFECT_KINDS[reminder.kind].icon" />
+              <div class="effect">
+                <p class="label">{{ EFFECT_KINDS[reminder.kind].label }}{{ reminder.from ? `: ${reminder.from}` : '' }}</p>
+                <p class="effect-head">
+                  <ActionChip :activation="reminder.activation" />
+                  <b>{{ reminder.name }}</b>
+                </p>
+                <RulesText :html="reminder.text" />
+                <p v-if="reminder.uncounted" class="dim uncounted">Not counted in the stats.</p>
+              </div>
+            </li>
+          </ul>
+        </section>
+        <p v-if="!frame" class="empty">Choose a frame first.</p>
+      </div>
 
-        <div v-show="tab === 'loadout'" class="tab-panel">
-          <MechLoadout
-            :frame="frame"
-            :frames="frames"
-            :licences="licences"
-            :integrated="integrated"
-            :weapons="availableWeapons"
-            :systems="availableSystems"
-            :mods="mods"
-            :sheet="sheet"
-            :details="details"
-            :bonuses="effects.bonuses"
-            :superheavy-mounting="resources.superheavyMounting"
-            :capacity-for="capacityFor"
-            :mounts="details.mounts ?? []"
-            :installed="details.systems ?? []"
-            :sp-total="spTotal"
-            :editable="editable"
-            :save="saveLoadout"
-          />
-        </div>
-      </template>
+      <div v-show="tab === 'loadout'" class="tab-panel">
+        <MechLoadout
+          :frame="frame"
+          :frames="frames"
+          :licences="licences"
+          :integrated="integrated"
+          :weapons="availableWeapons"
+          :systems="availableSystems"
+          :mods="mods"
+          :sheet="sheet"
+          :details="details"
+          :bonuses="effects.bonuses"
+          :superheavy-mounting="resources.superheavyMounting"
+          :capacity-for="capacityFor"
+          :mounts="details.mounts ?? []"
+          :installed="details.systems ?? []"
+          :sp-total="spTotal"
+          :editable="editable"
+          :save="saveLoadout"
+        />
+      </div>
 
       <ItemPicker
         v-if="editable"
@@ -600,14 +602,13 @@ async function scrap() {
   scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-l));
 }
 
-.frame-note {
-  margin: var(--space-s) 0 0;
-  font-size: var(--fs-s);
+.profile.solo {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-.mech-portrait:not(.whole) {
-  width: 100%;
-  max-width: 160px;
+.frame-note {
+  margin: 0 0 var(--space-s);
+  font-size: var(--fs-s);
 }
 
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */

@@ -3,6 +3,8 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 select no_plan();
+-- Ids are hard-coded below. Sequences aren't rolled back, so push the generated ids well past them, once and for good.
+select setval('public.characters_id_seq', greatest((select last_value from public.characters_id_seq), 1000));
 
 -- Supabase refuses plain SQL deletes from storage tables unless this is set (the real API sets it itself).
 set local storage.allow_delete_query = 'true';

@@ -11,8 +11,9 @@ import { STARTING_MANNA, type GmFields } from './rules'
 
 // A pilot for pilot_management and the mech pages: the public card (characters table) and the private sheet
 // (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
-// it's that pilot, read-only; the database only hands over the private sheet to its player, GMs and owners,
-// and "canSeePrivate" says whether it did. Every save returns an error message, or null if it worked.
+// it's that pilot, read-only. Everything on the sheet is public except the backstory, manna and the GM's review note: the
+// database hands over the whole row to the pilot's player, GMs and owners, and everyone else gets the sheet without
+// them (and level) through pilot_sheet(); "canSeeBackstory" (also "canSeeManna") says whether it was the whole row. Every save returns an error message, or null if it worked.
 // Saves run one at a time, in order, and each sends the whole card or sheet as it is on screen when it runs, so a quick
 // second edit can't undo the first. A failed save keeps the edit on screen (and "retry" sends it again); a save refused
 // because the row was saved somewhere else sets "conflict" and stops all further saves (guarded by updated_at).
@@ -81,7 +82,9 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // A GM's note when they send a pilot back (it's a draft again). Cleared when it's submitted again.
   const reviewNote = ref('')
   const playerName = ref('')
-  const canSeePrivate = ref(false)
+  // The backstory, manna and the review note are in the row you can read (your own pilot, or you're a GM): other players get
+  // the rest of the sheet, without them.
+  const canSeeBackstory = ref(false)
   const loading = ref(true)
   const loadError = ref('')
   // Your approved pilot's latest change (any status).
@@ -138,7 +141,10 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       : query.eq('player_id', session.value!.user.id).in('status', ['pending', 'approved']).order('created_at').limit(1)
     ).maybeSingle()
     loadError.value = error?.message ?? ''
-    const { player, sheet: privateRow, ...row } = data ?? { player: null, sheet: null }
+    const { player, sheet: fullRow, ...row } = data ?? { player: null, sheet: null }
+    // Someone else's pilot: the sheet without the backstory, manna and notes (pilot_sheet, public to every logged-in user).
+    let privateRow: { sheet: Json; level: number; manna?: number; review_note?: string | null; updated_at?: string } | null = fullRow
+    if (data && pilotId && !fullRow) privateRow = (await supabase.rpc('pilot_sheet', { target_character_id: data.id })).data?.[0] ?? null
     character.value = data ? (row as Character) : null
     playerName.value = player?.display_name ?? ''
     if (data) {
@@ -147,7 +153,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       reviewNote.value = privateRow?.review_note ?? ''
       sheetUpdatedAt.value = privateRow?.updated_at ?? ''
       // Your own sheet may not exist yet (the first save creates it), but it's still yours to fill in.
-      canSeePrivate.value = !pilotId || !!privateRow
+      canSeeBackstory.value = !pilotId || !!fullRow
       change.value = null
       approvedImages = new Set()
       if (data.status === 'approved' && (!pilotId || gmEditing.value)) {
@@ -383,7 +389,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     reviewNote,
     sheetUpdatedAt,
     playerName,
-    canSeePrivate,
+    canSeeBackstory,
+    canSeeManna: canSeeBackstory,
     loading,
     loadError,
     conflict,

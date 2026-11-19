@@ -4,11 +4,11 @@ import { sourceOf } from '../gameData'
 import { MAX_LICENCE_RANK, rankName } from '../rules'
 import { useRestriction } from '../restriction'
 import { frameRanges, framePick } from '../pickerRows'
-import { useManufacturers } from '../archive'
+import { makerLogo, useManufacturers } from '../archive'
 import { chosenFrame, useMechData } from '../mechData'
 import { frameArt } from '../images'
 import type { Info, Unlock } from '../info'
-import FrameArt from './FrameArt.vue'
+import MechImage from './MechImage.vue'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 import ItemCard from './ItemCard.vue'
@@ -99,6 +99,8 @@ const licenceArt = (id: string) => {
   const choice = props.details(id).find((step) => step.choice)?.choice?.value
   return frameArt(chosenFrame(original, frames.value, choice ? { [id]: choice } : undefined), frames.value)
 }
+// The licence's maker logo, for the picture's placeholder when its frame has no art.
+const licenceLogo = (id: string) => makerLogo(manufacturers.value.find((m) => m.id === frames.value.find((f) => f.id === id)?.source))
 const offered = computed(() =>
   props.options
     .filter((option) => !props.held[option.id] && !option.stale)
@@ -138,8 +140,8 @@ async function buy(id: string) {
     <div v-if="ranks.length" class="list">
       <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
         <template #meta>Rank {{ rankName(rank) }}</template>
-        <div class="rank-wrap" :class="{ 'with-art': licenceArt(id) }">
-          <FrameArt v-if="licenceArt(id)" :art="licenceArt(id)" class="licence-art" />
+        <div class="rank-wrap" :class="{ 'with-art': columns }">
+          <MechImage v-if="columns" size="licence" :art="licenceArt(id)" :logo="licenceLogo(id)" :art-alt="`${nameOf(id)} frame`" />
           <ol :class="columns ? 'ladder' : 'tiers'">
             <li v-for="(step, i) in details(id).slice(0, MAX_LICENCE_RANK)" :key="i" class="rank" :class="{ locked: i >= rank }">
               <span class="numeral">{{ rankName(i + 1) }}</span>
@@ -211,12 +213,6 @@ async function buy(id: string) {
   grid-template-columns: 11rem minmax(0, 1fr);
   align-items: start;
   gap: var(--space-m);
-}
-
-.licence-art {
-  width: 100%;
-  max-height: 14rem;
-  object-fit: contain;
 }
 
 /* Licences: ranks I to III side by side (one column on phones). Talents: stacked tiers, numeral on the left. */
@@ -408,11 +404,6 @@ async function buy(id: string) {
 
   .with-art {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .licence-art {
-    justify-self: center;
-    max-height: 8rem;
   }
 }
 </style>
