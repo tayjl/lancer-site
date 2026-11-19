@@ -1,14 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { cardFilename, fitText, pilotSerial } from './idCard'
+import { barcodeBars, cardFilename, fitText, pilotSerial } from './idCard'
 
 describe('pilot serial', () => {
-  it('is deterministic and shaped HOR-0042-XXXX-XXXX', () => {
+  it('is deterministic and shaped UAD-0042-XXXX-XXXX', () => {
     expect(pilotSerial(42)).toBe(pilotSerial(42))
-    expect(pilotSerial(42)).toMatch(/^HOR-0042-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/)
+    expect(pilotSerial(42)).toMatch(/^UAD-0042-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/)
   })
   it('differs between pilots and keeps long ids whole', () => {
     expect(pilotSerial(42)).not.toBe(pilotSerial(43))
-    expect(pilotSerial(12345)).toMatch(/^HOR-12345-/)
+    expect(pilotSerial(12345)).toMatch(/^UAD-12345-/)
+  })
+})
+
+describe('barcodeBars', () => {
+  const bars = barcodeBars('UAD-0042-7K3Q-9XZ2', 64)
+  it('is deterministic and differs between serials', () => {
+    expect(barcodeBars('UAD-0042-7K3Q-9XZ2', 64)).toEqual(bars)
+    expect(barcodeBars('UAD-0043-AAAA-BBBB', 64)).not.toEqual(bars)
+  })
+  it('has guard bars at both ends and bars that stay inside and never touch', () => {
+    expect(bars[0]).toEqual({ x: 0, w: 1 })
+    expect(bars[bars.length - 1]).toEqual({ x: 63, w: 1 })
+    bars.forEach((bar, i) => {
+      expect(bar.x + bar.w).toBeLessThanOrEqual(64)
+      if (i) expect(bar.x).toBeGreaterThan(bars[i - 1].x + bars[i - 1].w)
+    })
   })
 })
 

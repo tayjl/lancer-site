@@ -12,9 +12,25 @@ function fnv(text: string) {
 
 const code = (hash: number) => Array.from({ length: 4 }, (_, i) => DIGITS[(hash >>> (i * 5)) & 31]).join('')
 
-// "HOR-0042-7K3Q-9XZ2": the pilot's id, then two codes made from it. Deterministic, so the card always shows the same
+// "UAD-0042-7K3Q-9XZ2": the pilot's id, then two codes made from it. Deterministic, so the card always shows the same
 // serial for the same pilot (it isn't a secret or a check, just a stamp).
-export const pilotSerial = (id: number) => `HOR-${String(id).padStart(4, '0')}-${code(fnv(`HOR_OS:pilot:${id}`))}-${code(fnv(`HOR_OS:serial:${id}`))}`
+export const pilotSerial = (id: number) => `UAD-${String(id).padStart(4, '0')}-${code(fnv(`HOR_OS:pilot:${id}`))}-${code(fnv(`HOR_OS:serial:${id}`))}`
+
+// The dark bars of a decorative barcode for "text": one 0/1 module per step, taken from hashes of the text, with guard bars
+// at both ends. Returns each bar as { x, w } in modules, so the same serial always draws the same strip.
+export function barcodeBars(text: string, modules = 64) {
+  const bits = Array.from({ length: modules }, (_, i) => (fnv(`${text}:${i >> 5}`) >>> (i & 31)) & 1)
+  bits.splice(0, 3, 1, 0, 1)
+  bits.splice(modules - 3, 3, 1, 0, 1)
+  const bars: { x: number; w: number }[] = []
+  bits.forEach((bit, x) => {
+    if (!bit) return
+    const last = bars[bars.length - 1]
+    if (last && last.x + last.w === x) last.w++
+    else bars.push({ x, w: 1 })
+  })
+  return bars
+}
 
 // The longest start of "text" that fits in "max" (as "measure" counts it), with an ellipsis when it was cut.
 export function fitText(text: string, max: number, measure: (text: string) => number) {
