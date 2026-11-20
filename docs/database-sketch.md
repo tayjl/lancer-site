@@ -1,6 +1,6 @@
 # Database sketch
 
-**Status: agreed and built.** The SQL is in `supabase/migrations/20261028052810_initial_schema.sql`. `supabase/tests/security.test.sql` checks every rule (run it with `supabase test db`).
+**Status: agreed and built; this is the original design.** The SQL started in `supabase/migrations/20261028052810_initial_schema.sql`; later migrations are listed in [claude/history.md](claude/history.md). "Built since this sketch" below lists what the sketch does not show. `supabase/tests/security.test.sql` checks every rule (run it with `supabase test db`).
 
 ## The big picture
 
@@ -280,7 +280,7 @@ There are also three small helpers:
 - **New character:**
   1. The player creates a pending character (the card and the sheet).
   2. Everyone sees its card in the Pending tab, and the player can keep editing it.
-  3. A GM approves it by setting the status to approved and filling in the mod points. That's a normal edit, so no function is needed.
+  3. A GM approves it with `approve_pilot`, or sends it back with `send_back_pilot`. A new pilot stays a draft until the player submits it (see [claude/approval.md](claude/approval.md)).
   4. If it isn't ready, the GM writes a `review_note` and the player fixes it.
 - **Editing an approved character:**
   1. The editor starts from the current version.
@@ -298,12 +298,21 @@ There are also three small helpers:
   2. The browser unzips it and reads the manifest.
   3. The site saves the pack, then adds or updates its items.
 
+## Built since this sketch
+
+Not drawn above. Each has its own topic file in `docs/claude/`; the SQL is in `supabase/migrations/`.
+
+- **Tables:** `lore_entries` ([pages-home-lore.md](claude/pages-home-lore.md)); `pilot_progress` (GM-only experience) and `pilot_reward_log` ([levelling-and-manna.md](claude/levelling-and-manna.md)); `pilot_public_backstory` ([backstory.md](claude/backstory.md)); `pilot_profiles` ([pilot-profile.md](claude/pilot-profile.md)); `pilot_timeline`, `commendations` and `pilot_commendations` ([service-record.md](claude/service-record.md)).
+- **Functions:** `approve_pilot`, `send_back_pilot`, `award`, `level_up`, `set_backstory_public`, `pilot_sheet` and `pilot_card` (public, read-only views of a pilot), `equip_pilot_gear` and `settle_pilot_gear` ([pilot-inventory.md](claude/pilot-inventory.md)), `item_usage`, `delete_content_item`, `save_bionic`, `pack_usage`, `remove_pack`, `dismiss_approval_note`.
+- **Inside the sheet JSON:** `owned_gear`, `equipped_gear` and `misc_items` replaced the old `pilot_gear` and `pilot_gear_notes`.
+- **Storage:** the `character-images` bucket (public read, see [images.md](claude/images.md)).
+
 ## Choices to check
 
 These are assumptions made while drafting. Each one is easy to change now and harder later.
 
 1. **Manufacturer IDs are only soft-unique.** They're made of letters and digits. The site warns about duplicates, but the database doesn't block them, because the IDs live inside a JSON list. If they ever must be strictly unique, mechs would need their own table.
-2. **New characters don't use `pending_changes`.** The player edits the pending character directly. A GM leaves a `review_note` instead of formally rejecting it, so there's no history for new-character reviews.
+2. **New characters don't use `pending_changes`.** The player edits the new pilot directly (a draft until `Submit pilot`). A GM approves it or sends it back with a `review_note`, so there's no history for new-pilot reviews.
 3. **Withdrawing a pending change deletes it.** It isn't kept in the history.
 4. **The organisations list is hidden from players too**, not just reputation.
 5. **The bionics and stats catalogue is visible to every logged-in user**, so players can choose from it. What a character has stays private.
@@ -317,7 +326,7 @@ These are assumptions made while drafting. Each one is easy to change now and ha
 - Reputation history (only the current level is kept).
 - A log of GMs' direct edits.
 - Notifications, such as a Discord ping when something is waiting for review.
-- Weapon mods and LANCER reserves (not on the field list).
+- LANCER reserves (not on the field list). Weapon mods are built (content items of type Mod).
 
 ## When this becomes SQL
 

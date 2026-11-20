@@ -23,7 +23,7 @@ This campaign replaces LANCER's licence level with two things, decided by the de
 | Level gives **HASE points: 2 + level**. | Enforced |
 | Level gives **biomod capacity, the mod limit: 6 + level**. | Enforced |
 | **Manna** buys everything else. GMs record how much a pilot has received. | Enforced by the database (`character_sheets.manna`, GM-only trigger) |
-| What's spent is worked out from the sheet: **licence ranks 600, biomods each at their own price (set in the content editor), talent ranks 300, and mechs: the first is free, each one after it 500** (`mannaSpent(sheet, bionicPrices, mechs)`; the mech count is the card's `mechs` list, so scrapping a mech refunds it). Balance = received − spent. Lowering a rank, removing a biomod or scrapping a mech refunds it. | Enforced (the pickers and the hangar's `New mech` block what the balance can't cover; the rule check flags a negative balance) |
+| What's spent is worked out from the sheet: **licence ranks 600, biomods each at their own price (set in the content editor), talent ranks 300, owned pilot gear that isn't free (its `manna_cost`, 100 when unset; a new pilot's first 1 armour, 2 weapons and 3 gear are free), and mechs: the first is free, each one after it 500** (`mannaSpent(sheet, bionicPrices, mechs, gear, live)`; the mech count is the card's `mechs` list, so scrapping a mech refunds it). Balance = received − spent. Lowering a rank, removing a biomod or scrapping a mech refunds it. | Enforced (the pickers and the hangar's `New mech` block what the balance can't cover; the rule check flags a negative balance) |
 | **GMS gear** is free to print. **Licensed gear** (frames, weapons, systems) is free once you hold the licence rank. | Enforced |
 | Manna spent outside the sheet (bribes, repairs, anything narrative) isn't tracked. GMs lower "manna received" for it. | GM |
 | **New pilots start with 2000 manna received** (the column default; existing pilots keep what they have). | Enforced by the database default; the GM-only trigger accepts it on a player's first sheet insert and refuses any other value |
@@ -77,7 +77,9 @@ Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything alread
 
 | Rule | Status |
 |---|---|
-| **1 armour, 2 weapons, 3 gear.** Only LANCER pilot gear, no free text. | Enforced |
+| **1 armour, 2 weapons, 3 gear equipped.** Only LANCER pilot gear, no free text (a GM can add free-text misc items). | Enforced |
+| Gear is **owned** once bought, and equipping owned gear needs no approval. Buying costs manna, with no refunds for players. | Enforced (database function `equip_pilot_gear`; see `docs/claude/pilot-inventory.md`) |
+| A **Variable** damage weapon needs a chosen damage type, equipped or stowed. | Rule check |
 | Each slot only takes its kind of item. | Enforced |
 
 ## Mechs
@@ -125,4 +127,4 @@ Nothing is removed automatically. The player fixes it, or the GM sends it back.
 - Damage is the mean of the full dice expression, rounded up once: `1d6 = 4`, `2d6+1 = 8`, `1d6+1d6 = 7`. Flat damage is unchanged.
 - `flatDamage()` uses an arithmetic parser, never JavaScript evaluation. Shared item details apply it to pilot and mech weapon damage, including the displayed weapon profile.
 - Explicit damage phrases in item, talent and core-bonus rules text are converted too. Movement, healing, checks and limited-use dice are not damage rolls and stay unchanged.
-- Variable expressions and unusual prose cannot be resolved automatically and remain for GM interpretation. Other weapon profiles and actions not yet displayed by the existing item UI remain outside the current UI.
+- Variable damage on a weapon is chosen by the player (a damage type on the item), not resolved from the text. Variable expressions and unusual prose elsewhere cannot be resolved automatically and remain for GM interpretation. Other weapon profiles and actions not yet displayed by the existing item UI remain outside the current UI.

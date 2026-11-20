@@ -26,7 +26,7 @@ Game data comes from Massif Press's `lancer-data` and expansion packages (GPL-3.
 
 ## Database
 
-The `supabase/` folder holds the Supabase config and, later, the database migrations.
+The `supabase/` folder holds the Supabase config, the database migrations and the pgTAP tests.
 It's linked to the hosted project through Supabase's GitHub integration.
 You need the [Supabase CLI](https://supabase.com/docs/guides/local-development) and Docker to work with it.
 
@@ -34,4 +34,8 @@ You need the [Supabase CLI](https://supabase.com/docs/guides/local-development) 
 - `supabase test db` checks the security rules by trying to break them as each kind of user.
 - `supabase db reset` rebuilds the local database from the migrations, and adds a local-only test account from `supabase/seed.sql`.
 - `npm run dev -- --mode localdb --port 5174` runs the site against the local database (put the local URL and publishable key from `supabase status` in `.env.localdb.local`).
-- `npm test` runs the app's unit tests (currently the formatted-text sanitiser).
+- `npm test` runs the app's unit tests.
+
+## Docs
+
+[STATUS.md](STATUS.md) is the handoff note and links every doc file.

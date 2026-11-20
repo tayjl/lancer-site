@@ -58,7 +58,7 @@ Vue + Vite + **TypeScript**; **Supabase** (free tier: database, Discord login, s
 - The hosted database needs new migrations **before** the site is pushed (list in [STATUS.md](STATUS.md) and [docs/claude/history.md](docs/claude/history.md)).
 - The free tier pauses after 1 week idle (a keep-alive GitHub Action pings it). Don't charge players or add ads.
 
-## Core design rules (full: [docs/claude/ui.md](docs/claude/ui.md))
+## Core design rules (full: [docs/claude/ui-principles.md](docs/claude/ui-principles.md))
 - **Readability and usability come first.** Terminal styling is flavour, not structure.
 - **One job per colour, never colour alone** (always a symbol or word too). Lilac = interactive only. Game meanings follow COMP/CON's conventions and colours.
 - **Left-align** read text, lists, tables; **centre** showcase things (hangar mechs, stat tiles, empty states).
@@ -88,13 +88,20 @@ No deadline. Getting the style right and making it work matter more than speed.
 
 ## Where things are documented
 Open a file only when the task touches its area.
-- [docs/claude/characters.md](docs/claude/characters.md): pilots, public/private split, profile customisation, sheet contents, levelling, manna, biomods, mechs, reputation.
+- [docs/claude/pilots.md](docs/claude/pilots.md): pilots, tabs, who sees what, death, field list.
+- [docs/claude/pilot-profile.md](docs/claude/pilot-profile.md): colour, motto, banner, gallery (live, no approval). [service-record](docs/claude/service-record.md): timeline and commendations. [id-card](docs/claude/id-card.md): ID card and Discord link previews.
+- [docs/claude/stats.md](docs/claude/stats.md): pilot stats, mech stats, build effects, rules text, no dice.
+- [docs/claude/levelling-and-manna.md](docs/claude/levelling-and-manna.md): levelling, manna, licences, experience, reward log. [biomods](docs/claude/biomods.md). [backstory](docs/claude/backstory.md). [reputation](docs/claude/reputation.md) (GM only).
+- [docs/claude/pilot-inventory.md](docs/claude/pilot-inventory.md): pilot gear: owned and equipped, Buy item, View inventory, Variable damage types.
+- [docs/claude/dossier-page.md](docs/claude/dossier-page.md): the pilot page (cover, sections, identity, editing) and [dossier-sections](docs/claude/dossier-sections.md) (stats, qualifications, rule check, bionics).
+- [docs/claude/item-cards.md](docs/claude/item-cards.md): item cards, symbols, tags. [pickers-and-info](docs/claude/pickers-and-info.md): pickers, dialogs, full information.
+- [docs/claude/mech-page.md](docs/claude/mech-page.md): mechs, hangar, the mech page. [mech-loadout](docs/claude/mech-loadout.md): mounts, systems, weapon mods. [images](docs/claude/images.md): uploads, frame art.
 - [docs/claude/approval.md](docs/claude/approval.md): drafts, submission, GM review, approve/send back, optimistic locking, saving.
 - [docs/claude/security.md](docs/claude/security.md): full roles and RLS rules, submit-time picker checks, GM-only tables.
-- [docs/claude/content.md](docs/claude/content.md): game data, LCP import, the owner content editor, the archives page.
-- [docs/claude/ui.md](docs/claude/ui.md): look and feel, colours, fonts, buttons, dialogs, login boot scrawl, top bar, home, registry, lore, GM pages, images.
-- [docs/claude/pilot-sheet.md](docs/claude/pilot-sheet.md): my pilot sheet, item cards, pickers, information dialog, mech page.
+- [docs/claude/game-data.md](docs/claude/game-data.md): game data sources and licences. [lcp-import](docs/claude/lcp-import.md). [content-editor](docs/claude/content-editor.md) and [content-editor-forms](docs/claude/content-editor-forms.md): the owner editor. [archives](docs/claude/archives.md).
+- [docs/claude/ui-principles.md](docs/claude/ui-principles.md): look and feel, colour jobs, alignment. [colours-and-type](docs/claude/colours-and-type.md). [buttons-and-dialogs](docs/claude/buttons-and-dialogs.md). [layout-and-nav](docs/claude/layout-and-nav.md): top bar, routes.
+- [docs/claude/pages-home-lore.md](docs/claude/pages-home-lore.md): home, lore, page list. [registry](docs/claude/registry.md). [gm-pages](docs/claude/gm-pages.md). [login-boot](docs/claude/login-boot.md).
 - [docs/claude/history.md](docs/claude/history.md): hosting setup, full gotchas, completed-work log, hosted migrations, local test accounts.
 - [docs/lancer-rules.md](docs/lancer-rules.md): the LANCER rules the site follows. [docs/database-sketch.md](docs/database-sketch.md): the database design.
 - `docs/redesign/prototype/`: the approved UI reference (open via the dev server at `/docs/redesign/prototype/index.html`).
-- [STATUS.md](STATUS.md): current state, unpushed work, pending hosted migrations, next steps.
+- [STATUS.md](STATUS.md): current state, unpushed work, pending hosted migrations, next steps, and a link to every doc file.

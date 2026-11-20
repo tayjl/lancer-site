@@ -1,6 +1,6 @@
 # Roles and security detail
 
-Purpose: the full wording of the roles and the security rules (RLS, submit-time picker rules, GM-only tables). The short critical rules are in CLAUDE.md. Read when a task touches roles, RLS, grants or database rules.
+Covers: the full wording of the roles and the security rules (RLS, submit-time picker rules, GM-only tables). The short critical rules are in CLAUDE.md. Read when a task touches roles, RLS, grants or database rules.
 
 ## Users and roles (decided, full)
 
