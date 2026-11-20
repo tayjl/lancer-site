@@ -83,7 +83,7 @@ One wording per kind of message, short text, nothing explaining behind-the-scene
 No deadline. Getting the style right and making it work matter more than speed.
 
 ## Open questions
-1. **Starting values** for pilot stats, and what level a new pilot starts with (manna is settled: 1500, 2026-11-19). GMs enter level by hand for now. (To be worked out later.)
+1. **Starting values** for pilot stats, and what level a new pilot starts with (manna is settled: 2000, 2026-11-21). GMs enter level by hand for now. (To be worked out later.)
 
 ## Where things are documented
 Open a file only when the task touches its area.

@@ -102,19 +102,27 @@ const title = (item: GalleryItem, at: number) => item.caption || `Picture ${at +
 </template>
 
 <style scoped>
+/* Four to a row (two on phones), centred, so one to three pictures sit in the middle rather than at the left. */
 .pictures {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-m);
+  --per-row: 4;
+  --gap: var(--space-m);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--gap);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.pictures > .picture {
+  width: calc((100% - (var(--per-row) - 1) * var(--gap)) / var(--per-row));
+}
+
 @media (max-width: 40rem) {
   .pictures {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-s);
+    --per-row: 2;
+    --gap: var(--space-s);
   }
 }
 

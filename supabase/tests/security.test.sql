@@ -73,7 +73,7 @@ select lives_ok(
   'players can fill in the sheet of their pending character');
 select is(
   (select manna from public.character_sheets where character_id = (select id from public.characters where pilot_name = 'One')),
-  1500, 'a new sheet starts with 1500 manna');
+  2000, 'a new sheet starts with 2000 manna');
 select lives_ok(
   $$ update public.characters set callsign = 'Uno' where pilot_name = 'One' $$,
   'players can edit their pending character');

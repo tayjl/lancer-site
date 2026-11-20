@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import submitRulesSql from '../supabase/migrations/20261119170000_enforce_picker_rules.sql?raw'
+import submitRulesSql from '../supabase/migrations/20261121090000_starting_manna_2000.sql?raw'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, superheavyMount, type Catalogue } from './rules'
+import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -311,11 +311,12 @@ describe('what a picker refuses', () => {
   })
 })
 
-// The database refuses a submit that overspends manna (supabase/migrations/20261119170000_enforce_picker_rules.sql), so its
+// The database refuses a submit that overspends manna (supabase/migrations/20261121090000_starting_manna_2000.sql), so its
 // prices must be the page's.
 describe('manna prices', () => {
   it('match the ones the submit check in the database uses', () => {
     const price = (name: string) => Number(new RegExp(`${name} constant integer := (\\d+);`).exec(submitRulesSql)?.[1])
     expect({ licenceRank: price('licence_rank_price'), talentRank: price('talent_rank_price'), extraMech: price('extra_mech_price') }).toEqual(PRICES)
+    expect(price('starting_manna')).toBe(STARTING_MANNA)
   })
 })

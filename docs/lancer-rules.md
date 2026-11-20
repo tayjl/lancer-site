@@ -26,7 +26,7 @@ This campaign replaces LANCER's licence level with two things, decided by the de
 | What's spent is worked out from the sheet: **licence ranks 600, biomods each at their own price (set in the content editor), talent ranks 300, and mechs: the first is free, each one after it 500** (`mannaSpent(sheet, bionicPrices, mechs)`; the mech count is the card's `mechs` list, so scrapping a mech refunds it). Balance = received − spent. Lowering a rank, removing a biomod or scrapping a mech refunds it. | Enforced (the pickers and the hangar's `New mech` block what the balance can't cover; the rule check flags a negative balance) |
 | **GMS gear** is free to print. **Licensed gear** (frames, weapons, systems) is free once you hold the licence rank. | Enforced |
 | Manna spent outside the sheet (bribes, repairs, anything narrative) isn't tracked. GMs lower "manna received" for it. | GM |
-| **New pilots start with 1500 manna received** (the column default; existing pilots keep what they have). | Enforced by the database default; the GM-only trigger accepts it on a player's first sheet insert and refuses any other value |
+| **New pilots start with 2000 manna received** (the column default; existing pilots keep what they have). | Enforced by the database default; the GM-only trigger accepts it on a player's first sheet insert and refuses any other value |
 | Starting level for a new pilot. | GM (entered by hand; open question in CLAUDE.md) |
 
 Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything already bought, because spending is worked out, not stored.

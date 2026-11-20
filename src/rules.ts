@@ -40,10 +40,10 @@ export const formatAmount = (n: number) => n.toLocaleString('en-GB')
 
 // Manna prices. A pilot's first mech is free; each one after it costs "extraMech".
 // The database refuses a player's submit that overspends, with its own copy of these three prices in
-// supabase/migrations/20261119170000_enforce_picker_rules.sql (private.guard_submit_rules); rules.test.ts checks they match.
+// supabase/migrations/20261121090000_starting_manna_2000.sql (private.guard_submit_rules); rules.test.ts checks they match.
 export const PRICES = { licenceRank: 600, talentRank: 300, extraMech: 500 }
-// New pilots start with this much manna received (the column's default, migration 20261119150000_starting_manna.sql).
-export const STARTING_MANNA = 1500
+// New pilots start with this much manna received (the column's default, migration 20261121090000_starting_manna_2000.sql).
+export const STARTING_MANNA = 2000
 // What the next mech costs, given how many the pilot has.
 export const nextMechPrice = (mechs: number) => (mechs > 0 ? PRICES.extraMech : 0)
 
