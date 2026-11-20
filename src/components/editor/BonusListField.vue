@@ -38,7 +38,6 @@ const add = () => (model.value = [...model.value, { id: props.types[0]?.id ?? ''
         <FieldError :path="`${path}.${index}`" deep />
       </li>
     </ul>
-    <p v-else class="hint dim">No bonuses yet.</p>
     <div><button type="button" class="small" @click="add"><Icon name="plus" />Add bonus</button></div>
   </div>
 </template>
@@ -46,7 +45,6 @@ const add = () => (model.value = [...model.value, { id: props.types[0]?.id ?? ''
 <style scoped>
 .rows-in { display: grid; gap: var(--space-s); }
 .rows { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
-.hint { margin: 0; font-size: var(--fs-s); }
 .entry { display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 9rem) auto auto; gap: var(--space-s); align-items: center; }
 .value { font-family: var(--mono); }
 .check { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: var(--fs-s); white-space: nowrap; }

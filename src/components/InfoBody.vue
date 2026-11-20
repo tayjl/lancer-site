@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { sourceOf } from '../gameData'
 import type { Info, InfoCard } from '../info'
 import MechImage from './MechImage.vue'
@@ -22,12 +22,20 @@ const props = defineProps<{ info: Info }>()
 // there. Every stat's number sits beside the radar in a grid.
 const radar = computed(() => ((props.info.radar?.length ?? 0) >= 3 ? props.info.radar! : []))
 const summary = computed(() => `Stats compared with every frame: ${radar.value.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`)
-// Phones: the radar's labels bigger (about 12px or more on screen) and one word to a line, so they fit beside it.
+// Phones, and any box under 30rem (the content editor's preview): the radar's labels bigger (about 12px or more on
+// screen) and one word to a line, so they fit beside it. The box is measured, as a media query only sees the window.
 const phoneQuery = window.matchMedia('(max-width: 40rem)')
 const phone = ref(phoneQuery.matches)
 const onPhoneChange = (event: MediaQueryListEvent) => (phone.value = event.matches)
 phoneQuery.addEventListener('change', onPhoneChange)
 onUnmounted(() => phoneQuery.removeEventListener('change', onPhoneChange))
+const compare = useTemplateRef<HTMLElement>('compare')
+const narrowBox = ref(false)
+const boxWatch = new ResizeObserver(([entry]) => (narrowBox.value = entry.contentRect.width < 480))
+// The chart comes and goes with the frame shown (the archives' pane keeps this component), so follow the element.
+watch(compare, (box, old) => { if (old) boxWatch.unobserve(old); if (box) boxWatch.observe(box) })
+onUnmounted(() => boxWatch.disconnect())
+const wrap = computed(() => phone.value || narrowBox.value)
 // A card's parts as InfoRule draws them (not its tone, nor a trait's actions, which are drawn separately).
 const rule = ({ heading, activation, frequency, stats, html }: InfoCard) => ({ heading, activation, frequency, stats, html })
 const sp = computed(() => props.info.stats.find((stat) => stat.kind === 'sp'))
@@ -43,8 +51,8 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
       <span v-for="(fact, i) in info.facts" :key="i">{{ fact.text }}</span>
     </p>
 
-    <div v-if="radar.length" class="compare">
-      <RadarChart :axes="radar" :summary="summary" :label-size="phone ? 26 : undefined" :wrap="phone" />
+    <div v-if="radar.length" ref="compare" class="compare">
+      <RadarChart :axes="radar" :summary="summary" :label-size="wrap ? 26 : undefined" :wrap="wrap" fit />
       <ul class="stat-grid">
         <li v-for="(stat, i) in info.stats" :key="i">
           <Icon v-if="stat.icon" :src="stat.icon" />
@@ -181,6 +189,13 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
 }
 
 @media (max-width: 44rem) {
+  .compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* In a narrow box that's a size container (the content editor's preview), stacked too. Archives and dialogs have none. */
+@container (max-width: 30rem) {
   .compare {
     grid-template-columns: minmax(0, 1fr);
   }

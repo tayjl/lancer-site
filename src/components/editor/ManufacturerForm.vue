@@ -4,7 +4,8 @@ import type { Data } from '../../contentEditor'
 import RichTextEditor from '../RichTextEditor.vue'
 import ColourField from './ColourField.vue'
 import Field from './Field.vue'
-import { latest, useFields } from './useFields'
+import FoldPanel from './FoldPanel.vue'
+import { filled, latest, useFields } from './useFields'
 
 // The form for a manufacturer: its name, its short code (the id items use to say who made them, typed when you make
 // it and fixed after), its two colours (plain hex; "main" is the one the site draws), a logo from the bundled ones
@@ -23,8 +24,7 @@ const description = f.text('description')
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="maker-basics">
-    <h3 id="maker-basics" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="[id, logo].filter(Boolean).join(' · ')" :paths="['name', 'id', 'logo']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" placeholder="Corvid Heavy Industries" /></Field>
       <Field
@@ -44,10 +44,9 @@ const description = f.text('description')
         </select>
       </Field>
     </div>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="maker-colours">
-    <h3 id="maker-colours" class="sheet-label">Colours</h3>
+  <FoldPanel title="Colours" :summary="[dark, light].filter(Boolean).join(', ')" :paths="['dark', 'light']">
     <div class="grid">
       <Field class="span2" label="Main colour" path="dark" hint="Used for the logo and card border.">
         <ColourField v-model="dark" label="Main colour" />
@@ -56,11 +55,10 @@ const description = f.text('description')
         <ColourField v-model="light" label="Darker colour" />
       </Field>
     </div>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="maker-text">
-    <h3 id="maker-text" class="sheet-label">Text</h3>
+  <FoldPanel title="Text" :summary="filled([['Motto', quote], ['Description', description]])" :paths="['quote', 'description']">
     <Field block label="Motto"><RichTextEditor label="Motto" html basic v-model="quote" /></Field>
     <Field block label="Description"><RichTextEditor label="Description" html basic v-model="description" /></Field>
-  </section>
+  </FoldPanel>
 </template>

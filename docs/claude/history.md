@@ -100,3 +100,4 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 | `20261120110000_banner_position_and_public_card` | banner position, `card_version`, `pilot_card()` for link previews |
 | `20261121100000_backfill_service_record` | automatic lines for pilots approved before 2026-11-20 |
 | `20261121110000_pilot_inventory` | `owned_gear` / `equipped_gear`, `equip_pilot_gear`, `settle_pilot_gear`, prices |
+| `20261121110000_pilot_inventory` | `owned_gear` / `equipped_gear`, `equip_pilot_gear`, `settle_pilot_gear`, prices |`20261121120000_mech_public_card` (mech link card), applied 2026-11-20.

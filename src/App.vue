@@ -52,7 +52,7 @@ async function disconnect() {
   <RouterView v-if="route.meta.public" />
 
   <!-- The logged-in layout: a bar across the top, the page under it. -->
-  <div v-else class="shell">
+  <div v-else class="shell" :class="{ wide: route.meta.wide }">
     <header class="topbar">
       <div class="topbar-inner">
         <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
@@ -122,6 +122,11 @@ async function disconnect() {
   grid-template-columns: minmax(0, 1fr); /* wide tables scroll in their own box, not the page */
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+/* A route with meta.wide (the content editor): the top bar and the page share a wider cap. */
+.shell.wide {
+  --page-max: 120rem;
 }
 
 /* --- The top bar: the site's one sticky bar, on every screen size. Its height is --topbar-h (style.css). --- */

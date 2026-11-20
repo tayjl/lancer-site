@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { WEAPON_MOUNTS, WEAPON_TYPES, lockedTags, setProfiles, splitProfiles, type BonusType, type Data } from '../../contentEditor'
+import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
@@ -8,10 +9,11 @@ import ChoiceField from './ChoiceField.vue'
 import DamageField from './DamageField.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
+import FoldPanel from './FoldPanel.vue'
 import ItemBasics from './ItemBasics.vue'
 import RepeatList from './RepeatList.vue'
 import TagListField from './TagListField.vue'
-import { clean, input, latest, list, useFields } from './useFields'
+import { clean, filled, input, latest, list, useFields } from './useFields'
 
 // The form for a mech weapon. A weapon has one set of range, damage and rules, or several "profiles" (modes the pilot
 // chooses between, each with its own range and damage and optionally its own tags, rules and actions). With profiles
@@ -48,7 +50,7 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
 </script>
 
 <template>
-  <ItemBasics v-model="model" id-prefix="weapon" :locked="locked" :manufacturers="manufacturers" :licences="licences">
+  <ItemBasics v-model="model" :locked="locked" :manufacturers="manufacturers" :licences="licences">
     <Field block class="span2" label="Mount size" path="mount">
       <ChoiceField v-model="mount" label="Mount size" :options="mounts" />
     </Field>
@@ -60,21 +62,15 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
     </Field>
   </ItemBasics>
 
-  <section v-if="!profiles.length" class="panel" aria-labelledby="weapon-numbers">
-    <h3 id="weapon-numbers" class="sheet-label">Range and damage</h3>
+  <FoldPanel v-if="!profiles.length" title="Range and damage" open :summary="summary(model) || 'Empty'" :paths="['range', 'damage']">
     <Field block label="Range"><DamageField v-model="range" kind="range" /></Field>
     <Field block label="Damage" hint="A number or dice, like 1d6+2.">
       <DamageField v-model="damage" kind="damage" />
     </Field>
-    <div class="profiles-note">
-      <p class="hint">One set of numbers. Split into profiles for modes.</p>
-      <button type="button" class="small" @click="model = splitProfiles(model)">Split into profiles</button>
-    </div>
-  </section>
+    <div><button type="button" class="small" @click="model = splitProfiles(model)">Split into profiles</button></div>
+  </FoldPanel>
 
-  <section v-else class="panel" aria-labelledby="weapon-profiles">
-    <h3 id="weapon-profiles" class="sheet-label">Profiles</h3>
-    <p class="hint">The pilot picks one profile.</p>
+  <FoldPanel v-else title="Profiles" open :summary="plural(profiles.length, 'profile')" :paths="['profiles']">
     <RepeatList :model-value="profiles" noun="profile" path="profiles" :make="() => ({ name: `Mode ${profiles.length + 1}`, range: [], damage: [] })" @update:model-value="model = setProfiles(model, $event)">
       <template #title="{ item, index }">Profile {{ index + 1 }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
       <template #summary="{ item }">{{ summary(item) }}</template>
@@ -108,30 +104,25 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
         </Field>
       </template>
     </RepeatList>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="weapon-actions">
-    <h3 id="weapon-actions" class="sheet-label">Actions</h3>
+  <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="weapon-deployables">
-    <h3 id="weapon-deployables" class="sheet-label">Deployables</h3>
+  <FoldPanel title="Deployables" :summary="plural(deployables.length, 'deployable')" :paths="['deployables']">
     <DeployableListField v-model="deployables" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="weapon-tags">
-    <h3 id="weapon-tags" class="sheet-label">Tags</h3>
+  <FoldPanel title="Tags" :summary="plural(tagList.length, 'tag')" :paths="['tags']">
     <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="weapon-bonuses">
-    <h3 id="weapon-bonuses" class="sheet-label">Bonuses when equipped</h3>
+  <FoldPanel title="Bonuses when equipped" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="weapon-text">
-    <h3 id="weapon-text" class="sheet-label">Text</h3>
+  <FoldPanel title="Text" :summary="filled([['Rules text', effect], ['On attack', onAttack], ['On hit', onHit], ['On critical hit', onCrit], ['Lore', description]])" :paths="['effect', 'on_attack', 'on_hit', 'on_crit', 'description']">
     <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
     <template v-if="!profiles.length">
       <Field block label="On attack"><RichTextEditor label="On attack" html basic v-model="onAttack" /></Field>
@@ -141,10 +132,5 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
     <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>
-  </section>
+  </FoldPanel>
 </template>
-
-<style scoped>
-.profiles-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-s) var(--space-m); }
-.profiles-note .hint { flex: 1 1 18rem; margin: 0; }
-</style>

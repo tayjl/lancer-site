@@ -43,7 +43,6 @@ const add = () => (model.value = [...model.value, { type: types[0], val: props.k
         <FieldError :path="`${path ?? kind}.${index}`" deep />
       </li>
     </ul>
-    <p v-else class="hint dim">No {{ kind === 'range' ? 'ranges' : 'damage' }} yet.</p>
     <div><button type="button" class="small" @click="add"><Icon name="plus" />Add {{ kind }}</button></div>
   </div>
 </template>
@@ -51,7 +50,6 @@ const add = () => (model.value = [...model.value, { type: types[0], val: props.k
 <style scoped>
 .rows-in { display: grid; gap: var(--space-s); }
 .rows { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
-.hint { margin: 0; font-size: var(--fs-s); }
 .entry { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 8rem) 1fr auto; gap: var(--space-s); align-items: center; }
 .entry.plain { grid-template-columns: minmax(0, 10rem) minmax(0, 8rem) auto; }
 .value { font-family: var(--mono); }

@@ -22,8 +22,8 @@ import RepeatList from './RepeatList.vue'
 import ToggleChips from './ToggleChips.vue'
 import { clean, input, latest, list, useFields, useProblems } from './useFields'
 
-// The form for a frame, in lancer-data's own shape (frames.json), in folding sections: Identity, Stats and Weapon mounts
-// (open), Traits, Core system and Licence unlocks. A frame is its own licence, so its licence id is its own id and the
+// The form for a frame, in lancer-data's own shape (frames.json), in folding sections: Identity and Stats (open), Weapon
+// mounts, Traits, Core system and Licence unlocks. A frame is its own licence, so its licence id is its own id and the
 // licence's unlocks are the weapons, systems and mods that name it (read here, set on each of those). Fields with no
 // input (y_pos, image_url, counters, other_art) stay as they are.
 const modelProp = defineModel<Data>({ required: true })
@@ -96,7 +96,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 </script>
 
 <template>
-  <FoldPanel title="Identity" :open="!locked" :summary="identitySummary" :paths="['name', 'id', 'source', 'license_level', 'license_id', 'mechtype', 'image']">
+  <FoldPanel title="Identity" open :summary="identitySummary" :paths="['name', 'id', 'source', 'license_level', 'license_id', 'mechtype', 'image']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field
@@ -114,23 +114,23 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
           <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
         </select>
       </Field>
-      <Field class="span2" label="Alternate of" path="license_id" hint="Shares the original frame's licence.">
+      <Field class="span2" label="Alternate of" path="license_id">
         <select v-model="alternate">
           <option value="">None</option>
           <option v-for="frame in originals" :key="frame.id" :value="frame.id">{{ frame.source }} {{ frame.name }}</option>
         </select>
       </Field>
-      <Field class="span2" label="Licence" path="license_id" :hint="alternate ? 'ID of the original frame.' : 'Its own ID.'">
+      <Field class="span2" label="Licence" path="license_id">
         <input class="code" :value="String(model.license_id ?? '')" type="text" readonly />
       </Field>
     </div>
     <Field block label="Mech type" path="mechtype">
       <ToggleChips v-model="roles" :options="FRAME_ROLES" label="Mech type" />
     </Field>
-    <Field block label="Unlocked at licence rank" path="license_level" hint="Rank needed to use this frame. None for GMS frames.">
+    <Field block label="Unlocked at licence rank" path="license_level">
       <ChoiceField v-model="rank" label="Unlocked at licence rank" :options="[0, 1, 2, 3].map((value) => ({ value, label: roman(value) }))" />
     </Field>
-    <Field block label="Image" path="image" hint="Shown on the frame's information, its licence and any mech with no picture of its own. An upload replaces the bundled art.">
+    <Field block label="Image" path="image">
       <div class="art-edit">
         <MechImage size="editor" :art="art" :art-alt="`${String(model.name ?? 'Frame')} image`" />
         <ImageUpload :path="typeof model.image === 'string' ? model.image : null" :save="saveImage" />
@@ -142,7 +142,6 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
   </FoldPanel>
 
   <FoldPanel title="Stats" open :paths="['stats']">
-    <p class="hint">Before HASE and gear.</p>
     <div class="stats">
       <Field v-for="stat in FRAME_STATS" :key="stat.key" :label="stat.unused ? `${stat.label} (not used)` : stat.label" :path="`stats.${stat.key}`" :class="{ unused: stat.unused }">
         <select v-if="stat.key === 'size'" class="num" :value="String(stats.size ?? 1)" @change="setStat('size', input($event))">
@@ -153,8 +152,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     </div>
   </FoldPanel>
 
-  <FoldPanel title="Weapon mounts" open :summary="mountsSummary" :paths="['mounts']">
-    <p class="hint">Shown in this order.</p>
+  <FoldPanel title="Weapon mounts" :summary="mountsSummary" :paths="['mounts']">
     <FieldError path="mounts" />
     <ol v-if="mounts.length" class="mounts">
       <li v-for="(mount, index) in mounts" :key="index">
@@ -171,12 +169,11 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
         <FieldError :path="`mounts.${index}`" />
       </li>
     </ol>
-    <p v-else class="empty">No mounts yet.</p>
     <div><button type="button" class="small" @click="mounts = [...mounts, 'Main']"><Icon name="plus" />Add mount</button></div>
   </FoldPanel>
 
   <FoldPanel title="Traits" :summary="traitsSummary" :paths="['traits']">
-    <RepeatList v-model="traits" noun="trait" path="traits" empty="No traits yet." :make="() => ({ name: '', description: '' })">
+    <RepeatList v-model="traits" noun="trait" path="traits" :make="() => ({ name: '', description: '' })">
       <template #title="{ item, index }">Trait {{ index + 1 }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
       <template #summary="{ item }">{{ [item.use, list(item.actions).length ? plural(list(item.actions).length, 'action') : ''].filter(Boolean).join(' · ') }}</template>
       <template #default="{ item, index, change }">
@@ -213,7 +210,6 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
   </FoldPanel>
 
   <FoldPanel title="Licence unlocks" :summary="unlockCount ? plural(unlockCount, 'item') : 'No unlocks'">
-    <p class="hint">Set on each item's licence field.</p>
     <ul class="ranks">
       <li v-for="rung in unlocks" :key="rung.level">
         <b class="label">Rank {{ roman(rung.level) }}</b>
@@ -228,7 +224,6 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 </template>
 
 <style scoped>
-.hint { margin: 0; color: var(--text-dim); font-size: var(--fs-s); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: var(--space-m); }
 .unused { opacity: 0.7; }
 .art-edit { display: grid; justify-items: start; gap: var(--space-s); }

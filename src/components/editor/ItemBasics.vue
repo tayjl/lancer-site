@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Data } from '../../contentEditor'
+import { plural } from '../../text'
 import ChoiceField from './ChoiceField.vue'
+import FoldPanel from './FoldPanel.vue'
 import Field from './Field.vue'
 import { latest, useFields } from './useFields'
 
@@ -11,7 +13,6 @@ import { latest, useFields } from './useFields'
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
 const props = defineProps<{
-  idPrefix: string
   locked: boolean
   manufacturers: { id: string; name: string }[]
   licences: { id: string; name: string; source: string }[]
@@ -22,6 +23,8 @@ const source = f.text('source')
 const points = f.number('sp')
 const licenceId = computed(() => String(model.value.license_id ?? ''))
 const rank = computed({ get: () => Number(model.value.license_level) || 1, set: (value: number) => (model.value = { ...model.value, license_level: value }) })
+// Shown while folded.
+const summary = computed(() => [source.value, licenceId.value ? `${model.value.license ?? licenceId.value} ${['', 'I', 'II', 'III'][rank.value] ?? ''}` : 'No licence', model.value.sp ? plural(Number(model.value.sp), 'system point') : ''].filter(Boolean).join(' · '))
 
 // A licence brings its manufacturer with it (still changeable). "No licence" is how GMS gear is written in the game data.
 function chooseLicence(event: Event) {
@@ -34,8 +37,7 @@ function chooseLicence(event: Event) {
 </script>
 
 <template>
-  <section class="panel" :aria-labelledby="`${idPrefix}-basics`">
-    <h3 :id="`${idPrefix}-basics`" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="summary" :paths="['name', 'id', 'source', 'license_id', 'license_level', 'sp', 'mount', 'type']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field
@@ -66,5 +68,5 @@ function chooseLicence(event: Event) {
       <Field label="System points" path="sp"><input v-model="points" type="number" min="0" step="1" /></Field>
       <slot />
     </div>
-  </section>
+  </FoldPanel>
 </template>

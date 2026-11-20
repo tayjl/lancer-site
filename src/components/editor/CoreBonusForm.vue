@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { BonusType, Data } from '../../contentEditor'
+import { plural } from '../../text'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
+import FoldPanel from './FoldPanel.vue'
 import RichTextEditor from '../RichTextEditor.vue'
-import { latest, useFields } from './useFields'
+import { filled, latest, useFields } from './useFields'
 
 // The form for a core bonus: its manufacturer, its rules, what it changes (bonuses) and any actions it grants.
 const modelProp = defineModel<Data>({ required: true })
@@ -21,8 +23,7 @@ const actions = f.list<Data>('actions')
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="core-basics">
-    <h3 id="core-basics" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="source" :paths="['name', 'id', 'source']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
@@ -36,24 +37,21 @@ const actions = f.list<Data>('actions')
         </select>
       </Field>
     </div>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="core-rules">
-    <h3 id="core-rules" class="sheet-label">Rules</h3>
+  <FoldPanel title="Rules" :summary="filled([['Effect', effect], ['Mounted effect', mounted], ['Description', description]])" :paths="['effect', 'mounted_effect', 'description']">
     <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
-    <Field block label="Mounted effect" hint="What it does on the mount it changes.">
+    <Field block label="Mounted effect">
       <RichTextEditor label="Mounted effect" html basic v-model="mounted" />
     </Field>
     <Field block label="Description" hint="Flavour text."><RichTextEditor label="Description" html basic v-model="description" /></Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="core-bonuses">
-    <h3 id="core-bonuses" class="sheet-label">Bonuses</h3>
+  <FoldPanel title="Bonuses" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="core-actions">
-    <h3 id="core-actions" class="sheet-label">Actions</h3>
+  <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
-  </section>
+  </FoldPanel>
 </template>

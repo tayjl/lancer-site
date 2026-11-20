@@ -1,15 +1,17 @@
 import { reactive } from 'vue'
 
 // Which pilot-file and mech-file sections are folded, remembered per viewer in this browser (the page works without storage).
+// The content editor's folds use it too, with ids starting "editor:" (FoldPanel.vue); "fallback" is the fold's own default.
 const KEY = 'pilot-file-folded:'
 const folded = reactive<Record<string, boolean>>({})
 
-export function isFolded(id: string) {
+export function isFolded(id: string, fallback = false) {
   if (!(id in folded)) {
     try {
-      folded[id] = localStorage.getItem(KEY + id) === '1'
+      const stored = localStorage.getItem(KEY + id)
+      folded[id] = stored === null ? fallback : stored === '1'
     } catch {
-      folded[id] = false
+      folded[id] = fallback
     }
   }
   return folded[id]

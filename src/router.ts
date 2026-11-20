@@ -17,6 +17,8 @@ declare module 'vue-router' {
     gm?: boolean
     owner?: boolean
     public?: boolean
+    // A wider page and top bar (120rem, not 84rem), for working pages such as the content editor.
+    wide?: boolean
     // Card grids (RegistryView): which pilots to list, and what to say when there are none.
     status?: Tables<'characters'>['status']
     empty?: string
@@ -132,7 +134,7 @@ export const router = createRouter({
       path: '/gm/content/editor',
       name: 'gm-content-editor',
       component: () => import('./views/ContentEditorView.vue'),
-      meta: { title: 'Content editor', summary: 'Make and change game content.', gm: true, owner: true, section: 'gm-content' },
+      meta: { title: 'Content editor', summary: 'Make and change game content.', gm: true, owner: true, section: 'gm-content', wide: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },

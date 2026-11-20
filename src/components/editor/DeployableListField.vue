@@ -17,7 +17,7 @@ const number = (text: string) => (text.trim() === '' ? undefined : Number(text))
 </script>
 
 <template>
-  <RepeatList v-model="model" noun="deployable" :path="path" :make="() => ({ name: '', type: 'Deployable', detail: '' })" empty="No deployables yet.">
+  <RepeatList v-model="model" noun="deployable" :path="path" :make="() => ({ name: '', type: 'Deployable', detail: '' })">
     <template #title="{ item, index }">Deployable {{ index + 1 }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
     <template #summary="{ item }">{{ [item.type, item.hp !== undefined ? `${item.hp} HP` : ''].filter(Boolean).join(' · ') }}</template>
     <template #default="{ item, index, change }">

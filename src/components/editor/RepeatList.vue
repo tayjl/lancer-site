@@ -12,7 +12,7 @@ import { latest, useProblems } from './useFields'
 // problem. "fixed" (a talent's three ranks) leaves out Add, Remove and the move buttons.
 const modelProp = defineModel<T[]>({ required: true })
 const model = latest(modelProp)
-const props = defineProps<{ noun: string; make: () => T; path?: string; fixed?: boolean; empty?: string; addLabel?: string }>()
+const props = defineProps<{ noun: string; make: () => T; path?: string; fixed?: boolean; addLabel?: string }>()
 defineSlots<{
   title?(props: { item: T; index: number }): unknown
   summary?(props: { item: T; index: number }): unknown
@@ -59,7 +59,6 @@ const move = (index: number, by: number) => {
         </details>
       </li>
     </ol>
-    <p v-else-if="empty" class="empty">{{ empty }}</p>
     <div v-if="!fixed"><button type="button" class="small" @click="model = [...model, make()]"><Icon name="plus" />{{ addLabel ?? `Add ${noun}` }}</button></div>
   </div>
 </template>

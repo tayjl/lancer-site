@@ -7,6 +7,9 @@ import { useMechData } from '../../mechData'
 export const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
 export const list = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : [])
 export const clean = <T,>(value: T[]) => (value.length ? value : undefined)
+// A folded text section's summary: the labels of the fields with something in them (rules text is HTML, so tags don't count).
+export const filled = (fields: [string, unknown][]) =>
+  fields.filter(([, value]) => String(value ?? '').replace(/<[^>]*>/g, '').trim()).map(([label]) => label).join(', ') || 'Empty'
 
 // A form's v-model, where a write is seen by the very next read. A plain defineModel only shows the parent's new value
 // after the parent re-renders, so two writes in one tick (each spreading the object it just read) would lose the first;

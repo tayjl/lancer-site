@@ -93,6 +93,7 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-m);
+  container-type: inline-size; /* InfoBody stacks a frame's radar and numbers in this narrow box */
   padding: var(--space-m);
   border: 1px solid var(--rule);
   /* A manufacturer's own colour only; never the site's lilac, which means "clickable". */

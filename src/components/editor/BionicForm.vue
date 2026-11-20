@@ -2,11 +2,13 @@
 import { computed, useId } from 'vue'
 import { BIONIC_SLOTS, type Data } from '../../contentEditor'
 import { useGameData } from '../../gameData'
+import { plural } from '../../text'
 import Icon from '../Icon.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
-import { latest, useFields, useProblems } from './useFields'
+import FoldPanel from './FoldPanel.vue'
+import { filled, latest, useFields, useProblems } from './useFields'
 
 // The form for a biomod (a site table, not pack content): its slot on the body, its own price in manna, the mod points it
 // takes, the personal stats it changes, and its description (flavour) and effect (rules). "Retired" takes it off the list
@@ -40,8 +42,7 @@ const add = () => {
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="bio-basics">
-    <h3 id="bio-basics" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="[slot, source, retired ? 'Retired' : ''].filter(Boolean).join(' · ')" :paths="['name', 'slot', 'source', 'manna_cost', 'mod_point_cost']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field class="span2" label="Slot" path="slot" hint="Pick one or type your own.">
@@ -59,10 +60,9 @@ const add = () => {
       <Field class="span2" label="Mod points" path="mod_point_cost"><input v-model="cost" type="number" min="0" step="1" /></Field>
     </div>
     <label class="check"><input v-model="retired" type="checkbox" />Retired. Pilots who have it keep it.</label>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="bio-bonuses">
-    <h3 id="bio-bonuses" class="sheet-label">Stat bonuses</h3>
+  <FoldPanel title="Stat bonuses" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
     <ul v-if="bonuses.length" class="rows">
       <li v-for="(bonus, index) in bonuses" :key="index" class="entry">
         <select :value="bonus.stat_id" :aria-label="`Bonus ${index + 1} stat`" :aria-invalid="invalid(`bonuses.${index}.stat_id`) || undefined" @change="change(index, { stat_id: ($event.target as HTMLSelectElement).value })">
@@ -74,17 +74,16 @@ const add = () => {
         <FieldError :path="`bonuses.${index}`" deep />
       </li>
     </ul>
-    <p v-else class="hint">No bonuses yet. Use a negative number for a drawback.</p>
+    <p v-else class="hint">Use a negative number for a drawback.</p>
     <div><button type="button" class="small" :disabled="bonuses.length >= stats.length" @click="add"><Icon name="plus" />Add bonus</button></div>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="bio-text">
-    <h3 id="bio-text" class="sheet-label">Text</h3>
+  <FoldPanel title="Text" :summary="filled([['Description', description], ['Effect', effect]])" :paths="['description', 'effect']">
     <Field label="Description" hint="Flavour text.">
       <textarea v-model="description" rows="4"></textarea>
     </Field>
     <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
-  </section>
+  </FoldPanel>
 </template>
 
 <style scoped>

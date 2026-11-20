@@ -18,7 +18,7 @@ const where = (index: number, key: string) => `${props.path}.${index}.${key}`
 </script>
 
 <template>
-  <RepeatList v-model="model" noun="action" :path="path" :make="() => ({ name: '', activation: 'Quick', detail: '' })" empty="No actions yet.">
+  <RepeatList v-model="model" noun="action" :path="path" :make="() => ({ name: '', activation: 'Quick', detail: '' })">
     <template #title="{ item, index }">Action {{ index + 1 }}<span v-if="item.name" class="dim"> · {{ item.name }}</span></template>
     <template #summary="{ item }">{{ [item.activation, item.frequency, item.trigger].filter(Boolean).join(' · ') }}</template>
     <template #default="{ item, index, change }">

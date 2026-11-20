@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { parseRaw, type Data } from '../../contentEditor'
 import Icon from '../Icon.vue'
+import FoldPanel from './FoldPanel.vue'
 import { latest } from './useFields'
 
 // The item's data as JSON, for everything the form has no field for (and for every kind that has no form yet). It edits the
@@ -34,11 +35,8 @@ function input(event: Event) {
 </script>
 
 <template>
-  <details class="panel raw">
-    <summary>
-      <h3 class="sheet-label">Advanced: raw data</h3>
-      <span class="hint">JSON, for fields the form lacks.</span>
-    </summary>
+  <!-- Always starts folded, at the bottom of the form. -->
+  <FoldPanel title="Advanced: raw data" summary="JSON" forget>
     <textarea
       class="code"
       rows="16"
@@ -50,36 +48,10 @@ function input(event: Event) {
       @input="input"
     ></textarea>
     <p v-if="error" id="raw-error" class="err" role="alert"><Icon name="warning" /><span><b>Error:</b> {{ error }}</span></p>
-  </details>
+  </FoldPanel>
 </template>
 
 <style scoped>
-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-xs) var(--space-m);
-  cursor: pointer;
-}
-
-summary h3 {
-  flex: none;
-  margin: 0;
-}
-
-summary .hint {
-  flex: 1 1 14rem;
-}
-
-summary:focus-visible {
-  outline: 2px solid var(--lilac);
-  outline-offset: 2px;
-}
-
-.raw[open] > summary {
-  margin-bottom: var(--space-m);
-}
-
 textarea {
   width: 100%;
   min-height: 12rem;

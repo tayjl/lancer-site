@@ -4,7 +4,8 @@ import { deleteImage, IMAGE_PATH } from './images'
 import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
 import { displayColour } from './pilotColour'
 
-// A pilot's profile customisation (the pilot_profiles table): colour, motto, banner (and its position) and up to four gallery pictures.
+// A pilot's profile customisation (the pilot_profiles table): colour, motto, banner (and its position) and up to four gallery
+// pictures, plus the fingerprints of the saved ID card pictures (PilotIdCard.vue, MechIdCard.vue).
 // It's cosmetic and public, so it saves live with no GM approval, even on an approved pilot (the database lets a pilot's
 // own player, GMs and owners write it, never a dead pilot's player). Everything in it is public to every logged-in user.
 
@@ -15,10 +16,10 @@ export const GALLERY_MAX = 4
 export type GalleryItem = { path: string; caption: string }
 // Where the banner sits in its strip: x and y are its CSS object-position in percent, zoom scales it up from that point.
 export type BannerPosition = { banner_x: number; banner_y: number; banner_zoom: number }
-export type ProfileFields = { colour: string | null; motto: string | null; banner_image: string | null; gallery: GalleryItem[]; card_version: string | null } & BannerPosition
+export type ProfileFields = { colour: string | null; motto: string | null; banner_image: string | null; gallery: GalleryItem[]; card_version: string | null; mech_card_versions: Record<string, string> } & BannerPosition
 
 export const BANNER_CENTRED: BannerPosition = { banner_x: 50, banner_y: 50, banner_zoom: 1 }
-const BLANK: ProfileFields = { colour: null, motto: null, banner_image: null, gallery: [], card_version: null, ...BANNER_CENTRED }
+const BLANK: ProfileFields = { colour: null, motto: null, banner_image: null, gallery: [], card_version: null, mech_card_versions: {}, ...BANNER_CENTRED }
 
 // The gallery column is plain JSON to the database; anything that isn't an upload path is dropped, as the page never draws it.
 export function readGallery(json: Json | undefined): GalleryItem[] {
@@ -62,6 +63,7 @@ export function usePilotProfile(characterId: () => number | undefined) {
           banner_image: data.banner_image,
           gallery: readGallery(data.gallery),
           card_version: data.card_version,
+          mech_card_versions: data.mech_card_versions && typeof data.mech_card_versions === 'object' && !Array.isArray(data.mech_card_versions) ? (data.mech_card_versions as Record<string, string>) : {},
           banner_x: data.banner_x,
           banner_y: data.banner_y,
           banner_zoom: data.banner_zoom,
@@ -75,8 +77,8 @@ export function usePilotProfile(characterId: () => number | undefined) {
 
   async function write() {
     const id = characterId()!
-    const { colour, motto, banner_image, gallery, card_version, banner_x, banner_y, banner_zoom } = fields.value
-    const body = { colour, motto, banner_image, gallery: gallery as unknown as Json, card_version, banner_x, banner_y, banner_zoom }
+    const { colour, motto, banner_image, gallery, card_version, mech_card_versions, banner_x, banner_y, banner_zoom } = fields.value
+    const body = { colour, motto, banner_image, gallery: gallery as unknown as Json, card_version, mech_card_versions, banner_x, banner_y, banner_zoom }
     const result = seen
       ? await checkWrite(await supabase.from('pilot_profiles').update(body).eq('character_id', id).eq('updated_at', seen).select('updated_at'), {
           seen,

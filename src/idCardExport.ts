@@ -1,13 +1,32 @@
 import atkinsonUrl from '@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2?url'
 import cascadiaUrl from '@fontsource-variable/cascadia-mono/files/cascadia-mono-latin-wght-normal.woff2?url'
+import { fitText } from './idCard'
 
-// The pilot ID card's PNG download, with no library: the card is an SVG (PilotIdCard.vue), so it's copied, its pictures
+// The ID cards' PNG download (the pilot's and the mech's), with no library: the card is an SVG (IdCardFrame.vue), so it's copied, its pictures
 // and the two fonts are put inside it as data urls (an SVG drawn as an image can't load anything from outside), then it
 // is drawn onto a canvas at twice its size and saved. A picture that can't be fetched (an outside server without CORS
 // headers, a network failure) is left out of the PNG and named in the result, rather than failing the download.
 
 export const SANS_FAMILY = 'Atkinson Hyperlegible Next Variable'
 export const MONO_FAMILY = 'Cascadia Mono Variable'
+
+// A colour token of the site's, read when asked: a downloaded picture has no stylesheet to look it up in.
+export const cardToken = (name: string, fallback: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+export const cardInk = () => ({
+  panel: cardToken('--panel', '#1c1c21'),
+  raised: cardToken('--raised', '#26252c'),
+  rule: cardToken('--rule', '#403f48'),
+  text: cardToken('--text', '#f5f4f7'),
+  dim: cardToken('--text-dim', '#b1afba'),
+})
+
+// Text cut to fit its space ("max" units), measured with the same fonts the card is drawn in.
+let context: CanvasRenderingContext2D | null = null
+export function fitCardText(text: string, weight: number, size: number, family: string, max: number) {
+  context ??= document.createElement('canvas').getContext('2d')!
+  context.font = `${weight} ${size}px "${family}"`
+  return fitText(text, max, (t) => context!.measureText(t).width)
+}
 
 const toDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {

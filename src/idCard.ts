@@ -1,4 +1,4 @@
-// Pure helpers for the pilot ID card (PilotIdCard.vue). The PNG download lives in idCardExport.ts.
+// Pure helpers for the ID cards (PilotIdCard.vue, MechIdCard.vue). The PNG download lives in idCardExport.ts.
 
 // Crockford's base 32: no I, L, O or U, so a serial read aloud or copied by eye isn't mistaken.
 const DIGITS = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -43,5 +43,6 @@ export function fitText(text: string, max: number, measure: (text: string) => nu
   return end > 0 ? `${text.slice(0, end).trimEnd()}…` : '…'
 }
 
-// The downloaded file's name: "<callsign>-id.png", with anything that isn't a letter or digit made safe.
-export const cardFilename = (callsign: string) => `${callsign.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'pilot'}-id.png`
+// The downloaded file's name: "<callsign>-id.png" (or "<mech name>-card.png"), with anything that isn't a letter or digit made safe.
+export const cardFilename = (name: string, suffix = 'id', fallback = 'pilot') =>
+  `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || fallback}-${suffix}.png`

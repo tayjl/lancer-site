@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { SYSTEM_TYPES, lockedTags, type BonusType, type Data } from '../../contentEditor'
+import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
+import FoldPanel from './FoldPanel.vue'
 import ItemBasics from './ItemBasics.vue'
 import TagListField from './TagListField.vue'
-import { latest, useFields } from './useFields'
+import { filled, latest, useFields } from './useFields'
 
 // The form for a mech system (a system, AI, shield, drone and so on): the basics, what it does, its actions, deployables,
 // tags and bonuses. A system with no type in the game data is a plain "System"; the box shows that, and writes a type only when
@@ -26,7 +28,7 @@ const type = f.text('type')
 </script>
 
 <template>
-  <ItemBasics v-model="model" id-prefix="system" :locked="locked" :manufacturers="manufacturers" :licences="licences">
+  <ItemBasics v-model="model" :locked="locked" :manufacturers="manufacturers" :licences="licences">
     <Field label="Kind of system" path="type">
       <select :value="type || 'System'" @change="type = ($event.target as HTMLSelectElement).value">
         <option v-if="type && !SYSTEM_TYPES.includes(type)" :value="type">{{ type }}</option>
@@ -35,31 +37,26 @@ const type = f.text('type')
     </Field>
   </ItemBasics>
 
-  <section class="panel" aria-labelledby="system-text">
-    <h3 id="system-text" class="sheet-label">Text</h3>
+  <FoldPanel title="Text" :summary="filled([['Rules text', effect], ['Lore', description]])" :paths="['effect', 'description']">
     <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
     <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="system-actions">
-    <h3 id="system-actions" class="sheet-label">Actions</h3>
+  <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="system-deployables">
-    <h3 id="system-deployables" class="sheet-label">Deployables</h3>
+  <FoldPanel title="Deployables" :summary="plural(deployables.length, 'deployable')" :paths="['deployables']">
     <DeployableListField v-model="deployables" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="system-tags">
-    <h3 id="system-tags" class="sheet-label">Tags</h3>
+  <FoldPanel title="Tags" :summary="plural(tagList.length, 'tag')" :paths="['tags']">
     <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="system-bonuses">
-    <h3 id="system-bonuses" class="sheet-label">Bonuses when equipped</h3>
+  <FoldPanel title="Bonuses when equipped" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
-  </section>
+  </FoldPanel>
 </template>

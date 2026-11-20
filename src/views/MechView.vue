@@ -12,6 +12,7 @@ import FileSection from '../components/FileSection.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import MechOverview from '../components/MechOverview.vue'
 import MechLoadout from '../components/MechLoadout.vue'
+import MechIdCard from '../components/MechIdCard.vue'
 import MechImage from '../components/MechImage.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import InfoButton from '../components/InfoButton.vue'
@@ -21,6 +22,7 @@ import ActionChip from '../components/ActionChip.vue'
 import InfoRule from '../components/InfoRule.vue'
 import ItemCard from '../components/ItemCard.vue'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
+import { isGm } from '../auth'
 import { frameArt, imageUrl } from '../images'
 import { frameInfo } from '../info'
 import { framePick } from '../pickerRows'
@@ -32,6 +34,8 @@ import { buildFrame, fittedMods, frameRanges, mechEffects, mechResources, mechSt
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
+import { usePilotProfile } from '../pilotProfile'
+import { radarAxes } from '../mechOverview'
 import { pilotList, sectionOverride } from '../router'
 import { frameBlockedBy, isExotic, mechProblems, restrictionOf, useCatalogue } from '../rules'
 import { GM_EDIT, useRestriction } from '../restriction'
@@ -157,6 +161,7 @@ const SEC = {
   loadout: { id: 'mech-loadout', title: 'Loadout' },
   effects: { id: 'mech-effects', title: 'Traits' },
   profile: { id: 'mech-profile', title: 'Profile' },
+  card: { id: 'mech-card', title: 'Registration card' }, // folded until first opened
 }
 const showEffects = computed(() => !!frame.value && effects.value.reminders.length > 0)
 // Numbered by position among the shown sections, so a hidden one leaves no gap.
@@ -166,6 +171,20 @@ const sections = computed(() =>
     .map((s, i) => ({ ...s, no: String(i + 1).padStart(2, '0') })),
 )
 const sec = (s: { id: string; title: string }) => sections.value.find((x) => x.id === s.id) ?? { ...s, no: '' }
+
+// --- The registration card (MechIdCard.vue). Its picture for link previews is saved by the browser like the pilot ID
+// card's: by the pilot's player while the pilot lives, or a GM; only once the packs have loaded, and never from an open
+// change. Its fingerprint goes into the pilot's profile by mech id, beside the other mechs'. ---
+const profile = usePilotProfile(() => character.value?.id)
+const cardSavePath = computed(() =>
+  profile.ready.value && frames.value.length && manufacturers.value.length && character.value && (isGm.value || (own && character.value.status !== 'dead'))
+    ? `${character.value.player_id}/mech-card-${character.value.id}-${mechId.value}.png`
+    : null,
+)
+async function saveCardVersion(version: string) {
+  const error = await profile.update({ mech_card_versions: { ...profile.fields.value.mech_card_versions, [mechId.value]: version } })
+  if (error) console.warn('Card version not saved', error)
+}
 
 // --- The save status shown on the plate, for the one-line fields ---
 const { saving, saved, error: saveError, track } = useSaveStatus()
@@ -468,6 +487,31 @@ async function scrap() {
               <SheetField title="Appearance" :doc="mech.appearance" :editable="editable" :save="saveAppearance" />
               <SheetField title="History" :doc="details.history ?? null" :editable="editable" :save="saveHistory" />
             </div>
+          </FileSection>
+
+          <FileSection v-bind="sec(SEC.card)" folded>
+            <MechIdCard
+              class="id-card"
+              :id="character!.id"
+              :mech-id="mech.id"
+              :name="mech.name"
+              :manufacturer-id="mech.manufacturer_id"
+              :frame="baseFrame ? `${baseFrame.source} ${baseFrame.name}` : null"
+              :logo="logo"
+              :colour="makerStyle ? makerColour(maker) : null"
+              :image="mech.image"
+              :art="fallbackArt"
+              :callsign="character!.callsign ?? character!.pilot_name"
+              :size="frame ? size : null"
+              :sp-used="spUsed"
+              :sp-total="frame ? spTotal : null"
+              :axes="frame ? radarAxes(stats, frameRanges(frames)) : []"
+              :status="character!.status"
+              :draft-open="own && !!draft"
+              :card-version="profile.fields.value.mech_card_versions[mech.id]"
+              :save-path="cardSavePath"
+              @card-saved="saveCardVersion"
+            />
           </FileSection>
 
           <section v-if="editable" class="panel danger-zone">
@@ -790,6 +834,12 @@ async function scrap() {
 .uncounted {
   margin: 0;
   font-size: var(--fs-s);
+}
+
+/* --- Registration card: the card on show, centred, like the pilot's 02 Pilot ID --- */
+.id-card {
+  max-width: 36rem;
+  margin-inline: auto;
 }
 
 /* --- Phones: the compact plate (smaller logo, the figures on a row under a rule) --- */

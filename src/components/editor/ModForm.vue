@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { WEAPON_MOUNTS, WEAPON_TYPES, lockedTags, type BonusType, type Data } from '../../contentEditor'
+import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import DamageField from './DamageField.vue'
 import Field from './Field.vue'
+import FoldPanel from './FoldPanel.vue'
 import ItemBasics from './ItemBasics.vue'
 import TagListField from './TagListField.vue'
 import ToggleChips from './ToggleChips.vue'
-import { latest, useFields } from './useFields'
+import { filled, latest, useFields } from './useFields'
 
 // The form for a weapon mod: the basics, which weapons it fits (src/equipment.ts modBlockedBy: a list left empty fits
 // everything), what it adds to its weapon (range and tags count in the weapon's card; damage doesn't, as it's
@@ -31,13 +34,15 @@ const restrictedSizes = f.list<string>('restricted_sizes')
 const addedTags = f.list<TagEntry>('added_tags')
 const addedRange = f.list<Entry>('added_range')
 const addedDamage = f.list<Entry>('added_damage')
+// Shown while folded.
+const fits = computed(() => [...allowedTypes.value, ...allowedSizes.value, ...[...restrictedTypes.value, ...restrictedSizes.value].map((never) => `not ${never}`)].join(', ') || 'Any weapon')
+const adds = computed(() => [plural(addedRange.value.length, 'range'), plural(addedDamage.value.length, 'damage', 'damage'), plural(addedTags.value.length, 'tag')].join(' · '))
 </script>
 
 <template>
-  <ItemBasics v-model="model" id-prefix="mod" :locked="locked" :manufacturers="manufacturers" :licences="licences" />
+  <ItemBasics v-model="model" :locked="locked" :manufacturers="manufacturers" :licences="licences" />
 
-  <section class="panel" aria-labelledby="mod-fits">
-    <h3 id="mod-fits" class="sheet-label">Which weapons it fits</h3>
+  <FoldPanel title="Which weapons it fits" :summary="fits" :paths="['allowed_types', 'allowed_sizes', 'restricted_types', 'restricted_sizes']">
     <Field block label="Only these types" hint="Leave all off to fit any type.">
       <ToggleChips v-model="allowedTypes" :options="WEAPON_TYPES" label="Allowed weapon types" />
     </Field>
@@ -50,37 +55,32 @@ const addedDamage = f.list<Entry>('added_damage')
     <Field block label="Never these sizes">
       <ToggleChips v-model="restrictedSizes" :options="WEAPON_MOUNTS" label="Restricted weapon sizes" />
     </Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="mod-adds">
-    <h3 id="mod-adds" class="sheet-label">What it adds to the weapon</h3>
+  <FoldPanel title="What it adds to the weapon" :summary="adds" :paths="['added_range', 'added_damage', 'added_tags']">
     <Field block label="Added range"><DamageField v-model="addedRange" kind="range" path="added_range" noun="Added range" /></Field>
-    <Field block label="Added damage" hint="Not counted in the weapon's numbers. Say when it applies in the effect.">
+    <Field block label="Added damage" hint="Say when it applies in the rules text.">
       <DamageField v-model="addedDamage" kind="damage" path="added_damage" noun="Added damage" />
     </Field>
     <Field block label="Added tags"><TagListField v-model="addedTags" :tags="tags" path="added_tags" label="Added tags" /></Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="mod-text">
-    <h3 id="mod-text" class="sheet-label">Text</h3>
+  <FoldPanel title="Text" :summary="filled([['Rules text', effect], ['Lore', description]])" :paths="['effect', 'description']">
     <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
     <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="mod-actions">
-    <h3 id="mod-actions" class="sheet-label">Actions</h3>
+  <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="mod-tags">
-    <h3 id="mod-tags" class="sheet-label">Tags</h3>
+  <FoldPanel title="Tags" :summary="plural(tagList.length, 'tag')" :paths="['tags']">
     <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="mod-bonuses">
-    <h3 id="mod-bonuses" class="sheet-label">Bonuses when equipped</h3>
+  <FoldPanel title="Bonuses when equipped" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
-  </section>
+  </FoldPanel>
 </template>

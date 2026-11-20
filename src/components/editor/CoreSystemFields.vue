@@ -38,7 +38,7 @@ const optional = (value: unknown) => (value as string) || undefined
   <Field block label="Passive actions">
     <ActionListField :model-value="list<Data>('passive_actions')" path="core_system.passive_actions" label="Passive action" @update:model-value="set({ passive_actions: clean($event) })" />
   </Field>
-  <Field block label="Passive bonuses" hint="Counted in the mech's numbers.">
+  <Field block label="Passive bonuses">
     <BonusListField :model-value="list<Data>('passive_bonuses')" :types="bonusTypes" path="core_system.passive_bonuses" @update:model-value="set({ passive_bonuses: clean($event) })" />
   </Field>
 
@@ -75,12 +75,12 @@ const optional = (value: unknown) => (value as string) || undefined
   <Field block label="Power actions">
     <ActionListField :model-value="list<Data>('active_actions')" path="core_system.active_actions" label="Power action" @update:model-value="set({ active_actions: clean($event) })" />
   </Field>
-  <Field block label="Power bonuses" hint="Not counted in the mech's numbers. Say when they apply in the rules.">
+  <Field block label="Power bonuses" hint="Say when they apply in the power rules.">
     <BonusListField :model-value="list<Data>('active_bonuses')" :types="bonusTypes" path="core_system.active_bonuses" @update:model-value="set({ active_bonuses: clean($event) })" />
   </Field>
 
   <h4 class="label sub">Equipment and deployables</h4>
-  <Field block label="Built in" path="core_system.integrated" hint="Built in, needs no mount.">
+  <Field block label="Built in" path="core_system.integrated">
     <ItemIdListField :model-value="list<string>('integrated')" :items="equipment" label="Core system built-in equipment" add="Add built-in equipment" @update:model-value="set({ integrated: clean($event) })" />
   </Field>
   <Field block label="Deployables">

@@ -2,7 +2,8 @@
 import type { Data } from '../../contentEditor'
 import RichTextEditor from '../RichTextEditor.vue'
 import Field from './Field.vue'
-import { latest, useFields } from './useFields'
+import FoldPanel from './FoldPanel.vue'
+import { filled, latest, useFields } from './useFields'
 
 // The form for a tag (like "Limited {VAL}"): its name, what it means and whether it's hidden. A "{VAL}" in the name
 // is where an item's number goes, and makes the tag ask for one.
@@ -16,8 +17,7 @@ const hidden = f.flag('hidden')
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="tag-basics">
-    <h3 id="tag-basics" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="hidden ? 'Hidden from players' : 'Shown to players'" :paths="['name', 'id']">
     <div class="grid">
       <Field class="span2" label="Name" path="name" hint="Use {VAL} for the number, as in &quot;Limited {VAL}&quot;.">
         <input v-model="name" type="text" autocomplete="off" />
@@ -27,10 +27,9 @@ const hidden = f.flag('hidden')
       </Field>
     </div>
     <label class="check"><input v-model="hidden" type="checkbox" />Hidden from players</label>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="tag-rules">
-    <h3 id="tag-rules" class="sheet-label">What it means</h3>
+  <FoldPanel title="What it means" :summary="filled([['Rules text', description]])" :paths="['description']">
     <RichTextEditor label="What the tag means" html basic v-model="description" />
-  </section>
+  </FoldPanel>
 </template>

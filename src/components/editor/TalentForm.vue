@@ -6,6 +6,7 @@ import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
+import FoldPanel from './FoldPanel.vue'
 import ItemIdListField from './ItemIdListField.vue'
 import RepeatList from './RepeatList.vue'
 import { clean, input, latest, list, useEquipmentOptions, useFields } from './useFields'
@@ -31,8 +32,7 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="talent-basics">
-    <h3 id="talent-basics" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="terse" :paths="['name', 'id', 'terse', 'description']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field
@@ -50,10 +50,9 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
     <Field block label="Description" hint="Flavour text.">
       <RichTextEditor label="Description" html basic v-model="description" />
     </Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="talent-ranks">
-    <h3 id="talent-ranks" class="sheet-label">Ranks</h3>
+  <FoldPanel title="Ranks" open :summary="ranks.map((rank, index) => `${roman(index)} ${rank.name || 'Unnamed'}`).join(' · ')" :paths="['ranks']">
     <div v-if="ranks.length !== RANK_NAMES.length" class="notice warn" role="alert">
       <div class="notice-head">
         <p class="notice-title">This talent has {{ ranks.length }} {{ ranks.length === 1 ? 'rank' : 'ranks' }}, not three.</p>
@@ -77,10 +76,10 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
         <Field block label="Bonuses">
           <BonusListField :model-value="list<Data>(item.bonuses)" :types="bonusTypes" :path="`ranks.${index}.bonuses`" @update:model-value="change({ bonuses: clean($event) })" />
         </Field>
-        <Field block label="Built in" :path="`ranks.${index}.integrated`" hint="Built in, needs no mount.">
+        <Field block label="Built in" :path="`ranks.${index}.integrated`">
           <ItemIdListField :model-value="list<string>(item.integrated)" :items="equipment" :label="`Rank ${roman(index)} built-in equipment`" add="Add built-in equipment" @update:model-value="change({ integrated: clean($event) })" />
         </Field>
-        <Field block label="May take" :path="`ranks.${index}.special_equipment`" hint="Optional equipment this rank unlocks.">
+        <Field block label="Optional equipment" :path="`ranks.${index}.special_equipment`">
           <ItemIdListField :model-value="list<string>(item.special_equipment)" :items="equipment" :label="`Rank ${roman(index)} optional equipment`" add="Add optional equipment" @update:model-value="change({ special_equipment: clean($event) })" />
         </Field>
         <label class="check">
@@ -89,5 +88,5 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
         </label>
       </template>
     </RepeatList>
-  </section>
+  </FoldPanel>
 </template>

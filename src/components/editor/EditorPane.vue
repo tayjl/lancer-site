@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { confirmAction } from '../../confirm'
 import { bonusTypesFor, errorsOf, kindInfo, newId, problemsFor, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
 import { createItem, deleteItem, homebrewPack, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
@@ -64,6 +64,16 @@ const resetKey = ref(0)
 const screen = ref('Edit')
 const showForm = computed(() => props.wide || screen.value === 'Edit')
 const showPreview = computed(() => props.wide || screen.value === 'Preview')
+// The preview sticks beside the form only while it fits on screen. A taller one (a frame's full information) scrolls with
+// the page, so there's never a scroll box inside the page.
+const side = useTemplateRef<HTMLElement>('side')
+const fits = ref(true)
+const measure = () => {
+  if (side.value) fits.value = side.value.offsetHeight <= window.innerHeight - (parseFloat(getComputedStyle(side.value).top) || 0)
+}
+const sizeWatch = new ResizeObserver(measure)
+onMounted(() => { if (side.value) sizeWatch.observe(side.value); window.addEventListener('resize', measure) })
+onUnmounted(() => { sizeWatch.disconnect(); window.removeEventListener('resize', measure) })
 
 // A new item's id comes from its name (bionics get theirs from the database, a manufacturer's is typed) until it's saved the first time.
 watch(() => working.value.name, (name) => {
@@ -93,6 +103,8 @@ const problems = computed<Problem[]>(() => {
 })
 const errorCount = computed(() => errorsOf(problems.value).length)
 provideProblems(problems)
+// The form's folds remember being open or closed per kind (FoldPanel.vue).
+provide('editor-kind', props.kind)
 const bonusTypes = computed(() => bonusTypesFor(props.kind, props.stats))
 
 // Who uses this item: saving changes their sheets.
@@ -200,6 +212,7 @@ defineExpose({ dirty })
       <span v-if="draft" class="badge draft">Draft</span>
       <span v-else-if="homebrew" class="badge approved">Published</span>
       <span v-else-if="hasEdit" class="badge">Edited</span>
+      <span v-else-if="imported" class="badge">Official</span>
       <span v-if="dirty && !busy" class="dim status">Unsaved changes</span>
       <SaveStatus :saving="busy" :saved="status.saved.value && !dirty" :error="status.error.value" :can-retry="!conflict" @retry="save" />
       <div class="btn-row">
@@ -223,23 +236,12 @@ defineExpose({ dirty })
 
     <div class="cols">
       <div v-show="showForm" :key="resetKey" class="ed-form">
-        <div v-if="imported" class="notice" role="note">
-          <template v-if="hasEdit">
-            <div class="notice-head">
-              <p class="notice-title">Edited from {{ packName }}</p>
-              <button type="button" class="small" :disabled="busy || conflict" @click="revertToOriginal">Revert to original</button>
-            </div>
-            <p>The pack's version is under Original in the preview.</p>
-          </template>
-          <template v-else>
-            <p class="notice-title">Official content from {{ packName }}</p>
-            <p>Saving makes a campaign version.</p>
-          </template>
+        <!-- Where an imported item comes from: one quiet line (the bar's badge says Official or Edited). -->
+        <div v-if="imported" class="source">
+          <p class="dim">{{ hasEdit ? 'Edited from' : 'From' }} {{ packName }}.</p>
+          <button v-if="hasEdit" type="button" class="small" :disabled="busy || conflict" @click="revertToOriginal">Revert to original</button>
         </div>
-        <div v-if="pilots.length" class="notice" role="status">
-          <p class="notice-title">{{ usedBy(pilots) }}</p>
-          <p>Saving changes their sheets.</p>
-        </div>
+        <p v-if="pilots.length" class="notice" role="status">{{ usedBy(pilots) }}. Saving changes their sheets.</p>
         <p v-else-if="usageError" class="dim hint">Couldn't check who uses this.</p>
         <div v-if="problems.length" class="notice" :class="{ warn: errorCount }" :role="errorCount ? 'alert' : 'status'">
           <p class="notice-title">{{ errorCount ? `Fix ${plural(errorCount, 'problem')} before saving` : plural(problems.length, 'warning') }}</p>
@@ -277,7 +279,7 @@ defineExpose({ dirty })
         </section>
       </div>
 
-      <aside v-show="showPreview" class="side">
+      <aside v-show="showPreview" ref="side" class="side" :class="{ stick: fits }">
         <EditorPreview :kind="kind" :id="String(working.id ?? '')" :data="working" :original="imported && hasEdit ? item!.data : null" :stats="stats" />
       </aside>
     </div>
@@ -335,22 +337,34 @@ defineExpose({ dirty })
 
 .cols {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24rem;
+  grid-template-columns: minmax(0, 1fr) clamp(24rem, 30%, 26rem);
   gap: var(--space-l);
   align-items: start;
 }
 
 .side {
-  position: sticky;
   top: calc(var(--topbar-h) + var(--tabs-h) + 1px + 4.5rem);
-  max-height: calc(100dvh - var(--topbar-h) - var(--tabs-h) - 7rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+}
+
+.side.stick {
+  position: sticky;
 }
 
 .problems {
   margin: 0;
   padding-left: 1.2em;
+}
+
+.source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+}
+
+.source p {
+  margin: 0;
+  font-size: var(--fs-s);
 }
 
 .hint {
@@ -363,10 +377,8 @@ defineExpose({ dirty })
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .side {
+  .side.stick {
     position: static;
-    max-height: none;
-    overflow: visible;
   }
 }
 

@@ -526,6 +526,7 @@ export type Database = {
           character_id: number
           colour: string | null
           gallery: Json
+          mech_card_versions: Json
           motto: string | null
           updated_at: string
         }
@@ -538,6 +539,7 @@ export type Database = {
           character_id: number
           colour?: string | null
           gallery?: Json
+          mech_card_versions?: Json
           motto?: string | null
           updated_at?: string
         }
@@ -550,6 +552,7 @@ export type Database = {
           character_id?: number
           colour?: string | null
           gallery?: Json
+          mech_card_versions?: Json
           motto?: string | null
           updated_at?: string
         }
@@ -890,6 +893,25 @@ export type Database = {
         Returns: undefined
       }
       mark_dead: { Args: { target_character_id: number }; Returns: undefined }
+      mech_card: {
+        Args: { target_character_id: number; target_mech_id: string }
+        Returns: {
+          callsign: string
+          card_image: string
+          card_version: string
+          character_id: number
+          colour: string
+          frame_id: string
+          frame_name: string
+          frame_source: string
+          manufacturer_id: string
+          mech_id: string
+          mech_image: string
+          mech_name: string
+          pilot_name: string
+          status: Database["public"]["Enums"]["character_status"]
+        }[]
+      }
       pack_usage: {
         Args: never
         Returns: {

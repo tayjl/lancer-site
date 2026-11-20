@@ -44,6 +44,7 @@ describe('cardFilename', () => {
     expect(cardFilename('WARDEN')).toBe('warden-id.png')
     expect(cardFilename('Lady / Luck!')).toBe('lady-luck-id.png')
     expect(cardFilename('???')).toBe('pilot-id.png')
+    expect(cardFilename('Lodestar', 'card', 'mech')).toBe('lodestar-card.png')
   })
 })
 

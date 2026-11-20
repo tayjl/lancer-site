@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { GEAR_PRICE_DEFAULT } from '../../rules'
+import { plural } from '../../text'
 import { GEAR_TYPES, type BonusType, type Data } from '../../contentEditor'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import DamageField from './DamageField.vue'
 import Field from './Field.vue'
+import FoldPanel from './FoldPanel.vue'
 import TagListField from './TagListField.vue'
 import RichTextEditor from '../RichTextEditor.vue'
-import { latest, useFields } from './useFields'
+import { filled, latest, useFields } from './useFields'
 
 // The form for a piece of pilot gear (armour, a pilot weapon, or gear): what it is, its rules, a weapon's range and
 // damage, its bonuses, tags and actions.
@@ -34,8 +36,7 @@ const price = computed({
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="gear-basics">
-    <h3 id="gear-basics" class="sheet-label">Basics</h3>
+  <FoldPanel title="Basics" open :summary="[type === 'Armor' ? 'Armour' : type, model.manna_cost !== undefined ? `${model.manna_cost} manna` : ''].filter(Boolean).join(' · ')" :paths="['name', 'id', 'type', 'manna_cost']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
@@ -51,34 +52,29 @@ const price = computed({
         <input v-model="price" type="number" min="0" step="1" :placeholder="String(GEAR_PRICE_DEFAULT)" />
       </Field>
     </div>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="gear-rules">
-    <h3 id="gear-rules" class="sheet-label">Rules</h3>
+  <FoldPanel title="Rules" :summary="filled([['Rules text', effect], ['Description', description]])" :paths="['effect', 'description']">
     <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
     <Field block label="Description" hint="Shown as the rules when there are none.">
       <RichTextEditor label="Description" html basic v-model="description" />
     </Field>
-  </section>
+  </FoldPanel>
 
-  <section v-if="type === 'Weapon'" class="panel" aria-labelledby="gear-weapon">
-    <h3 id="gear-weapon" class="sheet-label">Range and damage</h3>
+  <FoldPanel v-if="type === 'Weapon'" title="Range and damage" open :summary="[...range, ...damage].map((entry) => `${entry.type} ${entry.val}`).join(', ') || 'Empty'" :paths="['range', 'damage']">
     <Field block label="Range"><DamageField v-model="range" kind="range" /></Field>
     <Field block label="Damage"><DamageField v-model="damage" kind="damage" /></Field>
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="gear-bonuses">
-    <h3 id="gear-bonuses" class="sheet-label">Bonuses</h3>
+  <FoldPanel title="Bonuses" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="gear-tags">
-    <h3 id="gear-tags" class="sheet-label">Tags</h3>
+  <FoldPanel title="Tags" :summary="plural(tagList.length, 'tag')" :paths="['tags']">
     <TagListField v-model="tagList" :tags="tags" />
-  </section>
+  </FoldPanel>
 
-  <section class="panel" aria-labelledby="gear-actions">
-    <h3 id="gear-actions" class="sheet-label">Actions</h3>
+  <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
-  </section>
+  </FoldPanel>
 </template>

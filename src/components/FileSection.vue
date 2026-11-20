@@ -4,16 +4,17 @@
 import { isFolded, setFolded } from '../fileSections'
 import Icon from './Icon.vue'
 
-// `fixed` sections (Identity) can't be folded. A folded body stays mounted (v-show), so unsaved fields and open pickers survive.
-defineProps<{ id: string; no: string; title: string; fixed?: boolean }>()
+// `fixed` sections (Identity) can't be folded; `folded` ones start folded until the viewer first opens them. A folded body
+// stays mounted (v-show), so unsaved fields and open pickers survive.
+defineProps<{ id: string; no: string; title: string; fixed?: boolean; folded?: boolean }>()
 </script>
 
 <template>
   <section :id="id" :aria-labelledby="`${id}-title`" class="file-section">
     <header class="sec-head">
       <h2 :id="`${id}-title`">
-        <button v-if="!fixed" type="button" class="sec-toggle" :aria-expanded="!isFolded(id)" :aria-controls="`${id}-body`" @click="setFolded(id, !isFolded(id))">
-          <Icon :name="isFolded(id) ? 'chevron-right' : 'chevron-down'" />
+        <button v-if="!fixed" type="button" class="sec-toggle" :aria-expanded="!isFolded(id, folded)" :aria-controls="`${id}-body`" @click="setFolded(id, !isFolded(id, folded))">
+          <Icon :name="isFolded(id, folded) ? 'chevron-right' : 'chevron-down'" />
           <span class="sec-no num">{{ no }}</span>{{ title }}
         </button>
         <template v-else><span class="sec-no num">{{ no }}</span>{{ title }}</template>
@@ -21,7 +22,7 @@ defineProps<{ id: string; no: string; title: string; fixed?: boolean }>()
       <span class="sec-rule" aria-hidden="true"></span>
       <span :id="`${id}-extra`" class="sec-extra"></span>
     </header>
-    <div :id="`${id}-body`" v-show="fixed || !isFolded(id)"><slot /></div>
+    <div :id="`${id}-body`" v-show="fixed || !isFolded(id, folded)"><slot /></div>
   </section>
 </template>
 

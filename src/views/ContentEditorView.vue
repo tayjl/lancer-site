@@ -331,10 +331,17 @@ async function exportLcp() {
   background: var(--void);
 }
 
-/* The list on the left (22rem) and the editor beside it. The list sticks and scrolls on its own; the editor scrolls
+/* The list on the left (18rem on desktop) and the editor beside it. The list sticks and scrolls on its own; the editor scrolls
    with the page, its bar sticking. Phones: one at a time. */
 .browser {
   --stick: calc(var(--topbar-h) + var(--tabs-h) + 1px + var(--space-m));
+}
+
+/* Desktop: the form (not the list) gets the room. The page is wider through the route's meta.wide (App.vue). */
+@media (min-width: 56.01rem) {
+  .browser {
+    grid-template-columns: 18rem minmax(0, 1fr);
+  }
 }
 
 .list {
