@@ -29,6 +29,7 @@ const props = defineProps<{
 }>()
 
 const dialog = useTemplateRef('dialog')
+const search = useTemplateRef('search')
 const filter = ref('')
 const error = ref('')
 const saving = ref(false)
@@ -88,6 +89,8 @@ function open() {
   filter.value = ''
   error.value = ''
   dialog.value?.showModal()
+  // Not on touch screens: the keyboard would cover most of the list.
+  if (matchMedia('(pointer: fine)').matches) search.value?.focus()
 }
 </script>
 
@@ -124,7 +127,7 @@ function open() {
       <div class="dialog-bar">
         <label class="field">
           <span>Search</span>
-          <input v-model="filter" type="search" autofocus />
+          <input ref="search" v-model="filter" type="search" />
         </label>
         <p class="dim count" aria-live="polite"><span class="num">{{ offered.length }}</span> of <span class="num">{{ items.length }}</span></p>
         <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>

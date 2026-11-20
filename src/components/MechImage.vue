@@ -136,7 +136,7 @@ const kind = computed(() => {
   }
 
   .size-info {
-    --h: 12rem;
+    --h: 9rem;
   }
 }
 </style>

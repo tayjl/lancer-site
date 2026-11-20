@@ -30,7 +30,7 @@ function show(award: Award) {
   </section>
 
   <!-- A click on the dialog itself is a click on the backdrop (its parts fill it). -->
-  <dialog ref="dialog" class="dialog medal-dialog" :aria-label="chosen?.commendation.name ?? 'Commendation'" @click.self="dialog?.close()">
+  <dialog ref="dialog" class="dialog compact medal-dialog" :aria-label="chosen?.commendation.name ?? 'Commendation'" @click.self="dialog?.close()">
     <template v-if="chosen">
       <header class="dialog-head">
         <h2>{{ chosen.commendation.name }}</h2>

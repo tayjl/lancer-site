@@ -957,17 +957,24 @@ label.field .error {
    Pickers, full information, "are you sure?": <dialog class="dialog"> holding a .dialog-head (title, then the close
    button), an optional .dialog-bar (a search box that stays put) and a .dialog-body. Never taller than the screen: only
    the body scrolls. The parts fill the dialog, so a click on the dialog itself is on the backdrop. --mf is the border:
-   a manufacturer's colour where the content has one. */
+   a manufacturer's colour where the content has one. On phones it fills the screen, unless it's .compact (a short box). */
 dialog.dialog {
   --mf: var(--edge);
   width: min(44rem, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);
   padding: 0;
+  overflow: hidden; /* only the body scrolls, never the dialog as well */
   border: 1px solid var(--mf);
   border-top: 3px solid var(--mf);
   border-radius: var(--radius);
   background: var(--panel);
   color: var(--text);
+}
+
+/* The page behind an open dialog stays put. The kept gutter stops the desktop layout shifting when its scrollbar goes. */
+html:has(dialog:modal) {
+  overflow: hidden;
+  scrollbar-gutter: stable;
 }
 
 dialog.dialog[open] {
@@ -1022,6 +1029,7 @@ dialog.dialog::backdrop {
 .dialog-body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain; /* a swipe past the end doesn't scroll the page behind */
   padding: var(--space-l);
 }
 
@@ -1308,6 +1316,29 @@ dialog.dialog::backdrop {
   .dialog-bar,
   .dialog-body {
     padding-inline: var(--space-m);
+  }
+
+  /* A full-screen sheet: the head stays at the top with Close, only the body scrolls, clear of the home bar. */
+  dialog.dialog:not(.compact) {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-width: 3px 0 0;
+    border-radius: 0;
+  }
+
+  .dialog-head button.small,
+  .pick-action button.small {
+    min-height: var(--tap);
+  }
+
+  /* A picker row's name opens its full information: a taller tap area that doesn't move the row. */
+  .pick-name button.info-link {
+    display: inline-block;
+    padding-block: 10px;
+    margin-block: -10px;
   }
 }
 

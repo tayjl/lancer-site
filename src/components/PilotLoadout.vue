@@ -8,7 +8,7 @@ import { itemCard } from '../itemDetails'
 import type { MiscItem, OwnedGear, Sheet } from '../myPilot'
 import { formatAmount, freeGear, gearPrice, restrictionOf } from '../rules'
 import { useRestriction } from '../restriction'
-import { itemPick, type PickOption } from '../pickerRows'
+import { itemPick, type PickGroup, type PickOption } from '../pickerRows'
 import { NOTE_MAX } from '../itemNotes'
 import { capitalise, plural } from '../text'
 import Icon from './Icon.vue'
@@ -217,13 +217,19 @@ const gearCost = (list: OwnedGear[]) => {
   return list.reduce((total, entry, n) => total + (flags[n] ? 0 : priceOf(entry.id)), 0)
 }
 
+// The Buy list's box for an item, in the order Armour, Weapons, Gear (anything else counts as gear). No colour of its own.
+const kindGroup = (item: Item): PickGroup => {
+  const order = CATEGORIES.findIndex((category) => category.type === (KINDS[item.type] ? item.type : 'Gear'))
+  return { key: CATEGORIES[order].type, title: CATEGORIES[order].title, colour: 'var(--rule)', logo: null, order, fixed: true }
+}
+
 const options = computed((): PickOption[] => {
   if (buying.value)
     return props.items
       .map((item) => {
         const row = catalogueRow(item)
         const price = gearPrice(item)
-        return { ...row, stats: [...(row.stats ?? []), priceStat(false, price)], blocked: row.blocked || (price > props.balance ? 'Not enough manna' : '') }
+        return { ...row, group: kindGroup(item), stats: [...(row.stats ?? []), priceStat(false, price)], blocked: row.blocked || (price > props.balance ? 'Not enough manna' : '') }
       })
       .sort(byRestriction)
   const slot = target.value
@@ -406,7 +412,11 @@ async function choose(id: string) {
       :error="pickerError"
       :empty="pickerEmpty"
       @choose="choose"
-    />
+    >
+      <template v-if="buying" #bar>
+        <p class="dim count">Manna: <span class="num">{{ formatAmount(balance) }}</span></p>
+      </template>
+    </ItemPicker>
   </section>
 </template>
 

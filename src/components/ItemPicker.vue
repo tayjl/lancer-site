@@ -12,6 +12,7 @@ const props = defineProps<{ title: string; options: PickOption[]; current?: stri
 const emit = defineEmits<{ choose: [id: string] }>()
 
 const dialog = useTemplateRef('dialog')
+const search = useTemplateRef('search')
 const filter = ref('')
 
 const shown = computed(() => {
@@ -23,6 +24,8 @@ const shown = computed(() => {
 function open() {
   filter.value = ''
   dialog.value?.showModal()
+  // Not on touch screens: the keyboard would cover most of the list.
+  if (matchMedia('(pointer: fine)').matches) search.value?.focus()
 }
 
 defineExpose({ open, close: () => dialog.value?.close() })
@@ -37,9 +40,11 @@ defineExpose({ open, close: () => dialog.value?.close() })
     <div class="dialog-bar">
       <label class="field">
         <span>Search</span>
-        <input v-model="filter" type="search" autofocus />
+        <input ref="search" v-model="filter" type="search" />
       </label>
       <p class="dim count" aria-live="polite"><span class="num">{{ shown.length }}</span> of <span class="num">{{ options.length }}</span></p>
+      <!-- Something the options depend on, such as the Buy picker's manna. -->
+      <slot name="bar" />
       <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
     </div>
 

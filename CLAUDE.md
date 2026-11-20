@@ -17,12 +17,13 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 Apply to the main session and every subagent; put the same rules in any subagent brief.
 - **Model & effort:** the orchestrator runs on Sonnet, or Opus at medium effort at most. Never switch model or effort mid-session (it breaks the prompt cache).
 - **Always use the custom agents** defined in `~/.claude/agents/` (`subagent_type` = the file's `name`; each sets its own model and effort, so don't pass `model` or `effort`). Pick the one whose job matches the task. Never use a built-in lookalike (`Explore`, `Plan`, `claude`, `general-purpose`) when a custom agent fits. If the folder has changed, follow the folder and update this list:
-  - `explorer` (Haiku, read-only): searching, locating components, tracing state, checking Supabase types, before planning.
+  - `explorer` (Haiku, read-only, runs graphify): searching, locating components, tracing state, checking Supabase types, before planning.
   - `database-architect` (Opus, high): migrations, RLS policies, database functions, triggers, pgTAP tests, `npm run types`.
-  - `ui-designer` (Opus, high): new or reworked screens, components and styles. It has no shell, so the main session runs tests and builds afterwards.
-  - `ux-reviewer` (Sonnet, read-only): review after any UI change (polish, phones, accessibility, empty states, the Site text rules).
-  - `security-auditor` (Sonnet, read-only): review after any change to RLS, auth, grants or `security definer` functions.
-  - Fallback for coding none of these fits (plain TypeScript logic, tests): `general-purpose` with `model: sonnet`.
+  - `ui-designer` (Opus, high): new or reworked screens, components and styles. It runs the build and takes its own phone and desktop screenshots (`playwright-cli`). Give it the dev server URL and the scratchpad folder.
+  - `ux-reviewer` (Sonnet, read-only): review after any UI change on the running page with `playwright-cli` (polish, phones at 320/360/390, accessibility, empty states, the Site text rules). Give it the dev server URL, the test login and the scratchpad folder.
+  - `security-auditor` (Sonnet, read-only): review after any change to RLS, auth, grants or `security definer` functions. It may prove a hole on the local database inside a rolled-back transaction.
+  - `ts-developer` (Sonnet, medium): plain TypeScript logic and unit tests (rules, calculations, helpers). Runs tests and the build itself.
+  - Fallback for anything none of these fits: `general-purpose` with `model: sonnet`.
 - **Batched subagents:** group related file changes into one detailed brief for one agent, not several small subagents. Small edits stay in the main session.
 - **Graphify first:** query `graphify-out/graph.json` (`graphify query "<q>"`, `graphify explain "<X>"`, `graphify path "A" "B"`) before raw Grep/Glob/Read scans, and check it for existing helpers/components before writing new code. Run `graphify update .` after code changes (AST only, free).
 - **Ponytail minimalism:** smallest complete diff, reuse existing abstractions, no speculative features.

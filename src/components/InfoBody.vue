@@ -98,6 +98,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
 /* max-content rows: in a body taller than its box, auto rows would squash the clipped .sep facts line to nothing. */
 .info-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* a wide child can never widen the column */
   grid-auto-rows: max-content;
   align-content: start;
   gap: var(--space-l);
@@ -181,6 +182,22 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
 @media (max-width: 44rem) {
   .compare {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phones: the numbers come before the radar, and the radar loses the empty bands above and below its labels
+   (16% of its width each, from its square viewBox). */
+@media (max-width: 40rem) {
+  .info-body {
+    gap: var(--space-m);
+  }
+
+  .stat-grid {
+    order: -1;
+  }
+
+  .compare :deep(.radar) {
+    margin-block: calc(min(100%, 30rem) * -0.16);
   }
 }
 

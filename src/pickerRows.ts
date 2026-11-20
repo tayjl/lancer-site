@@ -11,7 +11,8 @@ import { plainText } from './rulesText'
 // chips specific to the kind, and a button. The long text lives in the full information (the name opens it); it's only
 // searched ("search"). Items with a manufacturer are listed in a box per manufacturer, like the archives.
 export type PickChip = { label: string; icon?: string }
-export type PickGroup = { key: string; title: string; name?: string; colour: string; logo: string | null; order: number }
+// "fixed": the box keeps its order even when nothing in it can be chosen (the Buy picker's Armour, Weapons, Gear).
+export type PickGroup = { key: string; title: string; name?: string; colour: string; logo: string | null; order: number; fixed?: boolean }
 export type PickOption = {
   id: string | number
   name: string
@@ -68,7 +69,7 @@ export function groupPicks(options: PickOption[], current?: string | number | nu
   const blocked = (option: PickOption) => !!option.blocked && option.id !== current
   const list = [...boxes.values()]
   for (const box of list) box.options.sort((a, b) => Number(!!a.exotic) - Number(!!b.exotic) || Number(blocked(a)) - Number(blocked(b)))
-  const dead = (box: { options: PickOption[] }) => box.options.every(blocked)
+  const dead = (box: { group?: PickGroup; options: PickOption[] }) => !box.group?.fixed && box.options.every(blocked)
   const exoticBox = (box: { group?: PickGroup }) => box.group?.key === EXOTIC
   return list.sort((a, b) => Number(!!a.group) - Number(!!b.group) || Number(exoticBox(a)) - Number(exoticBox(b)) || Number(dead(a)) - Number(dead(b)) || (a.group?.order ?? 0) - (b.group?.order ?? 0))
 }

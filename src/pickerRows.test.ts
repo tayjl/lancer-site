@@ -28,6 +28,9 @@ describe('pickerRows', () => {
     expect(boxes[0].options.map((o) => o.id)).toEqual(['c', 'a'])
     // The current option counts as choosable, even though its own reason says otherwise.
     expect(groupPicks([option('x', 'GMS', 'GM only'), option('y', 'IPS-N')], 'x').map((box) => box.group?.key)).toEqual(['GMS', 'IPS-N'])
+    // A fixed box keeps its order with nothing choosable in it.
+    const kind = (id: string, order: number, blocked = ''): PickOption => ({ id, name: id, blocked, group: { key: id, title: id, colour: 'var(--rule)', logo: null, order, fixed: true } })
+    expect(groupPicks([kind('Gear', 2), kind('Armor', 0, 'Not enough manna')]).map((box) => box.group?.key)).toEqual(['Armor', 'Gear'])
     // Options with no manufacturer come first.
     expect(groupPicks([option('a', 'GMS'), { id: 'g', name: 'g' }]).map((box) => box.group?.key)).toEqual([undefined, 'GMS'])
   })

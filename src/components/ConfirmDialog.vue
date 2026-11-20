@@ -18,7 +18,7 @@ watch(shownConfirm, async (request) => {
 
 <template>
   <!-- Escape, cancel and a click on the backdrop all close it, which answers "no" unless already answered. -->
-  <dialog ref="dialog" class="dialog confirm" aria-labelledby="confirm-title" aria-describedby="confirm-message" @close="answerConfirm(false)" @click.self="answerConfirm(false)">
+  <dialog ref="dialog" class="dialog compact confirm" aria-labelledby="confirm-title" aria-describedby="confirm-message" @close="answerConfirm(false)" @click.self="answerConfirm(false)">
     <template v-if="shownConfirm">
       <header class="dialog-head"><h2 id="confirm-title">Are you sure?</h2></header>
       <p id="confirm-message" class="dialog-body">{{ shownConfirm.message }}</p>
