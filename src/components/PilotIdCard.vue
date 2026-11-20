@@ -104,11 +104,12 @@ async function download() {
 
 <template>
   <section class="panel id-panel">
-    <header class="sheet-head">
-      <h2 class="sheet-label">Pilot ID</h2>
+    <!-- The button and its result sit in the section's head (FileSection.vue), so both show while the section is folded. -->
+    <Teleport defer to="#pilot-id-extra">
+      <span v-if="note" class="result" :class="{ error: !note.ok }" :role="note.ok ? 'status' : 'alert'">{{ note.text }}</span>
       <button type="button" class="small" :disabled="busy" @click="download">{{ busy ? 'Drawing…' : 'Download card' }}</button>
-    </header>
-    <p v-if="draftOpen" class="note lead">Shows your approved pilot.</p>
+    </Teleport>
+    <p v-if="draftOpen" class="note">Shows your approved pilot.</p>
     <svg ref="svg" class="card" viewBox="0 0 856 540" role="img" :aria-label="label" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <clipPath id="id-card-shape"><path :d="outline" /></clipPath>
@@ -199,22 +200,10 @@ async function download() {
       </g>
       <path :d="outline" fill="none" :stroke="ink.rule" stroke-width="3" />
     </svg>
-    <p v-if="note" class="note" :class="{ error: !note.ok }" :role="note.ok ? 'status' : 'alert'">{{ note.text }}</p>
   </section>
 </template>
 
 <style scoped>
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
-header button {
-  margin-left: auto;
-}
-
 .card {
   display: block;
   width: 100%;
@@ -223,19 +212,17 @@ header button {
   margin: 0 auto;
 }
 
-.note {
-  margin: var(--space-s) 0 0;
+.note,
+.result {
   color: var(--text-dim);
   font-size: var(--fs-s);
-  text-align: center;
 }
 
-.note.lead {
-  margin: calc(-1 * var(--space-xs)) 0 var(--space-m);
-  text-align: left;
+.note {
+  margin: 0 0 var(--space-m);
 }
 
-.note.error {
+.result.error {
   color: var(--danger);
 }
 </style>

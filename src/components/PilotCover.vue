@@ -7,10 +7,10 @@ import { pilotSerial } from '../idCard'
 import CommendationBadges from './CommendationBadges.vue'
 import Portrait from './Portrait.vue'
 
-// The pilot file's cover: a banner strip, the portrait in pilot-colour corner brackets, a classification line, the
-// callsign, the motto, the name and player, the status badge and medals, then the key figures and (while editing) the
-// "tools" slot. The callsign, name and motto are fields while editable. The pilot's colour (--pilot) is decoration only:
-// brackets, rules and bars.
+// The pilot file's cover: a banner strip, the portrait in pilot-colour corner brackets, a classification line (with the
+// status badge and the "actions" slot at its right), the callsign with the name beside it, the motto, the medals and
+// player, then the key figures and (while editing) the "tools" slot. The callsign, name and motto are fields while
+// editable. The pilot's colour (--pilot) is decoration only: brackets, rules and bars.
 const props = defineProps<{
   id: number
   callsign: string | null
@@ -42,12 +42,23 @@ const title = computed(() => props.callsign ?? props.name)
             <span class="hide-sm">Union Administrative Department</span>
             <span>Pilot file</span>
             <span class="code">{{ pilotSerial(id) }}</span>
-            <span class="actions"><slot name="actions" /></span>
+            <span class="actions">
+              <span class="badge" :class="badge.status"><span class="sr-only">Status: </span>{{ badge.label }}</span>
+              <slot name="actions" />
+            </span>
           </div>
           <!-- While editable the callsign is a field, so the page's heading is for screen readers only. -->
           <h1 v-if="editable" class="sr-only">{{ callsign || name || 'My pilot' }}</h1>
-          <input v-if="editable" class="inline callsign" type="text" aria-label="Callsign" placeholder="Callsign" :value="callsign ?? ''" @change="emit('text', 'callsign', $event)" />
-          <h1 v-else class="callsign">{{ title }}</h1>
+          <div class="names">
+            <template v-if="editable">
+              <input class="inline callsign" type="text" aria-label="Callsign" placeholder="Callsign" :value="callsign ?? ''" @change="emit('text', 'callsign', $event)" />
+              <input class="inline name" type="text" aria-label="Name" placeholder="Name" :value="name" @change="emit('text', 'pilot_name', $event)" />
+            </template>
+            <template v-else>
+              <h1 class="callsign">{{ title }}</h1>
+              <span v-if="title !== name" class="name">{{ name }}</span>
+            </template>
+          </div>
           <div v-if="mottoEditable || motto" class="motto">
             <textarea
               v-if="mottoEditable"
@@ -62,16 +73,9 @@ const title = computed(() => props.callsign ?? props.name)
             ></textarea>
             <template v-else>{{ motto }}</template>
           </div>
-          <div class="sep sub">
-            <span>
-              <input v-if="editable" class="inline name" type="text" aria-label="Name" placeholder="Name" :value="name" @change="emit('text', 'pilot_name', $event)" />
-              <template v-else>{{ name }}</template>
-            </span>
-            <span>Player: {{ player }}</span>
-          </div>
-          <div class="badges">
-            <span class="badge" :class="badge.status">{{ badge.label }}</span>
+          <div class="foot">
             <CommendationBadges :awards="awards" />
+            <span class="player">Player: {{ player }}</span>
           </div>
         </div>
       </div>
@@ -105,15 +109,16 @@ const title = computed(() => props.callsign ?? props.name)
   border-radius: var(--radius) var(--radius) 0 0;
 }
 
-/* The banner picture, or a quiet pattern in the pilot's colour before they add one. */
+/* The banner picture, or before they add one a plain wash of the pilot's colour into the dark, with a soft glow behind
+   the portrait. */
 .banner {
   position: relative;
   height: 9rem;
   overflow: hidden;
   border-bottom: 2px solid var(--accent);
   background:
-    repeating-linear-gradient(135deg, rgb(255 255 255 / 0.035) 0 2px, transparent 2px 16px),
-    linear-gradient(100deg, color-mix(in srgb, var(--accent) 30%, var(--void)) 0%, var(--void) 75%);
+    radial-gradient(40% 90% at 12% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent),
+    linear-gradient(100deg, color-mix(in srgb, var(--accent) 30%, var(--void)), var(--void) 75%);
 }
 
 .banner img {
@@ -131,8 +136,10 @@ const title = computed(() => props.callsign ?? props.name)
   background: linear-gradient(transparent, var(--panel));
 }
 
+/* flow-root: the portrait's pull-up stays inside, so the grid starts under the banner rather than crossing it. */
 .cover-body {
   position: relative;
+  display: flow-root;
   padding: 0 var(--space-xl) var(--space-xl);
   background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 32px 32px;
@@ -198,7 +205,7 @@ const title = computed(() => props.callsign ?? props.name)
   letter-spacing: 0.1em;
 }
 
-/* The GM's links, at the line's right end. */
+/* The status badge, then the GM's links, at the line's right end. */
 .actions {
   display: flex;
   align-items: stretch;
@@ -207,8 +214,16 @@ const title = computed(() => props.callsign ?? props.name)
   letter-spacing: 0;
 }
 
-.actions:empty {
-  display: none;
+.actions .badge {
+  align-self: center;
+}
+
+/* The callsign, then the name smaller and dim on the same baseline, wrapping under it when there isn't room. */
+.names {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-l);
 }
 
 .callsign {
@@ -218,9 +233,10 @@ const title = computed(() => props.callsign ?? props.name)
   letter-spacing: 0.04em;
 }
 
-.sub {
+.name {
   color: var(--text-dim);
-  font-size: var(--fs-s);
+  font: 600 24px / 1.2 var(--sans);
+  letter-spacing: 0.02em;
 }
 
 /* Callsign and name: plain text with a faint underline that says they can be edited. */
@@ -240,13 +256,6 @@ const title = computed(() => props.callsign ?? props.name)
 
 .inline:hover {
   border-color: var(--rule);
-}
-
-/* No percentage cap here: against its shrink-to-fit item it would clip the last letters. */
-.inline.name {
-  max-width: none;
-  color: var(--text-dim);
-  font: inherit;
 }
 
 .motto {
@@ -274,11 +283,18 @@ const title = computed(() => props.callsign ?? props.name)
   overflow-wrap: anywhere;
 }
 
-.badges {
+/* The medals, then the player at the right end, under the actions above. */
+.foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-s) var(--space-l);
+}
+
+.player {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
 }
 
 .figures {
@@ -362,13 +378,13 @@ const title = computed(() => props.callsign ?? props.name)
     margin-top: -2.5rem;
   }
 
-  /* The text column dissolves into the cover grid, so the badges and medals run the full width under the portrait. */
+  /* The text column dissolves into the cover grid, so the medals and player run the full width under the portrait. */
   .cover-text {
     display: contents;
   }
 
   .portrait-frame {
-    grid-row: 1 / span 4;
+    grid-row: 1 / span 3;
   }
 
   .classification {
@@ -376,8 +392,7 @@ const title = computed(() => props.callsign ?? props.name)
   }
 
   .classification,
-  .callsign,
-  .sub,
+  .names,
   .motto {
     grid-column: 2;
   }
@@ -386,13 +401,23 @@ const title = computed(() => props.callsign ?? props.name)
     display: none;
   }
 
-  .badges {
+  .foot {
     grid-column: 1 / -1;
     margin-top: var(--space-s);
   }
 
+  /* The player on a line of its own. */
+  .player {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
   .callsign {
     font-size: 34px;
+  }
+
+  .name {
+    font-size: 20px;
   }
 
   .motto {
@@ -430,6 +455,10 @@ const title = computed(() => props.callsign ?? props.name)
 @media (max-width: 40rem) {
   .callsign {
     font-size: 30px;
+  }
+
+  .name {
+    font-size: 18px;
   }
 }
 </style>

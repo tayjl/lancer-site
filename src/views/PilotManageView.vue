@@ -48,8 +48,8 @@ import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, m
 import { capitalise } from '../text'
 
 // my pilot: your pilot as one scrolling file. A cover (portrait, callsign, name, player, status, medals, then the key
-// figures), the "what happens next" bar under it, any notes and the rule check, then seven numbered sections (identity,
-// service record, capabilities, qualifications, equipment, hangar, gallery) with an index that follows you (a list
+// figures), the "what happens next" bar under it, any notes and the rule check, then eight numbered sections (identity,
+// pilot ID, service record, capabilities, qualifications, equipment, hangar, gallery) with an index that follows you (a list
 // beside the file, a row under the top bar on phones; the url's #hash names the section). Everything is edited
 // in place and saves itself. While a pilot is pending you can edit it directly; once it's approved, changes are
 // proposed as a draft that a GM approves (src/myPilot.ts).
@@ -301,12 +301,13 @@ const gmLink = computed(() => isGm.value && !own && !reviewing)
 // it is empty. The ids are the url's #hash (a mech page links back to #hangar).
 const SEC = {
   identity: { id: 'identity', no: '01', title: 'Identity' },
-  record: { id: 'service-record', no: '02', title: 'Service record' },
-  capabilities: { id: 'capabilities', no: '03', title: 'Capabilities' },
-  qualifications: { id: 'qualifications', no: '04', title: 'Qualifications' },
-  equipment: { id: 'equipment', no: '05', title: 'Equipment' },
-  hangar: { id: 'hangar', no: '06', title: 'Hangar' },
-  gallery: { id: 'gallery', no: '07', title: 'Gallery' },
+  pilotId: { id: 'pilot-id', no: '02', title: 'Pilot ID' },
+  record: { id: 'service-record', no: '03', title: 'Service record' },
+  capabilities: { id: 'capabilities', no: '04', title: 'Capabilities' },
+  qualifications: { id: 'qualifications', no: '05', title: 'Qualifications' },
+  equipment: { id: 'equipment', no: '06', title: 'Equipment' },
+  hangar: { id: 'hangar', no: '07', title: 'Hangar' },
+  gallery: { id: 'gallery', no: '08', title: 'Gallery' },
 }
 const showGallery = computed(() => profileEditable.value || profile.fields.value.gallery.length > 0)
 const sections = computed(() => Object.values(SEC).filter((s) => s !== SEC.gallery || showGallery.value))
@@ -496,23 +497,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <FileIndex :sections="sections" />
         <div class="file">
           <FileSection v-bind="SEC.identity" fixed>
-            <div class="identity">
-              <IdentityGrid :fields="IDENTITY" :values="character" :editable="editable" @save="(column, event) => saveText(column as TextColumn, event)" />
-              <PilotIdCard
-                class="id-card"
-                :id="character.id"
-                :callsign="(approved?.character ?? character).callsign"
-                :name="(approved?.character ?? character).pilot_name"
-                :status="character.status"
-                :approved-at="character.approved_at"
-                :level="gm.level"
-                :licence-level="licenceLevel(approved?.sheet ?? sheet)"
-                :portrait="(approved?.character ?? character).pilot_image"
-                :draft-open="!!approved"
-                :colour="pilotColour"
-                :medals="awards.awards.value.map((a) => a.commendation.icon)"
-              />
-            </div>
+            <IdentityGrid :fields="IDENTITY" :values="character" :editable="editable" @save="(column, event) => saveText(column as TextColumn, event)" />
             <div class="notes">
               <SheetField title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
               <SheetField title="Personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
@@ -523,6 +508,23 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               </SheetField>
               <SheetField v-else-if="backstory.isPublic.value" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
             </div>
+          </FileSection>
+
+          <FileSection v-bind="SEC.pilotId">
+            <PilotIdCard
+              class="id-card"
+              :id="character.id"
+              :callsign="(approved?.character ?? character).callsign"
+              :name="(approved?.character ?? character).pilot_name"
+              :status="character.status"
+              :approved-at="character.approved_at"
+              :level="gm.level"
+              :licence-level="licenceLevel(approved?.sheet ?? sheet)"
+              :portrait="(approved?.character ?? character).pilot_image"
+              :draft-open="!!approved"
+              :colour="pilotColour"
+              :medals="awards.awards.value.map((a) => a.commendation.icon)"
+            />
           </FileSection>
 
           <FileSection v-bind="SEC.record">
@@ -663,36 +665,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   min-width: 0;
 }
 
-/* --- 01 Identity: the details and the ID card side by side, then the long writing full width --- */
-.identity {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 26rem;
-  align-items: start;
-  gap: var(--space-xl);
-}
-
-/* Beside the card the details are two to a row (seven in a row would be cramped); the last cell fills its row. */
-@media (width > 72rem) {
-  .identity :deep(.form) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .identity :deep(.cell:last-child) {
-    grid-column: span 2;
-  }
-}
-
-/* Narrower: the card drops under the details. */
-@media (max-width: 72rem) {
-  .identity {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .id-card {
-    max-width: 36rem;
-  }
-}
-
+/* --- 01 Identity: the details, then the long writing full width --- */
 /* Appearance, personality and backstory: one under another, full width. */
 .notes {
   display: grid;
@@ -700,18 +673,24 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   margin-top: var(--space-xl);
 }
 
-/* --- 03 Capabilities: blocks set apart by space and their headings alone --- */
+/* --- 02 Pilot ID: the card on show, centred --- */
+.id-card {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+/* --- 04 Capabilities: blocks set apart by space and their headings alone --- */
 .stat-block {
   margin-top: var(--space-xl);
 }
 
-/* --- 04 Qualifications: licences, talents and core bonuses, stacked full width --- */
+/* --- 05 Qualifications: licences, talents and core bonuses, stacked full width --- */
 .quals {
   display: grid;
   gap: var(--space-xl);
 }
 
-/* --- 05 Equipment: biomods in their own row under the loadout --- */
+/* --- 06 Equipment: biomods in their own row under the loadout --- */
 .biomods {
   margin-top: var(--space-xl);
 }
