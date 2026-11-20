@@ -11,9 +11,7 @@ Short handoff note. Update at the end of each feature or milestone. History and 
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Next steps
-- **Planned, not built (decided 2026-11-21):**
-  - **Item descriptions and variable damage:** each equipped item, pilot and mech, gets a description of what it really is (140 characters). A variable-damage weapon gets its type chosen when it's picked. Both go through a change and GM approval.
-  - **Pilot inventory:** owned pilot items, bought through a change, each with a manna price set in the content editor (100 until an owner changes it). Equipping and swapping owned items needs no approval, checked by the database. A new pilot's first full loadout is free. Existing pilots own what they have equipped. No refunds. Mech parts are unchanged.
-  - Suggested order: descriptions and damage first, then the inventory.
+- **Item descriptions and variable damage are built (2026-11-21, no migration):** `sheet.pilot_gear_notes` (by slot), `weapon_options[...].notes` and `system_notes` (by index); Variable weapons need `weapon_options.damageType` ("{Weapon} needs a damage type."). A pilot item's description should move onto the owned item when the inventory is built.
+- **Planned next (decided 2026-11-21): pilot inventory.** Owned pilot items, bought through a change, each with a manna price set in the content editor (100 until an owner changes it). Equipping and swapping owned items needs no approval, checked by the database. A new pilot's first full loadout is free. Existing pilots own what they have equipped. No refunds. Mech parts are unchanged.
 - After the first deploy with the Worker: paste an approved pilot's link in Discord to check the preview (a card picture appears once the owner or a GM has opened that pilot's page).
 - Open question: starting values for pilot stats and a new pilot's starting level.

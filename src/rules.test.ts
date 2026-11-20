@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import submitRulesSql from '../supabase/migrations/20261121090000_starting_manna_2000.sql?raw'
+import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
 import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
@@ -175,6 +176,18 @@ describe('mechs', () => {
       'Only one AI allowed.',
       'Uses 6 system points, but only 5 are available.',
     ])
+  })
+
+  it('needs a damage type chosen for a Variable weapon', () => {
+    const withGhoul: Catalogue = { ...catalogue, weapons: new Map([...catalogue.weapons, ['ghoul', item('ghoul', { mount: 'Main', damage: [{ type: 'Variable', val: 3 }] })]]) }
+    const mech = { frame: 'everest', mounts: [[null], ['ghoul']] }
+    expect(mechProblems(mech, sheet, withGhoul)).toEqual(['ghoul needs a damage type.'])
+    expect(mechProblems({ ...mech, weapon_options: { '1:0': { damageType: 'Variable' } } }, sheet, withGhoul)).toEqual(['ghoul needs a damage type.'])
+    expect(mechProblems({ ...mech, weapon_options: { '1:0': { damageType: 'Energy' } } }, sheet, withGhoul)).toEqual([])
+    // The card shows the chosen type, or Variable until one is chosen.
+    const ghoul = withGhoul.weapons.get('ghoul')!
+    expect(equipmentDetails(ghoul, {}, [], { damageType: 'Energy' }).damage[0].type).toBe('Energy')
+    expect(equipmentDetails(ghoul, {}, []).damage[0].type).toBe('Variable')
   })
 })
 

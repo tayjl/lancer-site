@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { loadoutSlots, useGameData, type CoreBonus, type Item, type Talent } from './gameData'
 import { allowedSizes, alternateOf, buildFrame, chosenFrame, fittedMods, mechEffects, mechResources, mechStats, mountSize, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
-import { modBlockedBy } from './equipment'
+import { DAMAGE_CHOICES, modBlockedBy, variableDamage } from './equipment'
 import { resolveBonuses } from './bonuses'
 import type { MechPrivate, Sheet } from './myPilot'
 import { capitalise } from './text'
@@ -243,7 +243,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
     if (options.profile !== undefined && (!Number.isInteger(options.profile) || options.profile < 0 || options.profile >= (item?.profiles?.length ?? 0))) problems.push(`${item?.name ?? id} has a profile that no longer exists.`)
     if (id.startsWith('mw_prototype_')) {
       if (options.type && !['Melee', 'CQB', 'Rifle', 'Cannon', 'Launcher', 'Nexus'].includes(options.type)) problems.push('Prototype weapon has an invalid weapon type.')
-      if (options.damageType && !['Kinetic', 'Explosive', 'Energy'].includes(options.damageType)) problems.push('Prototype weapon has an invalid damage type.')
+      if (options.damageType && !DAMAGE_CHOICES.includes(options.damageType)) problems.push('Prototype weapon has an invalid damage type.')
       if (Number(id.at(-1)) >= 2 && options.accuracy === false && options.smart === false) problems.push('Prototype weapon must choose two improvements.')
     }
   }
@@ -255,7 +255,10 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   else if (frameBlockedBy(baseFrame, catalogue.frames, sheet))
     problems.push(`${frame.name} isn't the frame chosen for the ${licenceFrame.name} licence.`)
 
-  // Weapons: licence, mount size, Superheavy bracing, Unique.
+  // Weapons: licence, mount size, Superheavy bracing, Unique, a chosen damage type for a Variable weapon.
+  const needsDamageType = (weapon: Item, key: string) => {
+    if (variableDamage(weapon) && !DAMAGE_CHOICES.includes(mech.weapon_options?.[key]?.damageType ?? '')) problems.push(`${weapon.name} needs a damage type.`)
+  }
   const mounts = (mech.mounts ?? []).slice(0, frame.mounts.length)
   const lookup = (map: Map<string, Item>, id: string) => map.get(id) ?? catalogue.integrated.get(id)
   const fitted: Item[] = []
@@ -268,6 +271,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
       if (!weapon) return problems.push(`Weapon ${id} isn't in any loaded pack.`)
       fitted.push(weapon)
       if (!isLicensed(weapon, licences)) problems.push(needs(weapon))
+      needsDamageType(weapon, `${m}:${i}`)
       // Checked against the places before it only, so a clash (e.g. Main + Auxiliary on Flex) is reported once.
       if (!allowedSizes(frame.mounts[m], i, sizes.map((size, k) => (k < i ? size : null))).includes(weapon.mount))
         problems.push(`${weapon.name} (${weapon.mount.toLowerCase()}) doesn't fit its ${frame.mounts[m].toLowerCase()} mount.`)
@@ -298,6 +302,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
     else if (!isLicensed(system, licences)) problems.push(needs(system))
   })
   const integratedItems = frame.integrated.map(id => catalogue.integrated.get(id)).filter((item): item is Item => !!item)
+  for (const item of integratedItems) if (item.mount) needsDamageType(item, `integrated:${item.id}`)
   const mods = fittedMods(mech, frame).flatMap(([, id]) => catalogue.mods?.get(id) ?? [])
   const known = [...fitted, ...installed.filter((item): item is Item => !!item), ...mods]
   for (const item of new Set(known.filter(isUnique)))

@@ -358,7 +358,7 @@ function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value:
 
 // --- Bionics and the loadout (1 armour, 2 weapons, 3 gear): picked from the catalogues, stored as ids ---
 const saveBionics = (ids: (string | number)[]) => track(updateSheet({ bionics: ids as number[] }))
-const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
+const saveGear = (ids: string[], notes: Record<string, string>) => track(updateSheet({ pilot_gear: ids, pilot_gear_notes: notes }))
 </script>
 
 <template>
@@ -632,7 +632,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           </FileSection>
 
           <FileSection v-bind="SEC.equipment">
-            <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+            <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :notes="sheet.pilot_gear_notes ?? {}" :editable="editable" :save="saveGear" />
             <LoadoutBox
               class="biomods"
               title="Biomods"

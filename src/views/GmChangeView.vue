@@ -80,6 +80,7 @@ const lines = computed(() => {
       coreBonus: (id) => find(coreBonuses.value, id),
       bionic: (id) => find(bionics.value, id),
       gear: (id) => find(gear.value, id),
+      gearType: (id) => gear.value.find((item) => item.id === id)?.type,
       frame: (id) => licenceName(frames.value, id),
       weapon: (id) => find([...weapons.value, ...integrated.value.values()], id),
       system: (id) => find([...systems.value, ...integrated.value.values()], id),

@@ -12,6 +12,10 @@ export function selectWeaponProfile(item: Item, index = 0): Item {
 
 type WeaponOptions = NonNullable<MechPrivate['weapon_options']>[string]
 
+// The damage types a player can choose for a Prototype weapon (default Kinetic) or a Variable one (no default).
+export const DAMAGE_CHOICES = ['Kinetic', 'Explosive', 'Energy']
+export const variableDamage = (item: Item) => !item.id.startsWith('mw_prototype_') && item.damage.some(damage => damage.type.toLowerCase() === 'variable')
+
 // Weapon mods (lancer-data's mods.json, docs/lancer-rules.md): one per weapon, never on a weapon that refuses mods or sits
 // in an integrated mount. Why a weapon takes no mod at all ("" when it does).
 export const modsRefused = (weapon: Item, mount: string) =>
@@ -48,6 +52,8 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
     const type = options?.type ?? 'Rifle', damageType = options?.damageType ?? 'Kinetic'
     selected = { ...selected, type, damage: selected.damage.map(damage => ({ ...damage, type: damageType })), range: selected.range.filter(range => range.type === (type === 'Melee' ? 'Threat' : 'Range')) }
   }
+  else if (options?.damageType && variableDamage(item))
+    selected = { ...selected, damage: selected.damage.map(damage => (damage.type.toLowerCase() === 'variable' ? { ...damage, type: options.damageType! } : damage)) }
   const variables = { ll: Object.values(sheet.licences ?? {}).reduce((sum, value) => sum + value, 0), ...sheet.mech_skills }
   const sources: string[] = []
   const applicable = (ids: string[], range?: string, damage?: string) => bonuses.filter(entry => ids.includes(entry.bonus.id) && matches(entry, selected, range, damage)).flatMap(entry => {

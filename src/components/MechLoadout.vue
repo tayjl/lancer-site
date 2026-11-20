@@ -11,6 +11,7 @@ import { allowedSizes, fittedMods, MOUNT_HINTS, mountSize, type Frame } from '..
 import type { MechPrivate, Sheet } from '../myPilot'
 import { bracingMount, isLicensed, licenceName, rankName, isExotic, restrictionOf, superheavyMount } from '../rules'
 import { useRestriction } from '../restriction'
+import { withoutNote } from '../itemNotes'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 import BuildItem from './BuildItem.vue'
@@ -84,6 +85,8 @@ const modOn = (m: number, i: number) => {
   return id ? find(modsById.value, id) : undefined
 }
 const withoutMod = (key: string) => Object.fromEntries(Object.entries(props.details.weapon_mods ?? {}).filter(([place]) => place !== key))
+// A removed weapon's choices and description go with it (a swap resets them to {}).
+const withoutOptions = (key: string) => Object.fromEntries(Object.entries(props.details.weapon_options ?? {}).filter(([place]) => place !== key))
 
 const spUsed = computed(
   () =>
@@ -112,7 +115,7 @@ const withWeapon = (m: number, i: number, id: string | null) =>
 async function unequip(m: number, i: number, id: string) {
   const mod = modOn(m, i)
   if (await confirmAction(`Remove ${find(weaponsById.value, id).name}${mod ? ` and its mod, ${mod.name}` : ''}? It leaves the mount empty.`, { confirmLabel: 'Remove weapon', danger: true }))
-    store({ mounts: withWeapon(m, i, null), weapon_mods: withoutMod(`${m}:${i}`) })
+    store({ mounts: withWeapon(m, i, null), weapon_mods: withoutMod(`${m}:${i}`), weapon_options: withoutOptions(`${m}:${i}`) })
 }
 
 async function removeMod(m: number, i: number) {
@@ -121,7 +124,7 @@ async function removeMod(m: number, i: number) {
 
 async function uninstall(index: number) {
   if (await confirmAction(`Remove ${find(systemsById.value, props.installed[index]).name}? It frees its system points.`, { confirmLabel: 'Remove system', danger: true }))
-    store({ systems: props.installed.filter((_, k) => k !== index) })
+    store({ systems: props.installed.filter((_, k) => k !== index), system_notes: withoutNote(props.details.system_notes, index, true) })
 }
 
 // --- The picker: weapons that fit a place, systems, or mods that fit a weapon ---
@@ -322,7 +325,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
           <BuildItem :item="system" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="`integrated:${system.id}`" :editable="editable" :save="save" integrated />
         </SlotCard>
         <SlotCard v-for="(id, index) in installed" :key="`${id}-${index}`">
-          <BuildItem :item="find(systemsById, id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="id" :editable="editable" :save="save">
+          <BuildItem :item="find(systemsById, id)" :sheet="sheet" :details="details" :bonuses="bonuses" :item-key="id" :system-index="index" :editable="editable" :save="save">
             <template v-if="editable" #foot>
               <button type="button" class="small quiet" :disabled="saving" @click="uninstall(index)">Remove</button>
             </template>

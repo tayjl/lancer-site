@@ -3,8 +3,10 @@ import { computed, ref } from 'vue'
 import type { NamedBonus } from '../bonuses'
 import { sourceOf, type Item } from '../gameData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { equipmentDetails } from '../equipment'
+import { DAMAGE_CHOICES, equipmentDetails, variableDamage } from '../equipment'
+import { withNote } from '../itemNotes'
 import ItemDetails from './ItemDetails.vue'
+import ItemNote from './ItemNote.vue'
 import ModSection from './ModSection.vue'
 
 const props = defineProps<{
@@ -16,6 +18,8 @@ const props = defineProps<{
   // A weapon on a mount of its own can have a mod ("moddable"): its mod, if any, and why it takes none (empty: it takes
   // one). Adding, swapping and removing it is MechLoadout's.
   moddable?: boolean; mod?: Item; modRefusal?: string
+  // An installed system's place in the mech's systems list, for its description (system_notes).
+  systemIndex?: number
 }>()
 const emit = defineEmits<{ pickMod: []; removeMod: [] }>()
 const options = computed(() => props.details.weapon_options?.[props.itemKey] ?? {})
@@ -23,6 +27,15 @@ const displayed = computed(() => equipmentDetails(props.item, props.sheet, props
 // Only the Limited bonus applies to a mod itself (more uses), so the weapon's attack bonuses aren't listed on it.
 const shownMod = computed(() => props.mod && equipmentDetails(props.mod, props.sheet, props.bonuses.filter(entry => entry.bonus.id === 'limited_bonus')))
 const prototype = computed(() => props.item.id.startsWith('mw_prototype_'))
+const variable = computed(() => variableDamage(props.item))
+// The player's description: a system's by its index, a weapon's in its options. Built-in items have none.
+const note = computed(() => (props.systemIndex === undefined ? options.value.notes : props.details.system_notes?.[props.systemIndex]))
+function describe(text: string) {
+  if (props.systemIndex !== undefined) return props.save({ system_notes: withNote(props.details.system_notes, String(props.systemIndex), text) })
+  const next: NonNullable<MechPrivate['weapon_options']>[string] = { ...options.value, notes: text }
+  if (!text) delete next.notes
+  return props.save({ weapon_options: { ...props.details.weapon_options, [props.itemKey]: next } })
+}
 const error = ref(''), saving = ref(false)
 async function set(key: string, value: string) {
   if (!props.editable || saving.value) return
@@ -36,25 +49,26 @@ async function set(key: string, value: string) {
 
 <template>
   <ItemDetails :item="displayed" :integrated="integrated">
-    <div v-if="editable && ((item.profiles?.length ?? 0) > 1 || prototype)" class="choices">
+    <ItemNote v-if="!integrated" :text="note" :editable="editable" :save="describe" />
+    <div v-if="editable && ((item.profiles?.length ?? 0) > 1 || prototype || variable)" class="choices">
       <label v-if="(item.profiles?.length ?? 0) > 1">Profile
         <select aria-label="profile" :value="options.profile ?? 0" :disabled="saving" @change="set('profile', ($event.target as HTMLSelectElement).value)">
           <option v-for="(profile, index) in item.profiles" :key="index" :value="index">{{ profile.name ?? `Profile ${index + 1}` }}</option>
         </select>
       </label>
-      <template v-if="prototype">
-        <label>Weapon type <select aria-label="weapon type" :value="options.type ?? 'Rifle'" :disabled="saving" @change="set('type', ($event.target as HTMLSelectElement).value)">
-          <option v-for="type in ['Melee', 'CQB', 'Rifle', 'Cannon', 'Launcher', 'Nexus']" :key="type">{{ type }}</option>
-        </select></label>
-        <label>Damage type <select aria-label="damage type" :value="options.damageType ?? 'Kinetic'" :disabled="saving" @change="set('damageType', ($event.target as HTMLSelectElement).value)">
-          <option v-for="type in ['Kinetic', 'Explosive', 'Energy']" :key="type">{{ type }}</option>
-        </select></label>
-        <label v-if="Number(item.id.at(-1)) >= 2">Prototype improvements
-          <select aria-label="prototype improvements" :value="options.accuracy === false ? 'smart-reactor' : options.smart === false ? 'accuracy-reactor' : 'accuracy-smart'" :disabled="saving" @change="set('tuning', ($event.target as HTMLSelectElement).value)">
-            <option value="accuracy-smart">Optics + computer</option><option value="accuracy-reactor">Optics + reactor shielding</option><option value="smart-reactor">Computer + reactor shielding</option>
-          </select>
-        </label>
-      </template>
+      <label v-if="prototype">Weapon type <select aria-label="weapon type" :value="options.type ?? 'Rifle'" :disabled="saving" @change="set('type', ($event.target as HTMLSelectElement).value)">
+        <option v-for="type in ['Melee', 'CQB', 'Rifle', 'Cannon', 'Launcher', 'Nexus']" :key="type">{{ type }}</option>
+      </select></label>
+      <!-- A Prototype weapon is Kinetic until changed; a Variable weapon has no default. -->
+      <label v-if="prototype || variable">Damage type <select aria-label="damage type" :value="options.damageType ?? (prototype ? 'Kinetic' : '')" :disabled="saving" @change="set('damageType', ($event.target as HTMLSelectElement).value)">
+        <option v-if="!prototype" value="" disabled>Choose…</option>
+        <option v-for="type in DAMAGE_CHOICES" :key="type">{{ type }}</option>
+      </select></label>
+      <label v-if="prototype && Number(item.id.at(-1)) >= 2">Prototype improvements
+        <select aria-label="prototype improvements" :value="options.accuracy === false ? 'smart-reactor' : options.smart === false ? 'accuracy-reactor' : 'accuracy-smart'" :disabled="saving" @change="set('tuning', ($event.target as HTMLSelectElement).value)">
+          <option value="accuracy-smart">Optics + computer</option><option value="accuracy-reactor">Optics + reactor shielding</option><option value="smart-reactor">Computer + reactor shielding</option>
+        </select>
+      </label>
     </div>
     <p v-if="error" class="notice warn" role="alert">Not saved: {{ error }}</p>
     <template v-if="moddable && (mod || editable)" #mod>

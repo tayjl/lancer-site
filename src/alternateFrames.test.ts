@@ -83,7 +83,7 @@ describe('rule check for alternate frames', () => {
 })
 
 describe('change review', () => {
-  const names: Names = { stat: (id) => id, licence: (id) => `L:${id}`, talent: (id) => id, coreBonus: (id) => id, bionic: (id) => String(id), gear: (id) => id, frame: (id) => `F:${id}`, weapon: (id) => id, system: (id) => id, mod: (id) => id }
+  const names: Names = { stat: (id) => id, licence: (id) => `L:${id}`, talent: (id) => id, coreBonus: (id) => id, bionic: (id) => String(id), gear: (id) => id, gearType: () => undefined, frame: (id) => `F:${id}`, weapon: (id) => id, system: (id) => id, mod: (id) => id }
   it('shows a changed frame choice in the licences group', () => {
     const before = { card: {}, sheet: { licences: { a: 2 } } }
     expect(changeDiff(before, { card: {}, sheet: { licences: { a: 2 }, frame_choices: { a: 'alt' } } }, names))

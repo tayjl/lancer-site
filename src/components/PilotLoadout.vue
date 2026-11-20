@@ -7,19 +7,23 @@ import { restrictionOf } from '../rules'
 import { useRestriction } from '../restriction'
 import { itemPick } from '../pickerRows'
 import { capitalise, plural } from '../text'
+import { withNote, withoutNote, type Notes } from '../itemNotes'
 import ItemDetails from './ItemDetails.vue'
+import ItemNote from './ItemNote.vue'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 
 // The pilot's loadout: one armour slot, two weapon slots and three gear slots, in a three-column grid (Armour, Weapon,
 // Weapon, then Gear, Gear, Gear), each card labelled with its type; phones get one column in the same order. Empty slots
 // say so, with a button to equip one. Each slot only takes items of its type, picked from the catalogue
-// (sheet.pilot_gear holds the ids; the slot comes from the type).
+// (sheet.pilot_gear holds the ids; the slot comes from the type). Each item can carry its player's description
+// (sheet.pilot_gear_notes, by slot: "Weapon:1"), which goes when the item leaves its slot.
 const props = defineProps<{
   items: Item[]
   chosen: string[]
+  notes: Notes
   editable: boolean
-  save: (ids: string[]) => Promise<string | null>
+  save: (ids: string[], notes: Notes) => Promise<string | null>
 }>()
 
 const byId = computed(() => new Map(props.items.map((item) => [item.id, item])))
@@ -35,11 +39,13 @@ const emptyText = (slot: Slot) => (slot.id && byId.value.get(slot.id) ? '' : `No
 // --- Changing a slot: rebuilds the whole list from the slots ---
 const error = ref('')
 const saving = ref(false)
+const noteKey = (slot: Slot) => `${slot.type}:${slot.index}`
 
+// The slot's description goes with its item. A removed item closes up its type's slots, so later notes move down with theirs.
 async function store(target: Slot, id: string | null) {
   const ids = layout.value.slots.map((slot) => (slot.type === target.type && slot.index === target.index ? id : slot.id))
   saving.value = true
-  error.value = (await props.save([...ids.filter((x): x is string => !!x), ...layout.value.unknown])) ?? ''
+  error.value = (await props.save([...ids.filter((x): x is string => !!x), ...layout.value.unknown], withoutNote(props.notes, target.index, !id, `${target.type}:`))) ?? ''
   saving.value = false
   return !error.value
 }
@@ -85,6 +91,7 @@ async function equip(id: string) {
           <button type="button" class="small" :disabled="saving" @click="open(slot)">Add {{ KINDS[slot.type] }}</button>
         </template>
         <ItemDetails :item="byId.get(slot.id!)!">
+          <ItemNote :text="notes[noteKey(slot)]" :editable="editable" :save="(text) => save(chosen, withNote(notes, noteKey(slot), text))" />
           <template v-if="editable" #foot>
             <button type="button" class="small" :disabled="saving" @click="open(slot)">Swap</button>
             <button type="button" class="small quiet" :disabled="saving" @click="unequip(slot)">Remove</button>

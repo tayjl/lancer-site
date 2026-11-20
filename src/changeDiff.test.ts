@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { changeDiff, listDiff, reviewSections, writingSummary, wordCount, type Names } from './changeDiff'
+import type { MechPrivate, Sheet } from './myPilot'
 import { mannaSpent } from './rules'
 
 const names: Names = {
@@ -9,6 +10,7 @@ const names: Names = {
   coreBonus: (id) => `CB:${id}`,
   bionic: (id) => `B:${id}`,
   gear: (id) => `G:${id}`,
+  gearType: (id) => (id.endsWith('rifle') ? 'Weapon' : 'Gear'),
   frame: (id) => `F:${id}`,
   weapon: (id) => `W:${id}`,
   system: (id) => `S:${id}`,
@@ -145,6 +147,28 @@ describe('changeDiff', () => {
       'CB:cb_overpower_caliber target: Unassigned → Mount 1, W:rifle',
       'Mount 1, weapon 1 configuration: Defaults → Profile 2, Melee',
     ])
+  })
+
+  it('describes item descriptions and a chosen damage type, by the item they are on', () => {
+    const card = { mechs: [{ id: 'm1', name: 'Mech', manufacturer_id: 'AAAA-AAAA-AAAA', appearance: null, image: null }] }
+    const text = (before: Sheet, after: Sheet) => changeDiff({ card, sheet: before }, { card, sheet: after }, names).map((line) => `${line.section} | ${line.kind} | ${line.text}`)
+    const onMech = (m1: MechPrivate): Sheet => ({ mechs: { m1 } })
+    // Pilot gear, by slot: added, and a removed item's slots closing up.
+    expect(text({ pilot_gear: ['knife', 'rifle'] }, { pilot_gear: ['knife', 'rifle'], pilot_gear_notes: { 'Weapon:0': 'salvaged railgun' } }))
+      .toEqual(['loadout | added | G:rifle description: - → salvaged railgun'])
+    expect(text({ pilot_gear: ['a_rifle', 'b_rifle'], pilot_gear_notes: { 'Weapon:0': 'x', 'Weapon:1': 'y' } }, { pilot_gear: ['b_rifle'], pilot_gear_notes: { 'Weapon:0': 'y' } }))
+      .toEqual(['loadout | removed | G:a_rifle', 'loadout | removed | G:a_rifle description: x → -'])
+    // A mech weapon's description changed, with no configuration line.
+    expect(text(onMech({ mounts: [['rifle']], weapon_options: { '0:0': { notes: 'old' } } }), onMech({ mounts: [['rifle']], weapon_options: { '0:0': { notes: 'new' } } })))
+      .toEqual(['mech: Mech / weapon mounts | updated | W:rifle description: old → new'])
+    // A system's description removed, and a removed system's list closing up.
+    expect(text(onMech({ systems: ['paint'], system_notes: { 0: 'red' } }), onMech({ systems: ['paint'] })))
+      .toEqual(['mech: Mech / systems | removed | S:paint description: red → -'])
+    expect(text(onMech({ systems: ['paint', 'sensor'], system_notes: { 0: 'a', 1: 'b' } }), onMech({ systems: ['sensor'], system_notes: { 0: 'b' } })))
+      .toEqual(['mech: Mech / systems | removed | S:paint', 'mech: Mech / systems | removed | S:paint description: a → -'])
+    // A Variable weapon's damage type chosen.
+    expect(text(onMech({ mounts: [['ghoul']], weapon_options: { '0:0': {} } }), onMech({ mounts: [['ghoul']], weapon_options: { '0:0': { damageType: 'Energy' } } })))
+      .toEqual(['mech: Mech / weapon mounts | updated | Mount 1, weapon 1 configuration: Defaults → Energy'])
   })
 })
 

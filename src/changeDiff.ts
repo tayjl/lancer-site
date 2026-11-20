@@ -1,6 +1,7 @@
 import type { Json } from './lib/database.types'
 import type { MechPrivate, Sheet } from './myPilot'
 import type { PublicMech } from './pilots'
+import { loadoutSlots } from './gameData'
 import { docText } from './richTextSafe'
 import { PRICES, rankName } from './rules'
 import { capitalise } from './text'
@@ -34,6 +35,7 @@ export type Names = {
   coreBonus: (id: string) => string
   bionic: (id: number) => string
   gear: (id: string) => string
+  gearType: (id: string) => string | undefined // its loadout slot type, to find which item a slot's description is on
   frame: (id: string) => string
   weapon: (id: string) => string
   system: (id: string) => string
@@ -108,6 +110,26 @@ export function changeDiff(
       if (a !== b) add(section, `${names.stat(id)} ${a} → ${b}`, b > a ? 'raised' : 'lowered')
     }
   }
+  // Item descriptions ([item id, description] in list order), compared by item (its id and which copy) rather than by place,
+  // so items closing up after a removal don't read as changed text: "Assault Rifle description: - → salvaged railgun".
+  const descriptions = (section: string, from: [string | null, string | undefined][], to: [string | null, string | undefined][], name: (id: string) => string) => {
+    const byItem = (entries: [string | null, string | undefined][]) => {
+      const copies = new Map<string, number>()
+      const result = new Map<string, string>()
+      for (const [id, text] of entries) {
+        if (!id) continue
+        copies.set(id, (copies.get(id) ?? 0) + 1)
+        if (text) result.set(`${id}#${copies.get(id)}`, text)
+      }
+      return result
+    }
+    const [a, b] = [byItem(from), byItem(to)]
+    for (const key of new Set([...a.keys(), ...b.keys()]))
+      if (a.get(key) !== b.get(key)) field(section, `${name(key.slice(0, key.lastIndexOf('#')))} description`, a.get(key), b.get(key))
+  }
+  const gearNotes = (sheet: Sheet) =>
+    loadoutSlots(sheet.pilot_gear ?? [], names.gearType).slots.map((slot): [string | null, string | undefined] => [slot.id, sheet.pilot_gear_notes?.[`${slot.type}:${slot.index}`]])
+  const systemNotes = (m: MechPrivate) => (m.systems ?? []).map((id, index): [string, string | undefined] => [id, m.system_notes?.[index]])
 
   // Public card.
   for (const column of ['pilot_name', 'callsign', 'age', 'gender', 'sexuality', 'height', 'weight', 'eye_colour', 'hair_colour'] as const)
@@ -123,6 +145,7 @@ export function changeDiff(
   stats('piloting stats', before.sheet.mech_skills, after.sheet.mech_skills, 0)
   listChanges('biomods', before.sheet.bionics, after.sheet.bionics, names.bionic, prices?.bionic)
   listChanges('loadout', before.sheet.pilot_gear, after.sheet.pilot_gear, names.gear)
+  descriptions('loadout', gearNotes(before.sheet), gearNotes(after.sheet), names.gear)
 
   // Mechs: the public list and each mech's private details, by mech id.
   const mechsOf = (card: PublicCard) => (Array.isArray(card.mechs) ? (card.mechs as unknown as PublicMech[]) : [])
@@ -160,6 +183,7 @@ export function changeDiff(
     if (!same(a.mounts ?? [], b.mounts ?? []) && !mountChanges.added.length && !mountChanges.removed.length)
       add(`${section} / weapon mounts`, 'Weapon mounts rearranged')
     listChanges(`${section} / systems`, a.systems, b.systems, names.system)
+    descriptions(`${section} / systems`, systemNotes(a), systemNotes(b), names.system)
     const targetName = (m: MechPrivate, key: string) => {
       const target = m.core_mounts?.[key]
       if (target === undefined) return 'Unassigned'
@@ -175,12 +199,18 @@ export function changeDiff(
       ...(options.accuracy !== undefined ? [options.accuracy ? 'Optics' : 'Reactor shielding'] : []),
       ...(options.smart !== undefined ? [options.smart ? 'Computer' : 'Reactor shielding'] : []),
     ].filter(Boolean).join(', ') || 'Defaults'
-    for (const key of new Set([...Object.keys(a.weapon_options ?? {}), ...Object.keys(b.weapon_options ?? {})]))
-      if (!same(a.weapon_options?.[key], b.weapon_options?.[key])) {
-        const [mount, place] = key.split(':').map(Number)
-        const label = key.startsWith('integrated:') ? names.weapon(key.slice('integrated:'.length)) : `Mount ${mount + 1}, weapon ${place + 1}`
-        add(`${section} / weapon mounts`, `${label} configuration: ${configuration(a.weapon_options?.[key])} → ${configuration(b.weapon_options?.[key])}`)
+    // Each weapon's choices, then its description, named for the weapon it's on (the one it left, when it's gone).
+    for (const key of new Set([...Object.keys(a.weapon_options ?? {}), ...Object.keys(b.weapon_options ?? {})])) {
+      const [from, to] = [a.weapon_options?.[key], b.weapon_options?.[key]]
+      const [mount, place] = key.split(':').map(Number)
+      const integrated = key.startsWith('integrated:') ? key.slice('integrated:'.length) : null
+      const label = integrated ? names.weapon(integrated) : `Mount ${mount + 1}, weapon ${place + 1}`
+      if (configuration(from) !== configuration(to)) add(`${section} / weapon mounts`, `${label} configuration: ${configuration(from)} → ${configuration(to)}`)
+      if ((from?.notes ?? '') !== (to?.notes ?? '')) {
+        const weapon = integrated ?? (to?.notes ? b : a).mounts?.[mount]?.[place]
+        field(`${section} / weapon mounts`, `${weapon ? names.weapon(weapon) : label} description`, from?.notes, to?.notes)
       }
+    }
     // A mod sits on a weapon's place: "Mod on Assault Rifle: Nanocomposite Adaptation".
     for (const key of new Set([...Object.keys(a.weapon_mods ?? {}), ...Object.keys(b.weapon_mods ?? {})])) {
       const [from, to] = [a.weapon_mods?.[key], b.weapon_mods?.[key]]

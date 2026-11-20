@@ -33,7 +33,10 @@ export type MechPrivate = {
   core_mounts?: Record<string, number>
   // The mod on each weapon, by the weapon's place ("mount:place", like weapon_options): a mod id.
   weapon_mods?: Record<string, string>
-  weapon_options?: Record<string, { profile?: number; type?: string; damageType?: string; accuracy?: boolean; smart?: boolean }>
+  // A weapon's choices, by its place ("mount:place", or "integrated:<id>"); "notes" is its player's description.
+  weapon_options?: Record<string, { profile?: number; type?: string; damageType?: string; accuracy?: boolean; smart?: boolean; notes?: string }>
+  // Each system's description by its player, by its index in "systems".
+  system_notes?: Record<string, string>
 }
 // The private sheet (docs/database-sketch.md has the full shape). Stats are keyed by id; gear holds content_items ids
 // and bionics holds bionics ids.
@@ -43,6 +46,8 @@ export type Sheet = {
   pilot_stats?: Record<string, number>
   mech_skills?: Record<string, number>
   pilot_gear?: string[]
+  // Each gear item's description by its player, by loadout slot ("Weapon:1", src/itemNotes.ts).
+  pilot_gear_notes?: Record<string, string>
   bionics?: number[]
   // Bought with manna (src/rules.ts): the rank (1 to 3) in each licence, keyed by licence (frame) id, and in
   // each talent, keyed by talent id. Core bonuses (ids) are free, one per 3 licence ranks.
