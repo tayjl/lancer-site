@@ -611,6 +611,11 @@ async function scrap() {
   font-size: var(--fs-s);
 }
 
+/* On a panel, the tiles take the next fill up. */
+.mech-stats {
+  --tile: var(--raised);
+}
+
 /* The twelve mech stats as two even rows; below this width StatRow's own narrow layout takes over. */
 @media (min-width: 56rem) {
   .mech-stats :deep(.stats) {
@@ -634,17 +639,17 @@ async function scrap() {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: var(--space-s) 6px var(--space-m);
-  border: 1px solid var(--rule);
+  padding: var(--space-m) 6px;
   border-radius: var(--radius);
-  background: var(--void);
+  background: var(--raised);
+  box-shadow: inset 0 3px var(--pilot, var(--edge));
   text-align: center;
 }
 
 .resources .value {
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 /* The overcharge ladder is a sequence ("1 → 1d3 → 1d6 → 1d6+4"), not one number. */

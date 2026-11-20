@@ -176,11 +176,19 @@ export const STAT_ICONS: Record<string, string> = {
   hull: hullIcon, agility: agilityIcon, systems: systemsIcon, engineering: engineeringIcon,
 }
 
+// "Where these numbers come from" for a stat: "Base: 6" (unless a bonus sets it), then "Source: +2" or "Source: sets to 3"
+// per bonus that counted, then any "extra" added on top.
+function bonusLines(base: number, result: ReturnType<typeof resolveBonuses>, extra: { source: string; value: number; replace?: boolean }[] = []) {
+  return [
+    ...(result.usesBase ? [`Base: ${base}`] : []),
+    ...[...result.used, ...extra].map(entry => `${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
+  ]
+}
+
 // A sheet's stats, ready for StatRow, with bionic bonuses on the personal stats. Personal stats (house
 // rule) start at 2 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
 export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[], extraBonuses: NamedBonus[] = []) {
-  const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses)
-  const bonusFor = (statId: string) => installed.reduce((sum, bonus) => sum + (bonus.stat_id === statId ? bonus.amount : 0), 0)
+  const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses.map((bonus) => ({ source: b.name, statId: bonus.stat_id, value: bonus.amount })))
   const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[], start: number) =>
     stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), icon: STAT_ICONS[stat.id], value: sheet[key]?.[stat.id] ?? start }))
   return {
@@ -189,7 +197,12 @@ export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bio
         const value = bonusValue(entry.bonus.val)
         return value === null ? [] : [{ source: entry.source, value, replace: entry.bonus.replace, overwrite: entry.bonus.overwrite }]
       })
-      return { ...stat, bonus: bonusFor(stat.id) + resolveBonuses(stat.value, entries).value - stat.value }
+      const result = resolveBonuses(stat.value, entries)
+      // Bionics add on top of everything else.
+      const bionics = installed.filter((entry) => entry.statId === stat.id)
+      const bonus = bionics.reduce((sum, entry) => sum + entry.value, 0) + result.value - stat.value
+      // Listed under the block only when something changes the stat.
+      return { ...stat, bonus, contributors: result.used.length || bionics.length ? bonusLines(stat.value, result, bionics) : [] }
     }),
     piloting: values('mech_skills', MECH_SKILLS, 0),
   }
@@ -223,10 +236,7 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
       return value === null ? [] : [{ source, value, replace: bonus.replace, overwrite: bonus.overwrite }]
     })
     const result = resolveBonuses(stat.value, matching)
-    return { ...stat, value: layout.unknown.length ? null : Math.max(0, result.value), contributors: layout.unknown.length ? [] : [
-      ...(result.usesBase ? [`Base: ${stat.value}`] : []),
-      ...result.used.map(entry => `${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
-    ] }
+    return { ...stat, value: layout.unknown.length ? null : Math.max(0, result.value), contributors: layout.unknown.length ? [] : bonusLines(stat.value, result) }
   })
 }
 

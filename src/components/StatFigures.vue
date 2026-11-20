@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Icon from './Icon.vue'
 
-// The general stats (HP, armour, speed, e-defence, grit) as one row of figures: symbol, number in mono, name.
+// The general stats (HP, armour, speed, e-defence, grit) as one row of filled tiles, like StatRow's: symbol, number, name.
 defineProps<{ stats: { id: string; name: string; value: number | null; icon?: string }[] }>()
 </script>
 
@@ -17,38 +17,39 @@ defineProps<{ stats: { id: string; name: string; value: number | null; icon?: st
 
 <style scoped>
 .figures {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
   list-style: none;
 }
 
+/* A filled tile with a strip of the pilot's colour (decoration only) along its top. */
 .figure {
-  display: grid;
-  grid-template-columns: auto auto;
-  justify-content: center;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
   align-items: center;
-  gap: 0 var(--space-m);
-  padding: var(--space-m);
-  border-left: 1px solid var(--rule);
-}
-
-.figure:first-child {
-  border-left: 0;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-m) 6px;
+  border-radius: var(--radius);
+  background: var(--tile, var(--panel));
+  box-shadow: inset 0 3px var(--pilot, var(--edge));
+  text-align: center;
 }
 
 .figure .icon {
-  grid-row: span 2;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   color: var(--text-dim);
 }
 
 .value {
-  font: 700 26px / 1.1 var(--mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 
 .name {
@@ -59,34 +60,23 @@ defineProps<{ stats: { id: string; name: string; value: number | null; icon?: st
   text-transform: uppercase;
 }
 
-/* Phones: three to a row, the symbol over the number. */
+/* Phones: three to a row, the last two sharing the second row. */
 @media (max-width: 40rem) {
   .figures {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .figure {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    padding: var(--space-s);
-  }
-
-  .figure:nth-child(3n + 1) {
-    border-left: 0;
-  }
-
-  .figure:nth-child(n + 4) {
-    border-top: 1px solid var(--rule);
-  }
-
-  .figure .icon {
-    grid-row: auto;
-    width: 24px;
-    height: 24px;
+    flex-basis: 28%;
+    padding-inline: 2px;
   }
 
   .value {
-    font-size: 22px;
+    font-size: 26px;
+  }
+
+  .name {
+    letter-spacing: 0;
   }
 }
 </style>

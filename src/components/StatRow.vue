@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import Icon from './Icon.vue'
+import StatSources from './StatSources.vue'
 
-// A block of stats (general, personal and piloting stats on my pilot; mech stats): the section heading (with, for a
-// "budget" of shared points, "1 of 4 points left" at the right, red only when overspent), then a tile per stat: its
-// symbol, its number, its name, any modifier under it, and - / + pinned to the tile's foot when editable. On phones a
-// budgeted block (personal stats, HASE) becomes one line per stat (symbol, name, number, - / +); the others stay tiles,
-// four to a row. "bonus" (e.g. from bionics) changes the displayed total, with the base and modifier under it. A null
-// value (not worked out yet) shows as "–". "icon" is an SVG's url. Every stat's "contributors" are listed together
-// under "Where these numbers come from".
+// A block of stats (personal and piloting stats on my pilot; mech stats): the section heading (with, for a "budget" of
+// shared points, pips and "1 of 4 points left" at the right, red only when overspent), then a filled tile per stat: its
+// symbol, its number, its name, and - / + pinned to the tile's foot when editable. On phones a budgeted block (personal
+// stats, HASE) becomes one row per stat (symbol, name, number, - / +); the others stay tiles. "bonus" changes the
+// displayed total. A null value (not worked out yet) shows as "–". "icon" is an SVG's url. Every stat's "contributors"
+// are listed under the block. A parent can set --tile for the tiles' fill (one step lighter than what they sit on).
 const props = defineProps<{
   title: string
   stats: { id: string; name: string; value: number | null; bonus?: number; icon?: string; contributors?: string[] }[]
@@ -22,7 +22,6 @@ const emit = defineEmits<{ set: [id: string, value: number] }>()
 const used = computed(() => props.stats.reduce((sum, stat) => sum + Math.max(0, (stat.value ?? props.min) - props.min), 0))
 const spent = computed(() => props.budget !== undefined && used.value >= props.budget)
 const overspent = computed(() => props.budget !== undefined && used.value > props.budget)
-const sources = computed(() => props.stats.filter((stat) => stat.contributors?.length))
 const shown = (stat: { value: number | null; bonus?: number }) => {
   if (stat.value === null) return '–'
   const total = stat.value + (stat.bonus ?? 0)
@@ -39,6 +38,10 @@ const raiseBlocked = (value: number | null) =>
     <header class="sheet-head head">
       <h2 class="sheet-label">{{ title }}</h2>
       <span v-if="budget !== undefined" class="meter-inline" :class="{ over: overspent }">
+        <!-- One pip per point, filled while it's still to spend. Decoration: the words say it. -->
+        <span v-if="budget && budget <= 12" class="pips" aria-hidden="true">
+          <span v-for="n in budget" :key="n" class="pip" :class="{ on: n <= budget - used }"></span>
+        </span>
         <template v-if="overspent"><span class="num">{{ used - budget }}</span> over the <span class="num">{{ budget }}</span> points</template>
         <template v-else><span class="num">{{ budget - used }}</span> of <span class="num">{{ budget }}</span> points left</template>
       </span>
@@ -47,10 +50,7 @@ const raiseBlocked = (value: number | null) =>
       <li v-for="stat in stats" :key="stat.id" class="stat">
         <Icon v-if="stat.icon" :src="stat.icon" />
         <span class="value num">{{ shown(stat) }}</span>
-        <span class="text">
-          <span class="name">{{ stat.name }}</span>
-          <span v-if="stat.bonus" class="note"><span class="num">{{ stat.value }}</span> base {{ stat.bonus > 0 ? '+' : '−' }} <span class="num">{{ Math.abs(stat.bonus) }}</span></span>
-        </span>
+        <span class="name">{{ stat.name }}</span>
         <span v-if="editable" class="steps">
           <button
             type="button"
@@ -73,15 +73,7 @@ const raiseBlocked = (value: number | null) =>
         </span>
       </li>
     </ul>
-    <details v-if="sources.length" class="sources">
-      <summary>Where these numbers come from</summary>
-      <dl>
-        <template v-for="stat in sources" :key="stat.id">
-          <dt>{{ stat.name }}</dt>
-          <dd>{{ stat.contributors!.join(', ') }}</dd>
-        </template>
-      </dl>
-    </details>
+    <StatSources :stats="stats" />
   </section>
 </template>
 
@@ -93,10 +85,6 @@ const raiseBlocked = (value: number | null) =>
   flex-direction: column;
 }
 
-.stats {
-  flex: 1;
-}
-
 .head {
   display: flex;
   flex-wrap: wrap;
@@ -104,7 +92,27 @@ const raiseBlocked = (value: number | null) =>
   gap: var(--space-s) var(--space-m);
 }
 
+.pips {
+  display: inline-flex;
+  align-self: center;
+  gap: 3px;
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+}
+
+/* The pilot's colour is decoration only. */
+.pip.on {
+  border-color: var(--pilot, var(--edge));
+  background: var(--pilot, var(--edge));
+}
+
 .stats {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: var(--space-s);
@@ -113,24 +121,21 @@ const raiseBlocked = (value: number | null) =>
   list-style: none;
 }
 
-.stats.rows {
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-}
-
 /* No stats defined (e.g. personal stats before any exist): no empty grid. */
 .stats:empty {
   display: none;
 }
 
+/* A filled tile with a strip of the pilot's colour (decoration only) along its top. */
 .stat {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: var(--space-s) 6px var(--space-m);
-  border: 1px solid var(--rule);
+  padding: var(--space-m) 6px;
   border-radius: var(--radius);
-  background: var(--void);
+  background: var(--tile, var(--panel));
+  box-shadow: inset 0 3px var(--pilot, var(--edge));
   text-align: center;
 }
 
@@ -141,14 +146,9 @@ const raiseBlocked = (value: number | null) =>
 }
 
 .value {
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 1.15;
-}
-
-.text {
-  display: grid;
-  justify-items: center;
+  line-height: 1.1;
 }
 
 .name {
@@ -159,12 +159,7 @@ const raiseBlocked = (value: number | null) =>
   text-transform: uppercase;
 }
 
-.note {
-  color: var(--info);
-  font-size: var(--fs-xs);
-}
-
-/* Pinned to the foot, so a modifier note never pushes one tile's buttons below its neighbours'. */
+/* Pinned to the foot, so the buttons line up across tiles whose names wrap. */
 .steps {
   display: flex;
   gap: 6px;
@@ -182,35 +177,6 @@ const raiseBlocked = (value: number | null) =>
   height: 16px;
 }
 
-.sources {
-  margin-top: var(--space-m);
-  font-size: var(--fs-s);
-}
-
-.sources summary {
-  color: var(--lilac);
-  cursor: pointer;
-}
-
-.sources dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px var(--space-l);
-  margin: var(--space-s) 0 0;
-}
-
-.sources dt {
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.sources dd {
-  margin: 0;
-}
-
 @media (max-width: 40rem) {
   /* Four tiles to a row (three on the narrowest phones, so "Structure" still fits a tile). */
   .stats {
@@ -222,6 +188,10 @@ const raiseBlocked = (value: number | null) =>
     padding-inline: 2px;
   }
 
+  .value {
+    font-size: 26px;
+  }
+
   /* A two-word name ("System points") wraps onto a second line, centred, rather than running out of its tile; words
      never break. Never below the label size. */
   .name {
@@ -230,43 +200,32 @@ const raiseBlocked = (value: number | null) =>
     text-align: center;
   }
 
-  /* Budgeted stats become rows: symbol, name (modifier under it), number, - / +. */
+  /* Budgeted stats become filled rows (symbol, name, number, - / +), the colour strip down their left side. */
   .stats.rows {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius);
+    gap: var(--space-xs);
   }
 
   .rows .stat {
     flex-direction: row;
     gap: var(--space-m);
     padding: 4px var(--space-m);
-    border: 0;
-    border-bottom: 1px solid var(--rule);
-    border-radius: 0;
+    box-shadow: inset 3px 0 var(--pilot, var(--edge));
     text-align: left;
   }
 
-  .rows .stat:last-child {
-    border-bottom: 0;
-  }
-
-  .rows .text {
-    flex: 1;
-    justify-items: start;
-  }
-
   .rows .name {
+    flex: 1;
     color: var(--text);
     font-size: var(--fs-s);
     letter-spacing: 0.04em;
+    text-align: left;
   }
 
   .rows .value {
     order: 1;
     min-width: 2ch;
-    font-size: 20px;
+    font-size: 24px;
     text-align: right;
   }
 

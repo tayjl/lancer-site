@@ -8,8 +8,9 @@ import CommendationBadges from './CommendationBadges.vue'
 import Portrait from './Portrait.vue'
 
 // The pilot file's cover: a banner strip, the portrait in pilot-colour corner brackets, a classification line, the
-// callsign and name, the motto, the status badge and medals, then the key figures. The callsign, name and motto are
-// fields while editable. The pilot's colour (--pilot) is decoration only: brackets, rules and bars.
+// callsign, the motto, the name and player, the status badge and medals, then the key figures and (while editing) the
+// "tools" slot. The callsign, name and motto are fields while editable. The pilot's colour (--pilot) is decoration only:
+// brackets, rules and bars.
 const props = defineProps<{
   id: number
   callsign: string | null
@@ -47,13 +48,6 @@ const title = computed(() => props.callsign ?? props.name)
           <h1 v-if="editable" class="sr-only">{{ callsign || name || 'My pilot' }}</h1>
           <input v-if="editable" class="inline callsign" type="text" aria-label="Callsign" placeholder="Callsign" :value="callsign ?? ''" @change="emit('text', 'callsign', $event)" />
           <h1 v-else class="callsign">{{ title }}</h1>
-          <div class="sep sub">
-            <span>
-              <input v-if="editable" class="inline name" type="text" aria-label="Name" placeholder="Name" :value="name" @change="emit('text', 'pilot_name', $event)" />
-              <template v-else>{{ name }}</template>
-            </span>
-            <span>Player: {{ player }}</span>
-          </div>
           <div v-if="mottoEditable || motto" class="motto">
             <textarea
               v-if="mottoEditable"
@@ -68,6 +62,13 @@ const title = computed(() => props.callsign ?? props.name)
             ></textarea>
             <template v-else>{{ motto }}</template>
           </div>
+          <div class="sep sub">
+            <span>
+              <input v-if="editable" class="inline name" type="text" aria-label="Name" placeholder="Name" :value="name" @change="emit('text', 'pilot_name', $event)" />
+              <template v-else>{{ name }}</template>
+            </span>
+            <span>Player: {{ player }}</span>
+          </div>
           <div class="badges">
             <span class="badge" :class="badge.status">{{ badge.label }}</span>
             <CommendationBadges :awards="awards" />
@@ -81,6 +82,8 @@ const title = computed(() => props.callsign ?? props.name)
           <dd v-if="figure.sub" class="sub-note"><span class="num">{{ figure.sub }}</span></dd>
         </div>
       </dl>
+      <!-- While editing: the portrait, banner and colour controls, one per column. -->
+      <div v-if="$slots.tools" class="tools"><slot name="tools" /></div>
     </div>
   </article>
 </template>
@@ -217,7 +220,7 @@ const title = computed(() => props.callsign ?? props.name)
 
 .sub {
   color: var(--text-dim);
-  font-size: var(--fs-m);
+  font-size: var(--fs-s);
 }
 
 /* Callsign and name: plain text with a faint underline that says they can be edited. */
@@ -243,6 +246,7 @@ const title = computed(() => props.callsign ?? props.name)
 .inline.name {
   max-width: none;
   color: var(--text-dim);
+  font: inherit;
 }
 
 .motto {
@@ -250,8 +254,9 @@ const title = computed(() => props.callsign ?? props.name)
   padding-left: var(--space-m);
   border-left: 3px solid var(--accent);
   color: var(--text-dim);
-  font-size: var(--fs-m);
+  font-size: var(--fs-l);
   font-style: italic;
+  line-height: 1.4;
 }
 
 .motto .inline {
@@ -267,7 +272,6 @@ const title = computed(() => props.callsign ?? props.name)
   resize: none;
   overflow: hidden;
   overflow-wrap: anywhere;
-  line-height: 1.4;
 }
 
 .badges {
@@ -275,7 +279,6 @@ const title = computed(() => props.callsign ?? props.name)
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-s) var(--space-l);
-  margin-top: var(--space-xs);
 }
 
 .figures {
@@ -332,6 +335,18 @@ const title = computed(() => props.callsign ?? props.name)
   font-size: var(--fs-xs);
 }
 
+/* One row at natural widths (wrapping on phones), each control straight under its label and all starting on one line. */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-l) var(--space-xl);
+  margin-top: var(--space-xl);
+  padding-top: var(--space-l);
+  border-top: 1px solid var(--rule);
+  overflow-wrap: normal;
+}
+
 @media (max-width: 48rem) {
   .banner {
     height: 6rem;
@@ -380,9 +395,8 @@ const title = computed(() => props.callsign ?? props.name)
     font-size: 34px;
   }
 
-  .sub,
   .motto {
-    font-size: var(--fs-s);
+    font-size: var(--fs-m);
   }
 
   /* Each figure takes the width its words need, the rest shared out between them. */

@@ -44,6 +44,12 @@ describe('personal stats', () => {
     const result = sheetStats({ pilot_stats: { physicality: 4, acuity: 2 }, bionics: [1] }, stats, bionics)
     expect(result.personal.map(stat => [stat.value, stat.bonus, stat.value + stat.bonus])).toEqual([[4, 2, 6], [2, -1, 1]])
   })
+
+  it('lists where a changed personal stat comes from, and nothing for an unchanged one', () => {
+    const bionics = [{ id: 1, name: 'Arm', bonuses: [{ stat_id: 'physicality', amount: 2 }] }] as Bionic[]
+    const result = sheetStats({ pilot_stats: { physicality: 4 }, bionics: [1] }, stats, bionics, [{ source: 'Kit', bonus: { id: 'physicality', val: -1 } }])
+    expect(result.personal.map(stat => stat.contributors)).toEqual([['Base: 4', 'Kit: -1', 'Arm: +2'], []])
+  })
 })
 
 describe('loadoutSlots', () => {

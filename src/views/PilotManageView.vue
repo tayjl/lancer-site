@@ -399,6 +399,17 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           </RouterLink>
           <button v-if="gmCanEdit && !gmEditing" type="button" class="small" @click="setEdit(true)">Edit pilot</button>
         </template>
+        <template v-if="editable || profileEditable" #tools>
+          <div v-if="editable" class="tool">
+            <span class="label">Portrait</span>
+            <ImageUpload :path="character.pilot_image" :save="saveImage" />
+          </div>
+          <div v-if="profileEditable" class="tool">
+            <span class="label">Banner</span>
+            <ImageUpload noun="banner" :side="BANNER_SIDE" :path="profile.fields.value.banner_image" :save="(path: string | null) => saveProfile({ banner_image: path })" />
+          </div>
+          <PilotColourField v-if="profileEditable" :colour="profile.fields.value.colour" @preview="previewColour = $event ?? undefined" @save="saveColour" />
+        </template>
       </PilotCover>
 
       <GmEditBar
@@ -502,17 +513,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
                 :medals="awards.awards.value.map((a) => a.commendation.icon)"
               />
             </div>
-            <div v-if="editable || profileEditable" class="tools">
-              <div v-if="editable" class="tool">
-                <span class="label">Portrait</span>
-                <ImageUpload :path="character.pilot_image" :save="saveImage" />
-              </div>
-              <div v-if="profileEditable" class="tool">
-                <span class="label">Banner</span>
-                <ImageUpload noun="banner" :side="BANNER_SIDE" :path="profile.fields.value.banner_image" :save="(path: string | null) => saveProfile({ banner_image: path })" />
-              </div>
-              <PilotColourField v-if="profileEditable" :colour="profile.fields.value.colour" @preview="previewColour = $event ?? undefined" @save="saveColour" />
-            </div>
             <div class="notes">
               <SheetField title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
               <SheetField title="Personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
@@ -542,7 +542,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               :budget="PERSONAL_STAT_POINTS"
               @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
             />
-            <StatSources :stats="stats.personal" />
             <StatRow
               class="stat-block"
               title="Piloting stats (HASE)"
@@ -553,7 +552,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               :budget="skillPoints(gm.level)"
               @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
             />
-            <StatSources :stats="stats.piloting" />
           </FileSection>
 
           <FileSection v-bind="SEC.qualifications">
@@ -665,7 +663,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   min-width: 0;
 }
 
-/* --- 01 Identity: the details and the ID card side by side, then the tools and the long writing full width --- */
+/* --- 01 Identity: the details and the ID card side by side, then the long writing full width --- */
 .identity {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 26rem;
@@ -695,19 +693,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   }
 }
 
-.tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-m) var(--space-xl);
-  margin-top: var(--space-l);
-}
-
-.tool {
-  display: grid;
-  gap: var(--space-xs);
-}
-
 /* Appearance, personality and backstory: one under another, full width. */
 .notes {
   display: grid;
@@ -715,11 +700,9 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   margin-top: var(--space-xl);
 }
 
-/* --- 03 Capabilities --- */
+/* --- 03 Capabilities: blocks set apart by space and their headings alone --- */
 .stat-block {
   margin-top: var(--space-xl);
-  padding-top: var(--space-l);
-  border-top: 1px solid var(--rule);
 }
 
 /* --- 04 Qualifications: licences, talents and core bonuses, stacked full width --- */
@@ -745,6 +728,16 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
     gap: 44px;
     padding-top: var(--space-xl);
   }
+}
+
+/* --- The cover's tools: a label, then its control, the same gap as a form field's --- */
+.tool {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.tool :deep(.buttons) {
+  margin-top: 0;
 }
 
 /* --- The GM's way to the review page: a link drawn as a small button --- */
