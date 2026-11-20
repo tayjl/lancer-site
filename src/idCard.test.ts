@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { barcodeBars, cardFilename, fitText, pilotSerial } from './idCard'
+import { barcodeBars, cardFilename, cardFingerprint, fitText, pilotSerial } from './idCard'
 
 describe('pilot serial', () => {
   it('is deterministic and shaped UAD-0042-XXXX-XXXX', () => {
@@ -44,5 +44,12 @@ describe('cardFilename', () => {
     expect(cardFilename('WARDEN')).toBe('warden-id.png')
     expect(cardFilename('Lady / Luck!')).toBe('lady-luck-id.png')
     expect(cardFilename('???')).toBe('pilot-id.png')
+  })
+})
+
+describe('card fingerprint', () => {
+  it('is stable and changes with what the card shows', () => {
+    expect(cardFingerprint([1, 'A', 3])).toBe(cardFingerprint([1, 'A', 3]))
+    expect(cardFingerprint([1, 'A', 3])).not.toBe(cardFingerprint([1, 'A', 4]))
   })
 })

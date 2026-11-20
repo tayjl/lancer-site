@@ -1,10 +1,20 @@
-// Cloudflare Workers config: serves the built site (static files only, no server code).
+// Cloudflare Workers config: serves the built site, plus a small Worker (worker/index.ts) for pilot link previews.
 {
   "name": "lancer-site",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     // Clean URLs like /registry/42 have no file, so send them to index.html and let Vue Router handle them.
-    "not_found_handling": "single-page-application"
+    "not_found_handling": "single-page-application",
+    // Only these paths run the Worker; everything else is plain static serving.
+    "run_worker_first": ["/registry/*"]
+  },
+  // Public values (the same ones the site is built with). Never put the secret service_role key here.
+  // For wrangler dev, a git-ignored .dev.vars overrides them (local Supabase).
+  "vars": {
+    "SUPABASE_URL": "https://lklxugqbhkzgioqyyefm.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_Rf8Un_gloUF8N8QJxN02gQ_8CH_nKrR"
   }
 }

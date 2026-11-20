@@ -34,3 +34,7 @@ graphify-out/
 # One-off browser-test scratch output
 output/
 .playwright-cli/
+
+# Local Worker settings (wrangler dev)
+.dev.vars
+.wrangler/

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { MOTTO_MAX } from '../pilotProfile'
+import { computed, nextTick, reactive, useId, useTemplateRef, watch } from 'vue'
+import { MOTTO_MAX, type BannerPosition } from '../pilotProfile'
 import type { Award } from '../commendations'
 import { imageUrl } from '../images'
 import { pilotSerial } from '../idCard'
@@ -10,7 +10,8 @@ import Portrait from './Portrait.vue'
 // The pilot file's cover: a banner strip, the portrait in pilot-colour corner brackets, a classification line (with the
 // status badge and the "actions" slot at its right), the callsign with the name beside it, the motto, the medals and
 // player, then the key figures and (while editing) the "tools" slot. The callsign, name and motto are fields while
-// editable. The pilot's colour (--pilot) is decoration only: brackets, rules and bars.
+// editable. In positioning mode the banner strip is dragged to choose which part of the picture shows. The pilot's colour
+// (--pilot) is decoration only: brackets, rules, bars and the motto's quotation marks.
 const props = defineProps<{
   id: number
   callsign: string | null
@@ -18,6 +19,8 @@ const props = defineProps<{
   player: string
   portrait: string | null
   banner: string | null
+  bannerPosition: BannerPosition
+  positioning: boolean // the banner strip is in positioning mode (shown only while there's a banner)
   motto: string | null
   editable: boolean // callsign and name are fields
   mottoEditable: boolean
@@ -26,14 +29,97 @@ const props = defineProps<{
   figures: { label: string; value: string | number; sub?: string; over?: boolean }[]
   joined: boolean // the next-step bar is under it
 }>()
-const emit = defineEmits<{ text: [column: 'callsign' | 'pilot_name', event: Event]; motto: [event: Event] }>()
+// "position" ends positioning mode: the new position to save, or null for Cancel.
+const emit = defineEmits<{ text: [column: 'callsign' | 'pilot_name', event: Event]; motto: [event: Event]; position: [position: BannerPosition | null] }>()
 const bannerUrl = computed(() => imageUrl(props.banner))
 const title = computed(() => props.callsign ?? props.name)
+
+// --- Banner positioning: drag (or arrow keys on the strip) to move the picture, a slider to zoom ---
+const strip = useTemplateRef('strip')
+const picture = useTemplateRef('picture')
+const hintId = useId()
+const placing = computed(() => props.positioning && !!bannerUrl.value)
+// Just the three values, as the prop may be a bigger object (the whole profile).
+const copy = ({ banner_x, banner_y, banner_zoom }: BannerPosition): BannerPosition => ({ banner_x, banner_y, banner_zoom })
+const draft = reactive(copy(props.bannerPosition))
+watch(placing, async (on) => {
+  if (!on) return
+  Object.assign(draft, copy(props.bannerPosition))
+  await nextTick()
+  strip.value?.focus()
+})
+const shown = computed(() => (placing.value ? draft : props.bannerPosition))
+// Zooming from the chosen point keeps that point in place, and the picture still covers the strip.
+const bannerStyle = computed(() => {
+  const at = `${shown.value.banner_x}% ${shown.value.banner_y}%`
+  return { objectPosition: at, transformOrigin: at, transform: `scale(${shown.value.banner_zoom})` }
+})
+const clamp = (value: number) => Math.round(Math.min(100, Math.max(0, value)) * 10) / 10
+
+// A percent step moves the picture by that share of its overflow (how far it sticks out of the strip once scaled), so
+// dividing the pointer's movement by the overflow makes the picture follow the pointer 1:1. Moving it right lowers x.
+let grabbed: { x: number; y: number; px: number; py: number; overX: number; overY: number } | null = null
+function grab(event: PointerEvent) {
+  const img = picture.value
+  if (!placing.value || event.button !== 0 || !img?.naturalWidth) return
+  const scale = Math.max(img.clientWidth / img.naturalWidth, img.clientHeight / img.naturalHeight) * draft.banner_zoom
+  grabbed = {
+    x: draft.banner_x,
+    y: draft.banner_y,
+    px: event.clientX,
+    py: event.clientY,
+    overX: img.naturalWidth * scale - img.clientWidth,
+    overY: img.naturalHeight * scale - img.clientHeight,
+  }
+  strip.value?.setPointerCapture(event.pointerId)
+}
+function drag(event: PointerEvent) {
+  if (!grabbed) return
+  if (grabbed.overX > 0) draft.banner_x = clamp(grabbed.x - ((event.clientX - grabbed.px) / grabbed.overX) * 100)
+  if (grabbed.overY > 0) draft.banner_y = clamp(grabbed.y - ((event.clientY - grabbed.py) / grabbed.overY) * 100)
+}
+const drop = () => (grabbed = null)
+
+// Arrow keys on the strip itself (not the slider) move the picture the same way round as dragging. Escape cancels.
+function key(event: KeyboardEvent) {
+  if (event.key === 'Escape') return emit('position', null)
+  if (event.target !== strip.value) return
+  const step = event.shiftKey ? 10 : 2
+  const moves: Record<string, [number, number]> = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }
+  const move = moves[event.key]
+  if (!move) return
+  event.preventDefault()
+  draft.banner_x = clamp(draft.banner_x + move[0])
+  draft.banner_y = clamp(draft.banner_y + move[1])
+}
 </script>
 
 <template>
-  <article class="cover" :class="{ joined }">
-    <div class="banner"><img v-if="bannerUrl" :src="bannerUrl" alt="" /></div>
+  <article class="cover" :class="{ joined, placing }">
+    <div
+      ref="strip"
+      class="banner"
+      :role="placing ? 'group' : undefined"
+      :tabindex="placing ? 0 : undefined"
+      :aria-label="placing ? 'Banner position' : undefined"
+      :aria-describedby="placing ? hintId : undefined"
+      @pointerdown="grab"
+      @pointermove="drag"
+      @pointerup="drop"
+      @pointercancel="drop"
+      @keydown="placing && key($event)"
+    >
+      <img v-if="bannerUrl" ref="picture" :src="bannerUrl" alt="" draggable="false" :style="bannerStyle" />
+      <div v-if="placing" class="placer" @pointerdown.stop>
+        <p :id="hintId" class="hint">Drag or use the arrow keys.</p>
+        <label class="zoom">
+          <span class="label">Zoom</span>
+          <input v-model.number="draft.banner_zoom" type="range" min="1" max="3" step="0.05" :aria-valuetext="`${draft.banner_zoom.toFixed(1)} times`" />
+        </label>
+        <button type="button" class="small primary" @click="emit('position', copy(draft))">Save position</button>
+        <button type="button" class="small quiet" @click="emit('position', null)">Cancel</button>
+      </div>
+    </div>
     <div class="cover-body">
       <div class="cover-main">
         <div class="portrait-frame"><div class="pf-in"><Portrait class="portrait" :src="portrait" :alt="`Portrait of ${title}`" /></div></div>
@@ -59,7 +145,7 @@ const title = computed(() => props.callsign ?? props.name)
               <span v-if="title !== name" class="name">{{ name }}</span>
             </template>
           </div>
-          <div v-if="mottoEditable || motto" class="motto">
+          <div v-if="mottoEditable || motto" class="motto" :class="{ editing: mottoEditable }">
             <textarea
               v-if="mottoEditable"
               class="inline motto-input"
@@ -134,6 +220,62 @@ const title = computed(() => props.callsign ?? props.name)
   inset: auto 0 0;
   height: 45%;
   background: linear-gradient(transparent, var(--panel));
+}
+
+/* Positioning: the strip comes in front of the portrait so all of it can be seen and dragged. */
+.placing .banner {
+  z-index: 3;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.placing .banner:active {
+  cursor: grabbing;
+}
+
+/* The cover clips anything outside the strip, so its focus ring goes inside. */
+.banner:focus-visible {
+  outline-offset: -2px;
+}
+
+/* The zoom slider and buttons, over the strip's faded foot (which the portrait covers otherwise). */
+.placer {
+  position: absolute;
+  z-index: 1;
+  right: var(--space-s);
+  bottom: var(--space-s);
+  display: flex;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+  padding: var(--space-xs) var(--space-s);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--panel);
+  cursor: auto;
+}
+
+.placer .hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.zoom {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-s);
+}
+
+.zoom input {
+  min-width: 3rem;
+  flex: 1;
+  accent-color: var(--lilac);
+}
+
+.placer button {
+  flex: none;
 }
 
 /* flow-root: the portrait's pull-up stays inside, so the grid starts under the banner rather than crossing it. */
@@ -258,26 +400,59 @@ const title = computed(() => props.callsign ?? props.name)
   border-color: var(--rule);
 }
 
+/* The motto in quotation marks of the pilot's colour, which aren't part of the stored text. */
 .motto {
   max-width: 60ch;
-  padding-left: var(--space-m);
-  border-left: 3px solid var(--accent);
   color: var(--text-dim);
   font-size: var(--fs-l);
   font-style: italic;
   line-height: 1.4;
 }
 
+.motto::before,
+.motto::after {
+  color: var(--accent);
+}
+
+.motto::before {
+  content: '“';
+}
+
+.motto::after {
+  content: '”';
+}
+
+/* While editing, the marks sit either side of the growing field (level with its text), the closing one by its last line. */
+.motto.editing {
+  display: flex;
+  align-items: flex-start;
+}
+
+.motto.editing::before {
+  padding-top: 2px;
+}
+
+.motto.editing::after {
+  align-self: flex-end;
+  padding-bottom: 2px;
+}
+
 .motto .inline {
-  max-width: 100%;
   min-width: 14ch;
+  margin-left: 0;
+  padding: 1px 2px;
   color: inherit;
   font: inherit;
 }
 
+/* No underline: the marks and the placeholder show it can be filled in. Hover and focus still outline it. */
+.motto .inline:not(:hover, :focus) {
+  border-color: transparent;
+}
+
 /* A long motto wraps (a growing textarea, not a one-line box that clips it). */
 .motto .motto-input {
-  display: block;
+  flex: 0 1 auto; /* only as wide as its text, so the closing mark follows the last word */
   resize: none;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -366,6 +541,30 @@ const title = computed(() => props.callsign ?? props.name)
 @media (max-width: 48rem) {
   .banner {
     height: 6rem;
+  }
+
+  /* One row across the strip's foot, the slider taking what's left. The hint still describes the strip. */
+  .placer {
+    left: var(--space-xs);
+    right: var(--space-xs);
+    bottom: var(--space-xs);
+    gap: var(--space-s);
+  }
+
+  /* The slider shrinks first so both buttons stay inside the strip; the hint and "Zoom" stay for screen readers. */
+  .zoom,
+  .zoom input {
+    min-width: 0;
+  }
+
+  .placer .hint,
+  .zoom .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .cover-body {

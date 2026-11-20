@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { awardIcon } from '../commendations'
-import { barcodeBars, cardFilename, fitText, pilotSerial } from '../idCard'
+import { barcodeBars, cardFilename, cardFingerprint, fitText, pilotSerial } from '../idCard'
 import { MONO_FAMILY, SANS_FAMILY, cardToPng, saveBlob } from '../idCardExport'
 import { iconUrl } from '../icons'
 import { imageUrl } from '../images'
+import { supabase } from '../lib/supabaseClient'
 import { formatDate } from '../time'
 
 // An in-universe pilot licence: portrait, callsign, name, level, licence level, serial, status, the date approved and the
@@ -24,7 +25,10 @@ const props = defineProps<{
   colour: string | null // the pilot's colour as drawn (displayColour), if they have one
   medals: string[] // the icon of each commendation
   draftOpen?: boolean // the page is showing an open change; the card still shows the approved pilot
+  cardVersion?: string | null // the fingerprint of the picture saved to storage
+  savePath?: string | null // where to save the picture; null when this viewer may not
 }>()
+const emit = defineEmits<{ cardSaved: [version: string] }>()
 
 const root = getComputedStyle(document.documentElement)
 const token = (name: string, fallback: string) => root.getPropertyValue(name).trim() || fallback
@@ -100,6 +104,42 @@ async function download() {
   }
   busy.value = false
 }
+
+// Discord link previews need a picture at a URL, and the Worker is too small to draw one. So the page saves the card it
+// draws to storage (silently) when what it shows has changed. The fingerprint also goes on the profile, which is how
+// the Worker builds a versioned link that Discord refreshes. Only approved or dead pilots have a preview.
+const fingerprint = computed(() =>
+  cardFingerprint([props.id, props.callsign, props.name, props.status, props.approvedAt, props.level, props.licenceLevel, props.portrait, props.colour, props.medals]),
+)
+let timer: ReturnType<typeof setTimeout> | undefined
+const tried = new Set<string>() // at most once per fingerprint per page view
+async function saveCard(version: string) {
+  try {
+    await document.fonts.ready
+    if (!svg.value || !props.savePath) return
+    const { blob } = await cardToPng(svg.value, 1)
+    if (blob.size > 1_000_000) return
+    const { error } = await supabase.storage.from('character-images').upload(props.savePath, blob, { upsert: true, contentType: 'image/png' })
+    if (error) throw error
+    emit('cardSaved', version)
+  } catch (error) {
+    console.warn('Card picture not saved', error)
+  }
+}
+watch(
+  [fingerprint, () => props.savePath, () => props.cardVersion, () => props.draftOpen],
+  () => {
+    clearTimeout(timer)
+    const version = fingerprint.value
+    if (!props.savePath || props.draftOpen || (props.status !== 'approved' && props.status !== 'dead') || version === props.cardVersion || tried.has(version)) return
+    timer = setTimeout(() => {
+      tried.add(version)
+      void saveCard(version)
+    }, 2000)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <template>

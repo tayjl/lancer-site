@@ -10,6 +10,9 @@ function fnv(text: string) {
   return hash
 }
 
+// A short stamp of everything the card shows: it changes when (and only when) the picture would.
+export const cardFingerprint = (parts: unknown[]) => fnv(JSON.stringify(parts)).toString(36)
+
 const code = (hash: number) => Array.from({ length: 4 }, (_, i) => DIGITS[(hash >>> (i * 5)) & 31]).join('')
 
 // "UAD-0042-7K3Q-9XZ2": the pilot's id, then two codes made from it. Deterministic, so the card always shows the same

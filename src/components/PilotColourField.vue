@@ -24,44 +24,53 @@ function commit(value: string) {
 
 <template>
   <div class="colour-field">
-    <label class="field">
-      <span>Colour</span>
-      <span class="row">
-        <input
-          class="code"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="#1c9ae8"
-          maxlength="7"
-          :value="colour ?? ''"
-          :aria-invalid="!!error"
-          @change="commit(($event.target as HTMLInputElement).value)"
-        />
-        <input
-          type="color"
-          aria-label="Pick a colour"
-          :value="colour && HEX.test(colour) ? colour : '#808080'"
-          @input="emit('preview', ($event.target as HTMLInputElement).value)"
-          @change="commit(($event.target as HTMLInputElement).value)"
-        />
-      </span>
-    </label>
+    <!-- Reset sits beside the boxes rather than under them, outside the label so the label names only the hex box. -->
+    <div class="line">
+      <label class="field">
+        <span>Colour</span>
+        <span class="row">
+          <input
+            class="code"
+            type="text"
+            spellcheck="false"
+            autocomplete="off"
+            placeholder="#1c9ae8"
+            maxlength="7"
+            :value="colour ?? ''"
+            :aria-invalid="!!error"
+            @change="commit(($event.target as HTMLInputElement).value)"
+          />
+          <input
+            type="color"
+            aria-label="Pick a colour"
+            :value="colour && HEX.test(colour) ? colour : '#808080'"
+            @input="emit('preview', ($event.target as HTMLInputElement).value)"
+            @change="commit(($event.target as HTMLInputElement).value)"
+          />
+        </span>
+      </label>
+      <button v-if="props.colour" type="button" class="quiet" @click="commit('')">Reset colour</button>
+    </div>
     <p v-if="error" class="error" role="alert">Not saved: {{ error }}</p>
-    <button v-if="props.colour" type="button" class="quiet small" @click="commit('')">Reset colour</button>
   </div>
 </template>
 
 <style scoped>
 .colour-field {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
   gap: var(--space-xs);
 }
 
+/* The button is full height (not .small), so lined up at the bottom it sits level with the boxes. */
+.line {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-s);
+}
+
 .field {
-  align-self: stretch;
+  flex: 1;
+  min-width: 0;
 }
 
 .row {

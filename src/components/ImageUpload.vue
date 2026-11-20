@@ -3,7 +3,8 @@ import { ref, useTemplateRef } from 'vue'
 import { uploadImage } from '../images'
 
 // Under a portrait while the page is editable: pick a picture (shrunk and uploaded by src/images.ts), then "save"
-// stores its path on the card, the same way every other field saves. "path" is the stored path now, if any.
+// stores its path on the card, the same way every other field saves. "path" is the stored path now, if any. The default
+// slot adds more buttons after Replace and Remove.
 const props = withDefaults(defineProps<{ path: string | null; save: (path: string | null) => Promise<string | null>; noun?: string; side?: number }>(), { noun: 'image' })
 
 const input = useTemplateRef('input')
@@ -34,6 +35,7 @@ function pick(event: Event) {
     <div class="buttons">
       <button type="button" class="small" :disabled="!!busy" @click="input?.click()">{{ path ? 'Replace' : 'Upload' }} {{ noun }}</button>
       <button v-if="path" type="button" class="quiet small" :disabled="!!busy" @click="change('Saving…', () => save(null))">Remove {{ noun }}</button>
+      <slot />
     </div>
     <p v-if="busy" class="dim status" role="status">{{ busy }}</p>
     <p v-else-if="error" class="error status" role="alert">Not saved: {{ error }}</p>

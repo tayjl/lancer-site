@@ -24,7 +24,7 @@ insert into storage.objects (bucket_id, name, owner_id) values
 
 select is((select public from storage.buckets where id = 'character-images'), true, 'the image bucket is public to read');
 select is((select file_size_limit from storage.buckets where id = 'character-images'), 1048576::bigint, 'uploads are limited to 1 MB');
-select is((select allowed_mime_types from storage.buckets where id = 'character-images'), array['image/webp', 'image/jpeg'], 'only WebP and JPEG are accepted');
+select is((select allowed_mime_types from storage.buckets where id = 'character-images'), array['image/webp', 'image/jpeg', 'image/png'], 'only WebP, JPEG and (for card pictures) PNG are accepted');
 
 -- ---------------------------------------------------------------------
 -- Player One
@@ -46,7 +46,7 @@ delete from storage.objects where name = '22222222-2222-2222-2222-222222222222/a
 update storage.objects set name = '11111111-1111-1111-1111-111111111111/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee.webp'
  where name = '11111111-1111-1111-1111-111111111111/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp';
 select is((select count(*)::int from storage.objects where name = '11111111-1111-1111-1111-111111111111/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp'), 1,
-  'uploaded files cannot be renamed or overwritten (there is no update policy)');
+  'uploaded files cannot be renamed or overwritten (only card pictures can)');
 
 select lives_ok(
   $$ update public.characters set pilot_image = '11111111-1111-1111-1111-111111111111/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp' where id = 200 $$,

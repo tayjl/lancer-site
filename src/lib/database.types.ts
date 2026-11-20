@@ -519,6 +519,10 @@ export type Database = {
       pilot_profiles: {
         Row: {
           banner_image: string | null
+          banner_x: number
+          banner_y: number
+          banner_zoom: number
+          card_version: string | null
           character_id: number
           colour: string | null
           gallery: Json
@@ -527,6 +531,10 @@ export type Database = {
         }
         Insert: {
           banner_image?: string | null
+          banner_x?: number
+          banner_y?: number
+          banner_zoom?: number
+          card_version?: string | null
           character_id: number
           colour?: string | null
           gallery?: Json
@@ -535,6 +543,10 @@ export type Database = {
         }
         Update: {
           banner_image?: string | null
+          banner_x?: number
+          banner_y?: number
+          banner_zoom?: number
+          card_version?: string | null
           character_id?: number
           colour?: string | null
           gallery?: Json
@@ -881,6 +893,23 @@ export type Database = {
           item_name: string
           pack_id: number
           pilot: string
+        }[]
+      }
+      pilot_card: {
+        Args: { target_character_id: number }
+        Returns: {
+          approved_at: string
+          callsign: string
+          card_image: string
+          card_version: string
+          colour: string
+          id: number
+          level: number
+          licence_level: number
+          medals: string[]
+          pilot_image: string
+          pilot_name: string
+          status: Database["public"]["Enums"]["character_status"]
         }[]
       }
       pilot_sheet: {

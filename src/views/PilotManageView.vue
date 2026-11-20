@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, reactive, ref, watchEffect } from 'vue'
+import { computed, nextTick, provide, reactive, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm, session } from '../auth'
 import { useBackstoryVisibility } from '../backstory'
@@ -34,7 +34,7 @@ import { BANNER_SIDE } from '../images'
 import { usePilotAwards } from '../commendations'
 import { displayColour } from '../pilotColour'
 import { useServiceRecord } from '../serviceRecord'
-import { MOTTO_MAX, usePilotProfile, type ProfileFields } from '../pilotProfile'
+import { BANNER_CENTRED, MOTTO_MAX, usePilotProfile, type BannerPosition, type ProfileFields } from '../pilotProfile'
 import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { chosenFrame, licenceFrames, licensedFrames, useMechData, type Frame } from '../mechData'
@@ -157,6 +157,9 @@ const profile = usePilotProfile(() => character.value?.id)
 const profileEditable = computed(() => profile.ready.value && !!character.value && character.value.status !== 'dead' && (own || gmEditing.value))
 // The pilot's colour as drawn: the picker's live value while you drag it, else the saved one (lightened if too dark).
 const previewColour = ref<string | undefined>()
+// The browser saves the ID card picture for link previews (PilotIdCard.vue): your own living pilot, or any pilot for a GM.
+// Never while a picker colour is only being previewed, so the saved picture always has the saved colour.
+const canSaveCard = computed(() => profile.ready.value && !!character.value && !previewColour.value && (isGm.value || (own && character.value.status !== 'dead')))
 const pilotColour = computed(() => (previewColour.value ? displayColour(previewColour.value) : profile.colour.value))
 const pilotStyle = computed(() => (pilotColour.value ? { '--pilot': pilotColour.value } : undefined))
 const saveProfile = (changes: Partial<ProfileFields>) => track(profile.update(changes))
@@ -164,6 +167,20 @@ const saveMotto = (event: Event) => saveProfile({ motto: (event.target as HTMLTe
 const saveColour = (colour: string | null) => {
   previewColour.value = undefined
   return saveProfile({ colour })
+}
+// A new or removed banner starts centred; once a new one saves, the strip opens in positioning mode.
+const positioningBanner = ref(false)
+async function saveBanner(path: string | null) {
+  const error = await saveProfile({ banner_image: path, ...BANNER_CENTRED })
+  positioningBanner.value = !error && !!path
+  return error
+}
+const positionButton = useTemplateRef<HTMLButtonElement>('positionButton')
+async function placeBanner(position: BannerPosition | null) {
+  positioningBanner.value = false
+  if (position) saveProfile(position)
+  await nextTick()
+  positionButton.value?.focus() // the bar that had focus is gone
 }
 // Retry sends whatever is unsaved, on the sheet and the profile.
 const retryAll = async () => (await Promise.all([retry(), profile.retry()])).find(Boolean) ?? null
@@ -384,6 +401,8 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         :player="playerName || 'Unknown player'"
         :portrait="character.pilot_image"
         :banner="profile.fields.value.banner_image"
+        :banner-position="profile.fields.value"
+        :positioning="positioningBanner && profileEditable"
         :motto="profile.fields.value.motto"
         :editable="editable"
         :motto-editable="profileEditable"
@@ -393,6 +412,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         :joined="hasNext || gmEditing"
         @text="saveText"
         @motto="saveMotto"
+        @position="placeBanner"
       >
         <template #actions>
           <RouterLink v-if="gmLink" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
@@ -407,7 +427,11 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
           </div>
           <div v-if="profileEditable" class="tool">
             <span class="label">Banner</span>
-            <ImageUpload noun="banner" :side="BANNER_SIDE" :path="profile.fields.value.banner_image" :save="(path: string | null) => saveProfile({ banner_image: path })" />
+            <ImageUpload noun="banner" :side="BANNER_SIDE" :path="profile.fields.value.banner_image" :save="saveBanner">
+              <button v-if="profile.fields.value.banner_image" ref="positionButton" type="button" class="quiet small" :disabled="positioningBanner" @click="positioningBanner = true">
+                Position banner
+              </button>
+            </ImageUpload>
           </div>
           <PilotColourField v-if="profileEditable" :colour="profile.fields.value.colour" @preview="previewColour = $event ?? undefined" @save="saveColour" />
         </template>
@@ -522,6 +546,9 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
               :licence-level="licenceLevel(approved?.sheet ?? sheet)"
               :portrait="(approved?.character ?? character).pilot_image"
               :draft-open="!!approved"
+              :card-version="profile.fields.value.card_version"
+              :save-path="canSaveCard ? `${character.player_id}/card-${character.id}.png` : null"
+              @card-saved="(version) => saveProfile({ card_version: version })"
               :colour="pilotColour"
               :medals="awards.awards.value.map((a) => a.commendation.icon)"
             />
