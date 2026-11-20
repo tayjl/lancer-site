@@ -7,6 +7,7 @@ import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
 import { confirmAction } from '../confirm'
 import { LCP_KINDS, MAX_LCP_BYTES, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
+import { message } from '../editorStore'
 import { plural } from '../text'
 import { formatDate } from '../time'
 
@@ -77,7 +78,7 @@ async function load() {
     usageError.value = usageRows.error ? "Couldn't check who uses it." : ''
     biomods.value = modRows.count ?? 0
   } catch (error) {
-    loadError.value = `Content didn't load: ${error instanceof Error ? error.message : String((error as { message?: string }).message ?? error)}`
+    loadError.value = `Content didn't load: ${message(error)}`
   } finally { loading.value = false }
 }
 watch(isOwner, owner => owner && load(), { immediate: true })
@@ -86,15 +87,19 @@ function chooseFile(pack?: InstalledPack) {
   targetName.value = pack?.name ?? null
   fileInput.value?.click()
 }
-async function inspect(file: File) {
-  if (reading.value || saving.value) return
+// Starts reading a file: clears the last file's preview, result and errors.
+function reset(name: string) {
   reading.value = true
   candidate.value = null
   result.value = null
   removal.value = null
   fileError.value = ''
   saveError.value = ''
-  filename.value = file.name
+  filename.value = name
+}
+async function inspect(file: File) {
+  if (reading.value || saving.value) return
+  reset(file.name)
   try {
     if (!/\.(lcp|zip)$/i.test(file.name)) throw new Error('Choose an .lcp file.')
     if (file.size > MAX_LCP_BYTES) throw new Error('That file is over 15 MB.')
@@ -120,13 +125,7 @@ function cancel() {
 async function loadCoreContent() {
   if (coreInstalled.value || loading.value || loadError.value || reading.value || saving.value) return
   loadingCore.value = true
-  reading.value = true
-  candidate.value = null
-  result.value = null
-  removal.value = null
-  fileError.value = ''
-  saveError.value = ''
-  filename.value = 'Official core content'
+  reset('Official core content')
   try {
     const { coreContent } = await import('../coreContent')
     candidate.value = coreContent
@@ -161,7 +160,7 @@ async function importPack() {
     filename.value = ''
     await load()
   } catch (error) {
-    saveError.value = `Not imported: ${String((error as { message?: string }).message ?? error)}`
+    saveError.value = `Not imported: ${message(error)}`
     // Refresh metadata so a retry previews the current catalogue after a conflict.
     await load()
   } finally { saving.value = false }
@@ -179,7 +178,7 @@ async function removePack(pack: InstalledPack) {
     removal.value = { ok: true, text: `Removed ${pack.name}.` }
     invalidateCatalogues()
   } catch (error) {
-    removal.value = { ok: false, text: `Not removed: ${String((error as { message?: string }).message ?? error)}` }
+    removal.value = { ok: false, text: `Not removed: ${message(error)}` }
   } finally { saving.value = false }
   await load()
 }
@@ -333,8 +332,6 @@ main > * + * { margin-top: var(--space-l); }
 .search { margin-bottom: var(--space-m); }
 .search .field { max-width: 28rem; }
 .table-window { position: relative; /* holds the .sr-only heading, which would otherwise widen the page */ overflow: auto; border: 1px solid var(--rule); border-radius: var(--radius); }
-.table th, .table td { white-space: nowrap; vertical-align: middle; }
-.table .number { text-align: right; }
 .author { display: block; font-size: var(--fs-xs); }
 /* The reason a pack can't be removed wraps beside its button instead of widening the table. */
 .table td.row-actions-cell { min-width: 14rem; white-space: normal; }

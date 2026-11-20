@@ -4,7 +4,7 @@ import ActionChip from '../ActionChip.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import Field from './Field.vue'
 import RepeatList from './RepeatList.vue'
-import { latest } from './useFields'
+import { input, latest } from './useFields'
 
 // An item's actions: a name, how it's activated (the chip beside the choice is what players see), how often, what
 // triggers it, and its rules text. Other fields on an action are kept as they are. "path" is where the list sits in the
@@ -13,7 +13,6 @@ const modelProp = defineModel<Data[]>({ required: true })
 const model = latest(modelProp)
 const props = withDefaults(defineProps<{ path?: string; label?: string }>(), { path: 'actions' })
 
-const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
 const clean = (value: string) => value || undefined
 const where = (index: number, key: string) => `${props.path}.${index}.${key}`
 </script>

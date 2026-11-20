@@ -95,7 +95,7 @@ export function usePilotProfile(characterId: () => number | undefined) {
 
   let queue: Promise<unknown> = Promise.resolve()
   function save() {
-    const result = queue.then(async () => {
+    const run = async () => {
       if (conflict.value) return CHANGED_ELSEWHERE
       if (!unsaved) return null
       unsaved = false
@@ -103,7 +103,8 @@ export function usePilotProfile(characterId: () => number | undefined) {
       if (error) unsaved = true
       if (error === CHANGED_ELSEWHERE) conflict.value = true
       return error
-    })
+    }
+    const result = queue.then(run, run) // a save that threw must not block the ones after it
     queue = result
     return result
   }

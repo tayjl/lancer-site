@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { changeDiff, listDiff, reviewSections, writingSummary, wordCount, type Names } from './changeDiff'
+import { changeDiff, listDiff, reviewSections, writingSummary, type Names } from './changeDiff'
+import { wordCount } from './richTextSafe'
 import type { MechPrivate, Sheet } from './myPilot'
 import { mannaSpent } from './rules'
 

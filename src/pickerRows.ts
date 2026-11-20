@@ -1,8 +1,8 @@
-import { EXOTIC_MAKER, makerColour, makerId, makerLogo } from './archive'
+import { EXOTIC_MAKER, makerColour, makerId, makerLogo, itemMakerId } from './archive'
 import type { Bonus, Item } from './gameData'
 import { frameArt, type FrameArt } from './images'
 import type { Info, Manufacturer } from './info'
-import { itemCard, itemDetails, tagLabel, visibleTags, type CardType, type ItemStat } from './itemDetails'
+import { half, itemCard, itemDetails, tagLabel, visibleTags, type CardType, type ItemStat } from './itemDetails'
 import { EXOTIC, rankName } from './rules'
 import { mechStats, type Frame } from './mechData'
 import { plainText } from './rulesText'
@@ -84,7 +84,6 @@ export function keyTags(item: Item, tagNames: Map<string, string>, limit = 3): P
     .map((tag) => ({ label: tagLabel(tag, tagNames) }))
 }
 
-const sourceOf = (item: Item) => makerId(String(item.raw?.source ?? '')) || 'other'
 
 // A weapon, system, mod or piece of pilot gear. Weapons: mount and type, range and damage, SP, key tags. Systems: type,
 // SP, key tags. Mods: what they fit, SP. Pilot armour: its bonuses; pilot gear: its tags. Pilot gear sits in no box.
@@ -103,8 +102,8 @@ export function itemPick(item: Item, tagNames: Map<string, string>, manufacturer
     // Pilot armour's bonuses are its numbers; a mech item's bonuses are conditional and live in its rules.
     stats: details.stats.filter((stat) => pilot || stat.kind !== 'bonus'),
     chips: [...(item.licenceLevel > 0 ? [{ label: `Rank ${rankName(item.licenceLevel)}`, icon: 'license' }] : []), ...chips, ...keyTags(item, tagNames, item.mount ? 2 : 3)],
-    group: pilot ? undefined : makerGroup(sourceOf(item), manufacturers),
-    search: [...details.tags, plainText(details.text), item.type, item.mount, item.licenceLevel ? item.licenceId : '', sourceOf(item)].join(' '),
+    group: pilot ? undefined : makerGroup(itemMakerId(item), manufacturers),
+    search: [...details.tags, plainText(details.text), item.type, item.mount, item.licenceLevel ? item.licenceId : '', itemMakerId(item)].join(' '),
   }
 }
 
@@ -113,7 +112,6 @@ export function itemPick(item: Item, tagNames: Map<string, string>, manufacturer
 // full information).
 const STRIP = ['size', 'hp', 'evasion', 'edef', 'speed', 'armour', 'heat', 'system_points']
 const AXES = ['hp', 'evasion', 'edef', 'speed', 'heat', 'system_points']
-const half = (value: number | null) => (value === 0.5 ? '½' : String(value ?? '-'))
 
 export function frameRanges(frames: Frame[]) {
   const ranges = new Map<string, { min: number; max: number }>()

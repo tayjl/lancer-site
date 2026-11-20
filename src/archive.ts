@@ -62,7 +62,7 @@ const entry = (
   group: makerId(fields.group),
   search: [fields.name, ...facts, fields.group, fields.summary ?? '', ...text.map(plainText)].join(' ').toLowerCase(),
 })
-const sourceOf = (item: Item) => String(item.raw?.source ?? '') || 'other'
+export const itemMakerId = (item: Item) => makerId(String(item.raw?.source ?? '')) || 'other'
 // An item's rules on one line (pilot gear without rules falls back to its description, as on its card). Many
 // systems have no effect text, only actions or deployables: then the first action's, else deployable's, detail.
 const firstDetail = (list: unknown) =>
@@ -72,7 +72,7 @@ const summaryOf = (item: Item) =>
 
 export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
   const { manufacturers, frames, weapons, systems, mods, gear, biomods, statNames, talents, coreBonuses } = content
-  const item = (category: ArchiveCategory, i: Item, group = sourceOf(i)) =>
+  const item = (category: ArchiveCategory, i: Item, group = itemMakerId(i)) =>
     entry(
       {
         category, group, id: i.id, name: i.name, level: i.licenceLevel, exotic: isExotic(i), item: i, summary: summaryOf(i), info: () => itemInfo(i),
@@ -153,7 +153,12 @@ const GEAR_TYPES: Record<string, string> = { Armor: 'Pilot armour', Weapon: 'Pil
 const BY_LICENCE: ArchiveCategory[] = ['mech weapons', 'mech systems', 'weapon mods']
 const grouped = <T>(list: T[], keyOf: (item: T) => string) => {
   const groups = new Map<string, T[]>()
-  for (const item of list) groups.set(keyOf(item), [...(groups.get(keyOf(item)) ?? []), item])
+  for (const item of list) {
+    const key = keyOf(item)
+    const members = groups.get(key)
+    if (members) members.push(item)
+    else groups.set(key, [item])
+  }
   return [...groups]
 }
 export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufacturer[], ranked = false): ArchiveGroup[] {

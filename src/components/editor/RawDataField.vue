@@ -9,7 +9,6 @@ import { latest } from './useFields'
 // form's changes appear here. While the JSON is broken the last good data stays, and "error" says why (Save is blocked).
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
-const props = defineProps<{ open?: boolean }>()
 const emit = defineEmits<{ error: [message: string] }>()
 
 const pretty = (value: Data) => JSON.stringify(value, null, 2)
@@ -35,7 +34,7 @@ function input(event: Event) {
 </script>
 
 <template>
-  <details class="panel raw" :open="props.open">
+  <details class="panel raw">
     <summary>
       <h3 class="sheet-label">Advanced: raw data</h3>
       <span class="hint">JSON, for fields the form lacks.</span>

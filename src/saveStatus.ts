@@ -12,8 +12,11 @@ export function useSaveStatus() {
 
   async function track(save: Promise<string | null>) {
     saving.value = true
-    error.value = (await save) ?? ''
-    saving.value = false
+    try {
+      error.value = (await save) ?? ''
+    } finally {
+      saving.value = false
+    }
     saved.value = !error.value
     return error.value || null
   }

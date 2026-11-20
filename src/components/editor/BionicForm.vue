@@ -88,7 +88,6 @@ const add = () => {
 </template>
 
 <style scoped>
-.check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: var(--fs-s); }
 .rows { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
 .entry { display: grid; grid-template-columns: minmax(0, 14rem) 7rem auto; gap: var(--space-s); align-items: center; }
 .entry input { font-family: var(--mono); }

@@ -443,14 +443,5 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
   .top {
     grid-template-columns: minmax(0, 1fr);
   }
-
-  .big-logo {
-    width: 80px;
-    height: 80px;
-  }
-
-  .frame-art {
-    max-height: 12rem;
-  }
 }
 </style>

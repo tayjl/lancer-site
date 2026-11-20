@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends Data">
 import { ref } from 'vue'
 import type { Data } from '../../contentEditor'
+import { capitalise } from '../../text'
 import Icon from '../Icon.vue'
 import { latest, useProblems } from './useFields'
 
@@ -42,7 +43,7 @@ const move = (index: number, by: number) => {
       <li v-for="(item, index) in model" :key="index">
         <details class="rep" :open="!folded.has(index)" @toggle="toggled(index, $event)">
           <summary>
-            <span class="rep-title"><slot name="title" :item="item" :index="index">{{ noun[0].toUpperCase() + noun.slice(1) }} {{ index + 1 }}</slot></span>
+            <span class="rep-title"><slot name="title" :item="item" :index="index">{{ capitalise(noun) }} {{ index + 1 }}</slot></span>
             <span class="rep-sum"><slot name="summary" :item="item" :index="index" /></span>
             <span v-if="bad(index)" class="rep-bad"><Icon name="warning" />Needs fixing</span>
             <span v-if="!fixed" class="tools">

@@ -46,13 +46,13 @@ const roster = computed(() => {
     .sort((a, b) => (a.callsign || a.pilot_name).localeCompare(b.callsign || b.pilot_name))
 })
 
+const pilotQuery = () => supabase.from('characters').select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS}), ${PROGRESS_FIELDS}`)
+const withMechs = (pilot: { mechs: unknown }) => ({ ...pilot, mechs: Array.isArray(pilot.mechs) ? pilot.mechs : [] }) as Pilot
+
 async function load() {
   loading.value = true
-  const { data, error: loadError } = await supabase
-    .from('characters')
-    .select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS}), ${PROGRESS_FIELDS}`)
-    .order('created_at')
-  items.value = (data ?? []).map((pilot) => ({ ...pilot, mechs: Array.isArray(pilot.mechs) ? pilot.mechs : [] })) as Pilot[]
+  const { data, error: loadError } = await pilotQuery().order('created_at')
+  items.value = (data ?? []).map(withMechs)
   error.value = loadError?.message ?? ''
   loading.value = false
 }
@@ -83,12 +83,8 @@ async function run(pilot: Pilot, write: () => Promise<string | null>) {
   saved[pilot.id] = false
   let failure = await write()
   if (!failure) {
-    const { data, error: loadError } = await supabase
-      .from('characters')
-      .select(`${PILOT_FIELDS}, sheet:character_sheets(${SHEET_FIELDS}), ${PROGRESS_FIELDS}`)
-      .eq('id', pilot.id)
-      .maybeSingle()
-    if (data) items.value = items.value.map((item) => item.id === pilot.id ? ({ ...data, mechs: Array.isArray(data.mechs) ? data.mechs : [] }) as Pilot : item)
+    const { data, error: loadError } = await pilotQuery().eq('id', pilot.id).maybeSingle()
+    if (data) items.value = items.value.map((item) => item.id === pilot.id ? withMechs(data) : item)
     failure = loadError?.message ? `Saved, but couldn't refresh the row: ${loadError.message}` : null
     delete typed[pilot.id]
   }
@@ -246,8 +242,6 @@ section + section { margin-top: var(--space-l); }
 /* Scrolls inside its box on narrow screens; the header row stays put while the rows scroll. */
 .record-window { max-height: 70dvh; overflow: auto; border: 1px solid var(--rule); border-radius: var(--radius); }
 .table th { position: sticky; top: 0; z-index: 1; background: var(--panel); }
-.table th, .table td { white-space: nowrap; vertical-align: middle; }
-.table .number { text-align: right; }
 .table input { width: 8rem; text-align: right; }
 .table input.level { width: 5rem; }
 .xp { width: 9rem; text-align: right; }

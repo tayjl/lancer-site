@@ -225,26 +225,6 @@ async function remove() {
   margin-bottom: 0;
 }
 
-/* Where it stands: a bar under the header (sticky under the top bar on wider screens, so Publish is always at hand;
-   on phones it wraps to three rows, too tall to keep on screen). */
-.next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-  padding: var(--space-s) var(--space-l);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--void);
-  font-size: var(--fs-s);
-}
-
-.next-actions {
-  display: flex;
-  gap: var(--space-s);
-  margin-left: auto;
-}
-
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 22rem;
@@ -435,6 +415,8 @@ async function remove() {
   }
 }
 
+/* Where it stands: the bar under the header sticks under the top bar on wider screens, so Publish is always at hand
+   (on phones it wraps to three rows, too tall to keep on screen). */
 @media (min-width: 40.0625rem) {
   .next {
     position: sticky;

@@ -4,16 +4,15 @@ import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import Field from './Field.vue'
 import RepeatList from './RepeatList.vue'
-import { latest } from './useFields'
+import { input, latest } from './useFields'
 
 // The drones, mines and turrets an item places: a name, a kind, its numbers (size, HP, evasion, e-defence, armour; an
 // empty box leaves the number out), its rules and its own actions. Other fields on a deployable are kept as they are.
 const modelProp = defineModel<Data[]>({ required: true })
 const model = latest(modelProp)
-const props = withDefaults(defineProps<{ path?: string }>(), { path: 'deployables' })
+withDefaults(defineProps<{ path?: string }>(), { path: 'deployables' })
 
 const NUMBERS = [['size', 'Size', '0.5'], ['hp', 'HP', '1'], ['evasion', 'Evasion', '1'], ['edef', 'E-defence', '1'], ['armor', 'Armour', '1']] as const
-const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
 const number = (text: string) => (text.trim() === '' ? undefined : Number(text))
 </script>
 

@@ -4,10 +4,10 @@ import type { ArchiveCategory } from './archive'
 import { flatDamageText } from './damage'
 import { frameArt, type FrameArt } from './images'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
-import { activationOf, itemDetails, itemRules } from './itemDetails'
-import { alternateOf, licenceFrames, licenceNames, mechStats, sameName, type Frame } from './mechData'
+import { activationOf, half, itemDetails, itemRules } from './itemDetails'
+import { alternateOf, licenceFrames, licenceNames, mechStats, type Frame } from './mechData'
 import { PRICES, rankName } from './rules'
-import { capitalise, plural } from './text'
+import { capitalise, plural, sameName } from './text'
 
 // Everything about one thing a pilot can buy or equip, for the full-information dialog (InfoDialog.vue, opened by
 // InfoButton.vue from cards, licence ranks and pickers). Every kind has the same layout, from the developer's frame
@@ -60,7 +60,6 @@ function absorb(parent: InfoCard, name: string, actions: InfoCard[]) {
     rest: actions.filter((action) => !twins.includes(action)),
   }
 }
-const half = (value: number | null) => (value === 0.5 ? '½' : String(value ?? '-'))
 
 function tagCards(tags: Item['tags']): InfoCard[] {
   return tags

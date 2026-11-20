@@ -28,7 +28,6 @@
      uses the status colours above. */
   --rose: #ff9eb0;
   --sky: #a6d8ea;
-  --mint: #a9dfb5;
 
   /* Game meanings: COMP/CON's colours, lightened only where a dark-theme icon would fall under 3:1, darkened only
      where white text would fall under 4.5:1. Damage colours are for icons only. */
@@ -53,13 +52,6 @@
   --type-pilot: #005454; /* pilot armour, pilot gear, bionics */
   --type-talent: #7a4e1d; /* talents */
   --type-core: #d4e157; /* core bonuses and core systems: dark text on it */
-
-  /* Manufacturers: the packs' "dark" colour. Accent only: the logo and a 3px top border, never text or a tint. */
-  --mf-gms: #db1a2d;
-  --mf-ipsn: #1c9ae8;
-  --mf-ssc: #d1920a;
-  --mf-horus: #00a256;
-  --mf-ha: #a15ea8;
 
   /* Type: Atkinson Hyperlegible Next for everything people read; Cascadia Mono for numbers and codes (and the boot
      scrawl's art, as it has every block and shade character). Whole-pixel sizes keep text sharp. */
@@ -905,6 +897,12 @@ label.field .error {
   padding: var(--space-s) var(--space-m);
   border-bottom: 1px solid var(--rule);
   text-align: left;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table .number {
+  text-align: right;
 }
 
 .table th {
@@ -1433,7 +1431,26 @@ a.lore-link:focus-visible,
   color: var(--danger);
 }
 
-/* The bar under the header (and the lore editor's): paragraphs sit flush, and a failed save is red. */
+/* The bar under the header (and the mech page's and the lore editor's): the status, then the actions at the right.
+   Paragraphs sit flush, and a failed save is red. The pilot and mech pages join it to the box above. */
+.next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+  padding: var(--space-s) var(--space-l);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--void);
+  font-size: var(--fs-s);
+}
+
+.next-actions {
+  display: flex;
+  gap: var(--space-s);
+  margin-left: auto;
+}
+
 .next p {
   max-width: none;
   margin: 0;
@@ -1471,8 +1488,16 @@ a.lore-link:focus-visible,
   }
 }
 
-/* --- The archives and the lore page: a search, then a list beside the chosen entry (src/listPane.ts). "list-pane" is
-   on both pages' roots; :where() keeps each rule as specific as its scoped copy was. --- */
+/* --- The archives, the lore page and the content editor: a search, then a list (22rem) beside the chosen entry
+   (src/listPane.ts). "list-pane" is on each page's root; :where() keeps each rule as specific as its scoped copy was.
+   Each page sets "--stick", where its list sticks. Phones: one column, the list in the page. --- */
+:where(.list-pane) .browser {
+  display: grid;
+  grid-template-columns: 22rem minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-l);
+}
+
 :where(.list-pane) .search {
   display: flex;
   align-items: flex-end;
@@ -1504,6 +1529,10 @@ a.lore-link:focus-visible,
   background: var(--panel);
 }
 
+:where(.list-pane) .list .group.branded {
+  border-top: 3px solid var(--mf);
+}
+
 :where(.list-pane) .list .group-head {
   display: flex;
   align-items: center;
@@ -1512,10 +1541,50 @@ a.lore-link:focus-visible,
   border-bottom: 1px solid var(--rule);
 }
 
+/* .group-head's weight keeps the logo's size over the icon's own 1em. */
+:where(.list-pane) .list .group-head .group-logo {
+  width: 22px;
+  height: 22px;
+  color: var(--mf);
+}
+
 :where(.list-pane) .list .rows {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* A row: a real button (a link on the lore page, styled there), the name over its facts, a thin rule between rows.
+   The chosen one is lilac with a bar. */
+:where(.list-pane .list) button.row {
+  display: grid;
+  justify-content: stretch; /* the global button centres its contents */
+  justify-items: start;
+  gap: 2px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 6px var(--space-m);
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+:where(.list-pane) .list .row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  width: 100%;
+}
+
+:where(.list-pane) .list .row-top .badge {
+  flex: none;
+  margin-left: auto;
 }
 
 :where(.list-pane) .list .rows > li:first-child > .row {
@@ -1540,6 +1609,20 @@ a.lore-link:focus-visible,
 :where(.list-pane) .list .row-facts {
   color: var(--text-dim);
   font-size: var(--fs-xs);
+}
+
+@media (max-width: 56rem) {
+  :where(.list-pane) .browser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* No :where() here: this has to beat each page's own .list rule. */
+  .list-pane .browser > .list {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
 }
 
 /* --- The content editor (ContentEditorView.vue and src/components/editor/): a small square button for a row's
@@ -1637,6 +1720,40 @@ a.lore-link:focus-visible,
 
 .ed-form .code {
   font-family: var(--mono);
+}
+
+/* A checkbox with its words beside it. */
+.ed-form .check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+/* A faction's or commendation's editor (useSimpleEditor.ts): its panels, then the buttons' row. */
+.simple-editor {
+  display: grid;
+  gap: var(--space-m);
+  min-width: 0;
+}
+
+.simple-editor .panel {
+  display: grid;
+  gap: var(--space-m);
+  align-content: start;
+}
+
+.simple-editor .panel > :is(h2, h3, .notice),
+.simple-editor :is(.row, .danger-body) > p {
+  margin: 0;
+}
+
+.simple-editor .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
 }
 
 /* An id that can't be edited: dashed, like a field that's only there to read. */

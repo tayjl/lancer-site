@@ -14,8 +14,11 @@ async function change(event: Event) {
   if (value === (props.text ?? '')) return
   error.value = ''
   saving.value = true
-  error.value = (await props.save(value)) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.save(value)) ?? ''
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 

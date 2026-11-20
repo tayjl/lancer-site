@@ -1,4 +1,4 @@
-import { capitalise } from './text'
+import { capitalise, sameName } from './text'
 import { bonusValue } from './bonuses'
 import { flatDamage } from './damage'
 import { IMAGE_PATH } from './images'
@@ -11,25 +11,25 @@ import { EXOTIC, EXOTIC_TAG } from './rules'
 // The one pack every new item goes in, made the first time an owner makes one.
 export const HOMEBREW_PACK = 'Campaign homebrew'
 
-// The "site" kinds (bionics, factions) aren't pack content: they're rows in their own tables. "form": has a form
-// here; the other kinds are edited through the raw-data box (still with the live preview). "prefix" starts a new id.
+// The "site" kinds (bionics, factions) aren't pack content: they're rows in their own tables. "prefix" starts a new
+// id. Kinds other than the site ones are also edited through the raw-data box (with the live preview).
 export type EditorKind = LcpKind | 'bionics' | 'factions' | 'commendations'
-export type KindInfo = { key: EditorKind; label: string; singular: string; icon: string; prefix: string; site: boolean; form: boolean }
-const kind = (key: EditorKind, label: string, singular: string, icon: string, prefix: string, form = false, site = false): KindInfo =>
-  ({ key, label, singular, icon, prefix, form, site })
+export type KindInfo = { key: EditorKind; label: string; singular: string; icon: string; prefix: string; site: boolean }
+const kind = (key: EditorKind, label: string, singular: string, icon: string, prefix: string, site = false): KindInfo =>
+  ({ key, label, singular, icon, prefix, site })
 export const KINDS: KindInfo[] = [
-  kind('frames', 'Frames', 'frame', 'frame', 'hb_mf_', true),
-  kind('weapons', 'Weapons', 'weapon', 'weapon', 'hb_mw_', true),
-  kind('systems', 'Systems', 'system', 'system', 'hb_ms_', true),
-  kind('mods', 'Weapon mods', 'weapon mod', 'mod', 'hb_wm_', true),
-  kind('pilot_gear', 'Pilot gear', 'pilot gear', 'pilot', 'hb_pg_', true),
-  kind('talents', 'Talents', 'talent', 'talent', 'hb_t_', true),
-  kind('core_bonuses', 'Core bonuses', 'core bonus', 'corebonus', 'hb_cb_', true),
-  kind('tags', 'Tags', 'tag', 'flag', 'hb_tg_', true),
-  kind('manufacturers', 'Manufacturers', 'manufacturer', 'manufacturer', 'hb_mfr_', true),
-  kind('bionics', 'Biomods', 'biomod', 'mod', '', true, true),
-  kind('factions', 'Factions', 'faction', 'manufacturer', '', true, true),
-  kind('commendations', 'Commendations', 'commendation', 'medal', '', true, true),
+  kind('frames', 'Frames', 'frame', 'frame', 'hb_mf_'),
+  kind('weapons', 'Weapons', 'weapon', 'weapon', 'hb_mw_'),
+  kind('systems', 'Systems', 'system', 'system', 'hb_ms_'),
+  kind('mods', 'Weapon mods', 'weapon mod', 'mod', 'hb_wm_'),
+  kind('pilot_gear', 'Pilot gear', 'pilot gear', 'pilot', 'hb_pg_'),
+  kind('talents', 'Talents', 'talent', 'talent', 'hb_t_'),
+  kind('core_bonuses', 'Core bonuses', 'core bonus', 'corebonus', 'hb_cb_'),
+  kind('tags', 'Tags', 'tag', 'flag', 'hb_tg_'),
+  kind('manufacturers', 'Manufacturers', 'manufacturer', 'manufacturer', 'hb_mfr_'),
+  kind('bionics', 'Biomods', 'biomod', 'mod', '', true),
+  kind('factions', 'Factions', 'faction', 'manufacturer', '', true),
+  kind('commendations', 'Commendations', 'commendation', 'medal', '', true),
 ]
 export const kindInfo = (key: EditorKind) => KINDS.find((k) => k.key === key)!
 
@@ -254,6 +254,14 @@ const checkPoints = (data: Data, out: Problem[]) => {
   if (data.sp !== undefined && (!Number.isInteger(data.sp) || (data.sp as number) < 0)) out.push(error('System points must be a whole number, 0 or more.', 'sp'))
 }
 
+// A profile's or trait's name must be there and differ (whatever the capitals) from the rows before it.
+function checkRowName(value: unknown, noun: string, index: number, at: string, seen: Set<string>, out: Problem[]) {
+  const name = typeof value === 'string' ? value.trim() : ''
+  if (!name) out.push(error(`${noun} ${index + 1} needs a name.`, at))
+  else if (seen.has(name.toLowerCase())) out.push(error(`${noun} names must differ: "${name}" is used twice.`, at))
+  seen.add(name.toLowerCase())
+}
+
 function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
   if (!WEAPON_MOUNTS.concat(DATA_ONLY_MOUNTS).includes(String(data.mount))) out.push(error('Choose the mount size.', 'mount'))
   if (!WEAPON_TYPES.concat(DATA_ONLY_WEAPON_TYPES).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
@@ -265,10 +273,7 @@ function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
   const seen = new Set<string>()
   for (const [index, profile] of profiles.entries()) {
     const row = entry(profile)
-    const name = typeof row.name === 'string' ? row.name.trim() : ''
-    if (!name) out.push(error(`Profile ${index + 1} needs a name.`, `profiles.${index}.name`))
-    else if (seen.has(name.toLowerCase())) out.push(error(`Profile names must differ: "${name}" is used twice.`, `profiles.${index}.name`))
-    seen.add(name.toLowerCase())
+    checkRowName(row.name, 'Profile', index, `profiles.${index}.name`, seen, out)
     checkParts(row, `profiles.${index}.`, `Profile ${index + 1}`, ctx, out)
   }
   checkDeployables(data.deployables, ctx, out)
@@ -345,10 +350,7 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
   const seen = new Set<string>()
   for (const [index, trait] of list(data.traits).entries()) {
     const row = entry(trait)
-    const name = typeof row.name === 'string' ? row.name.trim() : ''
-    if (!name) out.push(error(`Trait ${index + 1} needs a name.`, `traits.${index}.name`))
-    else if (seen.has(name.toLowerCase())) out.push(error(`Trait names must differ: "${name}" is used twice.`, `traits.${index}.name`))
-    seen.add(name.toLowerCase())
+    checkRowName(row.name, 'Trait', index, `traits.${index}.name`, seen, out)
     checkParts(row, `traits.${index}.`, `Trait ${index + 1}`, ctx, out, false)
     checkDeployables(row.deployables, ctx, out, `traits.${index}.deployables`)
   }
@@ -393,7 +395,6 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
 
 // Where on the body a biomod goes: the form suggests these (and any slot already used); the slot itself is free text.
 export const BIONIC_SLOTS = ['Head', 'Eyes', 'Ears', 'Brain', 'Spine', 'Torso', 'Heart', 'Lungs', 'Arm', 'Hand', 'Leg', 'Foot', 'Skin', 'Nervous system', 'Full body']
-export type BionicData = { id: string; name: string; description: string; slot: string; source: string; effect: string; manna_cost: number; mod_point_cost: number; retired: boolean; bonuses: { stat_id: string; amount: number }[] }
 export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Problem[] {
   const problems: Problem[] = []
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
@@ -415,20 +416,18 @@ export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Probl
 
 // A faction (the reputation tracker's organisation) needs a name no other faction has, whatever the capitals.
 export function validateFaction(name: string, others: string[]): Problem[] {
-  const key = (text: string) => text.trim().toLowerCase()
   if (!name.trim()) return [error('A name is needed.', 'name')]
-  return others.some((other) => key(other) === key(name)) ? [error('Another faction already has that name.', 'name')] : []
+  return others.some((other) => sameName(other, name)) ? [error('Another faction already has that name.', 'name')] : []
 }
 
 // A commendation (an award GMs give pilots): a unique name, a short description and an icon from the site's set.
 export const COMMENDATION_NAME_MAX = 60
 export const COMMENDATION_DESCRIPTION_MAX = 300
 export function validateCommendation(name: string, description: string, icon: string, others: string[], icons: string[]): Problem[] {
-  const key = (text: string) => text.trim().toLowerCase()
   const problems: Problem[] = []
   if (!name.trim()) problems.push(error('A name is needed.', 'name'))
   else if (name.trim().length > COMMENDATION_NAME_MAX) problems.push(error(`A name is at most ${COMMENDATION_NAME_MAX} characters.`, 'name'))
-  else if (others.some((other) => key(other) === key(name))) problems.push(error('Another commendation already has that name.', 'name'))
+  else if (others.some((other) => sameName(other, name))) problems.push(error('Another commendation already has that name.', 'name'))
   if (description.length > COMMENDATION_DESCRIPTION_MAX) problems.push(error(`A description is at most ${COMMENDATION_DESCRIPTION_MAX} characters.`, 'description'))
   if (!icons.includes(icon)) problems.push(error('Pick an icon.', 'icon'))
   return problems

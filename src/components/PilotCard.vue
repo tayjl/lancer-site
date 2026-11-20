@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { displayColour } from '../pilotColour'
+import { plural } from '../text'
 import Icon from './Icon.vue'
 import Portrait from './Portrait.vue'
 
@@ -19,7 +20,7 @@ const pilot = computed(() => displayColour(props.colour))
     <span>{{ name }}</span>
     <span v-if="mechs" class="dim">{{ mechs }}</span>
     <span v-if="player" class="dim">Player: {{ player }}</span>
-    <span v-if="awards" class="awards" :title="`${awards} commendation${awards === 1 ? '' : 's'}`">
+    <span v-if="awards" class="awards" :title="plural(awards, 'commendation')">
       <Icon name="medal" /><span class="num">{{ awards }}</span><span class="sr-only">{{ awards === 1 ? 'commendation' : 'commendations' }}</span>
     </span>
     <slot />

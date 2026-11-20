@@ -7,7 +7,7 @@ import BonusListField from './BonusListField.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
 import ItemIdListField from './ItemIdListField.vue'
-import { latest, useEquipmentOptions } from './useFields'
+import { clean, input, latest, useEquipmentOptions } from './useFields'
 
 // A frame's core system: its name and lore; the passive that's always on (counted in the mech's numbers when it has
 // bonuses); the core power the pilot switches on (its activation, how long it lasts, rules, actions, bonuses that only
@@ -20,9 +20,7 @@ const equipment = useEquipmentOptions()
 
 const set = (changes: Data) => (model.value = { ...model.value, ...changes })
 const list = <T,>(key: string) => (Array.isArray(model.value[key]) ? (model.value[key] as T[]) : [])
-const clean = <T,>(value: T[]) => (value.length ? value : undefined)
 const val = (key: string) => String(model.value[key] ?? '')
-const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
 const optional = (value: unknown) => (value as string) || undefined
 </script>
 

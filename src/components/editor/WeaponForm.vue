@@ -11,7 +11,7 @@ import Field from './Field.vue'
 import ItemBasics from './ItemBasics.vue'
 import RepeatList from './RepeatList.vue'
 import TagListField from './TagListField.vue'
-import { latest, useFields } from './useFields'
+import { clean, input, latest, list, useFields } from './useFields'
 
 // The form for a mech weapon. A weapon has one set of range, damage and rules, or several "profiles" (modes the pilot
 // chooses between, each with its own range and damage and optionally its own tags, rules and actions). With profiles
@@ -42,12 +42,9 @@ const mounts = computed(() => (WEAPON_MOUNTS.includes(mount.value) || !mount.val
 const types = computed(() => (WEAPON_TYPES.includes(type.value) || !type.value ? WEAPON_TYPES : [...WEAPON_TYPES, type.value]))
 
 // A profile's own tags, rules and actions are left out while empty, so the weapon's own apply.
-const clean = <T,>(value: T[]) => (value.length ? value : undefined)
 const text = (value: unknown) => (value as string) || undefined
-const listOf = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : [])
-const input = (event: Event) => (event.target as HTMLInputElement).value
 const numbers = (entries: Entry[]) => entries.map((entry) => `${entry.type} ${entry.val}`).join(', ')
-const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbers(listOf<Entry>(profile.damage))].filter(Boolean).join(' · ')
+const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers(list<Entry>(profile.damage))].filter(Boolean).join(' · ')
 </script>
 
 <template>
@@ -86,13 +83,13 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
           <input type="text" :value="item.name" autocomplete="off" @input="change({ name: input($event) })" />
         </Field>
         <Field block label="Range">
-          <DamageField :model-value="listOf<Entry>(item.range)" kind="range" :path="`profiles.${index}.range`" @update:model-value="change({ range: $event })" />
+          <DamageField :model-value="list<Entry>(item.range)" kind="range" :path="`profiles.${index}.range`" @update:model-value="change({ range: $event })" />
         </Field>
         <Field block label="Damage">
-          <DamageField :model-value="listOf<Entry>(item.damage)" kind="damage" :path="`profiles.${index}.damage`" @update:model-value="change({ damage: $event })" />
+          <DamageField :model-value="list<Entry>(item.damage)" kind="damage" :path="`profiles.${index}.damage`" @update:model-value="change({ damage: $event })" />
         </Field>
         <Field block label="Tags" hint="Empty uses the weapon's tags.">
-          <TagListField :model-value="listOf<TagEntry>(item.tags)" :tags="tags" :path="`profiles.${index}.tags`" @update:model-value="change({ tags: clean($event) })" />
+          <TagListField :model-value="list<TagEntry>(item.tags)" :tags="tags" :path="`profiles.${index}.tags`" @update:model-value="change({ tags: clean($event) })" />
         </Field>
         <Field block label="Rules text" hint="Empty uses the weapon's rules text.">
           <RichTextEditor :label="`Profile ${index + 1} rules text`" html basic :model-value="String(item.effect ?? '')" @update:model-value="change({ effect: text($event) })" />
@@ -107,7 +104,7 @@ const summary = (profile: Data) => [numbers(listOf<Entry>(profile.range)), numbe
           <RichTextEditor :label="`Profile ${index + 1} on critical hit`" html basic :model-value="String(item.on_crit ?? '')" @update:model-value="change({ on_crit: text($event) })" />
         </Field>
         <Field block label="Actions" hint="Empty uses the weapon's actions.">
-          <ActionListField :model-value="listOf<Data>(item.actions)" :path="`profiles.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />
+          <ActionListField :model-value="list<Data>(item.actions)" :path="`profiles.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />
         </Field>
       </template>
     </RepeatList>

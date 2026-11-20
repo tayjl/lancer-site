@@ -1,75 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ICON_CHOICES } from '../../commendations'
-import { confirmAction } from '../../confirm'
 import { COMMENDATION_DESCRIPTION_MAX, COMMENDATION_NAME_MAX, errorsOf, validateCommendation } from '../../contentEditor'
 import { createCommendation, deleteCommendation, saveCommendation, type Loaded } from '../../editorStore'
-import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
-import { useSaveStatus } from '../../saveStatus'
 import ConflictNotice from '../ConflictNotice.vue'
 import Icon from '../Icon.vue'
 import MedalBadge from '../MedalBadge.vue'
 import SaveStatus from '../SaveStatus.vue'
+import { useSimpleEditor } from './useSimpleEditor'
 
 // A commendation's editor (owners only): name, description and an icon from the site's set. GMs award these to pilots
-// from the pilot's review page. Saving is explicit and guarded by updated_at like the other site tables; "item" is null
-// for a new one, "others" the names of the other commendations.
+// from the pilot's review page. "item" is null for a new one, "others" the names of the other commendations.
 const props = defineProps<{ item: Loaded | null; others: string[] }>()
 const emit = defineEmits<{ created: [key: string]; changed: []; deleted: [] }>()
 
-const isNew = props.item === null
-const form = ref({ name: String(props.item?.data.name ?? ''), description: String(props.item?.data.description ?? ''), icon: String(props.item?.data.icon ?? 'medal') })
-const baseline = ref({ ...form.value })
-const updatedAt = ref(props.item?.updatedAt ?? '')
-const dirty = computed(() => (Object.keys(form.value) as (keyof typeof form.value)[]).some((key) => form.value[key] !== baseline.value[key]))
-// Once created, the list already holds this commendation's own name until the page switches to it: don't check against it.
-const created = ref(false)
-const problems = computed(() => created.value ? [] : validateCommendation(form.value.name, form.value.description, form.value.icon, props.others, ICON_CHOICES))
+const { isNew, form, baseline, dirty, problems, status, conflict, busy, save, deleteError, remove } = useSimpleEditor(
+  props.item,
+  { name: String(props.item?.data.name ?? ''), description: String(props.item?.data.description ?? ''), icon: String(props.item?.data.icon ?? 'medal') },
+  (fields) => validateCommendation(fields.name, fields.description, fields.icon, props.others, ICON_CHOICES),
+  {
+    create: createCommendation,
+    save: saveCommendation,
+    remove: deleteCommendation,
+    confirm: (name) => ({ message: `Delete ${name}? Pilots who have it lose it. This can't be undone.`, label: 'Delete commendation' }),
+  },
+  emit,
+)
 const problemAt = (field: string) => (dirty.value ? problems.value.find((problem) => problem.field === field)?.text : undefined)
-const status = useSaveStatus()
-const conflict = ref(false)
-const busy = computed(() => status.saving.value)
-
-async function save() {
-  if (problems.value.length || busy.value || conflict.value) return
-  const snapshot = { ...form.value, name: form.value.name.trim() }
-  const failed = await status.track((async () => {
-    const made = isNew ? await createCommendation(snapshot) : null
-    const result = made ?? await saveCommendation({ ...props.item!, updatedAt: updatedAt.value }, snapshot)
-    if (result.error !== undefined) return result.error
-    baseline.value = { ...snapshot }
-    form.value = { ...snapshot }
-    if (made?.key) {
-      created.value = true
-      emit('created', made.key)
-    }
-    else {
-      updatedAt.value = result.updatedAt
-      emit('changed')
-    }
-    return null
-  })())
-  if (failed === CHANGED_ELSEWHERE) conflict.value = true
-}
-
-const deleteError = ref('')
-async function remove() {
-  if (!(await confirmAction(`Delete ${baseline.value.name}? Pilots who have it lose it. This can't be undone.`, { confirmLabel: 'Delete commendation', danger: true }))) return
-  deleteError.value = (await deleteCommendation(props.item!.key)) ?? ''
-  if (!deleteError.value) {
-    baseline.value = { ...form.value }
-    emit('deleted')
-  }
-}
-
-const warnLeaving = (event: BeforeUnloadEvent) => { if (dirty.value) event.preventDefault() }
-onMounted(() => window.addEventListener('beforeunload', warnLeaving))
-onUnmounted(() => window.removeEventListener('beforeunload', warnLeaving))
 defineExpose({ dirty })
 </script>
 
 <template>
-  <article class="commendation" :aria-label="`Editing ${baseline.name || 'new commendation'}`">
+  <article class="simple-editor" :aria-label="`Editing ${baseline.name || 'new commendation'}`">
     <section class="panel">
       <h2 class="sheet-label">{{ isNew ? 'New commendation' : baseline.name }}<span class="private gm">GM only</span></h2>
       <ConflictNotice v-if="conflict" />
@@ -120,28 +81,6 @@ defineExpose({ dirty })
 </template>
 
 <style scoped>
-.commendation {
-  display: grid;
-  gap: var(--space-m);
-  min-width: 0;
-}
-
-.commendation .panel {
-  display: grid;
-  gap: var(--space-m);
-  align-content: start;
-}
-
-.commendation h2,
-.commendation h3 {
-  margin: 0;
-}
-
-.commendation .notice,
-.commendation p {
-  margin: 0;
-}
-
 textarea {
   width: 100%;
   resize: vertical;
@@ -218,12 +157,5 @@ textarea {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-m);
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
 }
 </style>

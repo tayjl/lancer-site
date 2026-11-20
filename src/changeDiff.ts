@@ -1,7 +1,7 @@
 import type { Json } from './lib/database.types'
 import type { MechPrivate, Sheet } from './myPilot'
 import type { PublicMech } from './pilots'
-import { docText } from './richTextSafe'
+import { wordCount } from './richTextSafe'
 import { PRICES, rankName } from './rules'
 import { capitalise } from './text'
 
@@ -81,7 +81,7 @@ export function changeDiff(
   // Sentence case: the first letter is a capital, whatever the name or id starts with.
   const add = (section: string, text: string, kind: DiffLine['kind'] = 'updated', doc?: Json | null, extra: Pick<DiffLine, 'before' | 'manna'> = {}) =>
     lines.push({
-      section, text: text.charAt(0).toUpperCase() + text.slice(1), kind, ...(mechId ? { mechId } : {}), ...(doc !== undefined ? { doc } : {}),
+      section, text: capitalise(text), kind, ...(mechId ? { mechId } : {}), ...(doc !== undefined ? { doc } : {}),
       ...(extra.before ? { before: extra.before } : {}), ...(extra.manna ? { manna: extra.manna } : {}),
     })
   const listChanges = <T>(section: string, from: T[] | undefined, to: T[] | undefined, name: (item: T) => string, price?: (item: T) => number) => {
@@ -292,8 +292,6 @@ export function reviewSections(lines: DiffLine[]): ReviewSection[] {
   const rank = (section: ReviewSection) => (section.mech ? SECTION_ORDER.length : SECTION_ORDER.indexOf(section.id))
   return [...sections.values()].sort((a, b) => rank(a) - rank(b)) // stable: mechs keep their order
 }
-
-export const wordCount = (doc: unknown) => docText(doc).split(' ').filter(Boolean).length
 
 // "Backstory rewritten · 412 → 530 words", or "Backstory written · 530 words" when there was nothing before.
 // Only for lines that carry writing (a doc); every other line is its own text.

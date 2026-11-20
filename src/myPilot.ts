@@ -207,7 +207,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   let queue: Promise<unknown> = Promise.resolve()
   // Runs an action after the saves before it.
   function queued(save: () => Promise<string | null>) {
-    const result = queue.then(save)
+    const result = queue.then(save, save) // a save that threw must not block the ones after it
     queue = result
     return result
   }
@@ -315,12 +315,11 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const proposeChange = () =>
     queued(async () => {
       const c = character.value!
-      const card = Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, c[column]]))
       const basedOn = [c.updated_at, sheetUpdatedAt.value].reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a))
       const { error } = await supabase.from('pending_changes').insert({
         character_id: c.id,
         submitted_by: session.value!.user.id,
-        proposed_public: card as NonNullable<Json>,
+        proposed_public: card(),
         proposed_sheet: sheet.value as unknown as NonNullable<Json>,
         based_on: basedOn,
       })

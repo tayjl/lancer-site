@@ -1,12 +1,9 @@
-// The rich-text editor's TipTap setup. What it saves is cleaned and read back by src/richTextSafe.ts (re-exported here).
+// The rich-text editor's TipTap setup. What it saves is cleaned and read back by src/richTextSafe.ts.
 import { Extension, type Extensions } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { FontSize, TextStyle } from '@tiptap/extension-text-style'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { ResolvedPos } from '@tiptap/pm/model'
-
-// Re-exported so the editor's tests can reach them from one place.
-export { sanitiseDoc, docText } from './richTextSafe'
 
 // Text colour is no longer offered: each colour has one meaning site-wide. Colour saved before then stays in the
 // document (the attribute is kept, so the editor doesn't drop it on the next save) but is drawn as normal text.

@@ -261,7 +261,7 @@ defineExpose({ dirty })
         <p v-else class="notice" role="note">
           <span>No form for {{ info.label.toLowerCase() }} yet. Edit the raw data.</span>
         </p>
-        <RawDataField v-if="!info.site" v-model="working" :open="!info.form" @error="rawError = $event" />
+        <RawDataField v-if="!info.site" v-model="working" @error="rawError = $event" />
 
         <section v-if="homebrew" class="panel danger-zone" aria-labelledby="danger-title">
           <h3 id="danger-title" class="sheet-label">Danger zone</h3>

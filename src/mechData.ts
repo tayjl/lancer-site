@@ -21,7 +21,7 @@ import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './b
 import { flatDamage, flatDamageText } from './damage'
 import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES } from './coreRules'
-import { capitalise } from './text'
+import { capitalise, sameName } from './text'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
 // which weapons fit which mount, and the mech's stats. Mechs only store ids; everything else comes from here.
@@ -171,7 +171,6 @@ type Origin = { kind: ReminderKind; name: string; from?: string }
 export type Reminder = Origin & { source: string; text: string; activation?: string; uncounted?: boolean }
 
 // Names compared the way people read them: "Grapple cable" is "Grapple Cable".
-export const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 const listOf = (value: unknown) => (Array.isArray(value) ? value : []) as Bonus[]
 // coreRules.ts's supplement only adds what the structured data leaves out: a check modifier the data already carries
@@ -308,13 +307,14 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   }
   const modifiers: StatModifier[] = []
   const bonuses: NamedBonus[] = []
+  const variables = buildVariables(sheet, frame)
   for (const source of sources) {
     for (const bonus of source.bonuses) {
       if (!bonus || typeof bonus !== 'object') continue
       if (bonus.id === 'pilot_evasion') continue
       bonuses.push({ source: source.name, bonus })
       const stat = BONUS_STATS[bonus.id]
-      const calculated = bonusValue(bonus.val, buildVariables(sheet, frame))
+      const calculated = bonusValue(bonus.val, variables)
       const numeric = calculated !== null
       const value = calculated ?? NaN
       // Filters, expressions and conditions require game state that this character manager doesn't track.
@@ -383,8 +383,10 @@ export function mechStats(frame: Frame | null, skills: Record<string, number> | 
       ...(hase[id]?.[1] ? [`${capitalise(hase[id][0])}: +${hase[id][1]}`] : []),
     ]
     for (const entry of resolved.used) contributors.push(`${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}${entry.overwrite && !entry.replace ? ' (highest wins)' : ''}`)
-    const armourMax = resolveBonuses(4, modifiers.filter(entry => entry.stat === 'armor_max')).value
-    if (id === 'armour' && value > armourMax) { value = armourMax; contributors.push(`Armour maximum: ${armourMax}`) }
+    if (id === 'armour') {
+      const armourMax = resolveBonuses(4, modifiers.filter(entry => entry.stat === 'armor_max')).value
+      if (value > armourMax) { value = armourMax; contributors.push(`Armour maximum: ${armourMax}`) }
+    }
     if (id === 'size' && matching.length) {
       const steps = [0.5, 1, 2, 3]
       value = resolved.usesBase ? steps[Math.min(3, Math.max(0, steps.indexOf(s.size ?? 1) + Math.trunc(value - (s.size ?? 1))))] : Math.min(3, Math.max(0.5, value))

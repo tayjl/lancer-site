@@ -81,8 +81,11 @@ const blockedBy = (item: Item) => restricted(item) || (tooCostly(item) ? 'Not en
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]
   saving.value = true
-  error.value = (await props.save(next)) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.save(next)) ?? ''
+  } finally {
+    saving.value = false
+  }
 }
 
 function open() {

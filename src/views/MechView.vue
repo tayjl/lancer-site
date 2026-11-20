@@ -585,17 +585,9 @@ async function scrap() {
 
 /* --- The draft bar, joined to the plate's foot (as my pilot's next-step bar) --- */
 .next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
   margin-top: calc(-1 * var(--space-m)); /* joined to the plate: cancels the sheet's gap */
-  padding: var(--space-s) var(--space-l);
-  border: 1px solid var(--rule);
   border-top: 0;
   border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--void);
-  font-size: var(--fs-s);
 }
 
 .tab-panel * {

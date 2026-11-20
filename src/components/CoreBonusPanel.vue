@@ -35,8 +35,11 @@ const saving = ref(false)
 
 async function store(ids: string[]) {
   saving.value = true
-  error.value = (await props.save(ids)) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.save(ids)) ?? ''
+  } finally {
+    saving.value = false
+  }
   return !error.value
 }
 

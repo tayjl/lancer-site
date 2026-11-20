@@ -76,7 +76,7 @@ async function disconnect() {
           </div>
         </nav>
 
-        <div class="user">
+        <div class="account">
           <span v-if="profile" class="who">{{ profile.display_name }} <span class="label">{{ profile.role }}</span></span>
           <button type="button" class="quiet small" @click="disconnect">Disconnect</button>
           <button type="button" class="small menu" aria-controls="drawer" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
@@ -196,7 +196,7 @@ async function disconnect() {
   border-left: 1px solid var(--rule);
 }
 
-.user {
+.account {
   display: flex;
   align-items: center;
   gap: var(--space-m);
@@ -223,7 +223,7 @@ async function disconnect() {
     display: none;
   }
 
-  .user {
+  .account {
     margin-left: auto;
   }
 

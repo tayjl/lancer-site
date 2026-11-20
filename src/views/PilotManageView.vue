@@ -812,27 +812,13 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
 
 /* --- What happens next: a band joined to the cover's foot --- */
 .next {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
   margin-top: calc(-1 * var(--space-m)); /* joined to the cover: cancels the sheet's gap */
-  padding: var(--space-s) var(--space-l);
-  border: 1px solid var(--rule);
   border-top: 0;
   border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--void);
-  font-size: var(--fs-s);
 }
 
 .next-text {
   flex: 0 1 auto;
-}
-
-.next-actions {
-  display: flex;
-  gap: var(--space-s);
-  margin-left: auto;
 }
 
 .note-text {

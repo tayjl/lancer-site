@@ -34,7 +34,3 @@ const hidden = f.flag('hidden')
     <RichTextEditor label="What the tag means" html basic v-model="description" />
   </section>
 </template>
-
-<style scoped>
-.check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: var(--fs-s); }
-</style>

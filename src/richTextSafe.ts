@@ -71,3 +71,5 @@ export function docText(doc: unknown): string {
     nodes.map((node) => (node.type === 'text' ? node.text : node.type === 'hardBreak' ? ' ' : ` ${words(node.content)} `)).join('')
   return words(sanitiseDoc(doc)).replace(/\s+/g, ' ').trim()
 }
+
+export const wordCount = (doc: unknown) => docText(doc).split(' ').filter(Boolean).length

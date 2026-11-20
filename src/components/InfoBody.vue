@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { sourceOf } from '../gameData'
 import type { Info, InfoCard } from '../info'
 import MechImage from './MechImage.vue'
@@ -27,6 +27,12 @@ const radar = computed(() =>
     : [],
 )
 const summary = computed(() => `Stats compared with every frame: ${radar.value.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`)
+// Phones: the radar's labels bigger (about 12px or more on screen) and one word to a line, so they fit beside it.
+const phoneQuery = window.matchMedia('(max-width: 40rem)')
+const phone = ref(phoneQuery.matches)
+const onPhoneChange = (event: MediaQueryListEvent) => (phone.value = event.matches)
+phoneQuery.addEventListener('change', onPhoneChange)
+onUnmounted(() => phoneQuery.removeEventListener('change', onPhoneChange))
 // A card's parts as InfoRule draws them (not its tone, nor a trait's actions, which are drawn separately).
 const rule = ({ heading, activation, frequency, stats, html }: InfoCard) => ({ heading, activation, frequency, stats, html })
 const sp = computed(() => props.info.stats.find((stat) => stat.kind === 'sp'))
@@ -43,7 +49,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
     </p>
 
     <div v-if="radar.length" class="compare">
-      <RadarChart :axes="radar" :summary="summary" />
+      <RadarChart :axes="radar" :summary="summary" :label-size="phone ? 23 : undefined" :wrap="phone" />
       <ul class="stat-grid">
         <li v-for="(stat, i) in info.stats" :key="i">
           <Icon v-if="stat.icon" :src="stat.icon" />

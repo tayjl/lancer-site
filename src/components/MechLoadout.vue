@@ -101,8 +101,11 @@ const saving = ref(false)
 
 async function store(changes: Partial<MechPrivate>) {
   saving.value = true
-  error.value = (await props.save(changes)) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.save(changes)) ?? ''
+  } finally {
+    saving.value = false
+  }
   return !error.value
 }
 

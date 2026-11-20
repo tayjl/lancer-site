@@ -23,6 +23,9 @@ import { flatDamage, flatDamageText } from './damage'
 import { plainText } from './rulesText'
 import { capitalise } from './text'
 
+// A stat value for display: 0.5 is shown as ½, a missing one as a dash.
+export const half = (value: number | null) => (value === 0.5 ? '½' : String(value ?? '-'))
+
 // What an item card shows (ItemDetails.vue, and the pickers' one-line summaries): its stats with LANCER's
 // symbols, its rules text and its tags.
 
@@ -93,10 +96,6 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
   return { stats, tags, text }
 }
 
-// One line for a picker: "range 10, kinetic 4, sp 1".
-export const statLine = (details: ReturnType<typeof itemDetails>) =>
-  details.stats.map((stat) => `${stat.label} ${stat.value}`).join(', ')
-
 // An item card's look (ItemCard.vue): its header colour (a --type-* token) and its symbol (src/assets/icons).
 export type CardType = 'weapon' | 'system' | 'frame' | 'pilot' | 'talent' | 'core'
 const PILOT_TYPES = ['Armor', 'Gear']
@@ -154,7 +153,7 @@ export function itemRules(raw: Record<string, unknown>, activeEffects = true): I
   }
   for (const key of ['actions', 'deployables', ...(activeEffects ? ['active_effects'] : [])]) if (Array.isArray(raw[key])) for (const entry of raw[key] as Record<string, unknown>[]) {
     if (!entry || typeof entry !== 'object') continue
-    const stats = Object.entries(DEPLOYABLE_STATS).filter(([stat]) => typeof entry[stat] === 'number').map(([stat, label]) => `${label} ${entry[stat] === 0.5 ? '½' : entry[stat]}`).join(' · ')
+    const stats = Object.entries(DEPLOYABLE_STATS).filter(([stat]) => typeof entry[stat] === 'number').map(([stat, label]) => `${label} ${half(entry[stat] as number)}`).join(' · ')
     if (key === 'actions' && (entry.detail || entry.description)) result.push(action(entry, 'action'))
     else if (entry.detail || entry.description || stats) result.push({ name: String(entry.name ?? key), text: `${stats}${stats ? '. ' : ''}${entry.detail ?? entry.description ?? ''}`, ...extras(entry) })
     if (Array.isArray(entry.actions)) for (const inner of entry.actions as Record<string, unknown>[]) if (inner?.detail) result.push(action(inner, 'action'))

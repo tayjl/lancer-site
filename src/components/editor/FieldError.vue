@@ -4,7 +4,7 @@ import { useProblems } from './useFields'
 
 // What's wrong at one place in the item: an "Error: …" (or "Warning: …") line under the input, from the editor's problem
 // list. "deep" also shows what's wrong anywhere below the path (a whole row's). Nothing is drawn when all is well.
-const props = defineProps<{ path: string; deep?: boolean; id?: string }>()
+defineProps<{ path: string; deep?: boolean; id?: string }>()
 const { at } = useProblems()
 </script>
 

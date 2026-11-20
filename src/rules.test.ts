@@ -192,11 +192,13 @@ describe('mechs', () => {
 })
 
 describe('pilot weapons', () => {
-  it('needs a damage type chosen for an equipped Variable weapon', () => {
+  it('needs a damage type chosen for a Variable weapon, equipped or stowed', () => {
     const gear = [item('gun', { type: 'Weapon', damage: [{ type: 'Variable', val: 2 }] })]
     const run = (damageType?: string) => pilotProblems({ owned_gear: [{ key: 'k', id: 'gun', damageType }], equipped_gear: ['k'] }, { level: 0, manna: 10000 }, { ...catalogue, gear }, {}, null).filter(problem => problem.includes('damage type'))
     expect(run()).toEqual(['gun needs a damage type.'])
     expect(run('Energy')).toEqual([])
+    const stowed = pilotProblems({ owned_gear: [{ key: 'k', id: 'gun' }], equipped_gear: [] }, { level: 0, manna: 10000 }, { ...catalogue, gear }, {}, null)
+    expect(stowed).toContain('gun needs a damage type.')
   })
 })
 

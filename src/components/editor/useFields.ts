@@ -2,6 +2,12 @@ import { computed, customRef, inject, nextTick, provide, ref, type InjectionKey,
 import type { Data, Problem } from '../../contentEditor'
 import { useMechData } from '../../mechData'
 
+// Small helpers the forms share: an input's value, an array field's value (or [] if it isn't one), and an empty
+// array left out of the data.
+export const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
+export const list = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : [])
+export const clean = <T,>(value: T[]) => (value.length ? value : undefined)
+
 // A form's v-model, where a write is seen by the very next read. A plain defineModel only shows the parent's new value
 // after the parent re-renders, so two writes in one tick (each spreading the object it just read) would lose the first;
 // this keeps the last write until the parent has caught up. Every editor component wraps its model in it.

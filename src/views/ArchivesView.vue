@@ -436,10 +436,6 @@ button.made:focus-visible .made-name {
    and the tabs and scrolling on its own. Phones: the list alone, in the page. --- */
 .browser {
   --stick: calc(var(--topbar-h) + var(--tabs-h) + 1px + var(--space-m));
-  display: grid;
-  grid-template-columns: 22rem minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-l);
 }
 
 .list {
@@ -463,16 +459,6 @@ button.made:focus-visible .made-name {
   letter-spacing: 0;
 }
 
-.group.branded {
-  border-top: 3px solid var(--mf);
-}
-
-.group-logo {
-  width: 22px;
-  height: 22px;
-  color: var(--mf);
-}
-
 .group-head h3 {
   margin: 0;
   font-size: var(--fs-s);
@@ -487,26 +473,6 @@ button.made:focus-visible .made-name {
 .licence {
   margin: 0;
   padding: var(--space-s) var(--space-m) var(--space-xs);
-}
-
-/* A row: a real button, the name over its facts, a thin rule between rows. The chosen one is lilac with a bar. */
-.row {
-  display: grid;
-  justify-content: stretch; /* the global button centres its contents */
-  justify-items: start;
-  gap: 2px;
-  width: 100%;
-  min-height: var(--tap);
-  padding: 6px var(--space-m);
-  border: 0;
-  border-top: 1px solid var(--rule);
-  border-radius: 0;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  letter-spacing: 0;
-  text-align: left;
-  text-transform: none;
 }
 
 .row-name {
@@ -548,18 +514,5 @@ button.made:focus-visible .made-name {
 .pane-head h2 {
   font-size: var(--fs-l);
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 56rem) {
-  .browser {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .list {
-    position: static;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-  }
 }
 </style>

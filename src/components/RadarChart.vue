@@ -4,8 +4,9 @@ import { computed } from 'vue'
 // A radar ("spider") chart, like COMP/CON's frame stats: one spoke per stat, the shape reaching out as far as the
 // stat sits between the lowest and the highest any frame has ("at", 0 to 1). Labels name the stats; the numbers sit
 // beside the chart (InfoDialog.vue), and in "summary" for screen readers.
-// "mini" is the pickers' tiny version: no labels, just the shape on its rings.
-const props = defineProps<{ axes: { label: string; value: string; at: number }[]; summary: string; mini?: boolean; tight?: boolean; labelSize?: number }>()
+// "mini" is the pickers' tiny version: no labels, just the shape on its rings. "wrap" puts each word of a label on its
+// own line, for big labels on a narrow chart.
+const props = defineProps<{ axes: { label: string; value: string; at: number }[]; summary: string; mini?: boolean; tight?: boolean; labelSize?: number; wrap?: boolean }>()
 
 const SIZE = 520
 const CENTRE = SIZE / 2
@@ -29,7 +30,8 @@ const labels = computed(() =>
   props.axes.map((axis, i) => {
     const [x, y] = point(i, RADIUS + 14)
     const cos = Math.cos(angle(i))
-    return { ...axis, x, y, anchor: cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle' }
+    const lines = props.wrap ? axis.label.split(' ') : []
+    return { ...axis, x, y, lines, anchor: cos > 0.3 ? 'start' : cos < -0.3 ? 'end' : 'middle' }
   }),
 )
 </script>
@@ -41,7 +43,12 @@ const labels = computed(() =>
     <polygon :points="shape.map((p) => p.join(',')).join(' ')" class="shape" />
     <circle v-for="(p, i) in shape" :key="`dot-${i}`" :cx="p[0]" :cy="p[1]" r="3.5" class="dot" />
     <text v-for="label in mini ? [] : labels" :key="label.label" :x="label.x" :y="label.y" :text-anchor="label.anchor" dominant-baseline="middle" class="label" :style="labelSize ? { fontSize: `${labelSize}px` } : undefined">
-      {{ label.label }}
+      <template v-if="label.lines.length > 1">
+        <tspan v-for="(line, l) in label.lines" :key="l" :x="label.x" :dy="`${l ? 1.1 : -0.55 * (label.lines.length - 1)}em`">{{ line }}</tspan>
+      </template>
+      <template v-else>
+        {{ label.label }}
+      </template>
     </text>
   </svg>
 </template>

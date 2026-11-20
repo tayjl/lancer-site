@@ -20,7 +20,7 @@ import FieldError from './FieldError.vue'
 import FoldPanel from './FoldPanel.vue'
 import RepeatList from './RepeatList.vue'
 import ToggleChips from './ToggleChips.vue'
-import { latest, useFields, useProblems } from './useFields'
+import { clean, input, latest, list, useFields, useProblems } from './useFields'
 
 // The form for a frame, in lancer-data's own shape (frames.json), in folding sections: Identity, Stats and Weapon mounts
 // (open), Traits, Core system and Licence unlocks. A frame is its own licence, so its licence id is its own id and the
@@ -40,9 +40,6 @@ const traits = f.list<Data>('traits')
 const rank = computed({ get: () => Number(model.value.license_level) || 0, set: (value: number) => (model.value = { ...model.value, license_level: value }) })
 
 const entry = (value: unknown): Data => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Data) : {})
-const list = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : [])
-const clean = <T,>(value: T[]) => (value.length ? value : undefined)
-const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
 // Bonuses on a frame can only be the mech's own.
 const mechBonuses = computed(() => props.bonusTypes.filter((type) => type.group === 'Mech'))
 

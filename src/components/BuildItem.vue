@@ -42,8 +42,11 @@ async function set(key: string, value: string) {
   const changes = key === 'tuning' ? { accuracy: value !== 'smart-reactor', smart: value !== 'accuracy-reactor' }
     : key === 'profile' ? { profile: Number(value) } : { [key]: value }
   saving.value = true
-  error.value = (await props.save({ weapon_options: { ...props.details.weapon_options, [props.itemKey]: { ...options.value, ...changes } } })) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.save({ weapon_options: { ...props.details.weapon_options, [props.itemKey]: { ...options.value, ...changes } } })) ?? ''
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 

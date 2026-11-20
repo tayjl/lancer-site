@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { isOwner, profile } from '../auth'
 import EditorPane from '../components/editor/EditorPane.vue'
@@ -63,8 +63,7 @@ async function refreshAll() {
   loadTagNames()
   await refreshList()
 }
-onMounted(() => isOwner.value && refreshAll())
-watch(isOwner, (owner) => owner && refreshAll())
+watch(isOwner, (owner) => owner && refreshAll(), { immediate: true })
 watch(kind, () => { loadingList.value = true; rows.value = []; query.value = ''; refreshList() })
 
 // The chosen item, read in full (the list holds only enough to show it).
@@ -336,10 +335,6 @@ async function exportLcp() {
    with the page, its bar sticking. Phones: one at a time. */
 .browser {
   --stick: calc(var(--topbar-h) + var(--tabs-h) + 1px + var(--space-m));
-  display: grid;
-  grid-template-columns: 22rem minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-l);
 }
 
 .list {
@@ -370,16 +365,6 @@ async function exportLcp() {
   font-size: var(--fs-xs);
 }
 
-.group.branded {
-  border-top: 3px solid var(--mf);
-}
-
-.group-logo {
-  width: 22px;
-  height: 22px;
-  color: var(--mf);
-}
-
 .add-site {
   justify-self: start;
 }
@@ -389,43 +374,11 @@ async function exportLcp() {
   margin-left: auto;
 }
 
-/* A row: a real button, the name over its facts, a thin rule between rows. The chosen one is lilac with a bar. */
-.row {
-  display: grid;
-  justify-content: stretch; /* the global button centres its contents */
-  justify-items: start;
-  gap: 2px;
-  width: 100%;
-  min-height: var(--tap);
-  padding: 6px var(--space-m);
-  border: 0;
-  border-top: 1px solid var(--rule);
-  border-radius: 0;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  letter-spacing: 0;
-  text-align: left;
-  text-transform: none;
-}
-
-.row-top {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-  width: 100%;
-}
-
 .row-name {
   min-width: 0;
   font-size: var(--fs-s);
   font-weight: 700;
   overflow-wrap: anywhere;
-}
-
-.row-top .badge {
-  margin-left: auto;
-  flex: none;
 }
 
 .none {
@@ -451,17 +404,6 @@ async function exportLcp() {
 }
 
 @media (max-width: 56rem) {
-  .browser {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .list {
-    position: static;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-  }
-
   .row {
     min-height: 52px;
   }

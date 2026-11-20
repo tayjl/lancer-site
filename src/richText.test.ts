@@ -3,7 +3,8 @@ import { getSchema } from '@tiptap/vue-3'
 import { setBlockType } from '@tiptap/pm/commands'
 import { wrapInList } from '@tiptap/pm/schema-list'
 import { EditorState, TextSelection, type Command } from '@tiptap/pm/state'
-import { docText, editorExtensions, sanitiseDoc, splitAroundSelection } from './richText'
+import { editorExtensions, splitAroundSelection } from './richText'
+import { docText, sanitiseDoc } from './richTextSafe'
 
 const doc = (...content: unknown[]) => ({ type: 'doc', content })
 const text = (value: string, marks: unknown[] = []) => ({ type: 'text', text: value, marks })

@@ -210,10 +210,6 @@ async function newEntry() {
    Phones: the list alone, in the page. --- */
 .browser {
   --stick: calc(var(--topbar-h) + var(--space-m));
-  display: grid;
-  grid-template-columns: 22rem minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-l);
 }
 
 .list {
@@ -261,36 +257,13 @@ async function newEntry() {
   text-decoration: none;
 }
 
-.row-top {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-  width: 100%;
-}
-
 .row-name {
   font-size: var(--fs-s);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-.row-top .badge {
-  flex: none;
-  margin-left: auto;
-}
-
 @media (max-width: 56rem) {
-  .browser {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .list {
-    position: static;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
-  }
-
   .row {
     min-height: 52px;
   }

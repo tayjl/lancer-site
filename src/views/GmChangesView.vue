@@ -99,7 +99,6 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
 <style scoped>
 section + section { margin-top: var(--space-l); }
 .table-window { overflow: auto; border: 1px solid var(--rule); }
-.table th, .table td { white-space: nowrap; }
 .callsign { font-weight: 700; }
 /* The rejection reason, cut to one line; the full reason is on the change's page. */
 .reason { max-width: 24rem; overflow: hidden; text-overflow: ellipsis; }

@@ -47,8 +47,10 @@ function matches(entry: NamedBonus, item: Item, rangeType?: string, damageType?:
 }
 
 export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[], options?: NonNullable<MechPrivate['weapon_options']>[string], location?: { mount: number; position: number; integrated?: boolean }, coreMounts: Record<string, number> = {}, mod?: Item) {
+  const proto = item.id.startsWith('mw_prototype_')
+  const upgraded = proto && Number(item.id.at(-1)) >= 2
   let selected = selectWeaponProfile(item, options?.profile)
-  if (item.id.startsWith('mw_prototype_')) {
+  if (proto) {
     const type = options?.type ?? 'Rifle', damageType = options?.damageType ?? 'Kinetic'
     selected = { ...selected, type, damage: selected.damage.map(damage => ({ ...damage, type: damageType })), range: selected.range.filter(range => range.type === (type === 'Melee' ? 'Threat' : 'Range')) }
   }
@@ -115,11 +117,11 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
   const attack = applicable(['attack']).reduce((sum, entry) => sum + entry.value, 0)
   if (attack) sources.push(`Attack roll: ${attack >= 0 ? '+' : ''}${attack}`)
   const auto = location && !location.integrated && sheet.core_bonuses?.includes('cb_auto_stabilizing_hardpoints') && coreMounts.cb_auto_stabilizing_hardpoints === location.mount ? 1 : 0
-  const optics = item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && options?.accuracy !== false ? 1 : 0
+  const optics = upgraded && options?.accuracy !== false ? 1 : 0
   if (accuracy + (auto || 0) + optics) sources.push(`Accuracy: +${accuracy + (auto || 0) + optics}${auto ? ' (Auto-Stabilizing Hardpoints)' : ''}${optics ? ' (Tweaked Optics)' : ''}`)
-  if (options?.smart !== false && item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2) tags.push({ id: 'tg_smart' })
+  if (options?.smart !== false && upgraded) tags.push({ id: 'tg_smart' })
   if (mod) for (const tag of [...added('added_tags'), { id: 'tg_modded' }]) if (!tags.some(have => have.id === tag.id)) tags.push(tag)
-  if (item.id.startsWith('mw_prototype_') && Number(item.id.at(-1)) >= 2 && (options?.accuracy === false || options?.smart === false)) sources.push('Stripped reactor shielding: Spend 2 Heat to use the alternate area pattern.')
+  if (upgraded && (options?.accuracy === false || options?.smart === false)) sources.push('Stripped reactor shielding: Spend 2 Heat to use the alternate area pattern.')
   if (location && sheet.core_bonuses?.includes('cb_overpower_caliber') && coreMounts.cb_overpower_caliber === location.mount * 2 + location.position)
     sources.push('Overpower Caliber: +4 damage on hit, once per round. Not in the damage above.')
   const deployables = Array.isArray(selected.raw?.deployables) ? selected.raw.deployables.map((raw: Record<string, unknown>) => {

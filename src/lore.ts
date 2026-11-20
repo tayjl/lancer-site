@@ -1,7 +1,7 @@
 import { ref, shallowRef } from 'vue'
 import type { Tables, TablesUpdate } from './lib/database.types'
 import { checkWrite, supabase } from './lib/supabaseClient'
-import { docText } from './richTextSafe'
+import { docText, wordCount } from './richTextSafe'
 import { formatDate } from './time'
 
 // Lore: stories, places, factions, people and events the GMs write (the lore_entries table). Everyone logged in
@@ -29,7 +29,7 @@ export const isDraft = (entry: Pick<LoreEntry, 'published_at'>) => entry.publish
 export const entryDate = (entry: LoreEntry) => entry.published_at ?? entry.updated_at
 
 // Reading time: the body's words at 200 a minute, rounded up, never under a minute.
-export const readMinutes = (body: unknown) => Math.max(1, Math.ceil(docText(body).split(' ').filter(Boolean).length / 200))
+export const readMinutes = (body: unknown) => Math.max(1, Math.ceil(wordCount(body) / 200))
 export const readTime = (body: unknown) => `${readMinutes(body)} min read`
 
 // A list row's and the entry's line under the title: "12 Nov 2026 · 3 min read" ("Edited …" for a draft).

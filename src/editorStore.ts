@@ -15,9 +15,9 @@ export type ListRow = { key: string; kind: EditorKind; name: string; facts: stri
 // One item in full. "data" is the pack's own version (a bionic's or a personal stat's row as an object); "edited" the
 // campaign's edited version when there is one. "updatedAt" is the raw string the page last loaded or saved.
 export type Loaded = { key: string; kind: EditorKind; packId: number | null; draft: boolean; data: Data; edited: Data | null; updatedAt: string }
-type Saved = { updatedAt: string; error?: undefined } | { error: string; updatedAt?: undefined }
+export type Saved = { updatedAt: string; error?: undefined } | { error: string; updatedAt?: undefined }
 
-const message = (error: unknown) => String((error as { message?: string })?.message ?? error)
+export const message = (error: unknown) => String((error as { message?: string })?.message ?? error)
 
 export async function loadPacks(): Promise<{ packs: Pack[]; error: string | null }> {
   const { data, error } = await supabase.from('content_packs').select('id, name, manifest').order('name')

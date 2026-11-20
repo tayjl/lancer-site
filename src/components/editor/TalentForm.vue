@@ -8,7 +8,7 @@ import Field from './Field.vue'
 import FieldError from './FieldError.vue'
 import ItemIdListField from './ItemIdListField.vue'
 import RepeatList from './RepeatList.vue'
-import { latest, useEquipmentOptions, useFields } from './useFields'
+import { clean, input, latest, list, useEquipmentOptions, useFields } from './useFields'
 
 // The form for a talent: its name and summary, and exactly three ranks (I, II, III). A rank has a name, its rules, any
 // actions and bonuses, and the weapons or systems it grants: "built in" ones appear on the pilot's mech by themselves
@@ -25,9 +25,6 @@ const ranks = f.list<Data>('ranks')
 
 const equipment = useEquipmentOptions()
 
-const list = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : [])
-const input = (event: Event) => (event.target as HTMLInputElement).value
-const clean = <T,>(value: T[]) => (value.length ? value : undefined)
 const roman = (index: number) => RANK_NAMES[index] ?? String(index + 1)
 // A talent with more or fewer than three ranks can't be edited rank by rank: this puts it right.
 const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[index] ?? { name: '', description: '' }))
@@ -94,7 +91,3 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
     </RepeatList>
   </section>
 </template>
-
-<style scoped>
-.check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-dim); font-size: var(--fs-s); }
-</style>

@@ -29,15 +29,12 @@ const pages = computed(() => [
     : []),
 ])
 
-function onBooted() {
-  booted.value = true
-}
 </script>
 
 <template>
   <main class="home">
     <h1 class="sr-only">HOR_OS</h1>
-    <BootSequence @done="onBooted" />
+    <BootSequence @done="booted = true" />
 
     <nav class="links" aria-label="Pages">
       <div v-for="(group, i) in pages" :key="i" class="row" :class="{ waiting: !booted }">

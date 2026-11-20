@@ -64,8 +64,11 @@ const saving = ref(false)
 
 async function store(next: Record<string, number>) {
   saving.value = true
-  error.value = (await props.save(next)) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.save(next)) ?? ''
+  } finally {
+    saving.value = false
+  }
   return !error.value
 }
 
@@ -75,8 +78,11 @@ const chosen = (step: RankStep) => step.choice!.options.find((option) => option.
 
 async function choose(id: string, value: string) {
   saving.value = true
-  error.value = (await props.choose?.(id, value)) ?? ''
-  saving.value = false
+  try {
+    error.value = (await props.choose?.(id, value)) ?? ''
+  } finally {
+    saving.value = false
+  }
 }
 
 // Rank 0 drops it.
