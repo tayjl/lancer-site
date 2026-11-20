@@ -40,7 +40,7 @@ export type MechPrivate = {
 }
 // The private sheet (docs/database-sketch.md has the full shape). Stats are keyed by id; gear holds content_items ids
 // and bionics holds bionics ids.
-export type OwnedGear = { key: string; id: string; notes?: string; free?: boolean }
+export type OwnedGear = { key: string; id: string; notes?: string; damageType?: string; free?: boolean }
 export type MiscItem = { key: string; name: string; notes?: string }
 export type Sheet = {
   backstory?: Json | null

@@ -380,6 +380,10 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
     const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => catalogue.gear!.find(item => item.id === id)?.type)
     if (layout.overflow.length) problems.push("Pilot gear doesn't fit the available slots.")
     if (layout.unknown.length) problems.push("Some pilot gear isn't in any loaded pack.")
+    for (const owned of equippedGear(sheet)) {
+      const item = catalogue.gear.find(gear => gear.id === owned.id)
+      if (item?.type === 'Weapon' && variableDamage(item) && !DAMAGE_CHOICES.includes(owned.damageType ?? '')) problems.push(`${item.name} needs a damage type.`)
+    }
   }
   if (catalogue.bionicCosts) for (const id of sheet.bionics ?? [])
     if (!catalogue.bionicCosts.has(id)) problems.push(`Unknown biomod (${id}).`)

@@ -148,6 +148,10 @@ export function changeDiff(
   if (before.sheet.owned_gear) bought.forEach(item => add('loadout', `Bought ${names.gear(item.id)}`, 'added', undefined, { manna: prices?.gear?.(item.id) }))
   else listChanges('loadout', [], owned(after.sheet).map(item => item.id), names.gear)
   descriptions('loadout', gearNotes(before.sheet), gearNotes(after.sheet), names.gear)
+  for (const item of owned(after.sheet)) {
+    const was = owned(before.sheet).find(o => o.key === item.key)?.damageType
+    if (was !== item.damageType) field('loadout', `${names.gear(item.id)} damage type`, was, item.damageType)
+  }
 
   // Mechs: the public list and each mech's private details, by mech id.
   const mechsOf = (card: PublicCard) => (Array.isArray(card.mechs) ? (card.mechs as unknown as PublicMech[]) : [])

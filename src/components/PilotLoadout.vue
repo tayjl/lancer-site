@@ -3,6 +3,7 @@ import { computed, nextTick, ref, useTemplateRef, type Ref } from 'vue'
 import { confirmAction } from '../confirm'
 import { equippedGear, loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemInfo, showInfo } from '../info'
+import { DAMAGE_CHOICES, equipmentDetails, variableDamage } from '../equipment'
 import { itemCard } from '../itemDetails'
 import type { MiscItem, OwnedGear, Sheet } from '../myPilot'
 import { formatAmount, freeGear, gearPrice, restrictionOf } from '../rules'
@@ -178,6 +179,10 @@ const equipKeys = (keys: string[]) => keys.filter((key) => props.owned.some((ent
 
 const withNotes = (key: string, text: string) => props.owned.map((entry) => (entry.key === key ? { ...entry, notes: text.slice(0, NOTE_MAX) || undefined } : entry))
 const saveNote = (key: string) => (text: string) => props.saveOwned(withNotes(key, text))
+// A Variable weapon shows its chosen damage type (Variable until one is chosen).
+const shown = (entry: OwnedGear) => (entry.damageType ? equipmentDetails(byId.value.get(entry.id)!, {}, [], { damageType: entry.damageType }) : byId.value.get(entry.id)!)
+const isVariable = (entry: OwnedGear) => typeOf(entry.id) === 'Weapon' && variableDamage(byId.value.get(entry.id)!)
+const setDamage = (key: string, damageType: string) => run(() => props.saveOwned(props.owned.map((entry) => (entry.key === key ? { ...entry, damageType } : entry))))
 
 // Remove on an equipped item: back to owned for an approved pilot; off the sheet while building.
 async function unequip(slot: Slot) {
@@ -285,9 +290,13 @@ async function choose(id: string) {
         <template #action>
           <button type="button" class="small" :disabled="saving" @click="open(slot)">Add {{ KINDS[slot.type] }}</button>
         </template>
-        <ItemDetails :item="byId.get(slot.id!)!">
+        <ItemDetails :item="shown(entryAt(slot))">
           <p v-if="priceText(entryAt(slot))" class="facts">{{ priceText(entryAt(slot)) }}</p>
           <ItemNote :text="entryAt(slot).notes" :editable="editable" :save="saveNote(entryAt(slot).key)" />
+          <label v-if="editable && isVariable(entryAt(slot))" class="field"><span>Damage type</span><select aria-label="damage type" :value="entryAt(slot).damageType ?? ''" :disabled="saving" @change="setDamage(entryAt(slot).key, ($event.target as HTMLSelectElement).value)">
+            <option v-if="!entryAt(slot).damageType" value="" disabled>Choose…</option>
+            <option v-for="type in DAMAGE_CHOICES" :key="type">{{ type }}</option>
+          </select></label>
           <template v-if="canEquip" #foot>
             <button type="button" class="small" :disabled="saving" @click="open(slot)">Swap</button>
             <button type="button" class="small quiet" :disabled="saving" @click="unequip(slot)">Remove</button>
@@ -324,6 +333,10 @@ async function choose(id: string) {
               <div v-if="expanded === entry.key" :id="`more-${entry.key}`" class="row-more">
                 <p v-if="bought(entry)" class="facts">Bought in this change · {{ priceText(entry) }}</p>
                 <ItemNote :text="entry.notes" :editable="editable" :save="saveNote(entry.key)" />
+                <label v-if="editable && isVariable(entry)" class="field"><span>Damage type</span><select aria-label="damage type" :value="entry.damageType ?? ''" :disabled="saving" @change="setDamage(entry.key, ($event.target as HTMLSelectElement).value)">
+                  <option v-if="!entry.damageType" value="" disabled>Choose…</option>
+                  <option v-for="type in DAMAGE_CHOICES" :key="type">{{ type }}</option>
+                </select></label>
                 <div class="row-actions">
                   <button v-if="byId.has(entry.id)" type="button" class="small" @click="showInfo(itemInfo(byId.get(entry.id)!))">Info</button>
                   <button v-if="canRemove" type="button" class="small quiet" :disabled="saving" @click="removeOwned(entry)">Remove</button>

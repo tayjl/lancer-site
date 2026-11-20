@@ -157,6 +157,8 @@ describe('changeDiff', () => {
       .toEqual(['loadout | added | G:rifle description: - → salvaged railgun'])
     expect(text(own(['a', 'rifle', 'x'], ['b', 'rifle', 'y']), own(['a', 'rifle', 'x'], ['b', 'rifle', 'z'])))
       .toEqual(['loadout | updated | G:rifle description: y → z'])
+    const typed = (damageType?: string): Sheet => ({ owned_gear: [{ key: 'a', id: 'rifle', damageType }] })
+    expect(text(typed(), typed('Energy'))).toEqual(['loadout | added | G:rifle damage type: - → Energy'])
     // Bought items are the new keys, with their price; equipping isn't a change.
     const bought = changeDiff({ card: {}, sheet: { ...own(['a', 'knife']), equipped_gear: [] } }, { card: {}, sheet: { ...own(['a', 'knife'], ['b', 'knife']), equipped_gear: ['a'] } }, names, { bionic: () => 0, gear: () => 250 })
     expect(bought.map(line => `${line.text} | ${line.manna}`)).toEqual(['Bought G:knife | 250'])

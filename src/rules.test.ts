@@ -191,6 +191,15 @@ describe('mechs', () => {
   })
 })
 
+describe('pilot weapons', () => {
+  it('needs a damage type chosen for an equipped Variable weapon', () => {
+    const gear = [item('gun', { type: 'Weapon', damage: [{ type: 'Variable', val: 2 }] })]
+    const run = (damageType?: string) => pilotProblems({ owned_gear: [{ key: 'k', id: 'gun', damageType }], equipped_gear: ['k'] }, { level: 0, manna: 10000 }, { ...catalogue, gear }, {}, null).filter(problem => problem.includes('damage type'))
+    expect(run()).toEqual(['gun needs a damage type.'])
+    expect(run('Energy')).toEqual([])
+  })
+})
+
 describe('homebrew levelling and manna', () => {
   it('flags invalid ranks and unavailable gear without granting negative spending refunds', () => {
     const sheet = { licences: { blackbeard: -3 }, talents: { missing: 1.5 }, mech_skills: { hull: -1 }, owned_gear: [{ key: 'k', id: 'missing' }], equipped_gear: ['k'] }
