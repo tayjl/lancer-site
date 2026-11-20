@@ -44,6 +44,12 @@ describe('item checks', () => {
       'Choose a gear type.',
     ])
   })
+  it('takes an unset manna cost, or a whole number from 0', () => {
+    expect(texts({ ...vest, manna_cost: 0 })).toEqual([])
+    expect(texts({ ...vest, manna_cost: 2.5 })).toEqual(['Manna cost must be a whole number, 0 or more.'])
+    expect(texts({ ...vest, manna_cost: -1 })).toHaveLength(1)
+    expect(texts({ ...vest, manna_cost: '' })).toHaveLength(1)
+  })
   it('needs a core bonus to have a manufacturer', () => {
     expect(texts({ id: 'hb_pg_vest', name: 'Bonus' }, 'core_bonuses')).toEqual(['Choose a manufacturer.'])
   })

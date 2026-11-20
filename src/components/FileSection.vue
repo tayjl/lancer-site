@@ -33,8 +33,9 @@ defineProps<{ id: string; no: string; title: string; fixed?: boolean }>()
 
 .sec-head {
   display: flex;
+  flex-wrap: wrap; /* extras too wide for the row go to the next line as one group, never over the title */
   align-items: center;
-  gap: var(--space-m);
+  gap: var(--space-s) var(--space-m);
   margin-bottom: var(--space-l);
 }
 
@@ -112,6 +113,53 @@ defineProps<{ id: string; no: string; title: string; fixed?: boolean }>()
 @media (max-width: 56rem) {
   .file-section {
     scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-m));
+  }
+}
+
+/* Phones: one pattern for every head (sub-heads too, .sheet-head in style.css). The title on the left with its button at
+   the right of the same line; counts, notes and blocked reasons each on a line of their own under the title, left-aligned.
+   The extras' boxes drop out so each part sits on the head's grid. Buttons go first (order), so a second one stacks under
+   the first and the notes always come below. Buttons never break. */
+@media (max-width: 40rem) {
+  .sec-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-xs) var(--space-m);
+  }
+
+  .sec-head h2 {
+    grid-area: 1 / 1;
+    white-space: normal; /* a long title wraps rather than running under the button */
+  }
+
+  .sec-toggle {
+    text-align: left;
+  }
+
+  .sec-rule {
+    display: none;
+  }
+
+  .sec-extra,
+  .sec-extra :deep(span.blocked) {
+    display: contents;
+  }
+
+  .sec-extra > :deep(*),
+  .sec-extra :deep(.blocked-reason) {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .sec-extra :deep(button) {
+    grid-column: 2;
+    order: -1;
+    white-space: nowrap;
+  }
+
+  /* The label says what the button does, so its plus symbol gives way to the title. */
+  .sec-extra :deep(button .icon) {
+    display: none;
   }
 }
 </style>

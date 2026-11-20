@@ -109,7 +109,7 @@ function key(event: KeyboardEvent) {
       @pointercancel="drop"
       @keydown="placing && key($event)"
     >
-      <img v-if="bannerUrl" ref="picture" :src="bannerUrl" alt="" draggable="false" :style="bannerStyle" />
+      <div v-if="bannerUrl" class="pic"><img ref="picture" :src="bannerUrl" alt="" draggable="false" :style="bannerStyle" /></div>
       <div v-if="placing" class="placer" @pointerdown.stop>
         <p :id="hintId" class="hint">Drag or use the arrow keys.</p>
         <label class="zoom">
@@ -126,7 +126,7 @@ function key(event: KeyboardEvent) {
         <div class="cover-text">
           <div class="classification">
             <span class="hide-sm">Union Administrative Department</span>
-            <span>Pilot file</span>
+            <span class="file-word">Pilot file</span>
             <span class="code">{{ pilotSerial(id) }}</span>
             <span class="actions">
               <span class="badge" :class="badge.status"><span class="sr-only">Status: </span>{{ badge.label }}</span>
@@ -205,6 +205,12 @@ function key(event: KeyboardEvent) {
   background:
     radial-gradient(40% 90% at 12% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent),
     linear-gradient(100deg, color-mix(in srgb, var(--accent) 30%, var(--void)), var(--void) 75%);
+}
+
+/* The picture clips itself, so on phones the positioning controls can hang under the strip. */
+.pic {
+  height: 100%;
+  overflow: hidden;
 }
 
 .banner img {
@@ -541,24 +547,31 @@ function key(event: KeyboardEvent) {
 @media (max-width: 48rem) {
   .banner {
     height: 6rem;
+    overflow: visible;
   }
 
-  /* One row across the strip's foot, the slider taking what's left. The hint still describes the strip. */
+  /* Under the strip rather than over it (in front of the portrait while positioning), so none of the short strip is
+     covered: the slider on one row, the buttons at the right of the next. The hint still describes the strip. */
   .placer {
-    left: var(--space-xs);
+    top: 100%;
     right: var(--space-xs);
-    bottom: var(--space-xs);
+    bottom: auto;
+    left: var(--space-xs);
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: var(--space-s);
+    margin-top: var(--space-xs);
   }
 
-  /* The slider shrinks first so both buttons stay inside the strip; the hint and "Zoom" stay for screen readers. */
-  .zoom,
+  .zoom {
+    flex: 1 1 100%;
+  }
+
   .zoom input {
     min-width: 0;
   }
 
-  .placer .hint,
-  .zoom .label {
+  .placer .hint {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -623,19 +636,20 @@ function key(event: KeyboardEvent) {
     font-size: var(--fs-m);
   }
 
-  /* Each figure takes the width its words need, the rest shared out between them. */
+  /* As many columns as fit (two on a phone), each figure under a rule of its own. */
   .figures {
-    grid-auto-columns: auto;
-    justify-content: space-between;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: var(--space-m);
     margin-top: var(--space-l);
+    border-top: 0;
   }
 
-  .figure {
-    padding: var(--space-s) 6px 0;
-  }
-
+  .figure,
   .figure:first-child {
-    padding-left: 0;
+    padding: var(--space-s) 0 0;
+    border-top: 1px solid var(--rule);
+    border-left: 0;
   }
 
   .value {
@@ -651,13 +665,131 @@ function key(event: KeyboardEvent) {
   }
 }
 
+/* Phones: one centred showcase column. The portrait over the strip's foot, the callsign and name, the serial with the
+   badge (wrapping under it if need be), the motto, the medals and player, then the GM's buttons stacked full width. The
+   file line and its actions box drop out (display: contents) so every part is a line of .cover-main, put in that order.
+   The figures are tiles like the capabilities' (StatFigures.vue), two by two. The editing tools stay a left-aligned form. */
 @media (max-width: 40rem) {
+  .cover-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-m);
+    margin-top: -3rem;
+    text-align: center;
+  }
+
+  .classification,
+  .actions {
+    display: contents;
+  }
+
+  .portrait-frame {
+    width: 6rem;
+  }
+
+  .names {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    order: 1;
+  }
+
+  /* The fields hug their text, centred, so the faint underline sits evenly under it. */
+  .names .inline {
+    min-width: 0;
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .code,
+  .actions .badge {
+    order: 2;
+  }
+
+  .file-word {
+    display: none;
+  }
+
+  .motto {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  /* The marks hug the field's text. */
+  .motto.editing {
+    justify-content: center;
+  }
+
+  .motto .inline {
+    min-width: 0;
+    text-align: center;
+  }
+
+  .foot {
+    flex-basis: 100%;
+    justify-content: center;
+    order: 4;
+    margin-top: 0;
+  }
+
+  .actions > :slotted(*) {
+    flex-basis: 100%;
+    justify-content: center;
+    min-height: var(--tap);
+    order: 5;
+  }
+
   .callsign {
-    font-size: 30px;
+    font-size: clamp(26px, 8vw, 32px);
+    letter-spacing: 0.02em;
+    max-width: 100%;
+    overflow-wrap: break-word; /* only a name too long for the line breaks */
   }
 
   .name {
     font-size: 18px;
+  }
+
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-s);
+  }
+
+  .figure,
+  .figure:first-child {
+    justify-items: center;
+    padding: var(--space-m) 6px;
+    border: 0;
+    border-radius: var(--radius);
+    background: var(--raised);
+    box-shadow: inset 0 3px var(--accent);
+    text-align: center;
+  }
+
+  .figure::before {
+    display: none;
+  }
+
+  /* An odd last tile takes the whole row rather than sitting alone in half of it. */
+  .figure:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .value {
+    font-size: 26px;
+  }
+
+  .figure .label {
+    letter-spacing: 0;
+  }
+
+  /* The editing controls stack, each the cover's full width. */
+  .tools > :slotted(*) {
+    flex: 1 1 100%;
+    min-width: 0;
   }
 }
 </style>

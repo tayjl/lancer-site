@@ -15,12 +15,12 @@ import { capitalise } from '../text'
 
 // Waiting pilots are ordered by submission time. The searchable roster includes every pilot,
 // including sent-back and dead records. GM edits save directly; database policies enforce the role.
-// The sheet is read only for what the roster's numbers use: the licences, talents and bionics that manna is spent on.
-const SHEET_FIELDS = 'review_note, level, manna, licences:sheet->licences, talents:sheet->talents, bionics:sheet->bionics'
+// The sheet is read only for what the roster's numbers use: the licences, talents, bionics and owned gear that manna is spent on.
+const SHEET_FIELDS = 'review_note, level, manna, licences:sheet->licences, talents:sheet->talents, bionics:sheet->bionics, owned_gear:sheet->owned_gear'
 // Experience is GM-only and lives in its own table (pilot_progress); a pilot with no row has 0.
 const PROGRESS_FIELDS = 'progress:pilot_progress(experience)'
 type Pilot = PublicPilot & {
-  sheet: { review_note: string | null; level: number; manna: number; licences: Json; talents: Json; bionics: Json } | null
+  sheet: { review_note: string | null; level: number; manna: number; licences: Json; talents: Json; bionics: Json; owned_gear: Json } | null
   progress: { experience: number } | null
 }
 
@@ -66,8 +66,12 @@ type Field = keyof Rewards
 const shown = (pilot: Pilot, field: Field) => typed[pilot.id]?.[field] ?? (field === 'experience' ? pilot.progress?.experience : pilot.sheet?.[field]) ?? 0
 const ready = (pilot: Pilot) => (pilot.progress?.experience ?? 0) >= EXPERIENCE_MAX
 const percent = (pilot: Pilot) => `${Math.min(100, (shown(pilot, 'experience') / EXPERIENCE_MAX) * 100)}%`
-const { bionicPrices } = useGameData()
-const spent = (pilot: Pilot) => mannaSpent((pilot.sheet ?? {}) as Sheet, bionicPrices.value, pilot.mechs.length)
+const { gear, bionicPrices } = useGameData()
+// A pending pilot has never been approved: its first full loadout is free (rules.ts freeGear). Otherwise the sheet is the live one.
+const spent = (pilot: Pilot) => {
+  const sheet = (pilot.sheet ?? {}) as Sheet
+  return mannaSpent(sheet, bionicPrices.value, pilot.mechs.length, gear.value, pilot.status === 'pending' ? null : sheet)
+}
 const left = (pilot: Pilot) => (pilot.sheet?.manna ?? 0) - spent(pilot)
 const licenceRanks = (pilot: Pilot) => licenceLevel((pilot.sheet ?? {}) as Sheet)
 

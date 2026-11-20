@@ -67,7 +67,7 @@ async function disconnect() {
             </RouterLink>
           </div>
           <div v-if="isGm" class="group">
-            <span class="label">GM</span>
+            <span class="label gm">GM</span>
             <div class="tabs" data-end>
               <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" class="tab" :aria-current="current(tab.name)">
                 {{ tab.label }}
@@ -89,7 +89,7 @@ async function disconnect() {
       <nav v-show="menuOpen" id="drawer" class="drawer" aria-label="Main">
         <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
         <template v-if="isGm">
-          <span class="label">GM</span>
+          <span class="label gm">GM</span>
           <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
         </template>
         <span v-if="profile" class="label">Signed in as {{ profile.display_name }} ({{ profile.role }})</span>

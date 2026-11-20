@@ -362,7 +362,7 @@ async function scrap() {
             <p class="dim">Scrapping {{ mech.name }} removes it from the hangar. This can't be undone.</p>
             <button type="button" class="danger" @click="scrap">Scrap mech</button>
           </div>
-          <p v-if="scrapError" class="notice warn" role="alert">{{ scrapError }}</p>
+          <p v-if="scrapError" class="notice warn" role="alert">Not removed: {{ scrapError }}</p>
         </section>
       </div>
 

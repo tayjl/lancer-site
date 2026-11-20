@@ -1,7 +1,6 @@
 import type { Json } from './lib/database.types'
 import type { MechPrivate, Sheet } from './myPilot'
 import type { PublicMech } from './pilots'
-import { loadoutSlots } from './gameData'
 import { docText } from './richTextSafe'
 import { PRICES, rankName } from './rules'
 import { capitalise } from './text'
@@ -35,7 +34,6 @@ export type Names = {
   coreBonus: (id: string) => string
   bionic: (id: number) => string
   gear: (id: string) => string
-  gearType: (id: string) => string | undefined // its loadout slot type, to find which item a slot's description is on
   frame: (id: string) => string
   weapon: (id: string) => string
   system: (id: string) => string
@@ -54,8 +52,8 @@ export type DiffLine = {
   mechId?: string // the mech a "mech: ..." line belongs to
 }
 
-// What a biomod costs, by id, so its line can show the manna.
-export type Prices = { bionic: (id: number) => number }
+// What a biomod or a pilot gear item costs, by id, so its line can show the manna.
+export type Prices = { bionic: (id: number) => number; gear?: (id: string) => number }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const shown = (value: unknown) => (value === null || value === undefined || value === '' ? '-' : String(value))
@@ -110,25 +108,28 @@ export function changeDiff(
       if (a !== b) add(section, `${names.stat(id)} ${a} → ${b}`, b > a ? 'raised' : 'lowered')
     }
   }
-  // Item descriptions ([item id, description] in list order), compared by item (its id and which copy) rather than by place,
-  // so items closing up after a removal don't read as changed text: "Assault Rifle description: - → salvaged railgun".
-  const descriptions = (section: string, from: [string | null, string | undefined][], to: [string | null, string | undefined][], name: (id: string) => string) => {
-    const byItem = (entries: [string | null, string | undefined][]) => {
+  // Item descriptions ([item id, description, own key] in list order), compared by item (its own key, or its id and which copy)
+  // rather than by place, so items closing up after a removal don't read as changed text: "Assault Rifle description: - → salvaged railgun".
+  type Described = [string | null, string | undefined, string?]
+  const descriptions = (section: string, from: Described[], to: Described[], name: (id: string) => string) => {
+    const byItem = (entries: Described[]) => {
       const copies = new Map<string, number>()
-      const result = new Map<string, string>()
-      for (const [id, text] of entries) {
+      const result = new Map<string, [string, string]>()
+      for (const [id, text, own] of entries) {
         if (!id) continue
         copies.set(id, (copies.get(id) ?? 0) + 1)
-        if (text) result.set(`${id}#${copies.get(id)}`, text)
+        if (text) result.set(own ?? `${id}#${copies.get(id)}`, [id, text])
       }
       return result
     }
     const [a, b] = [byItem(from), byItem(to)]
     for (const key of new Set([...a.keys(), ...b.keys()]))
-      if (a.get(key) !== b.get(key)) field(section, `${name(key.slice(0, key.lastIndexOf('#')))} description`, a.get(key), b.get(key))
+      if (a.get(key)?.[1] !== b.get(key)?.[1]) field(section, `${name((a.get(key) ?? b.get(key))![0])} description`, a.get(key)?.[1], b.get(key)?.[1])
   }
-  const gearNotes = (sheet: Sheet) =>
-    loadoutSlots(sheet.pilot_gear ?? [], names.gearType).slots.map((slot): [string | null, string | undefined] => [slot.id, sheet.pilot_gear_notes?.[`${slot.type}:${slot.index}`]])
+  // Pilot gear is owned by key. A new pilot (nothing owned before) just has its loadout; an approved pilot's new keys are bought.
+  const owned = (sheet: Sheet) => sheet.owned_gear ?? []
+  const gearNotes = (sheet: Sheet) => owned(sheet).map((item): Described => [item.id, item.notes, item.key])
+  const bought = (before.sheet.owned_gear ? owned(after.sheet).filter(item => !owned(before.sheet).some(was => was.key === item.key)) : [])
   const systemNotes = (m: MechPrivate) => (m.systems ?? []).map((id, index): [string, string | undefined] => [id, m.system_notes?.[index]])
 
   // Public card.
@@ -144,7 +145,8 @@ export function changeDiff(
   stats('personal stats', before.sheet.pilot_stats, after.sheet.pilot_stats, 2)
   stats('piloting stats', before.sheet.mech_skills, after.sheet.mech_skills, 0)
   listChanges('biomods', before.sheet.bionics, after.sheet.bionics, names.bionic, prices?.bionic)
-  listChanges('loadout', before.sheet.pilot_gear, after.sheet.pilot_gear, names.gear)
+  if (before.sheet.owned_gear) bought.forEach(item => add('loadout', `Bought ${names.gear(item.id)}`, 'added', undefined, { manna: prices?.gear?.(item.id) }))
+  else listChanges('loadout', [], owned(after.sheet).map(item => item.id), names.gear)
   descriptions('loadout', gearNotes(before.sheet), gearNotes(after.sheet), names.gear)
 
   // Mechs: the public list and each mech's private details, by mech id.

@@ -77,13 +77,13 @@ describe('rule check for alternate frames', () => {
   })
 
   it('flags a licence held under an alternate frame', () => {
-    const problems = pilotProblems({ licences: { [WORLDKILLER]: 1 } }, { level: 0, manna: 600 }, catalogue, {})
+    const problems = pilotProblems({ licences: { [WORLDKILLER]: 1 } }, { level: 0, manna: 600 }, catalogue, {}, null)
     expect(problems).toEqual([`${WK_NAME} is part of the Genghis licence. A GM should move its ranks there.`])
   })
 })
 
 describe('change review', () => {
-  const names: Names = { stat: (id) => id, licence: (id) => `L:${id}`, talent: (id) => id, coreBonus: (id) => id, bionic: (id) => String(id), gear: (id) => id, gearType: () => undefined, frame: (id) => `F:${id}`, weapon: (id) => id, system: (id) => id, mod: (id) => id }
+  const names: Names = { stat: (id) => id, licence: (id) => `L:${id}`, talent: (id) => id, coreBonus: (id) => id, bionic: (id) => String(id), gear: (id) => id, frame: (id) => `F:${id}`, weapon: (id) => id, system: (id) => id, mod: (id) => id }
   it('shows a changed frame choice in the licences group', () => {
     const before = { card: {}, sheet: { licences: { a: 2 } } }
     expect(changeDiff(before, { card: {}, sheet: { licences: { a: 2 }, frame_choices: { a: 'alt' } } }, names))

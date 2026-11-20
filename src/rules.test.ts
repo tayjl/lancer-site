@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import submitRulesSql from '../supabase/migrations/20261121090000_starting_manna_2000.sql?raw'
+import submitRulesSql from '../supabase/migrations/20261121110000_pilot_inventory.sql?raw'
 import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
+import { bracingMount, freeGear, GEAR_PRICE_DEFAULT, gearPrice, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -66,7 +66,7 @@ describe('personal stat allocation', () => {
 
   it('checks personal allocations independently of level, spending and biomods', () => {
     const sheet = { pilot_stats: { physicality: 4, dexterity: 4, acuity: 3 } }
-    expect(pilotProblems(sheet, { level: 20, manna: 1000 }, catalogue, {})).toEqual([
+    expect(pilotProblems(sheet, { level: 20, manna: 1000 }, catalogue, {}, null)).toEqual([
       'Personal stats use 5 points, but only 4 are available.',
     ])
   })
@@ -133,7 +133,7 @@ describe('core bonus eligibility', () => {
 
   it('flags a saved bonus in the shared review check after its licences are reduced', () => {
     const sheet = { licences: { blackbeard: 2, sherman: 1 }, core_bonuses: ['ips'] }
-    expect(pilotProblems(sheet, { level: 0, manna: 1800 }, { ...catalogue, frames, coreBonuses: bonuses }, {})).toEqual([
+    expect(pilotProblems(sheet, { level: 0, manna: 1800 }, { ...catalogue, frames, coreBonuses: bonuses }, {}, null)).toEqual([
       'IPS-N core bonuses need 3 IPS-N licence ranks, but the pilot has 2.',
     ])
   })
@@ -193,9 +193,9 @@ describe('mechs', () => {
 
 describe('homebrew levelling and manna', () => {
   it('flags invalid ranks and unavailable gear without granting negative spending refunds', () => {
-    const sheet = { licences: { blackbeard: -3 }, talents: { missing: 1.5 }, mech_skills: { hull: -1 }, pilot_gear: ['missing'] }
-    const problems = pilotProblems(sheet, { level: 0, manna: 10000 }, { ...catalogue, gear: [] }, {})
-    expect(mannaSpent({ licences: { blackbeard: -3 } }, new Map(), 0)).toBe(0)
+    const sheet = { licences: { blackbeard: -3 }, talents: { missing: 1.5 }, mech_skills: { hull: -1 }, owned_gear: [{ key: 'k', id: 'missing' }], equipped_gear: ['k'] }
+    const problems = pilotProblems(sheet, { level: 0, manna: 10000 }, { ...catalogue, gear: [] }, {}, null)
+    expect(mannaSpent({ licences: { blackbeard: -3 } }, new Map(), 0, [], null)).toBe(0)
     expect(problems).toContain('blackbeard licence must be a whole rank from 0 to III.'.replace('blackbeard', 'IPS-N blackbeard'))
     expect(problems).toContain('Talent missing must be a whole rank from 0 to III.')
     expect(problems).toContain('Hull must be a whole number from 0 to 6.')
@@ -203,19 +203,33 @@ describe('homebrew levelling and manna', () => {
   })
   it('prices licence ranks at 600, talent ranks at 300 and each biomod at its own price', () => {
     const prices = new Map([[1, 500], [2, 750]])
-    expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } }, prices, 0)).toBe(3 * 600 + 500 + 750 + 300)
-    expect(mannaSpent({ bionics: [1, 99] }, prices, 0)).toBe(500)
+    expect(mannaSpent({ licences: { blackbeard: 2, drake: 1 }, bionics: [1, 2], talents: { t_ace: 1 } }, prices, 0, [], null)).toBe(3 * 600 + 500 + 750 + 300)
+    expect(mannaSpent({ bionics: [1, 99] }, prices, 0, [], null)).toBe(500)
+  })
+  it('prices pilot gear at its manna_cost, or 100 when that is unset or not a whole number', () => {
+    const cost = (manna_cost?: unknown) => gearPrice(item('g', manna_cost === undefined ? {} : { manna_cost }))
+    expect([cost(), cost(250), cost(0), cost(-5), cost(2.5), cost('50')]).toEqual([100, 250, 0, 100, 100, 100])
+  })
+  it('charges for owned gear that is not free, and nothing for unknown items', () => {
+    const gear = [item('vest', { type: 'Armor' }), item('knife', { type: 'Weapon', manna_cost: 250 })]
+    const live = { owned_gear: [{ key: 'a', id: 'vest', free: true }] }
+    const sheet = { owned_gear: [{ key: 'a', id: 'vest', free: true }, { key: 'b', id: 'knife' }, { key: 'c', id: 'knife', free: true }, { key: 'd', id: 'missing' }] }
+    // Against the live sheet only the vest is free: "free" on the others is not trusted.
+    expect(mannaSpent(sheet, new Map(), 0, gear, live)).toBe(500)
+    // A never-approved pilot: the first armour and two weapons are free.
+    expect(mannaSpent(sheet, new Map(), 0, gear, null)).toBe(0)
+    expect(mannaSpent({ owned_gear: sheet.owned_gear.slice(0, 1) }, new Map(), 0, [], null)).toBe(0)
   })
   it('gives the first mech free and charges 500 for each one after it', () => {
-    expect([0, 1, 2, 4].map((mechs) => mannaSpent({}, new Map(), mechs))).toEqual([0, 0, 500, 1500])
-    expect(mannaSpent({ talents: { t_ace: 1 } }, new Map(), 3)).toBe(300 + 1000)
+    expect([0, 1, 2, 4].map((mechs) => mannaSpent({}, new Map(), mechs, [], null))).toEqual([0, 0, 500, 1500])
+    expect(mannaSpent({ talents: { t_ace: 1 } }, new Map(), 3, [], null)).toBe(300 + 1000)
     expect([0, 1, 2].map(nextMechPrice)).toEqual([0, 500, 500])
     expect(mechCount([{}, {}])).toBe(2)
     expect(mechCount(null)).toBe(0)
   })
   it('counts the mechs in the manna check', () => {
-    expect(pilotProblems({}, { level: 0, manna: 400 }, catalogue, { a: 'One', b: 'Two' })).toEqual(['500 manna spent, but only 400 received.'])
-    expect(pilotProblems({}, { level: 0, manna: 400 }, catalogue, { a: 'One' })).toEqual([])
+    expect(pilotProblems({}, { level: 0, manna: 400 }, catalogue, { a: 'One', b: 'Two' }, null)).toEqual(['500 manna spent, but only 400 received.'])
+    expect(pilotProblems({}, { level: 0, manna: 400 }, catalogue, { a: 'One' }, null)).toEqual([])
   })
 
   it('gives a core bonus for every 3 licence ranks', () => {
@@ -230,19 +244,19 @@ describe('homebrew levelling and manna', () => {
       core_bonuses: ['cb_a'],
       mechs: { m1: { frame: 'everest', systems: ['nhp_a', 'nhp_b'] } },
     }
-    expect(pilotProblems(sheet, { level: 1, manna: 2000 }, catalogue, { m1: 'Lantern' })).toEqual([
+    expect(pilotProblems(sheet, { level: 1, manna: 2000 }, catalogue, { m1: 'Lantern' }, null)).toEqual([
       '2200 manna spent, but only 2000 received.',
       '4 HASE points taken, but level 1 only gives 3.',
       'Too many core bonuses: 1 taken, 0 available.',
       'Lantern: Only one AI allowed.',
     ])
-    expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, catalogue, {})).toEqual([])
-    expect(pilotProblems({ bionics: [1, 2, 2] }, { level: 0, manna: 1500 }, catalogue, {})).toEqual([
+    expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, catalogue, {}, null)).toEqual([])
+    expect(pilotProblems({ bionics: [1, 2, 2] }, { level: 0, manna: 1500 }, catalogue, {}, null)).toEqual([
       'Biomods use 8 mod points, but level 0 only gives 6.',
       'A biomod can only be installed once.',
     ])
     const dear = { ...catalogue, bionicPrices: new Map([[1, 750], [2, 500]]) }
-    expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, dear, {})).toEqual(['1250 manna spent, but only 1000 received.'])
+    expect(pilotProblems({ bionics: [1, 2] }, { level: 0, manna: 1000 }, dear, {}, null)).toEqual(['1250 manna spent, but only 1000 received.'])
   })
 })
 
@@ -324,12 +338,35 @@ describe('what a picker refuses', () => {
   })
 })
 
-// The database refuses a submit that overspends manna (supabase/migrations/20261121090000_starting_manna_2000.sql), so its
+// The database refuses a submit that overspends manna (supabase/migrations/20261121110000_pilot_inventory.sql), so its
 // prices must be the page's.
+describe('free gear', () => {
+  const types: Record<string, string> = { suit: 'Armor', vest: 'Armor', whip: 'Weapon', gun: 'Weapon', rifle: 'Weapon', kit: 'Gear', odd: 'Mod' }
+  const typeOf = (id: string) => types[id]
+  const owned = (...ids: string[]) => ids.map((id, n) => ({ key: `k${n}`, id }))
+  it('on first approval frees the first 1 armour, 2 weapons and 3 gear in order', () => {
+    expect(freeGear(owned('suit', 'vest', 'whip', 'gun', 'rifle', 'kit', 'kit', 'kit', 'kit'), typeOf, null))
+      .toEqual([true, false, true, true, false, true, true, true, false])
+    expect(freeGear(owned('missing', 'odd'), typeOf, null)).toEqual([false, false])
+  })
+  it('on a change frees only what the live sheet had free under the same key and id', () => {
+    const live = { owned_gear: [{ key: 'k0', id: 'suit', free: true }, { key: 'k1', id: 'whip', free: false }, { key: 'k2', id: 'gun', free: true }] }
+    expect(freeGear(owned('suit', 'whip', 'rifle', 'kit'), typeOf, live)).toEqual([true, false, false, false])
+    // Same key, another item: not free.
+    expect(freeGear([{ key: 'k0', id: 'vest' }, { key: 'k2', id: 'gun' }], typeOf, live)).toEqual([false, true])
+  })
+  it('frees a repeated key at most once, and an unknown id is never free', () => {
+    const live = { owned_gear: [{ key: 'k0', id: 'suit', free: true }, { key: 'x', id: 'missing', free: true }] }
+    expect(freeGear([{ key: 'k0', id: 'suit' }, { key: 'k0', id: 'suit' }], typeOf, live)).toEqual([true, false])
+    expect(freeGear([{ key: 'x', id: 'missing' }], typeOf, null)).toEqual([false])
+  })
+})
+
 describe('manna prices', () => {
   it('match the ones the submit check in the database uses', () => {
     const price = (name: string) => Number(new RegExp(`${name} constant integer := (\\d+);`).exec(submitRulesSql)?.[1])
     expect({ licenceRank: price('licence_rank_price'), talentRank: price('talent_rank_price'), extraMech: price('extra_mech_price') }).toEqual(PRICES)
     expect(price('starting_manna')).toBe(STARTING_MANNA)
+    expect(price('default_gear_price')).toBe(GEAR_PRICE_DEFAULT)
   })
 })

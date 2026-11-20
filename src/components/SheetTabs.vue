@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A row of underline tabs that picks what shows below (my pilot's and a mech's sections, the archives' categories),
+// A row of underline tabs that picks what shows below (a mech's sections, the archives' categories),
 // in the global .tabs style. "label" names the row for screen readers; "counts" (optional) shows a number after a
 // tab's name, e.g. "Frames 28". Left-aligned; when the row doesn't fit it scrolls sideways: with a fade over the right
 // edge until the last tab is in view, the mouse wheel (up and down turn sideways), and a chevron button at each end

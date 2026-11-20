@@ -71,7 +71,7 @@ defineExpose({ dirty })
 <template>
   <article class="commendation" :aria-label="`Editing ${baseline.name || 'new commendation'}`">
     <section class="panel">
-      <h2 class="sheet-label">{{ isNew ? 'New commendation' : baseline.name }}<span class="private">GM only</span></h2>
+      <h2 class="sheet-label">{{ isNew ? 'New commendation' : baseline.name }}<span class="private gm">GM only</span></h2>
       <ConflictNotice v-if="conflict" />
       <label class="field">
         <span>Name</span>
@@ -113,8 +113,8 @@ defineExpose({ dirty })
       <div class="danger-body">
         <p class="dim">Deleting {{ baseline.name }} takes it from every pilot who has it. This can't be undone.</p>
         <button type="button" class="danger" :disabled="busy" @click="remove">Delete commendation</button>
-        <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>
       </div>
+      <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>
     </section>
   </article>
 </template>

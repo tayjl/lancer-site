@@ -85,13 +85,6 @@ const raiseBlocked = (value: number | null) =>
   flex-direction: column;
 }
 
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
 .pips {
   display: inline-flex;
   align-self: center;

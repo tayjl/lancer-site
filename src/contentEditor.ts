@@ -377,6 +377,8 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   if (data.id !== ctx.id) problems.push(error(`The ID must stay "${ctx.id}".`, 'id'))
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
   if (kind === 'pilot_gear' && !GEAR_TYPES.includes(String(data.type))) problems.push(error('Choose a gear type.', 'type'))
+  // Unset means the default price (rules.ts GEAR_PRICE_DEFAULT).
+  if (kind === 'pilot_gear' && data.manna_cost != null && (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0)) problems.push(error('Manna cost must be a whole number, 0 or more.', 'manna_cost'))
   if (kind === 'core_bonuses' && typeof data.source !== 'string') problems.push(error('Choose a manufacturer.', 'source'))
 
   if (kind === 'weapons') checkWeapon(data, ctx, problems)

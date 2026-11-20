@@ -379,13 +379,6 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
   margin: 0;
 }
 
-.systems-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
 .systems-head .icon {
   width: 16px;
   height: 16px;

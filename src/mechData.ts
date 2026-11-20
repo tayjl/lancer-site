@@ -14,7 +14,7 @@ import sizeHalfIcon from './assets/icons/size-half.svg'
 import size1Icon from './assets/icons/size-1.svg'
 import size2Icon from './assets/icons/size-2.svg'
 import size3Icon from './assets/icons/size-3.svg'
-import { loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
+import { equippedGear, loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
 import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
 import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
@@ -266,7 +266,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   // Pilot gear only counts for any mech bonuses it has (homebrew); its rules and pilot_* bonuses stay on the pilot.
   if (catalogue.gear) {
     const byId = new Map(catalogue.gear.map(item => [item.id, item]))
-    const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
+    const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
     for (const slot of layout.slots) {
       const item = slot.id ? byId.get(slot.id) : undefined
       if (item) sources.push({ name: item.name, bonuses: item.bonuses.filter(bonus => !bonus.id.startsWith('pilot_')), origin: { kind: 'item', name: item.name } })

@@ -42,8 +42,8 @@ watch(() => [props.characterId, props.refresh], load, { immediate: true })
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="reward-history-title">
-    <h2 id="reward-history-title" class="sheet-label">Reward history<span class="private">GM only</span></h2>
+  <section aria-labelledby="reward-history-title">
+    <h3 id="reward-history-title" class="sheet-label">Reward history<span class="private gm">GM only</span></h3>
     <p v-if="loading" class="dim">Loading…</p>
     <p v-else-if="error" class="notice warn" role="alert">Couldn't load the reward history: {{ error }}</p>
     <p v-else-if="!rows.length" class="empty">No rewards logged yet.</p>

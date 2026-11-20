@@ -123,7 +123,7 @@ describe('mechStats', () => {
   it('leaves pilot gear and equipped items’ own rules out of the reminders', () => {
     const gear = toItem('jacket', { name: 'Jacket', type: 'Armor', description: 'A jacket.', bonuses: [{ id: 'pilot_hp', val: 2 }], actions: [{ name: 'Zip', detail: 'Zip up.' }] })
     const system = toItem('described', { name: 'Described', effect: 'Does a thing.', actions: [{ name: 'Act', detail: 'Act now.' }] })
-    const effects = mechEffects({ systems: ['described'] }, { pilot_gear: ['jacket'] }, { ...catalogue, gear: [gear], systems: new Map([['described', system]]) })
+    const effects = mechEffects({ systems: ['described'] }, { owned_gear: [{ key: 'k', id: 'jacket' }], equipped_gear: ['k'] }, { ...catalogue, gear: [gear], systems: new Map([['described', system]]) })
     expect(effects.reminders).toEqual([])
   })
 

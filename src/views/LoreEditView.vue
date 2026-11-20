@@ -108,11 +108,12 @@ function addRelated(relatedId: string) {
   relatedPicker.value?.close()
 }
 
+const deleteError = ref('') // shown in the danger zone, beside its button
 async function remove() {
   if (!(await confirmAction(`Delete ${entry.value?.title}? Links to it stop working. This can't be undone.`, { confirmLabel: 'Delete entry', danger: true }))) return
   const failed = await deleteLore(id)
-  if (failed) error.value = failed
-  else router.push({ name: 'lore' })
+  deleteError.value = failed ?? ''
+  if (!failed) router.push({ name: 'lore' })
 }
 </script>
 
@@ -205,6 +206,7 @@ async function remove() {
           <p class="dim">Deleting this entry breaks links to it. This can't be undone.</p>
           <button type="button" class="danger" @click="remove">Delete entry</button>
         </div>
+        <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>
       </section>
 
       <ItemPicker ref="relatedPicker" title="Link entry" :options="relatable" empty="No other entries to link." @choose="addRelated" />

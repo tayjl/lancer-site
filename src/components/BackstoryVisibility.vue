@@ -71,4 +71,21 @@ async function choose(makePublic: boolean) {
 .hint {
   font-size: var(--fs-s);
 }
+
+/* Phones, in the head's grid (.sheet-head in style.css): the switch at the title's right, the rest on lines under it. */
+@media (max-width: 40rem) {
+  .visibility {
+    display: contents;
+  }
+
+  .visibility > * {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .seg {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+}
 </style>

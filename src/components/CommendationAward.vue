@@ -53,8 +53,8 @@ async function revoke(id: string, name: string) {
 </script>
 
 <template>
-  <section class="panel">
-    <h2 class="sheet-label">Commendations<span class="private">GM only</span></h2>
+  <section>
+    <h3 class="sheet-label">Commendations<span class="private gm">GM only</span></h3>
     <p v-if="choicesError" class="notice warn" role="alert">The list didn't load: {{ choicesError }}</p>
     <p v-else-if="loadedChoices && !choices.length" class="empty">No commendations exist yet. An owner makes them in the content editor.</p>
     <form v-else class="award" @submit.prevent="give">
@@ -78,7 +78,7 @@ async function revoke(id: string, name: string) {
     <p v-if="error" class="notice warn" role="alert">{{ error }}</p>
     <p v-else-if="message" class="notice ok" role="status">{{ message }}</p>
 
-    <h3 class="label held-title">This pilot has</h3>
+    <h4 class="label held-title">This pilot has</h4>
     <p v-if="!awards.awards.value.length" class="empty">No commendations yet.</p>
     <ul v-else class="held">
       <li v-for="award in awards.awards.value" :key="award.id">
@@ -100,6 +100,13 @@ async function revoke(id: string, name: string) {
 
 .reason {
   flex: 1 1 16rem;
+}
+
+/* A long commendation name doesn't widen the list past a phone's screen. */
+.award .field,
+.award select {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .reason input {

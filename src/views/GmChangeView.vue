@@ -13,7 +13,7 @@ import RichText from '../components/RichText.vue'
 import { useGameData } from '../gameData'
 import type { Character, PendingChange, Sheet } from '../myPilot'
 import { useMechData } from '../mechData'
-import { licenceName, mannaSpent, mechCount, pilotProblems, personalStatProblems, formatAmount, useCatalogue } from '../rules'
+import { gearPrice, licenceName, mannaSpent, mechCount, pilotProblems, personalStatProblems, formatAmount, useCatalogue } from '../rules'
 import { cardImages, deleteImage } from '../images'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
@@ -80,12 +80,13 @@ const lines = computed(() => {
       coreBonus: (id) => find(coreBonuses.value, id),
       bionic: (id) => find(bionics.value, id),
       gear: (id) => find(gear.value, id),
-      gearType: (id) => gear.value.find((item) => item.id === id)?.type,
       frame: (id) => licenceName(frames.value, id),
       weapon: (id) => find([...weapons.value, ...integrated.value.values()], id),
       system: (id) => find([...systems.value, ...integrated.value.values()], id),
       mod: (id) => find(mods.value, id),
     },
+    // Only "Bought" lines show their price (an item bought in a change is never free; unknown items cost 0, like mannaSpent).
+    { bionic: () => 0, gear: (id) => { const item = gear.value.find((x) => x.id === id); return item ? gearPrice(item) : 0 } },
   )
 })
 
@@ -115,8 +116,10 @@ const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ block
 
 // --- Manna: what the change costs, and what's left after it ---
 // The card holds the mechs (the cost of extra ones counts like any purchase): the approved card now, the proposed one after.
-const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value, mechCount(pilot.value?.mechs)))
-const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value, mechCount(proposedCard.value.mechs ?? pilot.value?.mechs)))
+// A change is always to an approved pilot: its live sheet says which owned gear was free.
+const live = computed(() => approved.value?.sheet ?? null)
+const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value, mechCount(pilot.value?.mechs), gear.value, live.value))
+const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value, mechCount(proposedCard.value.mechs ?? pilot.value?.mechs), gear.value, live.value))
 const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
 
@@ -130,6 +133,7 @@ const problems = computed(() =>
         Object.fromEntries(
           (Array.isArray(proposedCard.value.mechs) ? (proposedCard.value.mechs as unknown as PublicMech[]) : []).map((m) => [m.id, m.name]),
         ),
+        live.value,
       )
     : personalStatProblems(proposedSheet.value.pilot_stats),
 )
@@ -295,7 +299,7 @@ async function reject() {
       <p v-if="!pending" class="notice info">Already reviewed. The figures use the current manna received.</p>
 
       <section v-if="waiting" id="decision" class="panel" aria-labelledby="decision-title">
-        <h2 id="decision-title" class="sheet-label">Decision<span class="private">GM only</span></h2>
+        <h2 id="decision-title" class="sheet-label">Decision<span class="private gm">GM only</span></h2>
         <div class="decision">
           <label class="field">
             <span>Note to the player</span>

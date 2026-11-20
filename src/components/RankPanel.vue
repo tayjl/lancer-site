@@ -244,13 +244,6 @@ async function buy(id: string) {
 </template>
 
 <style scoped>
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
 .head .icon {
   width: 16px;
   height: 16px;

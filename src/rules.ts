@@ -1,9 +1,9 @@
 import { computed } from 'vue'
-import { loadoutSlots, useGameData, type CoreBonus, type Item, type Talent } from './gameData'
+import { equippedGear, loadoutSlots, useGameData, type CoreBonus, type Item, type Talent } from './gameData'
 import { allowedSizes, alternateOf, buildFrame, chosenFrame, fittedMods, mechEffects, mechResources, mechStats, mountSize, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
 import { DAMAGE_CHOICES, modBlockedBy, variableDamage } from './equipment'
 import { resolveBonuses } from './bonuses'
-import type { MechPrivate, Sheet } from './myPilot'
+import type { MechPrivate, OwnedGear, Sheet } from './myPilot'
 import { capitalise } from './text'
 
 // LANCER's character rules with this campaign's homebrew, as plain functions the pages use to block choices
@@ -121,12 +121,43 @@ export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBo
   return problems
 }
 
+// A pilot gear item's price when its manna_cost isn't set (or isn't a whole number, 0 or more). Keep in step with
+// default_gear_price in supabase/migrations/20261121110000_pilot_inventory.sql (rules.test.ts reads it to check).
+export const GEAR_PRICE_DEFAULT = 100
+export const gearPrice = (item: Item) => {
+  const cost = item.raw?.manna_cost
+  return typeof cost === 'number' && Number.isInteger(cost) && cost >= 0 ? cost : GEAR_PRICE_DEFAULT
+}
+
+// Which owned items cost nothing (one boolean per entry), worked out like the database's settle_pilot_gear (the sheet's own
+// "free" flags are never trusted). Without a live sheet (a pilot's first approval) the first 1 Armor, 2 Weapon and 3 Gear
+// are free. Against the live sheet an item is free only if it was there with the same key and id and free, once per key.
+export function freeGear(owned: OwnedGear[], typeOf: (id: string) => string | undefined, live: Sheet | null): boolean[] {
+  const room: Record<string, number> = { Armor: 1, Weapon: 2, Gear: 3 }
+  const seen = new Set<string>()
+  return owned.map(({ key, id }) => {
+    if (!live) {
+      const type = typeOf(id) ?? ''
+      return (room[type] ?? 0) > 0 && room[type]-- > 0
+    }
+    const first = !seen.has(key)
+    seen.add(key)
+    return first && !!live.owned_gear?.some(was => was.key === key && was.id === id && was.free === true)
+  })
+}
+
 // Manna spent: licence ranks, biomods (each at its own price; an id missing from the catalogue costs 0, like any unknown
-// item), talent ranks and every mech after the first. "mechs" is how many mechs are on the card (characters.mechs), which
-// isn't part of the sheet.
-export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>, mechs: number) =>
-  licenceLevel(sheet) * PRICES.licenceRank + (sheet.bionics ?? []).reduce((total, id) => total + (bionicPrices.get(id) ?? 0), 0) + sum(sheet.talents) * PRICES.talentRank
-  + Math.max(0, mechs - 1) * PRICES.extraMech
+// item), talent ranks, every mech after the first, and every owned pilot gear item that isn't free. "mechs" is how many
+// mechs are on the card (characters.mechs), which isn't part of the sheet. "live" is the pilot's approved sheet, or null
+// for a pilot who has never been approved (see freeGear).
+export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>, mechs: number, gear: Item[], live: Sheet | null) => {
+  const byId = new Map(gear.map(item => [item.id, item]))
+  const owned = sheet.owned_gear ?? []
+  const free = freeGear(owned, id => byId.get(id)?.type, live)
+  return licenceLevel(sheet) * PRICES.licenceRank + (sheet.bionics ?? []).reduce((total, id) => total + (bionicPrices.get(id) ?? 0), 0) + sum(sheet.talents) * PRICES.talentRank
+    + Math.max(0, mechs - 1) * PRICES.extraMech
+    + owned.reduce((total, { id }, n) => total + (free[n] || !byId.has(id) ? 0 : gearPrice(byId.get(id)!)), 0)
+}
 // How many mechs a card's mechs column holds.
 export const mechCount = (mechs: unknown) => (Array.isArray(mechs) ? mechs.length : 0)
 
@@ -320,9 +351,10 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 
 // Everything wrong with a pilot's sheet: manna, level-based limits, licences, talents, core bonuses, then
 // each mech by name.
-export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>): string[] {
+// "live" is the pilot's approved sheet (null for a never-approved pilot), for the gear that's free.
+export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>, live: Sheet | null): string[] {
   const problems = personalStatProblems(sheet.pilot_stats)
-  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length)
+  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length, catalogue.gear ?? [], live)
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 
   const skills = sum(sheet.mech_skills)
@@ -345,7 +377,7 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
     if (!Number.isInteger(rank) || rank < 0 || rank > MAX_TALENT_RANK) problems.push(`Talent ${id} must be a whole rank from 0 to III.`)
     else if (rank > 0 && !catalogue.talents?.some(talent => talent.id === id)) problems.push(`Talent ${id} isn't in any loaded pack.`)
   if (catalogue.gear) {
-    const layout = loadoutSlots(sheet.pilot_gear ?? [], id => catalogue.gear!.find(item => item.id === id)?.type)
+    const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => catalogue.gear!.find(item => item.id === id)?.type)
     if (layout.overflow.length) problems.push("Pilot gear doesn't fit the available slots.")
     if (layout.unknown.length) problems.push("Some pilot gear isn't in any loaded pack.")
   }

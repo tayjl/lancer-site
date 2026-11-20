@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { GEAR_PRICE_DEFAULT } from '../../rules'
 import { GEAR_TYPES, type BonusType, type Data } from '../../contentEditor'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
@@ -23,6 +25,12 @@ const damage = f.list<{ type: string; val: string | number }>('damage')
 const bonuses = f.list<Data>('bonuses')
 const tagList = f.list<{ id: string; val?: string | number }>('tags')
 const actions = f.list<Data>('actions')
+// Its price in manna. Emptying the box takes the key off, so the item costs the default (rules.ts GEAR_PRICE_DEFAULT).
+const price = computed({
+  get: () => String(model.value.manna_cost ?? ''),
+  set: (value: string | number) =>
+    (model.value = value === '' ? Object.fromEntries(Object.entries(model.value).filter(([key]) => key !== 'manna_cost')) : { ...model.value, manna_cost: Number(value) }),
+})
 </script>
 
 <template>
@@ -38,6 +46,9 @@ const actions = f.list<Data>('actions')
           <option value="" disabled>Choose…</option>
           <option v-for="gear in GEAR_TYPES" :key="gear" :value="gear">{{ gear === 'Armor' ? 'Armour' : gear }}</option>
         </select>
+      </Field>
+      <Field class="span2" label="Manna cost" path="manna_cost">
+        <input v-model="price" type="number" min="0" step="1" :placeholder="String(GEAR_PRICE_DEFAULT)" />
       </Field>
     </div>
   </section>

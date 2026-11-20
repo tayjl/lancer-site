@@ -10,7 +10,6 @@ const names: Names = {
   coreBonus: (id) => `CB:${id}`,
   bionic: (id) => `B:${id}`,
   gear: (id) => `G:${id}`,
-  gearType: (id) => (id.endsWith('rifle') ? 'Weapon' : 'Gear'),
   frame: (id) => `F:${id}`,
   weapon: (id) => `W:${id}`,
   system: (id) => `S:${id}`,
@@ -30,7 +29,7 @@ describe('changeDiff', () => {
       { card: {}, sheet: {} },
       { card: { appearance: doc, personality: doc }, sheet: {
         backstory: doc, pilot_stats: { physicality: 3 }, mech_skills: { hull: 1 },
-        bionics: [1], pilot_gear: ['knife'], licences: { frame: 1 }, core_bonuses: ['bonus'], talents: { ace: 1 },
+        bionics: [1], owned_gear: [{ key: 'a', id: 'knife' }], licences: { frame: 1 }, core_bonuses: ['bonus'], talents: { ace: 1 },
       } },
       names,
     )
@@ -53,7 +52,7 @@ describe('changeDiff', () => {
         mech_skills: { hull: 1 },
         licences: { blackbeard: 2 },
         bionics: [1],
-        pilot_gear: ['drone'],
+        owned_gear: [{ key: 'a', id: 'drone' }],
         mechs: { m1: { frame: 'everest', mounts: [['rifle']], systems: ['paint'] } },
       },
     }
@@ -64,7 +63,7 @@ describe('changeDiff', () => {
         licences: { blackbeard: 3, drake: 1 },
         talents: { t_ace: 1 },
         bionics: [1, 2],
-        pilot_gear: ['drone', 'drone'],
+        owned_gear: [{ key: 'a', id: 'drone' }, { key: 'b', id: 'drone' }],
         mechs: { m1: { frame: 'blackbeard', mounts: [['axe']], systems: ['paint'] } },
       },
     }
@@ -74,7 +73,7 @@ describe('changeDiff', () => {
       'piloting stats | raised | Hull 1 → 2',
       'piloting stats | raised | Agility 0 → 1',
       'biomods | added | B:2',
-      'loadout | added | G:drone',
+      'loadout | added | Bought G:drone',
       'mech: Lantern II / identity | updated | Name: Lantern → Lantern II',
       'mech: Lantern II / frame | updated | Frame: F:everest → F:blackbeard',
       'mech: Lantern II / weapon mounts | added | W:axe',
@@ -87,15 +86,14 @@ describe('changeDiff', () => {
 
   it('gives each line one of five kinds: added, raised, removed, lowered or updated', () => {
     const lines = changeDiff(
-      { card: { callsign: 'Old', age: '30' }, sheet: { pilot_stats: { acuity: 3 }, licences: { frame: 1, other: 2 }, talents: { old: 1 }, pilot_gear: ['knife'] } },
-      { card: { callsign: 'New', age: null }, sheet: { pilot_stats: { acuity: 2 }, licences: { frame: 2, other: 1 }, talents: { fresh: 1 }, pilot_gear: [] } },
+      { card: { callsign: 'Old', age: '30' }, sheet: { pilot_stats: { acuity: 3 }, licences: { frame: 1, other: 2 }, talents: { old: 1 }, owned_gear: [{ key: 'a', id: 'knife' }] } },
+      { card: { callsign: 'New', age: null }, sheet: { pilot_stats: { acuity: 2 }, licences: { frame: 2, other: 1 }, talents: { fresh: 1 }, owned_gear: [] } },
       names,
     )
     expect(lines.map((line) => `${line.kind} | ${line.text}`)).toEqual([
       'updated | Callsign: Old → New',
       'removed | Age: 30 → -',
       'lowered | Acuity 3 → 2',
-      'removed | G:knife',
       'raised | L:frame licence, rank I → II',
       'lowered | L:other licence, rank II → I',
       'removed | T:old, rank I',
@@ -153,11 +151,15 @@ describe('changeDiff', () => {
     const card = { mechs: [{ id: 'm1', name: 'Mech', manufacturer_id: 'AAAA-AAAA-AAAA', appearance: null, image: null }] }
     const text = (before: Sheet, after: Sheet) => changeDiff({ card, sheet: before }, { card, sheet: after }, names).map((line) => `${line.section} | ${line.kind} | ${line.text}`)
     const onMech = (m1: MechPrivate): Sheet => ({ mechs: { m1 } })
-    // Pilot gear, by slot: added, and a removed item's slots closing up.
-    expect(text({ pilot_gear: ['knife', 'rifle'] }, { pilot_gear: ['knife', 'rifle'], pilot_gear_notes: { 'Weapon:0': 'salvaged railgun' } }))
+    // Pilot gear, by owned key: a description added, and one kept with its copy when another copy of the item is also owned.
+    const own = (...items: [string, string, string?][]): Sheet => ({ owned_gear: items.map(([key, id, notes]) => ({ key, id, notes })) })
+    expect(text(own(['a', 'knife'], ['b', 'rifle']), own(['a', 'knife'], ['b', 'rifle', 'salvaged railgun'])))
       .toEqual(['loadout | added | G:rifle description: - → salvaged railgun'])
-    expect(text({ pilot_gear: ['a_rifle', 'b_rifle'], pilot_gear_notes: { 'Weapon:0': 'x', 'Weapon:1': 'y' } }, { pilot_gear: ['b_rifle'], pilot_gear_notes: { 'Weapon:0': 'y' } }))
-      .toEqual(['loadout | removed | G:a_rifle', 'loadout | removed | G:a_rifle description: x → -'])
+    expect(text(own(['a', 'rifle', 'x'], ['b', 'rifle', 'y']), own(['a', 'rifle', 'x'], ['b', 'rifle', 'z'])))
+      .toEqual(['loadout | updated | G:rifle description: y → z'])
+    // Bought items are the new keys, with their price; equipping isn't a change.
+    const bought = changeDiff({ card: {}, sheet: { ...own(['a', 'knife']), equipped_gear: [] } }, { card: {}, sheet: { ...own(['a', 'knife'], ['b', 'knife']), equipped_gear: ['a'] } }, names, { bionic: () => 0, gear: () => 250 })
+    expect(bought.map(line => `${line.text} | ${line.manna}`)).toEqual(['Bought G:knife | 250'])
     // A mech weapon's description changed, with no configuration line.
     expect(text(onMech({ mounts: [['rifle']], weapon_options: { '0:0': { notes: 'old' } } }), onMech({ mounts: [['rifle']], weapon_options: { '0:0': { notes: 'new' } } })))
       .toEqual(['mech: Mech / weapon mounts | updated | W:rifle description: old → new'])
@@ -188,7 +190,7 @@ describe('manna on lines', () => {
     expect(byText['T:t, rank II']).toBe(-600)
     expect(byText['New mech, ID AAAA-AAAA-AAAA']).toBe(500)
     const map = new Map([[1, 500], [2, 800]])
-    const spend = (side: { sheet: Parameters<typeof mannaSpent>[0] }, mechs: number) => mannaSpent(side.sheet, map, mechs)
+    const spend = (side: { sheet: Parameters<typeof mannaSpent>[0] }, mechs: number) => mannaSpent(side.sheet, map, mechs, [], null)
     expect(lines.reduce((sum, line) => sum + (line.manna ?? 0), 0)).toBe(spend(after, 2) - spend(before, 1))
   })
 
@@ -231,8 +233,8 @@ describe('reviewSections', () => {
 
   it('orders lines added or raised, then updated, then removed or lowered', () => {
     const lines = changeDiff(
-      { card: { callsign: 'A' }, sheet: { pilot_gear: ['x'], pilot_stats: { acuity: 3 } } },
-      { card: { callsign: 'B', age: '9' }, sheet: { pilot_gear: [], pilot_stats: { acuity: 3 } } },
+      { card: { callsign: 'A' }, sheet: { bionics: [1], pilot_stats: { acuity: 3 } } },
+      { card: { callsign: 'B', age: '9' }, sheet: { bionics: [], pilot_stats: { acuity: 3 } } },
       names,
     )
     expect(reviewSections(lines)[0].groups[0].lines.map((line) => line.kind)).toEqual(['added', 'updated'])

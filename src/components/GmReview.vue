@@ -61,27 +61,27 @@ load()
 
 // Rewards save on their own button only; approving and sending back never need them.
 // GMs can mark an approved pilot dead too (mark_dead in the database). It can't be undone.
+const dangerError = ref('') // the danger zone's own error, shown under its buttons
 async function markDead() {
   if (!(await confirmAction(`Mark ${name.value} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))) return
   busy.value = true
   const { error: deathError } = await supabase.rpc('mark_dead', { target_character_id: props.pilot.id })
   busy.value = false
-  error.value = deathError?.message ?? ''
-  if (!error.value) emit('reviewed')
+  dangerError.value = deathError ? `Not saved: ${deathError.message}` : ''
+  if (!dangerError.value) emit('reviewed')
 }
 
 // Owners only (the database enforces it): deleting a character also deletes its sheet, changes and reputation. The
 // returned row proves something was deleted, since RLS turns a refused delete into "0 rows" rather than an error.
-const deleteError = ref('')
 
 async function deletePilot() {
   if (!(await confirmAction(`Delete ${name.value}? This removes their sheet, mechs and changes. This can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
   busy.value = true
   const { data, error: removeError } = await supabase.from('characters').delete().eq('id', props.pilot.id).select('id, pilot_image, mechs')
   busy.value = false
-  deleteError.value = removeError?.message ?? (data?.length ? '' : 'Not deleted: Only owners can delete pilots.')
+  dangerError.value = removeError ? `Not deleted: ${removeError.message}` : (data?.length ? '' : 'Not deleted: Only owners can delete pilots.')
   if (data?.length) cardImages(data[0]).forEach(deleteImage)
-  if (!deleteError.value) router.push({ name: 'gm-pilots' })
+  if (!dangerError.value) router.push({ name: 'gm-pilots' })
 }
 
 // After a reward change: show what the database now holds and refresh the history.
@@ -150,8 +150,8 @@ async function sendBack() {
 </script>
 
 <template>
-  <section class="panel">
-    <h2 class="sheet-label">{{ pending ? 'Decision' : 'GM controls' }}<span class="private">GM only</span></h2>
+  <section>
+    <h3 class="sheet-label">{{ pending ? 'Decision' : 'Rewards' }}<span class="private gm">GM only</span></h3>
     <p v-if="loading" class="dim">Loading…</p>
     <form v-else class="decision" @submit.prevent>
       <div v-if="!pending" class="numbers">
@@ -190,9 +190,6 @@ async function sendBack() {
         <button type="button" class="primary" :disabled="busy" @click="approve">Approve pilot</button>
         <button type="button" class="danger" :disabled="busy" @click="sendBack">Send back</button>
       </div>
-      <div v-else-if="pilot.status === 'approved'" class="actions">
-        <button type="button" class="danger" :disabled="busy" @click="markDead">Mark pilot dead</button>
-      </div>
     </form>
   </section>
 
@@ -201,17 +198,25 @@ async function sendBack() {
 
   <RewardHistory :character-id="pilot.id" :refresh="historyKey" />
 
-  <section v-if="isOwner" class="panel danger-zone">
-    <h2 class="sheet-label">Danger zone<span class="private">Owner only</span></h2>
-    <div class="danger-body">
-      <p class="dim">Deleting {{ name }} removes their sheet, mechs and changes. This can't be undone.</p>
+  <!-- Last of the GM controls: marking dead (GMs) and deleting (owners only). -->
+  <section v-if="isOwner || pilot.status === 'approved'" class="panel danger-zone">
+    <h3 class="sheet-label">Danger zone<span class="private gm">{{ pilot.status === 'approved' ? 'GM only' : 'Owner only' }}</span></h3>
+    <div v-if="pilot.status === 'approved'" class="danger-body">
+      <p class="dim">Mark {{ name }} dead if they die in the story. This can't be undone.</p>
+      <button type="button" class="danger" :disabled="busy" @click="markDead">Mark pilot dead</button>
+    </div>
+    <div v-if="isOwner" class="danger-body">
+      <p class="dim">
+        Deleting {{ name }} removes their sheet, mechs and changes. This can't be undone.<span v-if="pilot.status === 'approved'" class="private gm">Owner only</span>
+      </p>
       <button type="button" class="danger" :disabled="busy" @click="deletePilot">Delete pilot</button>
     </div>
-    <p v-if="deleteError" class="notice warn" role="alert">{{ deleteError }}</p>
+    <p v-if="dangerError" class="notice warn" role="alert">{{ dangerError }}</p>
   </section>
 </template>
 
 <style scoped>
+
 .decision {
   display: flex;
   flex-direction: column;
@@ -250,5 +255,26 @@ input[type='number'] {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-s) var(--space-m);
+}
+
+/* Phones: "Manna received" can't fit a third of the width, so every field and button takes the full width, one under
+   another. The decision's buttons share a row in equal columns when both fit. */
+@media (max-width: 40rem) {
+  .numbers {
+    display: grid;
+  }
+
+  input[type='number'] {
+    width: 100%;
+  }
+
+  .numbers > .badge {
+    justify-self: start;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  }
 }
 </style>

@@ -40,14 +40,20 @@ export type MechPrivate = {
 }
 // The private sheet (docs/database-sketch.md has the full shape). Stats are keyed by id; gear holds content_items ids
 // and bionics holds bionics ids.
+export type OwnedGear = { key: string; id: string; notes?: string; free?: boolean }
+export type MiscItem = { key: string; name: string; notes?: string }
 export type Sheet = {
   backstory?: Json | null
   mechs?: Record<string, MechPrivate>
   pilot_stats?: Record<string, number>
   mech_skills?: Record<string, number>
-  pilot_gear?: string[]
-  // Each gear item's description by its player, by loadout slot ("Weapon:1", src/itemNotes.ts).
-  pilot_gear_notes?: Record<string, string>
+  // Pilot gear the pilot has bought (content_items ids), one entry per copy; "key" is that copy's own id. "notes" is its
+  // player's description. "free" is set by the database (the starting loadout), never by the page.
+  owned_gear?: OwnedGear[]
+  // The owned keys currently equipped. An approved pilot's changes through equip_pilot_gear, not a change.
+  equipped_gear?: string[]
+  // Free-text items a GM gives the pilot (name, optional description; never equipped). GM only: the database refuses player changes.
+  misc_items?: MiscItem[]
   bionics?: number[]
   // Bought with manna (src/rules.ts): the rank (1 to 3) in each licence, keyed by licence (frame) id, and in
   // each talent, keyed by talent id. Core bonuses (ids) are free, one per 3 licence ranks.
@@ -176,7 +182,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
           approvedImages = cardImages(character.value!)
           approved.value = { character: character.value!, sheet: sheet.value }
           character.value = { ...character.value!, ...(proposed.proposed_public as object) }
-          sheet.value = proposed.proposed_sheet as unknown as Sheet
+          // What's equipped is always the live list (equipGear below): approving a change keeps it, whatever the draft says.
+          sheet.value = { ...(proposed.proposed_sheet as unknown as Sheet), equipped_gear: sheet.value.equipped_gear, misc_items: sheet.value.misc_items }
         }
       }
       savedImages = cardImages(character.value!)
@@ -250,6 +257,14 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       return result.error
     }
     // The first save of a sheet creates it; after that it's an update, guarded by when this page last saw it.
+    // An approved pilot's player equips live (equipGear), which doesn't move updated_at, so a GM's save takes the equipped
+    // list as it is now rather than as this page loaded it.
+    // shortcut: an equip landing between this read and the write below is still lost; move to a database function if that bites.
+    if (c.status === 'approved') {
+      const { data, error } = await supabase.from('character_sheets').select('equipped:sheet->equipped_gear').eq('character_id', c.id).maybeSingle()
+      if (error) return error.message
+      sheet.value = { ...sheet.value, equipped_gear: (data?.equipped ?? undefined) as string[] | undefined }
+    }
     const body = sheet.value as unknown as NonNullable<Json>
     const seen = sheetUpdatedAt.value
     const result = seen
@@ -344,6 +359,18 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       return error
     })
 
+  // Equipping an approved pilot's owned gear (equip_pilot_gear: "keys" is the whole equipped list, owned keys) needs no
+  // approval, even with a change open or in a GM's edit mode. It changes only the live sheet's equipped_gear; the draft's
+  // copy follows it on screen.
+  const equipGear = (keys: string[]) =>
+    queued(async () => {
+      const { error } = await supabase.rpc('equip_pilot_gear', { target_character_id: character.value!.id, keys })
+      if (error) return error.message
+      if (approved.value) approved.value = { ...approved.value, sheet: { ...approved.value.sheet, equipped_gear: keys } }
+      sheet.value = { ...sheet.value, equipped_gear: keys }
+      return null
+    })
+
   // Marking your approved pilot dead (mark_dead in the database): it moves to the memorial for good, any
   // waiting change is withdrawn, and you can register a new pilot.
   const markDead = () =>
@@ -423,6 +450,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     submitChange: () => setSubmitted(true),
     reopenChange: () => setSubmitted(false),
     withdrawChange,
+    equipGear,
     markDead,
   }
 }

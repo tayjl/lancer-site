@@ -144,7 +144,11 @@ const LOADOUT = [
 ] as const
 export type Slot = { type: string; label: string; index: number; id: string | null }
 
-// Sorts a loadout's ids (sheet.pilot_gear) into its slots by item type, in the order they were added.
+// The owned items that are equipped, in equipped order (a key that isn't owned is skipped).
+export const equippedGear = (sheet: Pick<Sheet, 'owned_gear' | 'equipped_gear'>) =>
+  (sheet.equipped_gear ?? []).flatMap(key => sheet.owned_gear?.find(owned => owned.key === key) ?? [])
+
+// Sorts a loadout's ids (the equipped gear's ids) into its slots by item type, in the order they were added.
 // Ids whose type isn't known (e.g. their pack was removed) are kept aside in "unknown", so saves keep them.
 // More items of a type than it has slots only happens with sheets from before the slots: those are "overflow".
 export function loadoutSlots(ids: string[], typeOf: (id: string) => string | undefined) {
@@ -211,7 +215,7 @@ export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bio
 // Only equipped slots count; an old overflowing loadout must not stack several suits of armour.
 export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = []): NamedBonus[] {
   const byId = new Map(gear.map(item => [item.id, item]))
-  const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
+  const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
   const sources = layout.slots.flatMap(slot => slot.id && byId.has(slot.id) ? [byId.get(slot.id)!] : [])
   const result = sources.flatMap(item => item.bonuses.map(bonus => ({ source: item.name, bonus })))
   for (const talent of talents) talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).forEach((rank, index) =>
@@ -222,7 +226,7 @@ export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [],
 
 export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = []) {
   const byId = new Map(gear.map(item => [item.id, item]))
-  const layout = loadoutSlots(sheet.pilot_gear ?? [], id => byId.get(id)?.type)
+  const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
   const bonuses = pilotBonuses(sheet, gear, talents, coreBonuses)
   const stats = [
     { id: 'pilot_hp', name: 'HP', value: 6, icon: hpIcon },

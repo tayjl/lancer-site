@@ -14,7 +14,7 @@ describe('pilot vitals', () => {
     { id: 'pilot_speed', val: 3, replace: true }, { id: 'pilot_evasion', val: 6, replace: true },
   ] })
   const kit = toItem('kit', { type: 'Gear', bonuses: [{ id: 'pilot_speed', val: 1 }] })
-  const values = (chosen: string[]) => pilotVitals({ pilot_gear: chosen }, [suit, kit]).map(stat => stat.value)
+  const values = (chosen: string[]) => pilotVitals({ owned_gear: chosen.map((id, n) => ({ key: `k${n}`, id })), equipped_gear: chosen.map((_, n) => `k${n}`) }, [suit, kit]).map(stat => stat.value)
 
   it('uses unarmoured defaults, equipped bonuses and replacement speed', () => {
     expect(values([])).toEqual([6, 0, 4, 10])

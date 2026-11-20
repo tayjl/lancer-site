@@ -863,6 +863,10 @@ export type Database = {
         Args: { expected_note: string; target_character_id: number }
         Returns: undefined
       }
+      equip_pilot_gear: {
+        Args: { keys: string[]; target_character_id: number }
+        Returns: string
+      }
       import_lcp: {
         Args: {
           expected_imported_at?: string
@@ -947,6 +951,10 @@ export type Database = {
       set_backstory_public: {
         Args: { make_public: boolean; target_character_id: number }
         Returns: undefined
+      }
+      settle_pilot_gear: {
+        Args: { first_approval: boolean; live: Json; proposed: Json }
+        Returns: Json
       }
     }
     Enums: {

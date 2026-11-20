@@ -187,7 +187,7 @@ async function exportLcp() {
         :crumbs="[{ label: 'GM' }, { label: 'Content', to: { name: 'gm-content' } }, { label: 'Editor' }]"
       >
         <div class="actions">
-          <span class="private">Owner only</span>
+          <span class="private gm">Owner only</span>
           <RouterLink :to="{ name: 'gm-content' }" class="link-button">Packs and imports</RouterLink>
           <button type="button" @click="exportLcp"><Icon name="download" />Export as .lcp</button>
         </div>

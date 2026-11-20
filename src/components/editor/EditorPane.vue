@@ -272,8 +272,8 @@ defineExpose({ dirty })
               <span id="delete-why" class="blocked-reason">{{ usedBy(pilots) }}</span>
             </span>
             <button v-else type="button" class="danger" :disabled="busy || usageError" @click="remove">Delete item</button>
-            <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>
           </div>
+          <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>
         </section>
       </div>
 

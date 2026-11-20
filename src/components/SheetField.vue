@@ -63,10 +63,6 @@ onBeforeUnmount(() => {
 <style scoped>
 /* Writing headings are plain sub-section headings: bigger than a log entry's label, with a thin rule under the row. */
 .head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
   padding-bottom: var(--space-s);
   border-bottom: 1px solid var(--rule);
 }

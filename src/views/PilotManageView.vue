@@ -39,7 +39,7 @@ import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from 
 import type { Json } from '../lib/database.types'
 import { chosenFrame, licenceFrames, licensedFrames, useMechData, type Frame } from '../mechData'
 import { bionicInfo, frameInfo, licenceUnlocks, talentInfo } from '../info'
-import { useMyPilot, type Sheet } from '../myPilot'
+import { useMyPilot, type MiscItem, type OwnedGear, type Sheet } from '../myPilot'
 import { GM_EDIT } from '../restriction'
 import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
@@ -48,8 +48,8 @@ import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, m
 import { capitalise } from '../text'
 
 // my pilot: your pilot as one scrolling file. A cover (portrait, callsign, name, player, status, medals, then the key
-// figures), the "what happens next" bar under it, any notes and the rule check, then eight numbered sections (identity,
-// pilot ID, service record, capabilities, qualifications, equipment, hangar, gallery) with an index that follows you (a list
+// figures), the "what happens next" bar under it, any notes and the rule check, then numbered sections (identity,
+// pilot ID, service record, capabilities, qualifications, equipment, hangar, GM controls on the review page, gallery) with an index that follows you (a list
 // beside the file, a row under the top bar on phones; the url's #hash names the section). Everything is edited
 // in place and saves itself. While a pilot is pending you can edit it directly; once it's approved, changes are
 // proposed as a draft that a GM approves (src/myPilot.ts).
@@ -96,6 +96,7 @@ const {
   submitChange,
   reopenChange,
   withdrawChange,
+  equipGear,
   markDead,
 } = useMyPilot(pilotId, { gmEdit: () => route.query.edit === '1' })
 // Exotic content can be picked only in a GM's edit mode (rules.ts): every picker below asks (src/restriction.ts).
@@ -131,10 +132,11 @@ function clearChangeNote() {
     // Hidden for this visit only.
   }
 }
+const deathError = ref('') // shown in the danger zone, beside its button
 async function confirmDeath() {
   const name = character.value!.callsign ?? character.value!.pilot_name
   if (await confirmAction(`Mark ${name} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))
-    track(markDead())
+    deathError.value = (await track(markDead())) ?? ''
 }
 
 async function withdraw() {
@@ -271,8 +273,11 @@ const vitals = computed(() => [
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, mods } = useMechData()
 const catalogue = useCatalogue()
+// The approved sheet, which says which owned gear was free; null for a pilot never approved (its first full loadout is free).
+const live = computed(() => (character.value?.status === 'pending' ? null : (approved.value?.sheet ?? sheet.value)))
+const spent = computed(() => mannaSpent(sheet.value, bionicPrices.value, mechs.value.length, gear.value, live.value))
 // Manna is private to the pilot's player and GMs: other viewers get no figure, and nothing to check it against.
-const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) - mannaSpent(sheet.value, bionicPrices.value, mechs.value.length))
+const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) - spent.value)
 
 // Licences: one per original licensed frame (alternate frames share it). Each rank unlocks the frames and gear of that
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
@@ -315,19 +320,27 @@ const hasNext = computed(() => own || character.value?.status === 'dead')
 const gmLink = computed(() => isGm.value && !own && !reviewing)
 
 // The file's sections, in order (the numbers are part of the design). The gallery is left out for read-only viewers when
-// it is empty. The ids are the url's #hash (a mech page links back to #hangar).
+// it is empty, and GM controls show only on the review page. The ids are the url's #hash (a mech page links back to #hangar).
 const SEC = {
-  identity: { id: 'identity', no: '01', title: 'Identity' },
-  pilotId: { id: 'pilot-id', no: '02', title: 'Pilot ID' },
-  record: { id: 'service-record', no: '03', title: 'Service record' },
-  capabilities: { id: 'capabilities', no: '04', title: 'Capabilities' },
-  qualifications: { id: 'qualifications', no: '05', title: 'Qualifications' },
-  equipment: { id: 'equipment', no: '06', title: 'Equipment' },
-  hangar: { id: 'hangar', no: '07', title: 'Hangar' },
-  gallery: { id: 'gallery', no: '08', title: 'Gallery' },
+  identity: { id: 'identity', title: 'Identity' },
+  pilotId: { id: 'pilot-id', title: 'Pilot ID' },
+  record: { id: 'service-record', title: 'Service record' },
+  capabilities: { id: 'capabilities', title: 'Capabilities' },
+  qualifications: { id: 'qualifications', title: 'Qualifications' },
+  equipment: { id: 'equipment', title: 'Equipment' },
+  hangar: { id: 'hangar', title: 'Hangar' },
+  gm: { id: 'gm-controls', title: 'GM controls' },
+  gallery: { id: 'gallery', title: 'Gallery' },
 }
 const showGallery = computed(() => profileEditable.value || profile.fields.value.gallery.length > 0)
-const sections = computed(() => Object.values(SEC).filter((s) => s !== SEC.gallery || showGallery.value))
+const showGm = computed(() => reviewing && isGm.value)
+// Numbered by position among the shown sections, so a hidden one leaves no gap.
+const sections = computed(() =>
+  Object.values(SEC)
+    .filter((s) => (s !== SEC.gallery || showGallery.value) && (s !== SEC.gm || showGm.value))
+    .map((s, i) => ({ ...s, no: String(i + 1).padStart(2, '0') })),
+)
+const sec = (s: { id: string; title: string }) => sections.value.find((x) => x.id === s.id) ?? { ...s, no: '' }
 
 // The cover: the pilot's status as a badge, and the figures that matter. Manna only for the pilot's player and GMs.
 const coverBadge = computed(() =>
@@ -339,14 +352,14 @@ const figures = computed(() => [
   { label: 'Grit', value: vitals.value.find((v) => v.id === 'grit')?.value ?? '–' },
   { label: 'HP', value: vitals.value.find((v) => v.id === 'pilot_hp')?.value ?? '–' },
   ...(canSeeManna.value
-    ? [{ label: 'Manna left', value: formatAmount(balance.value), over: balance.value < 0, sub: `${formatAmount(mannaSpent(sheet.value, bionicPrices.value, mechs.value.length))} of ${formatAmount(gm.value.manna)} spent` }]
+    ? [{ label: 'Manna left', value: formatAmount(balance.value), over: balance.value < 0, sub: `${formatAmount(spent.value)} of ${formatAmount(gm.value.manna)} spent` }]
     : []),
 ])
 
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
   frames.value.length
-    ? pilotProblems(sheet.value, canSeeManna.value ? gm.value : { ...gm.value, manna: Infinity }, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])))
+    ? pilotProblems(sheet.value, canSeeManna.value ? gm.value : { ...gm.value, manna: Infinity }, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])), live.value)
     : personalStatProblems(sheet.value.pilot_stats),
 )
 
@@ -358,7 +371,11 @@ function setStat(key: 'pilot_stats' | 'mech_skills', stats: { id: string; value:
 
 // --- Bionics and the loadout (1 armour, 2 weapons, 3 gear): picked from the catalogues, stored as ids ---
 const saveBionics = (ids: (string | number)[]) => track(updateSheet({ bionics: ids as number[] }))
-const saveGear = (ids: string[], notes: Record<string, string>) => track(updateSheet({ pilot_gear: ids, pilot_gear_notes: notes }))
+// Owned gear and descriptions go into the sheet being edited (a change needs approval); an approved pilot's equipping is live.
+const saveOwned = (owned: OwnedGear[], equipped?: string[]) => track(updateSheet(equipped ? { owned_gear: owned, equipped_gear: equipped } : { owned_gear: owned }))
+const saveEquipped = (keys: string[]) => track(equipGear(keys))
+const saveMisc = (items: MiscItem[]) => track(updateSheet({ misc_items: items }))
+const canEquip = computed(() => (character.value?.status === 'pending' ? editable.value : character.value?.status === 'approved' && (own || gmEditing.value)))
 </script>
 
 <template>
@@ -415,10 +432,10 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
         @position="placeBanner"
       >
         <template #actions>
-          <RouterLink v-if="gmLink" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
+          <RouterLink v-if="gmLink" class="gm-link gm" :to="{ name: 'gm-review', params: { id: character.id } }">
             {{ character.status === 'pending' ? 'GM review' : 'GM controls' }}
           </RouterLink>
-          <button v-if="gmCanEdit && !gmEditing" type="button" class="small" @click="setEdit(true)">Edit pilot</button>
+          <button v-if="gmCanEdit && !gmEditing" type="button" class="small gm" @click="setEdit(true)">Edit as GM</button>
         </template>
         <template v-if="editable || profileEditable" #tools>
           <div v-if="editable" class="tool">
@@ -520,7 +537,7 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
       <div class="dossier">
         <FileIndex :sections="sections" />
         <div class="file">
-          <FileSection v-bind="SEC.identity" fixed>
+          <FileSection v-bind="sec(SEC.identity)" fixed>
             <IdentityGrid :fields="IDENTITY" :values="character" :editable="editable" @save="(column, event) => saveText(column as TextColumn, event)" />
             <div class="notes">
               <SheetField title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
@@ -534,7 +551,7 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
             </div>
           </FileSection>
 
-          <FileSection v-bind="SEC.pilotId">
+          <FileSection v-bind="sec(SEC.pilotId)">
             <PilotIdCard
               class="id-card"
               :id="character.id"
@@ -554,11 +571,11 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
             />
           </FileSection>
 
-          <FileSection v-bind="SEC.record">
+          <FileSection v-bind="sec(SEC.record)">
             <ServiceRecord :record="record" :can-log="canLog" :can-gm="canGmRecord" />
           </FileSection>
 
-          <FileSection v-bind="SEC.capabilities">
+          <FileSection v-bind="sec(SEC.capabilities)">
             <StatFigures :stats="vitals" />
             <StatSources :stats="vitals" />
             <StatRow
@@ -583,7 +600,7 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
             />
           </FileSection>
 
-          <FileSection v-bind="SEC.qualifications">
+          <FileSection v-bind="sec(SEC.qualifications)">
             <div class="quals">
               <RankPanel
                 class="qual"
@@ -631,8 +648,21 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
             </div>
           </FileSection>
 
-          <FileSection v-bind="SEC.equipment">
-            <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :notes="sheet.pilot_gear_notes ?? {}" :editable="editable" :save="saveGear" />
+          <FileSection v-bind="sec(SEC.equipment)">
+            <PilotLoadout
+              :items="gear"
+              :owned="sheet.owned_gear ?? []"
+              :equipped="sheet.equipped_gear ?? []"
+              :live="live"
+              :can-equip="canEquip"
+              :editable="editable"
+              :can-remove="gmEditing && character.status === 'approved'"
+              :balance="balance"
+              :equip="saveEquipped"
+              :save-owned="saveOwned"
+              :misc="sheet.misc_items ?? []"
+              :save-misc="saveMisc"
+            />
             <LoadoutBox
               class="biomods"
               title="Biomods"
@@ -645,11 +675,18 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
             />
           </FileSection>
 
-          <FileSection v-bind="SEC.hangar">
+          <FileSection v-bind="sec(SEC.hangar)">
             <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" />
           </FileSection>
 
-          <FileSection v-if="showGallery" v-bind="SEC.gallery">
+          <FileSection v-if="showGm" v-bind="sec(SEC.gm)">
+            <!-- :key resets the decision box after a decision, so it shows the new status. -->
+            <div class="gm-controls">
+              <GmReview :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" :awards="awards" @reviewed="load" @awarded="record.load" />
+            </div>
+          </FileSection>
+
+          <FileSection v-if="showGallery" v-bind="sec(SEC.gallery)">
             <PilotGallery
               :items="profile.fields.value.gallery"
               :editable="profileEditable"
@@ -665,12 +702,10 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
               <p class="dim">Mark this pilot dead if they die in the story. This can't be undone.</p>
               <button type="button" class="danger" @click="confirmDeath">Mark pilot dead</button>
             </div>
+            <p v-if="deathError" class="notice warn" role="alert">Not saved: {{ deathError }}</p>
           </section>
         </div>
       </div>
-
-      <!-- :key resets the decision box after a decision, so it shows the new status. -->
-      <GmReview v-if="reviewing && isGm" :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" :awards="awards" @reviewed="load" @awarded="record.load" />
     </div>
   </main>
 </template>
@@ -711,10 +746,16 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
   margin-top: var(--space-xl);
 }
 
-/* --- 05 Qualifications: licences, talents and core bonuses, stacked full width --- */
-.quals {
+/* --- Qualifications (licences, talents, core bonuses) and GM controls: blocks stacked full width --- */
+.quals,
+.gm-controls {
   display: grid;
   gap: var(--space-xl);
+}
+/* GmReview's blocks sit unboxed, so a hairline marks where each one starts. */
+.gm-controls > :deep(*:not(:first-child):not(.panel)) {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-l);
 }
 
 /* --- 06 Equipment: biomods in their own row under the loadout --- */
@@ -746,13 +787,14 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
   margin-top: 0;
 }
 
-/* --- The GM's way to the review page: a link drawn as a small button --- */
+/* --- The GM's way to the review page: a link drawn as a small button (teal and hover from .gm) --- */
 .gm-link {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border: 1px solid var(--edge);
+  border-width: 1px;
+  border-style: solid;
   border-radius: var(--radius);
   font: 700 var(--fs-xs) / 1.2 var(--sans);
   letter-spacing: 0.06em;
@@ -761,9 +803,11 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
   white-space: nowrap;
 }
 
-.gm-link:hover {
-  border-color: var(--lilac);
-  background: color-mix(in srgb, var(--lilac) 8%, transparent);
+/* As tall as a .small button on touch screens. */
+@media (pointer: coarse) {
+  .gm-link {
+    min-height: 44px;
+  }
 }
 
 /* --- What happens next: a band joined to the cover's foot --- */
@@ -824,12 +868,32 @@ const saveGear = (ids: string[], notes: Record<string, string>) => track(updateS
     flex-basis: 100%;
   }
 
+  /* The buttons share the row and never break their labels: one that doesn't fit takes the next row. */
   .next-actions {
+    flex-wrap: wrap;
     flex-basis: 100%;
   }
 
   .next-actions button {
-    flex: 1;
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+}
+
+/* Phones: the next band's buttons in equal columns, one under another when two labels can't both fit. The cover's GM
+   link as tall as the buttons stacked with it, and each cover tool's buttons the full width. */
+@media (max-width: 40rem) {
+  .next-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  }
+
+  .gm-link {
+    min-height: var(--tap);
+  }
+
+  .tool :deep(.buttons) {
+    display: grid;
   }
 }
 </style>

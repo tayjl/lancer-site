@@ -13,7 +13,7 @@ defineEmits<{ done: []; retry: [] }>()
 <template>
   <div class="gm-edit">
     <div class="bar">
-      <span class="badge">GM edit</span>
+      <span class="badge gm">GM edit</span>
       <p>Saves go straight to this pilot.</p>
       <SaveStatus :saving="saving" :saved="saved" :error="error" :can-retry="canRetry" @retry="$emit('retry')" />
       <button type="button" class="small done" @click="$emit('done')">Done</button>
@@ -65,8 +65,9 @@ p {
   }
 
   .done {
-    flex: 1 0 100%;
+    flex: 1 0 auto;
     margin-left: 0;
+    white-space: nowrap;
   }
 }
 </style>

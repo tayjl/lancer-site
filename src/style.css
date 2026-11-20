@@ -14,6 +14,8 @@
   /* Interface: lilac means "you can click this" or "you are here". Nothing else. */
   --lilac: #c9b3ff;
   --lilac-ink: #17121f; /* text on a filled lilac button */
+  /* GM and owner tools: the ways into GM modes and the "GM only" / "Owner only" tags. 9.4:1 on --panel. */
+  --gm: #45d6c3;
 
   /* Status: each only ever means its status, and always comes with a symbol or a word. */
   --ok: #a9dfb5; /* approved, saved, added, refunds, within budget */
@@ -231,6 +233,19 @@ a:hover {
   text-underline-offset: 0.2em;
 }
 
+/* .gm: a way into a GM mode (teal, see also .private.gm). Its label always says "GM" too. */
+:where(button.gm),
+a.gm {
+  border-color: color-mix(in srgb, var(--gm) 60%, transparent);
+  color: var(--gm);
+}
+
+:where(button.gm:hover:not(:disabled)),
+a.gm:hover {
+  border-color: var(--gm);
+  background: color-mix(in srgb, var(--gm) 10%, transparent);
+}
+
 :where(button.small) {
   min-height: 28px;
   padding: 0 10px;
@@ -409,8 +424,10 @@ label.field .error {
   background: var(--panel);
 }
 
-/* A panel for an irreversible action (mark dead, scrap, delete): .panel.danger-zone, a sentence and a .danger button in
-   .danger-body, any error as a .notice.warn under it. */
+/* A panel for an irreversible action (mark dead, scrap, delete): .panel.danger-zone with a .sheet-label "Danger zone"
+   (an optional .private tag inside it), then a .danger-body per action holding only its sentence <p> (any tag inside the
+   p) and its .danger button (or span.blocked), centred against each other; any error as a .notice.warn after the
+   bodies, never inside one. */
 .danger-zone {
   border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 }
@@ -422,11 +439,15 @@ label.field .error {
   gap: var(--space-s) var(--space-l);
 }
 
-.danger-body p {
+.danger-body > p {
   flex: 1 1 14rem;
   max-width: none;
   margin: 0;
   font-size: var(--fs-s);
+}
+
+.danger-body + .danger-body {
+  margin-top: var(--space-m);
 }
 
 .danger-zone > [role='alert'] {
@@ -472,6 +493,10 @@ label.field .error {
 /* A header row holding a heading and more: the row takes the heading's space below, so every section has the same gap
    between its heading and its content. */
 .sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
   margin-bottom: var(--space-m);
 }
 
@@ -479,6 +504,38 @@ label.field .error {
 .sheet-head > .sheet-label {
   min-width: fit-content;
   margin-bottom: 0;
+}
+
+/* Phones: the same pattern as the file's section heads (FileSection.vue). The title on the left with at most one action
+   at its right; counts, points and blocked reasons each on a line of their own under the title, left-aligned. */
+@media (max-width: 40rem) {
+  .sheet-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-xs) var(--space-m);
+  }
+
+  .sheet-head > *,
+  .sheet-head .blocked-reason {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .sheet-head > .sheet-label {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+
+  .sheet-head > span.blocked {
+    display: contents;
+  }
+
+  .sheet-head > button,
+  .sheet-head > span.blocked > button {
+    grid-area: 1 / 2;
+    justify-self: end;
+    white-space: nowrap;
+  }
 }
 
 /* Privacy: a small lock and a word ("Private", "GM only"), beside a section's heading. */
@@ -502,6 +559,14 @@ label.field .error {
   background: currentColor;
   vertical-align: -2px;
   mask: url('./assets/icons/lock.svg') center / contain no-repeat;
+}
+
+/* "GM only" / "Owner only" tags, the top bar's GM label and the GM edit badge. */
+.private.gm,
+.label.gm,
+.badge.gm {
+  --c: var(--gm);
+  color: var(--gm);
 }
 
 /* ───────────────────────── Tabs: one underline style everywhere ─────────────────────────
@@ -1231,6 +1296,12 @@ dialog.dialog::backdrop {
 @media (max-width: 40rem) {
   .page {
     padding: var(--space-l) var(--space-l) var(--space-xl);
+  }
+
+  /* A danger zone's sentence, then its button the full width under it. */
+  .danger-body > :is(button, span.blocked),
+  .danger-body > span.blocked > button {
+    flex: 1 1 100%;
   }
 
   .dialog-head,

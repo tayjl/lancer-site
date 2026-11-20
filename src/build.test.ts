@@ -129,7 +129,7 @@ describe('complete core character builds', () => {
   it('keeps pilot e-defence, excludes pilot evasion and includes permanent talent bonuses', () => {
     const armour = toItem('suit', { type: 'Armor', name: 'Suit', bonuses: [{ id: 'pilot_evasion', val: 6, replace: true }, { id: 'pilot_edef', val: 2 }] })
     const custom: Talent[] = [{ id: 'test', name: 'Test', terse: '', ranks: [{ name: 'I', description: '', bonuses: [{ id: 'pilot_hp', val: 2 }] }] }]
-    const stats = pilotVitals({ pilot_gear: ['suit'], talents: { test: 1 } }, [armour], custom)
+    const stats = pilotVitals({ owned_gear: [{ key: 'k', id: 'suit' }], equipped_gear: ['k'], talents: { test: 1 } }, [armour], custom)
     expect(stats.map(stat => stat.value)).toEqual([8, 0, 4, 12])
     expect(stats[0].contributors).toContain('Test 1: +2')
   })

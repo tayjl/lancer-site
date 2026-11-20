@@ -63,8 +63,8 @@ const none = computed(() => !loading.value && !loadError.value && !factions.valu
 </script>
 
 <template>
-  <section class="panel" aria-labelledby="reputation-title">
-    <h2 id="reputation-title" class="sheet-label">Reputation<span class="private">GM only</span></h2>
+  <section aria-labelledby="reputation-title">
+    <h3 id="reputation-title" class="sheet-label">Reputation<span class="private gm">GM only</span></h3>
     <p v-if="loading" class="dim">Loading…</p>
     <p v-else-if="loadError" class="notice warn" role="alert">Couldn't load reputation: {{ loadError }}</p>
     <div v-else-if="none" class="empty">

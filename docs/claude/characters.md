@@ -87,6 +87,7 @@ Purpose: the full rules for pilots, their public/private split, profile customis
 - **Talents and core bonuses:** included.
 - **Pilot equipment:** only LANCER pilot gear (armour, weapons, kit) from the game data. No free-text items.
   - **Slots** (decided by the developer, 2026-10-29): **1 armour, 2 weapons and 3 gear**, laid out like COMP/CON's loadout.
+  - **Inventory** (decided by the developer, 2026-11-21; migration `20261121110000_pilot_inventory.sql`): pilot gear is **owned** once bought (`sheet.owned_gear`, one entry per copy with its own key and description; duplicates allowed) and equipped by key (`sheet.equipped_gear`). **Equipping needs no approval**, even with a change open (`equip_pilot_gear`). **Buying goes through a change** and costs the item's price (`manna_cost`, set by owners in the content editor; 100 when unset). A new pilot's **first full loadout is free** (1 armour, 2 weapons, 3 gear; `freeGear()` in `src/rules.ts` mirrors the database's `settle_pilot_gear`). **No refunds:** players can't remove owned items; GMs can. UI: `docs/claude/pilot-sheet.md` (the loadout).
 - **The pilot page is modular.** Each category (mechs, equipment, talents, licences, core bonuses, mech gear and so on) is a section with a `[ + ]` box to add an item.
   - For game items, `[ + ]` opens a searchable picker of pre-made items from the imported LCPs. This is how most players add things, and the sheet stores only the item's ID.
   - Mechs are added with a small form (name, manufacturer ID, appearance, image).
