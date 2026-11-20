@@ -55,24 +55,26 @@ const fit = (text: string, weight: number, size: number, family: string, max: nu
 }
 
 const title = computed(() => props.callsign || props.name)
-const callsignText = computed(() => fit(title.value.toUpperCase(), 700, 66, SANS_FAMILY, 530))
+// The right-hand block runs from x 290 to 820. The callsign is tracked 1px a letter, which measuring leaves out: 20px spare.
+const callsignText = computed(() => fit(title.value.toUpperCase(), 600, 52, SANS_FAMILY, 510))
 const nameText = computed(() => fit(props.name, 400, 28, SANS_FAMILY, 530))
 const serial = computed(() => pilotSerial(props.id))
-const micro = computed(() => `UNION ADMINISTRATIVE DEPARTMENT // PILOT LICENCE // ${serial.value} // `.repeat(2))
 const BAR_UNIT = 4
 const bars = computed(() => barcodeBars(serial.value, 96))
 const portraitUrl = computed(() => imageUrl(props.portrait))
 const approved = computed(() => (props.approvedAt ? formatDate(props.approvedAt).toUpperCase() : '–'))
+// Two rows of label over value; the last value sits on the portrait's bottom edge (y 408).
 const fields = computed(() => [
-  { label: 'LEVEL', value: String(props.level), x: 290, ly: 292, vy: 338, size: 46, lamp: false },
-  { label: 'LICENCE LEVEL', value: String(props.licenceLevel), x: 560, ly: 292, vy: 338, size: 46, lamp: false },
-  { label: 'STATUS', value: props.status.toUpperCase(), x: 290, ly: 372, vy: 406, size: 30, lamp: true },
-  { label: 'ISSUED', value: approved.value, x: 560, ly: 372, vy: 406, size: 30, lamp: false },
+  { label: 'LEVEL', value: String(props.level), x: 290, ly: 292, vy: 338, size: 44, lamp: false },
+  { label: 'LICENCE LEVEL', value: String(props.licenceLevel), x: 560, ly: 292, vy: 338, size: 44, lamp: false },
+  { label: 'STATUS', value: props.status.toUpperCase(), x: 290, ly: 372, vy: 408, size: 30, lamp: true },
+  { label: 'ISSUED', value: approved.value, x: 560, ly: 372, vy: 408, size: 30, lamp: false },
 ])
 const MAX_MEDALS = 6
 const medalIcons = computed(() => (props.medals.length > MAX_MEDALS ? props.medals.slice(0, MAX_MEDALS - 1) : props.medals).map((icon) => iconUrl(awardIcon(icon))))
 const more = computed(() => Math.max(0, props.medals.length - (MAX_MEDALS - 1)))
-const MEDAL_Y = 468
+// Medals centred on the barcode and serial beside them.
+const MEDAL_Y = 478
 const medalX = (i: number) => 796 - (medalIcons.value.length + (more.value ? 1 : 0) - 1 - i) * 54
 const moreX = 796
 // A hexagon of radius 25 around (x, MEDAL_Y), flat sides left and right.
@@ -171,21 +173,21 @@ async function download() {
 
         <!-- Name and figures. -->
         <text x="290" y="140" :fill="ink.dim" :font-family="`'${MONO_FAMILY}'`" font-size="22" font-weight="500" letter-spacing="3">CALLSIGN</text>
-        <text x="288" y="204" :fill="ink.text" :font-family="`'${SANS_FAMILY}'`" font-size="66" font-weight="700">{{ callsignText }}</text>
-        <text x="290" y="242" :fill="ink.dim" :font-family="`'${SANS_FAMILY}'`" font-size="28" font-weight="400">{{ nameText }}</text>
-        <line x1="290" y1="264" x2="820" y2="264" :stroke="ink.rule" stroke-width="2" />
+        <text x="290" y="194" :fill="ink.text" :font-family="`'${SANS_FAMILY}'`" font-size="52" font-weight="600" letter-spacing="1">{{ callsignText }}</text>
+        <text x="290" y="232" :fill="ink.dim" :font-family="`'${SANS_FAMILY}'`" font-size="28" font-weight="400">{{ nameText }}</text>
+        <line x1="290" y1="258" x2="820" y2="258" :stroke="ink.rule" stroke-width="2" />
         <g v-for="field in fields" :key="field.label">
-          <text :x="field.x" :y="field.ly" :fill="ink.dim" :font-family="`'${MONO_FAMILY}'`" font-size="24" font-weight="500" letter-spacing="2">{{ field.label }}</text>
+          <text :x="field.x" :y="field.ly" :fill="ink.dim" :font-family="`'${MONO_FAMILY}'`" font-size="22" font-weight="500" letter-spacing="3">{{ field.label }}</text>
           <circle v-if="field.lamp" :cx="field.x + 8" :cy="field.vy - 11" r="7" :fill="lamp" />
           <text :x="field.x + (field.lamp ? 26 : 0)" :y="field.vy" :fill="ink.text" :font-family="`'${MONO_FAMILY}'`" :font-size="field.size" font-weight="700">{{ field.value }}</text>
         </g>
 
-        <!-- Footer: barcode and serial, the medals, and microtext along the bottom edge. -->
+        <!-- Footer: barcode with the serial under it (clear of the cut corner), the medals on the right. -->
         <line x1="36" y1="436" x2="820" y2="436" :stroke="ink.rule" stroke-width="2" />
         <g :fill="ink.text" opacity="0.85">
-          <rect v-for="bar in bars" :key="bar.x" :x="36 + bar.x * BAR_UNIT" y="450" :width="bar.w * BAR_UNIT" height="38" />
+          <rect v-for="bar in bars" :key="bar.x" :x="36 + bar.x * BAR_UNIT" y="450" :width="bar.w * BAR_UNIT" height="32" />
         </g>
-        <text x="36" y="516" :fill="ink.dim" :font-family="`'${MONO_FAMILY}'`" font-size="24" font-weight="500" letter-spacing="1">{{ serial }}</text>
+        <text x="36" y="508" :fill="ink.dim" :font-family="`'${MONO_FAMILY}'`" font-size="22" font-weight="500" letter-spacing="3">{{ serial }}</text>
         <g v-for="(url, i) in medalIcons" :key="url + i">
           <polygon :points="hex(medalX(i))" :fill="ink.raised" :stroke="accent" stroke-width="3" />
           <rect :x="medalX(i) - 14" :y="MEDAL_Y - 14" width="28" height="28" :fill="accent" :mask="`url(#id-card-medal-${i})`" />
@@ -194,7 +196,6 @@ async function download() {
           <polygon :points="hex(moreX)" :fill="ink.raised" :stroke="accent" stroke-width="3" />
           <text :x="moreX" :y="MEDAL_Y + 8" text-anchor="middle" :fill="accent" :font-family="`'${MONO_FAMILY}'`" font-size="22" font-weight="700">+{{ more }}</text>
         </g>
-        <text x="64" y="533" :fill="ink.dim" opacity="0.4" :font-family="`'${MONO_FAMILY}'`" font-size="9" letter-spacing="1.5">{{ micro }}</text>
       </g>
       <path :d="outline" fill="none" :stroke="ink.rule" stroke-width="3" />
     </svg>

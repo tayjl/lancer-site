@@ -16,7 +16,7 @@ A website for one big LANCER (tabletop RPG) campaign and roleplay, run on a Disc
 ## Token & Architecture Rules
 Apply to the main session and every subagent; put the same rules in any subagent brief.
 - **Model & effort:** the orchestrator runs on Sonnet, or Opus at medium effort at most. Never switch model or effort mid-session (it breaks the prompt cache).
-- **Use the custom agents** (`subagent_type`; each sets its own model and effort, so don't pass `model` or `effort`):
+- **Always use the custom agents** defined in `~/.claude/agents/` (`subagent_type` = the file's `name`; each sets its own model and effort, so don't pass `model` or `effort`). Pick the one whose job matches the task. Never use a built-in lookalike (`Explore`, `Plan`, `claude`, `general-purpose`) when a custom agent fits. If the folder has changed, follow the folder and update this list:
   - `explorer` (Haiku, read-only): searching, locating components, tracing state, checking Supabase types, before planning.
   - `database-architect` (Opus, high): migrations, RLS policies, database functions, triggers, pgTAP tests, `npm run types`.
   - `ui-designer` (Opus, high): new or reworked screens, components and styles. It has no shell, so the main session runs tests and builds afterwards.

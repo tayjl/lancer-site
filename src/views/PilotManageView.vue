@@ -485,7 +485,23 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         <FileIndex :sections="sections" />
         <div class="file">
           <FileSection v-bind="SEC.identity" fixed>
-            <IdentityGrid :fields="IDENTITY" :values="character" :editable="editable" @save="(column, event) => saveText(column as TextColumn, event)" />
+            <div class="identity">
+              <IdentityGrid :fields="IDENTITY" :values="character" :editable="editable" @save="(column, event) => saveText(column as TextColumn, event)" />
+              <PilotIdCard
+                class="id-card"
+                :id="character.id"
+                :callsign="(approved?.character ?? character).callsign"
+                :name="(approved?.character ?? character).pilot_name"
+                :status="character.status"
+                :approved-at="character.approved_at"
+                :level="gm.level"
+                :licence-level="licenceLevel(approved?.sheet ?? sheet)"
+                :portrait="(approved?.character ?? character).pilot_image"
+                :draft-open="!!approved"
+                :colour="pilotColour"
+                :medals="awards.awards.value.map((a) => a.commendation.icon)"
+              />
+            </div>
             <div v-if="editable || profileEditable" class="tools">
               <div v-if="editable" class="tool">
                 <span class="label">Portrait</span>
@@ -500,34 +516,17 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
             <div class="notes">
               <SheetField title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
               <SheetField title="Personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
+              <SheetField v-if="canSeeBackstory" title="Backstory" :doc="sheet.backstory ?? null" :editable="editable" :save="saveBackstory">
+                <template #head>
+                  <BackstoryVisibility :is-public="backstory.isPublic.value" :can-change="canToggleBackstory" :set="backstory.set" />
+                </template>
+              </SheetField>
+              <SheetField v-else-if="backstory.isPublic.value" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
             </div>
-            <SheetField v-if="canSeeBackstory" class="backstory" title="Backstory" :doc="sheet.backstory ?? null" :editable="editable" :save="saveBackstory">
-              <template #head>
-                <BackstoryVisibility :is-public="backstory.isPublic.value" :can-change="canToggleBackstory" :set="backstory.set" />
-              </template>
-            </SheetField>
-            <SheetField v-else-if="backstory.isPublic.value" class="backstory" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
           </FileSection>
 
           <FileSection v-bind="SEC.record">
-            <div class="record">
-              <ServiceRecord :record="record" :can-log="canLog" :can-gm="canGmRecord" />
-              <div class="id-card">
-                <PilotIdCard
-                  :id="character.id"
-                  :callsign="(approved?.character ?? character).callsign"
-                  :name="(approved?.character ?? character).pilot_name"
-                  :status="character.status"
-                  :approved-at="character.approved_at"
-                  :level="gm.level"
-                  :licence-level="licenceLevel(approved?.sheet ?? sheet)"
-                  :portrait="(approved?.character ?? character).pilot_image"
-                  :draft-open="!!approved"
-                  :colour="pilotColour"
-                  :medals="awards.awards.value.map((a) => a.commendation.icon)"
-                />
-              </div>
-            </div>
+            <ServiceRecord :record="record" :can-log="canLog" :can-gm="canGmRecord" />
           </FileSection>
 
           <FileSection v-bind="SEC.capabilities">
@@ -666,7 +665,36 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   min-width: 0;
 }
 
-/* --- 01 Identity --- */
+/* --- 01 Identity: the details and the ID card side by side, then the tools and the long writing full width --- */
+.identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26rem;
+  align-items: start;
+  gap: var(--space-xl);
+}
+
+/* Beside the card the details are two to a row (seven in a row would be cramped); the last cell fills its row. */
+@media (width > 72rem) {
+  .identity :deep(.form) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .identity :deep(.cell:last-child) {
+    grid-column: span 2;
+  }
+}
+
+/* Narrower: the card drops under the details. */
+@media (max-width: 72rem) {
+  .identity {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .id-card {
+    max-width: 36rem;
+  }
+}
+
 .tools {
   display: flex;
   flex-wrap: wrap;
@@ -680,28 +708,11 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   gap: var(--space-xs);
 }
 
+/* Appearance, personality and backstory: one under another, full width. */
 .notes {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-xl);
   margin-top: var(--space-xl);
-}
-
-.backstory {
-  margin-top: var(--space-xl);
-}
-
-/* --- 02 Service record: the timeline, and the ID card beside it --- */
-.record {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 26rem;
-  align-items: start;
-  gap: var(--space-xl);
-}
-
-.id-card {
-  position: sticky;
-  top: calc(var(--topbar-h) + var(--space-l));
 }
 
 /* --- 03 Capabilities --- */
@@ -722,17 +733,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   margin-top: var(--space-xl);
 }
 
-@media (max-width: 72rem) {
-  .record {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .id-card {
-    position: static;
-    max-width: 36rem;
-  }
-}
-
 /* --- Phones and tablets: the index is a row under the top bar, so the file starts below it --- */
 @media (max-width: 56rem) {
   .dossier {
@@ -744,11 +744,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   .file {
     gap: 44px;
     padding-top: var(--space-xl);
-  }
-
-  .notes {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-l);
   }
 }
 
