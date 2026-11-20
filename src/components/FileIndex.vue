@@ -70,12 +70,21 @@ onMounted(() => {
   const wanted = props.sections.find((s) => `#${s.id}` === route.hash)
   if (wanted) {
     setFolded(wanted.id, false)
-    nextTick(() => document.getElementById(wanted.id)?.scrollIntoView())
+    const land = () => document.getElementById(wanted.id)?.scrollIntoView()
+    nextTick(land)
+    // Content above can still grow as the game data loads, so it keeps landing until the reader scrolls (or 5s pass).
+    const grows = new ResizeObserver(land)
+    grows.observe(document.body)
+    stopLanding = () => grows.disconnect()
+    for (const type of ['wheel', 'touchstart', 'keydown', 'pointerdown']) addEventListener(type, stopLanding, { once: true, passive: true })
+    setTimeout(stopLanding, 5000)
   }
 })
+let stopLanding = () => {}
 // The gallery appears once the profile has loaded.
 watch(() => props.sections.length, () => nextTick(observe))
 onUnmounted(() => {
+  stopLanding()
   watcher?.disconnect()
   removeEventListener('scroll', pick)
   document.removeEventListener('pointerdown', tapped)

@@ -58,7 +58,8 @@ describe('full information', () => {
     expect(info.lore).toContain('first identified HORUS frame')
     expect(info.lore!.match(/<p>/g)).toHaveLength(3)
     expect(info.lore).not.toContain('<br>')
-    expect(info.stats.find(stat => stat.label === 'Size')).toMatchObject({ value: '½', range: { min: 0.5, max: 1, at: 0.5 } })
+    expect(info.stats.find(stat => stat.label === 'Size')).toMatchObject({ value: '½' })
+    expect(info.radar!.find(axis => axis.id === 'size')).toMatchObject({ label: 'Size', value: '½', at: 0 })
     expect(info.groups[0].title).toBeUndefined()
     expect(info.groups[0].cards.map(card => card.heading)).toEqual(['Liturgicode', 'Reactive Code', 'Fragile'])
     // Reactive Code's own reaction is the trait: shown once, with its chip.

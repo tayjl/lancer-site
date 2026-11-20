@@ -77,7 +77,7 @@ const fields = computed(() => [
 const MAX_MEDALS = 6
 const medalIcons = computed(() => (props.medals.length > MAX_MEDALS ? props.medals.slice(0, MAX_MEDALS - 1) : props.medals).map((icon) => iconUrl(awardIcon(icon))))
 const more = computed(() => Math.max(0, props.medals.length - (MAX_MEDALS - 1)))
-// Medals centred on the barcode and serial beside them.
+// Medals centred on the footer, right of the barcode.
 const MEDAL_Y = 478
 const medalX = (i: number) => 796 - (medalIcons.value.length + (more.value ? 1 : 0) - 1 - i) * 54
 const moreX = 796
@@ -192,7 +192,7 @@ onBeforeUnmount(() => clearTimeout(timer))
         <!-- Header: the licence symbol, the title, and a contact chip. -->
         <rect x="36" y="26" width="48" height="48" :fill="accent" mask="url(#id-card-logo)" />
         <text x="100" y="50" :fill="ink.text" :font-family="`'${SANS_FAMILY}'`" font-size="30" font-weight="700" letter-spacing="5">PILOT LICENCE</text>
-        <text x="100" y="74" :fill="ink.dim" :font-family="`'${SANS_FAMILY}'`" font-size="19" font-weight="400" letter-spacing="2">UNION ADMINISTRATIVE DEPARTMENT</text>
+        <text x="100" y="74" :fill="ink.dim" :font-family="`'${SANS_FAMILY}'`" font-size="19" font-weight="400" letter-spacing="2">UNION · <tspan :font-family="`'${MONO_FAMILY}'`" font-weight="500">{{ serial }}</tspan></text>
         <g transform="translate(724 28)" fill="none" :stroke="ink.dim" stroke-width="2" opacity="0.8">
           <rect width="60" height="46" rx="8" />
           <path d="M0 16H18V30H0M60 16H42V30H60M30 0V16M30 30V46" />
@@ -223,12 +223,11 @@ onBeforeUnmount(() => clearTimeout(timer))
           <text :x="field.x + (field.lamp ? 26 : 0)" :y="field.vy" :fill="ink.text" :font-family="`'${MONO_FAMILY}'`" :font-size="field.size" font-weight="700">{{ field.value }}</text>
         </g>
 
-        <!-- Footer: barcode with the serial under it (clear of the cut corner), the medals on the right. -->
+        <!-- Footer: barcode of the serial (clear of the cut corner), the medals on the right. -->
         <line x1="36" y1="436" x2="820" y2="436" :stroke="ink.rule" stroke-width="2" />
         <g :fill="ink.text" opacity="0.85">
           <rect v-for="bar in bars" :key="bar.x" :x="36 + bar.x * BAR_UNIT" y="450" :width="bar.w * BAR_UNIT" height="32" />
         </g>
-        <text x="36" y="508" :fill="ink.dim" :font-family="`'${MONO_FAMILY}'`" font-size="22" font-weight="500" letter-spacing="3">{{ serial }}</text>
         <g v-for="(url, i) in medalIcons" :key="url + i">
           <polygon :points="hex(medalX(i))" :fill="ink.raised" :stroke="accent" stroke-width="3" />
           <rect :x="medalX(i) - 14" :y="MEDAL_Y - 14" width="28" height="28" :fill="accent" :mask="`url(#id-card-medal-${i})`" />

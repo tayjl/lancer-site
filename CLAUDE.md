@@ -64,6 +64,7 @@ Vue + Vite + **TypeScript**; **Supabase** (free tier: database, Discord login, s
 - **Left-align** read text, lists, tables; **centre** showcase things (hangar mechs, stat tiles, empty states).
 - **No dice:** damage is a flat number (dice mean rounded up), never labelled "average".
 - A pilot's `--pilot` colour is decoration only and is always read through `displayColour()`.
+- **Identity colour is equal on pilot and mech pages:** `--pilot` / `--mf` colour only the header, the section-title dashes and the stat tiles' top strip, nothing else (rule in [ui-principles.md](docs/claude/ui-principles.md)).
 - Use the CSS variables in `src/style.css`, never new hex values. Phone and desktop equally.
 
 ## Site text (standardised 2026-11-19)

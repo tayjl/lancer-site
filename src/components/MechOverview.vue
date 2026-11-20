@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import type { NamedBonus } from '../bonuses'
 import { makerColour } from '../archive'
 import { equipmentDetails } from '../equipment'
@@ -8,9 +8,8 @@ import { frameArt, imageUrl } from '../images'
 import type { Manufacturer } from '../info'
 import { itemCard, itemDetails, symbolOf } from '../itemDetails'
 import { damageTotals, radarAxes, reach } from '../mechOverview'
-import { mountSize, type Frame, type mechStats } from '../mechData'
+import { frameRanges, mountSize, type Frame, type mechStats } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { frameRanges } from '../pickerRows'
 import { rankName } from '../rules'
 import Icon from './Icon.vue'
 import ItemStats from './ItemStats.vue'
@@ -42,9 +41,15 @@ const props = defineProps<{
 }>()
 
 const art = computed(() => frameArt(props.baseFrame, props.frames))
+// Phones: the radar's labels one word to a line, so they fit beside it (as the frame information's).
+const phoneQuery = window.matchMedia('(max-width: 40rem)')
+const phone = ref(phoneQuery.matches)
+const onPhoneChange = (event: MediaQueryListEvent) => (phone.value = event.matches)
+phoneQuery.addEventListener('change', onPhoneChange)
+onUnmounted(() => phoneQuery.removeEventListener('change', onPhoneChange))
 
-const SHORT: Record<string, string> = { hp: 'HP', evasion: 'EVA', edef: 'E-DEF', speed: 'SPD', heat: 'HEAT', tech_attack: 'TECH', system_points: 'SP' }
-const axes = computed(() => radarAxes(props.stats, frameRanges(props.frames)).map((axis) => ({ ...axis, label: `${SHORT[axis.id] ?? axis.label} ${axis.value}` })))
+// The radar: the same axes, labels and symbols as the frame information's (src/mechOverview.ts), with this build's numbers.
+const axes = computed(() => radarAxes(props.stats, frameRanges(props.frames)))
 
 const byId = (items: Item[]) => new Map(items.map((item) => [item.id, item]))
 const weaponsById = computed(() => byId(props.weapons))
@@ -85,10 +90,8 @@ const DAMAGE_TYPES = ['kinetic', 'energy', 'explosive', 'burn', 'heat', 'variabl
 const tint = (type: string) => (DAMAGE_TYPES.includes(type) ? { color: `var(--dmg-${type})` } : undefined)
 const fill = (type: string, share: number) => ({ width: `${Math.round(share * 100)}%`, ...(DAMAGE_TYPES.includes(type) ? { background: `var(--dmg-${type})` } : {}) })
 
-const size = computed(() => props.stats.find((stat) => stat.id === 'size'))
-const sizeText = computed(() => (size.value?.value === 0.5 ? '½' : String(size.value?.value ?? '')))
 const remaining = computed(() => (props.spTotal ?? 0) - props.spUsed)
-const summary = computed(() => `${props.baseFrame.name} build compared with every frame: ${axes.value.map((axis) => axis.label).join(', ')}`)
+const summary = computed(() => `${props.baseFrame.name} build compared with every frame: ${axes.value.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`)
 </script>
 
 <template>
@@ -102,11 +105,12 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
         <ul class="chips">
           <li v-if="logo && (art || imageUrl(image))" class="maker-mark"><Icon :src="logo" class="small-logo" :style="{ color: makerColour(maker) }" /><span class="sr-only">{{ baseFrame.source }}</span></li>
           <li v-for="role in baseFrame.mechtype" :key="role" class="chip">{{ role }}</li>
-          <li class="chip"><Icon :name="size?.value === 0.5 ? 'size-half' : `size-${size?.value ?? 1}`" />Size <span class="num">{{ sizeText }}</span></li>
           <li class="chip"><Icon name="license" />{{ baseFrame.licenceLevel ? `Rank ${rankName(baseFrame.licenceLevel)}` : 'GMS' }}</li>
         </ul>
+        <!-- The page's image upload, while editable. -->
+        <slot />
       </div>
-      <RadarChart v-if="axes.length >= 3" class="radar" :axes="axes" :summary="summary" :label-size="22" tight />
+      <RadarChart v-if="axes.length >= 3" class="radar" :axes="axes" :summary="summary" :label-size="phone ? 26 : undefined" :wrap="phone" />
     </div>
 
     <div class="loadout">

@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-// Which pilot-file sections are folded, remembered per viewer in this browser (the page works without storage).
+// Which pilot-file and mech-file sections are folded, remembered per viewer in this browser (the page works without storage).
 const KEY = 'pilot-file-folded:'
 const folded = reactive<Record<string, boolean>>({})
 

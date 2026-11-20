@@ -16,7 +16,7 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 None. Every migration through `20261121110000_pilot_inventory` is on the hosted project (pushed 2026-11-20). The full list is in [docs/claude/history.md](docs/claude/history.md).
 
 ## Next steps
-- Make the mech page one seamless scrolling page like the pilot dossier (cover, numbered sections, file index).
+- **Mech file redesign (2026-11-20, pushed, no migration):** the mech page keeps its own spec-sheet head (registration plate joined to the at-a-glance overview, radar of every stat that differs between frames), then numbered foldable sections and the file index like the pilot dossier, no tabs. The maker colour now also tints the plate band, the radar shape and the mech page's section dashes (decoration only). Single-action danger zones site-wide centre their button. Both radars (mech card and Frame details) share `radarAxes()`: every stat that differs between frames, size included, with symbols. ID card: no department name, serial `UNI-…` moved under "PILOT LICENCE". Not tested: your own mech with an open change (cover badge and joined bar), image upload, Firefox. Later: nested h2s inside sections (StatRow / MechLoadout titles) on both pages.
 - Untested: the mech page, pilots with long names, Firefox (no `field-sizing` for the centred callsign field), the phone dialogs on a real phone.
 - After the first deploy with the Worker: paste an approved pilot's link in Discord to check the preview (a card picture appears once the owner or a GM has opened that pilot's page).
 - Local test data: `testy` (1021) has a Medium Signature in its draft change (swapped in by hand for testing).

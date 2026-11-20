@@ -113,17 +113,6 @@ export function itemPick(item: Item, tagNames: Map<string, string>, manufacturer
 const STRIP = ['size', 'hp', 'evasion', 'edef', 'speed', 'armour', 'heat', 'system_points']
 const AXES = ['hp', 'evasion', 'edef', 'speed', 'heat', 'system_points']
 
-export function frameRanges(frames: Frame[]) {
-  const ranges = new Map<string, { min: number; max: number }>()
-  for (const frame of frames)
-    for (const stat of mechStats(frame, undefined, []))
-      if (typeof stat.value === 'number') {
-        const range = ranges.get(stat.id)
-        ranges.set(stat.id, { min: Math.min(range?.min ?? stat.value, stat.value), max: Math.max(range?.max ?? stat.value, stat.value) })
-      }
-  return ranges
-}
-
 // "rank": whether to show the licence rank that unlocks the frame (the frame picker does; a licence is bought at rank I).
 export function framePick(frame: Frame, ranges: Map<string, { min: number; max: number }>, manufacturers: Manufacturer[], rank = true, frames: Frame[] = []): PickExtras {
   const stats = mechStats(frame, undefined, [])

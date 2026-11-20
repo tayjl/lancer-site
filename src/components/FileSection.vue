@@ -94,7 +94,7 @@ defineProps<{ id: string; no: string; title: string; fixed?: boolean }>()
   left: 0;
   width: 2.5rem;
   height: 3px;
-  background: var(--pilot, var(--edge));
+  background: var(--page-accent, var(--pilot, var(--edge)));
 }
 
 .sec-extra {

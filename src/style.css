@@ -446,6 +446,35 @@ label.field .error {
   margin: var(--space-s) 0 0;
 }
 
+/* One action: the heading and sentence on the left, the button centred against the whole card at the right (on phones
+   it wraps under the sentence as above). */
+@media not all and (max-width: 40rem) {
+  .danger-zone:has(> .danger-body:only-of-type) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-l);
+  }
+
+  .danger-zone:has(> .danger-body:only-of-type) > .danger-body {
+    display: contents;
+  }
+
+  .danger-zone:has(> .danger-body:only-of-type) > :not(.danger-body),
+  .danger-zone:has(> .danger-body:only-of-type) > .danger-body > p {
+    grid-column: 1;
+  }
+
+  .danger-zone:has(> .danger-body:only-of-type) > .danger-body > :not(p) {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .danger-zone:has(> .danger-body:only-of-type) > [role='alert'] {
+    grid-column: 1 / -1;
+  }
+}
+
 /* A panel's heading with a line of explanation (the gm pages): <header class="panel-head"><h2>title
    <span class="badge">3</span></h2><p class="dim">what it is</p></header>. */
 .panel-head {
@@ -1395,9 +1424,7 @@ a.lore-link:focus-visible,
 
 /* --- The pilot sheet and mech page (PilotManageView.vue, MechView.vue): the header's shared pieces. Last in the file so
    they win ties with the earlier global rules, as their scoped copies did. --- */
-.sheet,
-.tab-panel,
-.writing {
+.sheet {
   display: flex;
   flex-direction: column;
   gap: var(--space-m);
@@ -1460,25 +1487,40 @@ a.lore-link:focus-visible,
   color: var(--danger);
 }
 
-/* The section tabs: the only thing that sticks besides the top bar. */
-.sheet-tabs {
-  position: sticky;
-  top: var(--topbar-h);
-  z-index: 2;
-  background: var(--void);
-}
-
-/* Profile tab: writing on the left, identity on the right; one column on phones. */
-.profile {
+/* --- The file (both pages): the index beside it (above it on phones), then the sections one under another, not in
+   boxes --- */
+.dossier {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  grid-template-columns: 11rem minmax(0, 1fr);
   align-items: start;
-  gap: var(--space-m);
+  gap: var(--space-xl);
+  margin-top: var(--space-l);
 }
 
+.dossier .file {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  min-width: 0;
+}
+
+/* Long writing (appearance, personality, backstory, history): one under another, full width. */
+.dossier .notes {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+/* Phones and tablets: the index is a row under the top bar, so the file starts below it. */
 @media (max-width: 56rem) {
-  .profile {
+  .dossier {
     grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-top: var(--space-m);
+  }
+
+  .dossier .file {
+    gap: 44px;
+    padding-top: var(--space-xl);
   }
 }
 

@@ -711,27 +711,9 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
 </template>
 
 <style scoped>
-/* --- The file: the index beside it (above it on phones), then the sections one under another --- */
-.dossier {
-  display: grid;
-  grid-template-columns: 11rem minmax(0, 1fr);
-  align-items: start;
-  gap: var(--space-xl);
-  margin-top: var(--space-l);
-}
-
-.file {
-  display: flex;
-  flex-direction: column;
-  gap: 56px;
-  min-width: 0;
-}
-
-/* --- 01 Identity: the details, then the long writing full width --- */
-/* Appearance, personality and backstory: one under another, full width. */
+/* The file's layout (.dossier, .file, .notes) is shared with the mech page, in style.css. */
+/* --- 01 Identity: the details, then the long writing (one under another, full width) --- */
 .notes {
-  display: grid;
-  gap: var(--space-xl);
   margin-top: var(--space-xl);
 }
 
@@ -761,20 +743,6 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
 /* --- 06 Equipment: biomods in their own row under the loadout --- */
 .biomods {
   margin-top: var(--space-xl);
-}
-
-/* --- Phones and tablets: the index is a row under the top bar, so the file starts below it --- */
-@media (max-width: 56rem) {
-  .dossier {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    margin-top: var(--space-m);
-  }
-
-  .file {
-    gap: 44px;
-    padding-top: var(--space-xl);
-  }
 }
 
 /* --- The cover's tools: a label, then its control, the same gap as a form field's --- */

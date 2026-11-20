@@ -3,7 +3,8 @@ import { coreContent } from './coreContent'
 import { toItem } from './gameData'
 import type { Manufacturer } from './info'
 import { toFrame } from './mechData'
-import { bonusStats, framePick, frameRanges, groupPicks, itemPick, keyTags, makerGroup, type PickOption } from './pickerRows'
+import { bonusStats, framePick, groupPicks, itemPick, keyTags, makerGroup, type PickOption } from './pickerRows'
+import { frameRanges } from './mechData'
 
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
 

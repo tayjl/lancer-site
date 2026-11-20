@@ -395,6 +395,19 @@ export function mechStats(frame: Frame | null, skills: Record<string, number> | 
   })
 }
 
+// Each stat's lowest and highest across every frame (their own numbers, before HASE and bonuses): the radars and the
+// pickers' mini radars place a stat between them.
+export function frameRanges(frames: Frame[]) {
+  const ranges = new Map<string, { min: number; max: number }>()
+  for (const frame of frames)
+    for (const stat of mechStats(frame, undefined, []))
+      if (typeof stat.value === 'number') {
+        const range = ranges.get(stat.id)
+        ranges.set(stat.id, { min: Math.min(range?.min ?? stat.value, stat.value), max: Math.max(range?.max ?? stat.value, stat.value) })
+      }
+  return ranges
+}
+
 // Every "integrated" list inside a frame (core systems and traits): weapons and systems built into it.
 function integratedIds(value: unknown): string[] {
   if (Array.isArray(value)) return value.flatMap(integratedIds)

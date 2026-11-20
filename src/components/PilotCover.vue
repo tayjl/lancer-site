@@ -125,7 +125,6 @@ function key(event: KeyboardEvent) {
         <div class="portrait-frame"><div class="pf-in"><Portrait class="portrait" :src="portrait" :alt="`Portrait of ${title}`" /></div></div>
         <div class="cover-text">
           <div class="classification">
-            <span class="hide-sm">Union Administrative Department</span>
             <span class="file-word">Pilot file</span>
             <span class="code">{{ pilotSerial(id) }}</span>
             <span class="actions">
@@ -372,6 +371,11 @@ function key(event: KeyboardEvent) {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px var(--space-l);
+  min-width: 0; /* a long callsign or name never widens the cover: the fields scroll, the rest wraps */
+}
+
+.names > * {
+  max-width: 100%;
 }
 
 .callsign {
@@ -607,10 +611,6 @@ function key(event: KeyboardEvent) {
   .names,
   .motto {
     grid-column: 2;
-  }
-
-  .hide-sm {
-    display: none;
   }
 
   .foot {

@@ -119,7 +119,7 @@ const raiseBlocked = (value: number | null) =>
   display: none;
 }
 
-/* A filled tile with a strip of the pilot's colour (decoration only) along its top. */
+/* A filled tile with a strip of the page's identity colour (pilot or maker, decoration only) along its top. */
 .stat {
   display: flex;
   flex-direction: column;
@@ -128,7 +128,7 @@ const raiseBlocked = (value: number | null) =>
   padding: var(--space-m) 6px;
   border-radius: var(--radius);
   background: var(--tile, var(--panel));
-  box-shadow: inset 0 3px var(--pilot, var(--edge));
+  box-shadow: inset 0 3px var(--page-accent, var(--pilot, var(--edge)));
   text-align: center;
 }
 
@@ -203,7 +203,7 @@ const raiseBlocked = (value: number | null) =>
     flex-direction: row;
     gap: var(--space-m);
     padding: 4px var(--space-m);
-    box-shadow: inset 3px 0 var(--pilot, var(--edge));
+    box-shadow: inset 3px 0 var(--page-accent, var(--pilot, var(--edge)));
     text-align: left;
   }
 

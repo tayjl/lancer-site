@@ -32,13 +32,16 @@ export function reach(weapons: Armed[]): { type: string; min: number; max: numbe
   return [...reaches].map(([type, { min, max }]) => ({ type, min, max }))
 }
 
-// The radar's axes from a mech's own stats, each placed between the lowest and highest any frame has ("ranges", from
-// frameRanges); a build with Hull or bonuses above every frame just reaches the rim.
-const RADAR = ['hp', 'evasion', 'edef', 'speed', 'heat', 'tech_attack', 'system_points']
-export function radarAxes(stats: { id: string; name: string; value: number | null }[], ranges: Map<string, { min: number; max: number }>) {
-  return stats.filter((stat) => RADAR.includes(stat.id) && typeof stat.value === 'number').map((stat) => {
+// The radar's axes, the one rule for both radars (the mech card's with this build's stats, the frame information's with
+// the frame's own): every stat that differs between frames, size too, in the stat tiles' order, with the tiles' names
+// and symbols, each placed between the lowest and highest any frame has ("ranges", from frameRanges); a build with Hull
+// or bonuses above every frame just reaches the rim.
+export type RadarAxis = { id: string; label: string; value: string; icon?: string | null; at: number }
+export function radarAxes(stats: { id: string; name: string; value: number | null; icon?: string | null }[], ranges: Map<string, { min: number; max: number }>): RadarAxis[] {
+  return stats.flatMap((stat) => {
     const range = ranges.get(stat.id)
-    const at = range && range.max > range.min ? ((stat.value as number) - range.min) / (range.max - range.min) : 0.5
-    return { id: stat.id, label: stat.name, value: String(stat.value), at: Math.min(1, Math.max(0, at)) }
+    if (typeof stat.value !== 'number' || !range || range.max <= range.min) return []
+    const at = (stat.value - range.min) / (range.max - range.min)
+    return [{ id: stat.id, label: stat.name, value: stat.value === 0.5 ? '½' : String(stat.value), icon: stat.icon, at: Math.min(1, Math.max(0, at)) }]
   })
 }

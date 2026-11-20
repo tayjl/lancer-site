@@ -15,9 +15,9 @@ export const cardFingerprint = (parts: unknown[]) => fnv(JSON.stringify(parts)).
 
 const code = (hash: number) => Array.from({ length: 4 }, (_, i) => DIGITS[(hash >>> (i * 5)) & 31]).join('')
 
-// "UAD-0042-7K3Q-9XZ2": the pilot's id, then two codes made from it. Deterministic, so the card always shows the same
+// "UNI-0042-7K3Q-9XZ2": the pilot's id, then two codes made from it. Deterministic, so the card always shows the same
 // serial for the same pilot (it isn't a secret or a check, just a stamp).
-export const pilotSerial = (id: number) => `UAD-${String(id).padStart(4, '0')}-${code(fnv(`HOR_OS:pilot:${id}`))}-${code(fnv(`HOR_OS:serial:${id}`))}`
+export const pilotSerial = (id: number) => `UNI-${String(id).padStart(4, '0')}-${code(fnv(`HOR_OS:pilot:${id}`))}-${code(fnv(`HOR_OS:serial:${id}`))}`
 
 // The dark bars of a decorative barcode for "text": one 0/1 module per step, taken from hashes of the text, with guard bars
 // at both ends. Returns each bar as { x, w } in modules, so the same serial always draws the same strip.

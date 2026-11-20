@@ -5,7 +5,8 @@ import { flatDamageText } from './damage'
 import { frameArt, type FrameArt } from './images'
 import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, half, itemDetails, itemRules } from './itemDetails'
-import { alternateOf, licenceFrames, licenceNames, mechStats, type Frame } from './mechData'
+import { alternateOf, frameRanges, licenceFrames, licenceNames, mechStats, type Frame } from './mechData'
+import { radarAxes, type RadarAxis } from './mechOverview'
 import { PRICES, rankName } from './rules'
 import { capitalise, plural, sameName } from './text'
 
@@ -23,13 +24,13 @@ export type InfoCard = { heading: string; html: string; activation?: string; fre
 export type InfoGroup = { title?: string; lore?: string; stack?: boolean; tags?: boolean; look?: 'traits' | 'core'; cards: InfoCard[] }
 // Facts under the name.
 export type InfoFact = { text: string }
-// "range": where the value sits among every frame's (the radar chart).
 // "kind" is an item stat's (itemDetails): range, damage, bonus or sp.
-export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string; range?: { min: number; max: number; at: number } }
+export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string }
 // "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
 // "id": the thing's own id in the packs, for the "Source:" line (not for bionics, which aren't pack content).
 // "art": a frame's or licence's picture, shown at the top (MechImage.vue); null means it has none (a placeholder shows), undefined that it is not a frame.
-export type Info = { kind: string; id?: string; art?: FrameArt | null; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; groups: InfoGroup[] }
+// "radar": a frame's stats against every frame's (radarAxes, the same rule as the mech page's radar).
+export type Info = { kind: string; id?: string; art?: FrameArt | null; name: string; source?: string; facts: InfoFact[]; lore?: string; stats: InfoStat[]; radar?: RadarAxis[]; groups: InfoGroup[] }
 
 // The one dialog's contents; null while it's closed.
 export const shownInfo = shallowRef<Info | null>(null)
@@ -101,7 +102,6 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
   const raw = frame.raw ?? {}
   const core = (raw.core_system ?? {}) as Record<string, unknown>
   const traits = list(raw.traits) as Record<string, unknown>[]
-  const others = frames.map((other) => mechStats(other, undefined, []))
   return {
     kind: `${frame.source} frame`.trim(),
     id: frame.id,
@@ -115,15 +115,8 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     ),
     lore: paragraphs(text(frame.description)),
     // The frame's own numbers, before HASE and bonuses.
-    stats: mechStats(frame, undefined, []).map((stat, i) => {
-      const values = others.map((stats) => stats[i].value).filter((value): value is number => typeof value === 'number')
-      return {
-        label: stat.name,
-        value: half(stat.value),
-        icon: stat.icon,
-        range: values.length && stat.value !== null ? { min: Math.min(...values), max: Math.max(...values), at: stat.value } : undefined,
-      }
-    }),
+    stats: mechStats(frame, undefined, []).map((stat) => ({ label: stat.name, value: half(stat.value), icon: stat.icon })),
+    radar: radarAxes(mechStats(frame, undefined, []), frameRanges(frames)),
     groups: groups(
       // One card per trait, its other actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
       { look: 'traits', cards: traits.flatMap((trait) => {

@@ -17,15 +17,10 @@ import UnlockList from './UnlockList.vue'
 // chip, tags as chips with what each one means, and a frame's traits and core system as item cards.
 const props = defineProps<{ info: Info }>()
 
-// Stats that differ between frames go on the radar, placed between the lowest and highest any frame has. Size
-// isn't better or worse, and stats every frame shares (structure, stress) say nothing there. Every stat's number
-// sits beside the radar in a grid.
-const onRadar = computed(() => props.info.stats.filter((stat) => stat.range && stat.range.max > stat.range.min && stat.label !== 'size'))
-const radar = computed(() =>
-  onRadar.value.length >= 3
-    ? onRadar.value.map((stat) => ({ label: stat.label, value: stat.value, at: (stat.range!.at - stat.range!.min) / (stat.range!.max - stat.range!.min) }))
-    : [],
-)
+// A frame's radar (src/mechOverview.ts, the same rule as the mech page's): every stat that differs between frames, size
+// too, placed between the lowest and highest any frame has. Stats every frame shares (structure, stress) say nothing
+// there. Every stat's number sits beside the radar in a grid.
+const radar = computed(() => ((props.info.radar?.length ?? 0) >= 3 ? props.info.radar! : []))
 const summary = computed(() => `Stats compared with every frame: ${radar.value.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`)
 // Phones: the radar's labels bigger (about 12px or more on screen) and one word to a line, so they fit beside it.
 const phoneQuery = window.matchMedia('(max-width: 40rem)')
@@ -49,7 +44,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
     </p>
 
     <div v-if="radar.length" class="compare">
-      <RadarChart :axes="radar" :summary="summary" :label-size="phone ? 23 : undefined" :wrap="phone" />
+      <RadarChart :axes="radar" :summary="summary" :label-size="phone ? 26 : undefined" :wrap="phone" />
       <ul class="stat-grid">
         <li v-for="(stat, i) in info.stats" :key="i">
           <Icon v-if="stat.icon" :src="stat.icon" />
@@ -192,7 +187,8 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
 }
 
 /* Phones: the numbers come before the radar, and the radar loses the empty bands above and below its labels
-   (16% of its width each, from its square viewBox). */
+   (8% of its width each: its viewBox is wider than tall there, and the top and bottom labels sit further out with
+   their symbols). */
 @media (max-width: 40rem) {
   .info-body {
     gap: var(--space-m);
@@ -203,7 +199,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
   }
 
   .compare :deep(.radar) {
-    margin-block: calc(min(100%, 30rem) * -0.16);
+    margin-block: calc(min(100%, 30rem) * -0.08);
   }
 }
 
