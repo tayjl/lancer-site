@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pilot dossier mockup</title>
+<link rel="stylesheet" href="../prototype/styles.css">
+<link rel="stylesheet" href="dossier.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="topbar-home" href="#top" aria-label="HOR_OS home"><pre class="topbar-logo" aria-hidden="true">         ▄█ ▄██▄ █▄
+     ▄▄███  ▀██▀  ███▄▄
+ ▄████████▄      ▄████████▄
+▀██████████████████████████▀
+   ▀▀██████████████████▀▀
+        ▀██████████▀
+          ████████
+          ▀██████▀
+           ▀████▀
+            ████
+             ██
+             ██</pre></a>
+    <nav class="topbar-nav" aria-label="Main">
+      <div class="tabs">
+        <a class="tab" href="#top" aria-current="page">My pilot</a>
+        <a class="tab" href="#top">Registry</a>
+        <a class="tab" href="#top">Pending</a>
+        <a class="tab" href="#top">Memorial</a>
+        <a class="tab" href="#top">Archives</a>
+        <a class="tab" href="#top">Lore</a>
+      </div>
+    </nav>
+    <div class="topbar-user">
+      <span class="who">vanta <span class="label">Player</span></span>
+      <button class="btn btn-quiet btn-sm" type="button">Disconnect</button>
+      <button class="btn btn-sm topbar-menu" type="button" aria-expanded="false" aria-controls="drawer" data-menu>Menu</button>
+    </div>
+  </div>
+  <nav class="topbar-drawer" id="drawer" aria-label="Main">
+    <a href="#top" aria-current="page">My pilot</a>
+    <a href="#top">Registry</a>
+    <a href="#top">Pending</a>
+    <a href="#top">Memorial</a>
+    <a href="#top">Archives</a>
+    <a href="#top">Lore</a>
+    <span class="label">Signed in as vanta</span>
+  </nav>
+</header>
+
+<main class="page" id="top">
+
+<!-- ═══════════════ Cover ═══════════════ -->
+<article class="cover" aria-labelledby="callsign">
+  <div class="banner" role="img" aria-label="Banner picture">
+    <img src="art/mf_blackbeard.webp" alt="">
+  </div>
+  <div class="cover-body">
+    <div class="cover-main">
+      <div class="portrait-frame">
+        <div class="pf-in" role="img" aria-label="No portrait yet">
+          <svg class="icon" aria-hidden="true"><use href="icons.svg#pilot"/></svg>
+        </div>
+      </div>
+      <div class="cover-text">
+        <div class="classification mono-label"><span class="hide-sm">Union Administrative Department</span><span>Pilot file</span><span class="code">UAD-0042-7KQ2-M9XD</span></div>
+        <h1 class="cover-callsign" id="callsign">WARDEN</h1>
+        <div class="sep cover-sub"><span>Isla Marrow</span><span>Player: vanta</span></div>
+        <p class="motto">Someone has to stand watch.</p>
+        <div class="cover-badges">
+          <span class="badge badge-approved"><svg class="icon" aria-hidden="true"><use href="icons.svg#approved"/></svg>Approved</span>
+          <div class="medals cover-wide" aria-label="Commendations">
+            <button class="medal" type="button"><span class="medal-badge"><svg class="icon" aria-hidden="true"><use href="icons.svg#shield"/></svg></span>Hold the Line</button>
+            <button class="medal" type="button"><span class="medal-badge"><svg class="icon" aria-hidden="true"><use href="icons.svg#flame"/></svg></span>Ember Night</button>
+            <button class="medal" type="button"><span class="medal-badge"><svg class="icon" aria-hidden="true"><use href="icons.svg#star"/></svg></span>Lantern Bearer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="figures" role="list" aria-label="Key figures">
+      <div class="figure" role="listitem"><span class="figure-value">4</span><span class="label">Level</span></div>
+      <div class="figure" role="listitem"><span class="figure-value">5</span><span class="label">Licence level</span><span class="figure-sub">5 ranks bought</span></div>
+      <div class="figure" role="listitem"><span class="figure-value">2</span><span class="label">Grit</span><span class="figure-sub">Half your level</span></div>
+      <div class="figure" role="listitem"><span class="figure-value">8</span><span class="label">HP</span><span class="figure-sub">6 + 2 from gear</span></div>
+      <div class="figure" role="listitem"><span class="figure-value">900</span><span class="label">Manna left</span><span class="figure-sub">5,400 of 6,300 spent</span></div>
+    </div>
+  </div>
+</article>
+<div class="next cover-next" style="border-top:0">
+  <span class="next-text">To change anything, propose a change for a GM to review.</span>
+  <div class="btn-row"><button class="btn btn-primary btn-sm" type="button">Propose changes</button></div>
+</div>
+
+<!-- ═══════════════ The file ═══════════════ -->
+<div class="dossier">
+  <nav class="index" aria-label="File index">
+    <span class="label">File index</span>
+    <ol>
+      <li><a href="#identity" aria-current="true"><span class="num">01</span>Identity</a></li>
+      <li><a href="#service"><span class="num">02</span>Service record</a></li>
+      <li><a href="#capabilities"><span class="num">03</span>Capabilities</a></li>
+      <li><a href="#qualifications"><span class="num">04</span>Qualifications</a></li>
+      <li><a href="#equipment"><span class="num">05</span>Equipment</a></li>
+      <li><a href="#hangar"><span class="num">06</span>Hangar</a></li>
+      <li><a href="#gallery"><span class="num">07</span>Gallery</a></li>
+    </ol>
+  </nav>
+
+  <div class="file">
+
+  <!-- 01 ───────── Identity ───────── -->
+  <section id="identity" aria-labelledby="h-identity">
+    <header class="sec-head"><span class="sec-no">01</span><h2 id="h-identity">Identity</h2><span class="sec-rule"></span></header>
+    <dl class="form">
+      <div><dt>Age</dt><dd class="num">31</dd></div>
+      <div><dt>Gender</dt><dd>Woman</dd></div>
+      <div><dt>Sexuality</dt><dd>Bisexual</dd></div>
+      <div><dt>Height</dt><dd class="num">178 cm</dd></div>
+      <div><dt>Weight</dt><dd class="num">74 kg</dd></div>
+      <div><dt>Eyes</dt><dd>Grey</dd></div>
+      <div><dt>Hair</dt><dd>Black, cropped</dd></div>
+    </dl>
+    <div class="notes">
+      <div class="note">
+        <span class="label">Appearance</span>
+        <p>Tall and narrow-shouldered, with a pale scar running from her left ear to the collarbone. She wears her flight suit unzipped to the sternum and keeps her gloves on indoors.</p>
+        <p>A brass lantern pin on her collar is the only thing she polishes.</p>
+      </div>
+      <div class="note">
+        <span class="label">Personality</span>
+        <p>Patient to the point of stubbornness. Warden listens first, then says one thing and means it. She is dry, dependable and terrible at accepting thanks.</p>
+        <p>Good at holding a line, bad at leaving one.</p>
+      </div>
+    </div>
+    <div class="backstory">
+      <div class="backstory-head">
+        <span class="label">Backstory</span>
+        <div class="seg" role="group" aria-label="Who can read the backstory">
+          <button type="button" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="icons.svg#lock"/></svg>Private</button>
+          <button type="button" aria-pressed="false">Public</button>
+        </div>
+        <span class="dim" style="font-size:var(--fs-s)">Only you and GMs can read this.</span>
+      </div>
+      <p>Isla grew up on a relay station that lost power for three winters. She learned to keep a light burning for the freighters that still came through, and stayed on after the others left.</p>
+      <p>The Union recruited her when she talked a drifting hauler down with a hand lamp and a borrowed radio. She has never told them how close it was.</p>
+    </div>
+  </section>
+
+  <!-- 02 ───────── Service record ───────── -->
+  <section id="service" aria-labelledby="h-service">
+    <header class="sec-head"><span class="sec-no">02</span><h2 id="h-service">Service record</h2><span class="sec-rule"></span><button class="btn btn-sm" type="button"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#plus"/></svg>Add log entry</button></header>
+    <div class="record">
+      <ol class="timeline" aria-label="Service record, newest first">
+        <li class="entry auto">
+          <span class="e-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#flag"/></svg></span>
+          <div><div class="e-top"><time class="e-date">12 Nov 2026</time><span class="label e-kind">Record</span></div><h3 class="e-title">Awarded Lantern Bearer</h3><p class="e-body">Kept the Aster relay lit for a full night.</p></div>
+        </li>
+        <li class="entry auto">
+          <span class="e-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#flag"/></svg></span>
+          <div><div class="e-top"><time class="e-date">10 Nov 2026</time><span class="label e-kind">Record</span></div><h3 class="e-title">Reached level 4</h3></div>
+        </li>
+        <li class="entry">
+          <span class="e-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#pilot"/></svg></span>
+          <div><div class="e-top"><time class="e-date">3 Nov 2026</time><span class="label e-kind">Log</span><span class="e-actions"><button class="btn btn-quiet btn-sm" type="button">Edit</button><button class="btn btn-quiet btn-sm" type="button">Delete</button></span></div><h3 class="e-title">Crossed the Aster line</h3><p class="e-body">First time I have flown BULWARK without looking back. The convoy made it through and nobody asked me how.</p></div>
+        </li>
+        <li class="entry">
+          <span class="e-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#shield"/></svg></span>
+          <div><div class="e-top"><time class="e-date">29 Oct 2026</time><span class="label e-kind">GM</span></div><h3 class="e-title">Debrief: the Cinder Gate</h3><p class="e-body">Warden held the gate for six minutes after the shutters failed. Command logged it as a clean withdrawal.</p></div>
+        </li>
+        <li class="entry auto">
+          <span class="e-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#flag"/></svg></span>
+          <div><div class="e-top"><time class="e-date">22 Oct 2026</time><span class="label e-kind">Record</span></div><h3 class="e-title">HA Barbarossa licence, rank II</h3></div>
+        </li>
+        <li class="entry auto">
+          <span class="e-mark"><svg class="icon" aria-hidden="true"><use href="icons.svg#flag"/></svg></span>
+          <div><div class="e-top"><time class="e-date">12 Oct 2026</time><span class="label e-kind">Record</span></div><h3 class="e-title">Approved for duty</h3></div>
+        </li>
+      </ol>
+      <div class="licence-wrap">
+        <div class="licence" role="img" aria-label="Pilot licence for WARDEN, level 4, approved">
+          <div class="licence-in" aria-hidden="true">
+            <div class="lic-head"><svg class="icon"><use href="icons.svg#license"/></svg><div><strong>PILOT LICENCE</strong><span>UNION ADMINISTRATIVE DEPARTMENT</span></div></div>
+            <div class="lic-body">
+              <div class="lic-photo"><svg class="icon"><use href="icons.svg#pilot"/></svg></div>
+              <div class="lic-id">
+                <span class="mono-label">Callsign</span>
+                <span class="lic-callsign">WARDEN</span>
+                <span class="lic-name">Isla Marrow</span>
+                <div class="lic-grid">
+                  <div><span class="label">Level</span><span class="num">4</span></div>
+                  <div><span class="label">Licence</span><span class="num">5</span></div>
+                  <div><span class="label">Status</span><span class="lic-status"><span class="lamp"></span>Approved</span></div>
+                  <div><span class="label">Issued</span><span class="num" style="font-size:var(--fs-s)">12 Oct 2026</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="lic-foot"><div class="barcode"></div><span class="code">UAD-0042-7KQ2-M9XD</span></div>
+          </div>
+        </div>
+        <button class="btn btn-sm" type="button"><svg class="icon icon-s" aria-hidden="true"><use href="icons.svg#download"/></svg>Download card</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 ───────── Capabilities ───────── -->
+  <section id="capabilities" aria-labelledby="h-capabilities">
+    <header class="sec-head"><span class="sec-no">03</span><h2 id="h-capabilities">Capabilities</h2><span class="sec-rule"></span></header>
+    <div class="general" role="list" aria-label="General stats">
+      <div class="gen" role="listitem"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg><span class="gen-value">8</span><span class="gen-label">HP</span></div>
+      <div class="gen" role="listitem"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg><span class="gen-value">1</span><span class="gen-label">Armour</span></div>
+      <div class="gen" role="listitem"><svg class="icon" aria-hidden="true"><use href="icons.svg#speed"/></svg><span class="gen-value">4</span><span class="gen-label">Speed</span></div>
+      <div class="gen" role="listitem"><svg class="icon" aria-hidden="true"><use href="icons.svg#e_def"/></svg><span class="gen-value">10</span><span class="gen-label">E-defence</span></div>
+      <div class="gen" role="listitem"><svg class="icon" aria-hidden="true"><use href="icons.svg#skill"/></svg><span class="gen-value">2</span><span class="gen-label">Grit</span></div>
+    </div>
+    <div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))">
+      <div>
+        <div class="sub"><span class="label">Personal stats</span><span class="meta"><span class="num">4</span> of <span class="num">4</span> points used</span></div>
+        <ul class="statlist">
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#physicality"/></svg><span class="stat-name">Physicality<span class="stat-mod">3 base + 1 Reinforced Spine</span></span><span class="pips" role="img" aria-label="3 of 5, plus 1 from biomods"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip mod"></i><i class="pip off"></i></span><span class="stat-total num">4</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#dexterity"/></svg><span class="stat-name">Dexterity</span><span class="pips" role="img" aria-label="3 of 5"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">3</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#perception"/></svg><span class="stat-name">Perception</span><span class="pips" role="img" aria-label="3 of 5"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">3</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#acuity"/></svg><span class="stat-name">Acuity<span class="stat-mod">2 base + 1 Neural Lace</span></span><span class="pips" role="img" aria-label="2 of 5, plus 1 from biomods"><i class="pip"></i><i class="pip"></i><i class="pip mod"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">3</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#techfluency"/></svg><span class="stat-name">Tech-fluency</span><span class="pips" role="img" aria-label="3 of 5"><i class="pip"></i><i class="pip"></i><i class="pip"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">3</span></li>
+        </ul>
+      </div>
+      <div>
+        <div class="sub"><span class="label">Piloting stats</span><span class="meta"><span class="num">6</span> of <span class="num">6</span> points used</span></div>
+        <ul class="statlist">
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#hull"/></svg><span class="stat-name">Hull</span><span class="pips" role="img" aria-label="2 of 6"><i class="pip"></i><i class="pip"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">2</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#agility"/></svg><span class="stat-name">Agility</span><span class="pips" role="img" aria-label="1 of 6"><i class="pip"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">1</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#systems"/></svg><span class="stat-name">Systems</span><span class="pips" role="img" aria-label="1 of 6"><i class="pip"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">1</span></li>
+          <li class="statrow"><svg class="icon" aria-hidden="true"><use href="icons.svg#engineering"/></svg><span class="stat-name">Engineering</span><span class="pips" role="img" aria-label="2 of 6"><i class="pip"></i><i class="pip"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i><i class="pip off"></i></span><span class="stat-total num">2</span></li>
+        </ul>
+        <p class="dim" style="font-size:var(--fs-s);margin-top:var(--space-s)">Points come from your level. A solid block is a point you spent, a dashed one a biomod added.</p>
+      </div>
+    </div>
+    <details class="how"><summary>Where these numbers come from</summary>
+      <ul><li>HP: Base: 6, Light Hardsuit: +2</li><li>Armour: Base: 0, Light Hardsuit: +1</li><li>Speed: Base: 4</li><li>E-defence: Base: 10</li><li>Grit: half your level, rounded up</li></ul>
+    </details>
+  </section>
+
+  <!-- 04 ───────── Qualifications ───────── -->
+  <section id="qualifications" aria-labelledby="h-qualifications">
+    <header class="sec-head"><span class="sec-no">04</span><h2 id="h-qualifications">Qualifications</h2><span class="sec-rule"></span></header>
+    <div class="cols cols-2">
+      <div class="col">
+        <div class="sub"><span class="label">Licences</span><span class="meta">Licence level <span class="num">5</span></span></div>
+        <ul class="rows">
+          <li class="row lic">
+            <div class="thumb mf-ipsn"><img src="art/mf_blackbeard.webp" alt=""></div>
+            <div><div class="row-name mf-ipsn"><button class="info-btn" type="button" style="color:var(--text)">Blackbeard</button><span class="mf-code"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ips-n"/></svg>IPS-N</span></div><div class="row-sub">Unlocks the frame, 2 weapons and 1 system.</div></div>
+            <div class="rankpips" role="img" aria-label="Rank II of III"><span class="rp held">I</span><span class="rp held">II</span><span class="rp">III</span></div>
+          </li>
+          <li class="row lic">
+            <div class="thumb mf-ha"><img src="art/mf_barbarossa.webp" alt=""></div>
+            <div><div class="row-name mf-ha"><button class="info-btn" type="button" style="color:var(--text)">Barbarossa</button><span class="mf-code"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ha"/></svg>HA</span></div><div class="row-sub">Unlocks the frame, 1 weapon and 2 systems.</div></div>
+            <div class="rankpips" role="img" aria-label="Rank II of III"><span class="rp held">I</span><span class="rp held">II</span><span class="rp">III</span></div>
+          </li>
+          <li class="row lic">
+            <div class="thumb mf-ipsn"><img src="art/mf_drake.webp" alt=""></div>
+            <div><div class="row-name mf-ipsn"><button class="info-btn" type="button" style="color:var(--text)">Drake</button><span class="mf-code"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ips-n"/></svg>IPS-N</span></div><div class="row-sub">Unlocks 1 weapon. Rank II unlocks the frame.</div></div>
+            <div class="rankpips" role="img" aria-label="Rank I of III"><span class="rp held">I</span><span class="rp">II</span><span class="rp">III</span></div>
+          </li>
+        </ul>
+      </div>
+      <div class="col">
+        <div class="sub"><span class="label">Talents</span></div>
+        <ul class="rows">
+          <li class="row tal">
+            <span class="tile tile-talent"><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg></span>
+            <div><div class="row-name"><button class="info-btn" type="button">Brawler</button></div><div class="row-sub">Fights hardest at arm's length.</div></div>
+            <div class="rankpips" role="img" aria-label="Rank II of III"><span class="rp held">I</span><span class="rp held">II</span><span class="rp">III</span></div>
+          </li>
+          <li class="row tal">
+            <span class="tile tile-talent"><svg class="icon" aria-hidden="true"><use href="icons.svg#talent"/></svg></span>
+            <div><div class="row-name"><button class="info-btn" type="button">Ace</button></div><div class="row-sub">Fast, evasive piloting.</div></div>
+            <div class="rankpips" role="img" aria-label="Rank I of III"><span class="rp held">I</span><span class="rp">II</span><span class="rp">III</span></div>
+          </li>
+        </ul>
+        <div class="sub"><span class="label">Core bonuses</span><span class="meta"><span class="num">1</span> of <span class="num">1</span> picks used</span></div>
+        <article class="item item-core core-card">
+          <div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#corebonus"/></svg><h3 class="item-name"><button type="button">Reinforced Frame</button></h3><span class="item-meta mf-code mf-ipsn" style="color:#111113"><svg class="icon" aria-hidden="true" style="color:#111113"><use href="icons.svg#logo-ips-n"/></svg>IPS-N</span></div>
+          <div class="item-body"><p class="rules" style="margin:0">Your mech gains +1 armour, up to a maximum of 4.</p></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 ───────── Equipment ───────── -->
+  <section id="equipment" aria-labelledby="h-equipment">
+    <header class="sec-head"><span class="sec-no">05</span><h2 id="h-equipment">Equipment</h2><span class="sec-rule"></span></header>
+    <div class="equip">
+      <div>
+        <div class="slots">
+          <div class="slot"><span class="label slot-label">Armour</span>
+            <article class="item item-pilot"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#pilot"/></svg><h3 class="item-name"><button type="button">Light Hardsuit</button></h3></div>
+              <div class="item-body"><div class="rd-row"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#hp"/></svg>+2 <small>HP</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#armour"/></svg>+1 <small>armour</small></span></div></div></article></div>
+          <div class="slot"><span class="label slot-label">Weapon 1</span>
+            <article class="item item-weapon"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#weapon"/></svg><h3 class="item-name"><button type="button">Assault Rifle</button></h3></div>
+              <div class="item-body"><div class="rd-row"><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>2 <small>kinetic</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#range"/></svg>8 <small>range</small></span></div></div></article></div>
+          <div class="slot"><span class="label slot-label">Weapon 2</span>
+            <article class="item item-weapon"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#melee"/></svg><h3 class="item-name"><button type="button">Tactical Knife</button></h3></div>
+              <div class="item-body"><div class="rd-row"><span class="rd dmg-kinetic"><svg class="icon" aria-hidden="true"><use href="icons.svg#kinetic"/></svg>2 <small>kinetic</small></span><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#threat"/></svg>1 <small>threat</small></span></div><div class="chips"><span class="chip">Thrown<span class="num">3</span></span></div></div></article></div>
+          <div class="slot"><span class="label slot-label">Gear 1</span>
+            <article class="item item-pilot"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg><h3 class="item-name"><button type="button">Field Medkit</button></h3></div>
+              <div class="item-body"><p class="rules" style="margin:0;font-size:var(--fs-s)">Patch up a pilot within range 1.</p></div></article></div>
+          <div class="slot"><span class="label slot-label">Gear 2</span>
+            <article class="item item-pilot"><div class="item-head"><svg class="icon" aria-hidden="true"><use href="icons.svg#generic_item"/></svg><h3 class="item-name"><button type="button">Signal Flare Kit</button></h3></div>
+              <div class="item-body"><p class="rules" style="margin:0;font-size:var(--fs-s)">Light up a wide area for a short while.</p></div></article></div>
+          <div class="slot"><span class="label slot-label">Gear 3</span><div class="item-empty-slim">No gear.</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="sub"><span class="label">Biomods</span><span class="meta"><span class="num">5</span> / <span class="num">10</span> mod points</span></div>
+        <div class="meter" style="min-width:0;margin-bottom:var(--space-s)"><div class="meter-bar"><span style="--fill:50%"></span></div></div>
+        <div class="bio-list">
+          <div class="bio"><span class="chip">Head</span><span class="bio-name"><button class="info-btn" type="button">Neural Lace</button></span><span class="mp"><span class="num">2</span> mod points</span>
+            <span class="bio-sub"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#acuity"/></svg>+1 <small>acuity</small></span></span></div>
+          <div class="bio"><span class="chip">Spine</span><span class="bio-name"><button class="info-btn" type="button">Reinforced Spine</button></span><span class="mp"><span class="num">3</span> mod points</span>
+            <span class="bio-sub"><span class="rd"><svg class="icon" aria-hidden="true"><use href="icons.svg#physicality"/></svg>+1 <small>physicality</small></span></span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 ───────── Hangar ───────── -->
+  <section id="hangar" aria-labelledby="h-hangar">
+    <header class="sec-head"><span class="sec-no">06</span><h2 id="h-hangar">Hangar</h2><span class="sec-rule"></span><span class="sec-meta"><span><span class="num">2</span> mechs</span></span></header>
+    <div class="hangar-d">
+      <a class="mech mf-ipsn" href="#hangar">
+        <div class="mech-art"><img src="art/mf_blackbeard.webp" alt=""></div>
+        <span class="mech-title">BULWARK</span>
+        <span class="mech-frame"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ips-n"/></svg>IPS-N Blackbeard</span>
+        <span class="mech-class">Striker</span>
+        <span class="code">IPSN-4417-9QZ2</span>
+      </a>
+      <a class="mech mf-ha" href="#hangar">
+        <div class="mech-art"><img src="art/mf_barbarossa.webp" alt=""></div>
+        <span class="mech-title">LANTERN II</span>
+        <span class="mech-frame"><svg class="icon" aria-hidden="true"><use href="icons.svg#logo-ha"/></svg>HA Barbarossa</span>
+        <span class="mech-class">Controller</span>
+        <span class="code">HARR-2086-LL7M</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 07 ───────── Gallery ───────── -->
+  <section id="gallery" aria-labelledby="h-gallery">
+    <header class="sec-head"><span class="sec-no">07</span><h2 id="h-gallery">Gallery</h2><span class="sec-rule"></span><span class="sec-meta"><span><span class="num">4</span> of <span class="num">4</span> pictures</span></span></header>
+    <div class="gallery">
+      <button class="shot" type="button"><span class="shot-img"><img src="art/mf_nelson.webp" alt="A Nelson frame in a hangar"></span><span class="shot-cap">Before the Aster line</span></button>
+      <button class="shot" type="button"><span class="shot-img"><img src="art/mf_sherman.webp" alt="A Sherman frame holding a gate"></span><span class="shot-cap">The Cinder Gate</span></button>
+      <button class="shot" type="button"><span class="shot-img"><img src="art/mf_goblin.webp" alt="A Goblin frame on patrol"></span><span class="shot-cap">Night patrol</span></button>
+      <button class="shot" type="button"><span class="shot-img"><img src="art/mf_pegasus.webp" alt="A Pegasus frame at dusk"></span><span class="shot-cap">Relay station, dusk</span></button>
+    </div>
+  </section>
+
+  </div>
+</div>
+</main>
+<script src="dossier.js"></script>
+</body>
+</html>

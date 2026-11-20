@@ -53,14 +53,14 @@ const { character, sheet, loading, loadError, conflict, retry, editable, gmEditi
 })
 provide(GM_EDIT, gmEditing) // so the loadout's and frame pickers know Exotic content may be chosen (rules.ts)
 
-// The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar.
+// The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar (a section of the pilot file).
 const list = computed(() => pilotList(character.value?.status))
 // The top bar marks that list too (src/router.ts).
 if (route.name === 'record-mech') watchEffect(() => (sectionOverride.value = list.value.name))
 const hangar = computed(() =>
   own
-    ? { name: 'pilot', query: { tab: 'mechs' } }
-    : { name: 'pilot-record', params: { id: pilotId }, query: { tab: 'mechs', edit: gmEditing.value ? '1' : undefined } },
+    ? { name: 'pilot', hash: '#hangar' }
+    : { name: 'pilot-record', params: { id: pilotId }, query: { edit: gmEditing.value ? '1' : undefined }, hash: '#hangar' },
 )
 
 // The sections, one at a time, remembered as ?tab= like the pilot sheet.

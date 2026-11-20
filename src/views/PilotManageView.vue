@@ -9,8 +9,11 @@ import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import GmEditBar from '../components/GmEditBar.vue'
-import CommendationBadges from '../components/CommendationBadges.vue'
 import GmReview from '../components/GmReview.vue'
+import FileIndex from '../components/FileIndex.vue'
+import FileSection from '../components/FileSection.vue'
+import IdentityGrid from '../components/IdentityGrid.vue'
+import PilotCover from '../components/PilotCover.vue'
 import PilotIdCard from '../components/PilotIdCard.vue'
 import ServiceRecord from '../components/ServiceRecord.vue'
 import ImageUpload from '../components/ImageUpload.vue'
@@ -19,16 +22,15 @@ import PilotGallery from '../components/PilotGallery.vue'
 import MechHangar from '../components/MechHangar.vue'
 import LoadoutBox from '../components/LoadoutBox.vue'
 import PilotLoadout from '../components/PilotLoadout.vue'
-import Portrait from '../components/Portrait.vue'
 import gritIcon from '../assets/icons/skill.svg'
 import RankPanel, { type RankStep } from '../components/RankPanel.vue'
 import SaveStatus from '../components/SaveStatus.vue'
-import SheetTabs from '../components/SheetTabs.vue'
 import RuleCheck from '../components/RuleCheck.vue'
 import SheetField from '../components/SheetField.vue'
-import Icon from '../components/Icon.vue'
+import StatFigures from '../components/StatFigures.vue'
 import StatRow from '../components/StatRow.vue'
-import { BANNER_SIDE, imageUrl } from '../images'
+import StatSources from '../components/StatSources.vue'
+import { BANNER_SIDE } from '../images'
 import { usePilotAwards } from '../commendations'
 import { displayColour } from '../pilotColour'
 import { useServiceRecord } from '../serviceRecord'
@@ -45,9 +47,10 @@ import { pilotList, sectionOverride } from '../router'
 import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
 import { capitalise } from '../text'
 
-// my pilot: your pilot as one sheet. A compact header (portrait, callsign, name, player, status, then level, licence
-// level and manna), the "what happens next" bar under it, any notes and the rule check, then a slim sticky row of
-// section tabs (profile, stats, equipment, licences, talents, mechs), each a stack of panels. Everything is edited
+// my pilot: your pilot as one scrolling file. A cover (portrait, callsign, name, player, status, medals, then the key
+// figures), the "what happens next" bar under it, any notes and the rule check, then seven numbered sections (identity,
+// service record, capabilities, qualifications, equipment, hangar, gallery) with an index that follows you (a list
+// beside the file, a row under the top bar on phones; the url's #hash names the section). Everything is edited
 // in place and saves itself. While a pilot is pending you can edit it directly; once it's approved, changes are
 // proposed as a draft that a GM approves (src/myPilot.ts).
 // The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
@@ -156,7 +159,6 @@ const profileEditable = computed(() => profile.ready.value && !!character.value 
 const previewColour = ref<string | undefined>()
 const pilotColour = computed(() => (previewColour.value ? displayColour(previewColour.value) : profile.colour.value))
 const pilotStyle = computed(() => (pilotColour.value ? { '--pilot': pilotColour.value } : undefined))
-const bannerUrl = computed(() => imageUrl(profile.fields.value.banner_image))
 const saveProfile = (changes: Partial<ProfileFields>) => track(profile.update(changes))
 const saveMotto = (event: Event) => saveProfile({ motto: (event.target as HTMLTextAreaElement).value.trim().slice(0, MOTTO_MAX) || null })
 const saveColour = (colour: string | null) => {
@@ -183,7 +185,7 @@ const setEdit = (on: boolean) =>
     : router.replace({ query: { ...route.query, edit: on ? '1' : undefined } })
 const { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses } = useGameData()
 
-// The identity table under the portrait. [column, label]
+// The identity form. [column, label]
 const IDENTITY = [
   ['age', 'age'],
   ['gender', 'gender'],
@@ -295,13 +297,33 @@ const ruleFix = computed(() => (!own || !editable.value ? undefined : draft.valu
 const hasNext = computed(() => own || character.value?.status === 'dead')
 const gmLink = computed(() => isGm.value && !own && !reviewing)
 
-// The sections, one shown at a time (SheetTabs.vue), remembered in the url as ?tab= so a mech page can link back to
-// the hangar; anything unknown falls back to profile.
-const tabs = ['profile', 'stats', 'equipment', 'licences', 'talents', 'mechs']
-const tab = computed({
-  get: () => (tabs.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'),
-  set: (next: string) => router.replace({ query: { ...route.query, tab: next === 'profile' ? undefined : next } }),
-})
+// The file's sections, in order (the numbers are part of the design). The gallery is left out for read-only viewers when
+// it is empty. The ids are the url's #hash (a mech page links back to #hangar).
+const SEC = {
+  identity: { id: 'identity', no: '01', title: 'Identity' },
+  record: { id: 'service-record', no: '02', title: 'Service record' },
+  capabilities: { id: 'capabilities', no: '03', title: 'Capabilities' },
+  qualifications: { id: 'qualifications', no: '04', title: 'Qualifications' },
+  equipment: { id: 'equipment', no: '05', title: 'Equipment' },
+  hangar: { id: 'hangar', no: '06', title: 'Hangar' },
+  gallery: { id: 'gallery', no: '07', title: 'Gallery' },
+}
+const showGallery = computed(() => profileEditable.value || profile.fields.value.gallery.length > 0)
+const sections = computed(() => Object.values(SEC).filter((s) => s !== SEC.gallery || showGallery.value))
+
+// The cover: the pilot's status as a badge, and the figures that matter. Manna only for the pilot's player and GMs.
+const coverBadge = computed(() =>
+  isDraft.value && reviewNote.value ? { label: 'Sent back', status: 'rejected' } : isDraft.value ? { label: 'Draft', status: 'draft' } : { label: capitalise(character.value?.status ?? ''), status: character.value?.status ?? '' },
+)
+const figures = computed(() => [
+  { label: 'Level', value: gm.value.level },
+  { label: 'Licence level', value: licenceLevel(sheet.value) },
+  { label: 'Grit', value: vitals.value.find((v) => v.id === 'grit')?.value ?? '–' },
+  { label: 'HP', value: vitals.value.find((v) => v.id === 'pilot_hp')?.value ?? '–' },
+  ...(canSeeManna.value
+    ? [{ label: 'Manna left', value: formatAmount(balance.value), over: balance.value < 0, sub: `${formatAmount(mannaSpent(sheet.value, bionicPrices.value, mechs.value.length))} of ${formatAmount(gm.value.manna)} spent` }]
+    : []),
+])
 
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
@@ -352,94 +374,32 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       </form>
     </section>
 
-    <div v-else class="sheet" :class="{ 'has-pilot': !!pilotColour }" :style="pilotStyle">
-      <!-- The header: who this is and the figures that matter (the prototype's compact header). -->
-      <header class="header" :class="{ joined: hasNext || gmEditing }">
-        <div v-if="bannerUrl" class="banner"><img :src="bannerUrl" alt="" /></div>
-        <ImageUpload
-          v-if="profileEditable"
-          class="banner-upload"
-          noun="banner"
-          :side="BANNER_SIDE"
-          :path="profile.fields.value.banner_image"
-          :save="(path: string | null) => saveProfile({ banner_image: path })"
-        />
-        <div class="thumb">
-          <img v-if="imageUrl(character.pilot_image)" :src="imageUrl(character.pilot_image)!" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
-          <Icon v-else name="pilot" />
-        </div>
-        <div class="who">
-          <!-- While editable the callsign is a field, so the page's heading is for screen readers only. -->
-          <h1 v-if="editable" class="sr-only">{{ character.callsign || character.pilot_name || 'My pilot' }}</h1>
-          <input
-            v-if="editable"
-            class="inline callsign"
-            type="text"
-            aria-label="Callsign"
-            placeholder="Callsign"
-            :value="character.callsign ?? ''"
-            @change="saveText('callsign', $event)"
-          />
-          <h1 v-else class="callsign">{{ character.callsign ?? character.pilot_name }}</h1>
-          <div v-if="profileEditable || profile.fields.value.motto" class="motto">
-            <textarea
-              v-if="profileEditable"
-              class="inline motto-input"
-              rows="1"
-              aria-label="Motto"
-              placeholder="Motto"
-              :maxlength="MOTTO_MAX"
-              :value="profile.fields.value.motto ?? ''"
-              @keydown.enter.prevent="($event.target as HTMLTextAreaElement).blur()"
-              @change="saveMotto"
-            ></textarea>
-            <template v-else>{{ profile.fields.value.motto }}</template>
-          </div>
-          <div class="subline sep">
-            <span>
-              <input
-                v-if="editable"
-                class="inline name"
-                type="text"
-                aria-label="Name"
-                placeholder="Name"
-                :value="character.pilot_name"
-                @change="saveText('pilot_name', $event)"
-              />
-              <template v-else>{{ character.pilot_name }}</template>
-            </span>
-            <span>Player: {{ playerName || 'Unknown player' }}</span>
-            <span>
-              <span v-if="isDraft && reviewNote" class="badge rejected">Sent back</span>
-              <span v-else-if="isDraft" class="badge draft">Draft</span>
-              <span v-else class="badge" :class="character.status">{{ capitalise(character.status) }}</span>
-            </span>
-          </div>
-        </div>
-        <div class="header-side">
-          <dl class="facts">
-            <div class="fact">
-              <dt class="label">Level</dt>
-              <dd class="fact-value num">{{ gm.level }}</dd>
-            </div>
-            <div class="fact">
-              <dt class="label">Licence level</dt>
-              <dd class="fact-value num">{{ licenceLevel(sheet) }}</dd>
-            </div>
-            <div v-if="canSeeManna" class="fact">
-              <dt class="label">Manna left</dt>
-              <dd class="fact-value num" :class="{ over: balance < 0 }">{{ formatAmount(balance) }}</dd>
-              <dd class="fact-sub"><span class="num">{{ formatAmount(mannaSpent(sheet, bionicPrices, mechs.length)) }}</span> of <span class="num">{{ formatAmount(gm.manna) }}</span> spent</dd>
-            </div>
-          </dl>
-          <div v-if="gmLink || (gmCanEdit && !gmEditing)" class="gm-actions">
-            <RouterLink v-if="gmLink" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
-              {{ character.status === 'pending' ? 'GM review' : 'GM controls' }}
-            </RouterLink>
-            <button v-if="gmCanEdit && !gmEditing" type="button" class="small" @click="setEdit(true)">Edit pilot</button>
-          </div>
-        </div>
-      </header>
+    <div v-else class="sheet" :style="pilotStyle">
+      <!-- The cover: who this is and the figures that matter. -->
+      <PilotCover
+        :id="character.id"
+        :callsign="character.callsign"
+        :name="character.pilot_name"
+        :player="playerName || 'Unknown player'"
+        :portrait="character.pilot_image"
+        :banner="profile.fields.value.banner_image"
+        :motto="profile.fields.value.motto"
+        :editable="editable"
+        :motto-editable="profileEditable"
+        :badge="coverBadge"
+        :awards="awards.awards.value"
+        :figures="figures"
+        :joined="hasNext || gmEditing"
+        @text="saveText"
+        @motto="saveMotto"
+      >
+        <template #actions>
+          <RouterLink v-if="gmLink" class="gm-link" :to="{ name: 'gm-review', params: { id: character.id } }">
+            {{ character.status === 'pending' ? 'GM review' : 'GM controls' }}
+          </RouterLink>
+          <button v-if="gmCanEdit && !gmEditing" type="button" class="small" @click="setEdit(true)">Edit pilot</button>
+        </template>
+      </PilotCover>
 
       <GmEditBar
         v-if="gmEditing"
@@ -453,22 +413,13 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
         @done="setEdit(false)"
       />
 
-      <!-- What happens next: a badge, a sentence and the actions that do it (secondary first, the primary last). Your
-           own sheet's save status follows the sentence. -->
+      <!-- What happens next: a sentence and the actions that do it (secondary first, the primary last). A badge only for a
+           change, since the cover already shows the pilot's own status. Your own sheet's save status follows the sentence. -->
       <div v-if="hasNext" class="next">
         <p v-if="character.status === 'dead'" class="next-text">This pilot is dead. The record is read-only.</p>
-        <template v-else-if="isDraft && reviewNote">
-          <span class="badge rejected">Sent back</span>
-          <p class="next-text">A GM sent this back. Fix what they asked, then resubmit.</p>
-        </template>
-        <template v-else-if="isDraft">
-          <span class="badge draft">Draft</span>
-          <p class="next-text">GMs see it once you submit it.</p>
-        </template>
-        <template v-else-if="character.status === 'pending'">
-          <span class="badge pending">Pending</span>
-          <p class="next-text">Waiting on a GM.</p>
-        </template>
+        <p v-else-if="isDraft && reviewNote" class="next-text">A GM sent this back. Fix what they asked, then resubmit.</p>
+        <p v-else-if="isDraft" class="next-text">GMs see it once you submit it.</p>
+        <p v-else-if="character.status === 'pending'" class="next-text">Waiting on a GM.</p>
         <p v-else-if="!draft" class="next-text">Changes need GM approval.</p>
         <template v-else-if="sentBack">
           <span class="badge rejected">Sent back</span>
@@ -503,7 +454,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       <ConflictNotice v-if="anyConflict" />
       <CatalogueNotice />
 
-      <!-- Long notes and the rule check sit under the header. -->
+      <!-- Long notes and the rule check sit under the cover. -->
       <div v-if="own && reviewNote && isDraft" class="notice warn" role="note">
         <p class="notice-title">Note from the GM</p>
         <p class="note-text">{{ reviewNote }}</p>
@@ -529,168 +480,167 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
       </div>
       <RuleCheck :problems="problems" :fix="ruleFix" />
 
-      <!-- One section at a time. v-show keeps every panel mounted, so switching never loses an open picker or an
-           unsaved field. Only this slim row sticks (under the top bar). -->
-      <SheetTabs v-model="tab" :tabs="tabs" class="sheet-tabs" :counts="{ mechs: mechs.length }" />
-
-      <div v-show="tab === 'profile'" class="tab-panel profile-tab">
-        <CommendationBadges :awards="awards.awards.value" />
-        <div class="profile">
-          <div class="writing">
-            <SheetField class="panel" title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
-            <SheetField class="panel" title="Personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
-            <SheetField
-              v-if="canSeeBackstory"
-              class="panel"
-              title="Backstory"
-              :doc="sheet.backstory ?? null"
-              :editable="editable"
-              :save="saveBackstory"
-            >
+      <!-- The file: an index (it follows you), then the sections on the page itself, not in boxes. -->
+      <div class="dossier">
+        <FileIndex :sections="sections" />
+        <div class="file">
+          <FileSection v-bind="SEC.identity" fixed>
+            <IdentityGrid :fields="IDENTITY" :values="character" :editable="editable" @save="(column, event) => saveText(column as TextColumn, event)" />
+            <div v-if="editable || profileEditable" class="tools">
+              <div v-if="editable" class="tool">
+                <span class="label">Portrait</span>
+                <ImageUpload :path="character.pilot_image" :save="saveImage" />
+              </div>
+              <div v-if="profileEditable" class="tool">
+                <span class="label">Banner</span>
+                <ImageUpload noun="banner" :side="BANNER_SIDE" :path="profile.fields.value.banner_image" :save="(path: string | null) => saveProfile({ banner_image: path })" />
+              </div>
+              <PilotColourField v-if="profileEditable" :colour="profile.fields.value.colour" @preview="previewColour = $event ?? undefined" @save="saveColour" />
+            </div>
+            <div class="notes">
+              <SheetField title="Appearance" :doc="character.appearance" :editable="editable" :save="saveColumn('appearance')" />
+              <SheetField title="Personality" :doc="character.personality" :editable="editable" :save="saveColumn('personality')" />
+            </div>
+            <SheetField v-if="canSeeBackstory" class="backstory" title="Backstory" :doc="sheet.backstory ?? null" :editable="editable" :save="saveBackstory">
               <template #head>
                 <BackstoryVisibility :is-public="backstory.isPublic.value" :can-change="canToggleBackstory" :set="backstory.set" />
               </template>
             </SheetField>
-            <SheetField v-else-if="backstory.isPublic.value" class="panel" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
-          </div>
-          <section class="panel">
-            <h2 class="sheet-label">Identity</h2>
-            <Portrait class="identity-portrait" :src="character.pilot_image" :alt="`Portrait of ${character.callsign ?? character.pilot_name}`" />
-            <ImageUpload v-if="editable" class="identity-upload" :path="character.pilot_image" :save="saveImage" />
-            <dl class="kv">
-              <template v-for="[column, label] in IDENTITY" :key="column">
-                <dt><label v-if="editable" :for="`identity-${column}`">{{ label }}</label><template v-else>{{ label }}</template></dt>
-                <dd>
-                  <input v-if="editable" :id="`identity-${column}`" type="text" :value="character[column] ?? ''" @change="saveText(column, $event)" />
-                  <template v-else>{{ character[column] ?? '–' }}</template>
-                </dd>
-              </template>
-            </dl>
-            <PilotColourField
-              v-if="profileEditable"
-              class="identity-colour"
-              :colour="profile.fields.value.colour"
-              @preview="previewColour = $event ?? undefined"
-              @save="saveColour"
+            <SheetField v-else-if="backstory.isPublic.value" class="backstory" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
+          </FileSection>
+
+          <FileSection v-bind="SEC.record">
+            <div class="record">
+              <ServiceRecord :record="record" :can-log="canLog" :can-gm="canGmRecord" />
+              <div class="id-card">
+                <PilotIdCard
+                  :id="character.id"
+                  :callsign="(approved?.character ?? character).callsign"
+                  :name="(approved?.character ?? character).pilot_name"
+                  :status="character.status"
+                  :approved-at="character.approved_at"
+                  :level="gm.level"
+                  :licence-level="licenceLevel(approved?.sheet ?? sheet)"
+                  :portrait="(approved?.character ?? character).pilot_image"
+                  :draft-open="!!approved"
+                  :colour="pilotColour"
+                  :medals="awards.awards.value.map((a) => a.commendation.icon)"
+                />
+              </div>
+            </div>
+          </FileSection>
+
+          <FileSection v-bind="SEC.capabilities">
+            <StatFigures :stats="vitals" />
+            <StatSources :stats="vitals" />
+            <StatRow
+              class="stat-block"
+              title="Personal stats"
+              :stats="stats.personal"
+              :editable="editable"
+              :min="PERSONAL_STAT_MIN"
+              :max="PERSONAL_STAT_MAX"
+              :budget="PERSONAL_STAT_POINTS"
+              @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
             />
+            <StatSources :stats="stats.personal" />
+            <StatRow
+              class="stat-block"
+              title="Piloting stats (HASE)"
+              :stats="stats.piloting"
+              :editable="editable"
+              :min="STAT_MIN"
+              :max="STAT_MAX"
+              :budget="skillPoints(gm.level)"
+              @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
+            />
+            <StatSources :stats="stats.piloting" />
+          </FileSection>
+
+          <FileSection v-bind="SEC.qualifications">
+            <div class="quals">
+              <RankPanel
+                class="qual"
+                title="Licences"
+                noun="licence"
+                :options="licenceOptions"
+                :held="sheet.licences ?? {}"
+                :details="licenceDetails"
+                columns
+                rows
+                :price="PRICES.licenceRank"
+                :balance="balance"
+                :editable="editable"
+                :save="saveLicences"
+                :choose="saveFrameChoice"
+              >
+                <template #summary>
+                  <span class="meter-inline">Licence level <span class="num">{{ licenceLevel(sheet) }}</span></span>
+                </template>
+              </RankPanel>
+              <RankPanel
+                class="qual"
+                title="Talents"
+                noun="talent"
+                :options="talentOptions"
+                :held="sheet.talents ?? {}"
+                :details="talentDetails"
+                tiers
+                rows
+                :price="PRICES.talentRank"
+                :balance="balance"
+                :editable="editable"
+                :save="saveTalents"
+              />
+              <CoreBonusPanel
+                class="qual"
+                :options="coreBonuses"
+                :licences="sheet.licences ?? {}"
+                :frames="frames"
+                :taken="sheet.core_bonuses ?? []"
+                :picks="coreBonusPicks(sheet)"
+                :editable="editable"
+                :save="saveCoreBonuses"
+              />
+            </div>
+          </FileSection>
+
+          <FileSection v-bind="SEC.equipment">
+            <PilotLoadout :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
+            <LoadoutBox
+              class="biomods"
+              title="Biomods"
+              :items="bionicOptions"
+              :chosen="sheet.bionics ?? []"
+              :editable="editable"
+              :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
+              :balance="balance"
+              :save="saveBionics"
+            />
+          </FileSection>
+
+          <FileSection v-bind="SEC.hangar">
+            <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" />
+          </FileSection>
+
+          <FileSection v-if="showGallery" v-bind="SEC.gallery">
+            <PilotGallery
+              :items="profile.fields.value.gallery"
+              :editable="profileEditable"
+              :name="character.callsign ?? character.pilot_name"
+              :save="(items) => saveProfile({ gallery: items })"
+            />
+          </FileSection>
+
+          <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
+          <section v-if="approvedOwn" class="panel danger-zone">
+            <h2 class="sheet-label">Danger zone</h2>
+            <div class="danger-body">
+              <p class="dim">Mark this pilot dead if they die in the story. This can't be undone.</p>
+              <button type="button" class="danger" @click="confirmDeath">Mark pilot dead</button>
+            </div>
           </section>
         </div>
-        <PilotGallery
-          :items="profile.fields.value.gallery"
-          :editable="profileEditable"
-          :name="character.callsign ?? character.pilot_name"
-          :save="(items) => saveProfile({ gallery: items })"
-        />
-        <div class="record-row">
-          <PilotIdCard
-            :id="character.id"
-            :callsign="(approved?.character ?? character).callsign"
-            :name="(approved?.character ?? character).pilot_name"
-            :status="character.status"
-            :approved-at="character.approved_at"
-            :level="gm.level"
-            :licence-level="licenceLevel(approved?.sheet ?? sheet)"
-            :portrait="(approved?.character ?? character).pilot_image"
-            :draft-open="!!approved"
-            :colour="pilotColour"
-            :medals="awards.awards.value.map((a) => a.commendation.icon)"
-          />
-          <ServiceRecord :record="record" :can-log="canLog" :can-gm="canGmRecord" />
-        </div>
-        <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
-        <section v-if="approvedOwn" class="panel danger-zone">
-          <h2 class="sheet-label">Danger zone</h2>
-          <div class="danger-body">
-            <p class="dim">Mark this pilot dead if they die in the story. This can't be undone.</p>
-            <button type="button" class="danger" @click="confirmDeath">Mark pilot dead</button>
-          </div>
-        </section>
-      </div>
-
-      <div v-show="tab === 'stats'" class="tab-panel section-grid">
-        <StatRow class="panel span-all" title="General stats" :stats="vitals" :editable="false" :min="0" :max="0" />
-        <StatRow
-          class="panel"
-          title="Piloting stats (HASE)"
-          :stats="stats.piloting"
-          :editable="editable"
-          :min="STAT_MIN"
-          :max="STAT_MAX"
-          :budget="skillPoints(gm.level)"
-          @set="(id, value) => setStat('mech_skills', stats.piloting, id, value)"
-        />
-        <StatRow
-          class="panel"
-          title="Personal stats"
-          :stats="stats.personal"
-          :editable="editable"
-          :min="PERSONAL_STAT_MIN"
-          :max="PERSONAL_STAT_MAX"
-          :budget="PERSONAL_STAT_POINTS"
-          @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
-        />
-      </div>
-      <div v-show="tab === 'equipment'" class="tab-panel">
-        <LoadoutBox
-          class="panel"
-          title="Biomods"
-          :items="bionicOptions"
-          :chosen="sheet.bionics ?? []"
-          :editable="editable"
-          :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
-          :balance="balance"
-          :save="saveBionics"
-        />
-        <PilotLoadout class="panel" :items="gear" :chosen="sheet.pilot_gear ?? []" :editable="editable" :save="saveGear" />
-      </div>
-      <div v-show="tab === 'licences'" class="tab-panel">
-        <RankPanel
-          class="panel"
-          title="Licences"
-          noun="licence"
-          :options="licenceOptions"
-          :held="sheet.licences ?? {}"
-          :details="licenceDetails"
-          columns
-          :price="PRICES.licenceRank"
-          :balance="balance"
-          :editable="editable"
-          :save="saveLicences"
-          :choose="saveFrameChoice"
-        >
-          <template #summary>
-            <span class="meter-inline">Licence level <span class="num">{{ licenceLevel(sheet) }}</span></span>
-          </template>
-        </RankPanel>
-        <CoreBonusPanel
-          class="panel"
-          :options="coreBonuses"
-          :licences="sheet.licences ?? {}"
-          :frames="frames"
-          :taken="sheet.core_bonuses ?? []"
-          :picks="coreBonusPicks(sheet)"
-          :editable="editable"
-          :save="saveCoreBonuses"
-        />
-      </div>
-      <div v-show="tab === 'talents'" class="tab-panel">
-        <RankPanel
-          class="panel"
-          title="Talents"
-          noun="talent"
-          :options="talentOptions"
-          :held="sheet.talents ?? {}"
-          :details="talentDetails"
-          tiers
-          :price="PRICES.talentRank"
-          :balance="balance"
-          :editable="editable"
-          :save="saveTalents"
-        />
-      </div>
-
-      <div v-show="tab === 'mechs'" class="tab-panel">
-        <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" />
       </div>
 
       <!-- :key resets the decision box after a decision, so it shows the new status. -->
@@ -700,214 +650,109 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
 </template>
 
 <style scoped>
-/* The stats tab is a .section-grid (style.css), not a column. */
-.tab-panel.section-grid {
+/* --- The file: the index beside it (above it on phones), then the sections one under another --- */
+.dossier {
   display: grid;
-}
-
-/* --- Header: portrait, callsign and name, then the figures (the prototype's .header) --- */
-.header {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-l);
-  --pad: var(--space-l);
-  padding: var(--pad);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
-  overflow-wrap: anywhere; /* a long unbroken name wraps instead of widening the page */
-}
-
-/* The pilot's colour (decoration only: it never marks a control or a status) is the header's top edge. */
-.has-pilot .header {
-  border-top: 3px solid var(--pilot);
-}
-
-/* The banner: a strip across the header's top, fading into the panel at its foot, with the pilot's colour under it. */
-.banner {
-  position: relative;
-  grid-column: 1 / -1;
-  height: 9rem;
-  margin: calc(-1 * var(--pad)) calc(-1 * var(--pad)) 0;
-  overflow: hidden;
-  border-bottom: 2px solid var(--pilot, var(--rule));
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-
-.banner img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.banner::after {
-  content: '';
-  position: absolute;
-  inset: auto 0 0;
-  height: 60%;
-  background: linear-gradient(transparent, var(--panel));
-}
-
-.banner-upload {
-  grid-column: 1 / -1;
-  margin: calc(-1 * var(--space-s)) 0 0;
-}
-
-/* The motto, with the pilot's colour as a small bar at its left. */
-.motto {
-  align-self: stretch;
-  margin-top: 4px;
-  padding-left: var(--space-s);
-  border-left: 3px solid var(--pilot, var(--rule));
-  color: var(--text-dim);
-  font-size: var(--fs-s);
-  font-style: italic;
-}
-
-.motto .inline {
-  max-width: 100%;
-  min-width: 14ch;
-  color: inherit;
-  font: inherit;
-}
-
-/* A long motto wraps (a growing textarea, not a one-line box that clips it). */
-.motto .motto-input {
-  display: block;
-  resize: none;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  line-height: 1.4;
-}
-
-/* The ID card beside the service record; stacked on narrow screens. */
-.record-row {
-  display: grid;
-  grid-template-columns: minmax(0, 36rem) minmax(0, 1fr);
+  grid-template-columns: 11rem minmax(0, 1fr);
   align-items: start;
-  gap: var(--space-m);
-}
-
-@media (max-width: 64rem) {
-  .record-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.has-pilot .profile-tab .panel:not(.danger-zone) {
-  border-top: 3px solid var(--pilot);
-}
-
-.identity-colour {
+  gap: var(--space-xl);
   margin-top: var(--space-l);
 }
 
-/* With the next-step bar under it, the two read as one block. */
-.header.joined {
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-
-.thumb {
-  display: grid;
-  place-items: center;
-  width: 84px;
-  aspect-ratio: 3 / 4;
-  overflow: hidden;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--raised);
-  color: var(--text-dim);
-}
-
-.thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumb .icon {
-  width: 28px;
-  height: 28px;
-}
-
-.who {
+.file {
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* don't stretch the fields: they size to their text */
+  gap: 56px;
   min-width: 0;
 }
 
-.callsign {
-  margin: 0;
-  color: var(--text);
-  font: 800 var(--fs-xl) / 1.1 var(--sans);
-  letter-spacing: 0.02em;
-}
-
-/* Callsign and name: plain text with a faint underline that says they can be edited. */
-.inline {
-  min-height: 0;
-  margin-left: -6px;
-  padding: 1px 6px;
-  border-color: transparent;
-  border-bottom-color: var(--rule);
-  background: none;
-  /* Hug the text. shortcut: Firefox has no field-sizing and keeps its default ~20ch width; fine until Firefox ships it. */
-  width: auto;
-  min-width: 8ch;
-  max-width: 100%;
-  field-sizing: content;
-}
-
-.inline:hover {
-  border-color: var(--rule);
-}
-
-/* No percentage cap here: against its shrink-to-fit item it would clip the last letters. */
-.inline.name {
-  max-width: none;
-  color: var(--text-dim);
-  font-size: var(--fs-s);
-}
-
-.header-side {
+/* --- 01 Identity --- */
+.tools {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-end;
   gap: var(--space-m) var(--space-xl);
+  margin-top: var(--space-l);
 }
 
-/* Uppercase labels over mono numbers, lined up across the three (a subgrid of label, value, note). */
-.facts {
+.tool {
   display: grid;
-  grid-template-rows: auto auto auto;
-  grid-auto-flow: column;
-  gap: 2px var(--space-xl);
-  margin: 0;
+  gap: var(--space-xs);
 }
 
-.fact {
+.notes {
   display: grid;
-  grid-row: span 3;
-  grid-template-rows: subgrid;
-  align-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xl);
+  margin-top: var(--space-xl);
 }
 
-.fact-sub {
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
+.backstory {
+  margin-top: var(--space-xl);
 }
 
-/* The GM's way to the review page: a link drawn as a small button. */
-.gm-actions {
-  display: flex;
-  align-items: stretch; /* the link and the button match in height */
-  gap: var(--space-s);
+/* --- 02 Service record: the timeline, and the ID card beside it --- */
+.record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26rem;
+  align-items: start;
+  gap: var(--space-xl);
 }
 
+.id-card {
+  position: sticky;
+  top: calc(var(--topbar-h) + var(--space-l));
+}
+
+/* --- 03 Capabilities --- */
+.stat-block {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-l);
+  border-top: 1px solid var(--rule);
+}
+
+/* --- 04 Qualifications: licences, talents and core bonuses, stacked full width --- */
+.quals {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+/* --- 05 Equipment: biomods in their own row under the loadout --- */
+.biomods {
+  margin-top: var(--space-xl);
+}
+
+@media (max-width: 72rem) {
+  .record {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .id-card {
+    position: static;
+    max-width: 36rem;
+  }
+}
+
+/* --- Phones and tablets: the index is a row under the top bar, so the file starts below it --- */
+@media (max-width: 56rem) {
+  .dossier {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    margin-top: var(--space-m);
+  }
+
+  .file {
+    gap: 44px;
+    padding-top: var(--space-xl);
+  }
+
+  .notes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-l);
+  }
+}
+
+/* --- The GM's way to the review page: a link drawn as a small button --- */
 .gm-link {
   display: inline-flex;
   align-items: center;
@@ -927,13 +772,13 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   background: color-mix(in srgb, var(--lilac) 8%, transparent);
 }
 
-/* --- What happens next: a band joined to the header's foot --- */
+/* --- What happens next: a band joined to the cover's foot --- */
 .next {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-s) var(--space-m);
-  margin-top: calc(-1 * var(--space-m)); /* joined to the header: cancels the sheet's gap */
+  margin-top: calc(-1 * var(--space-m)); /* joined to the cover: cancels the sheet's gap */
   padding: var(--space-s) var(--space-l);
   border: 1px solid var(--rule);
   border-top: 0;
@@ -956,48 +801,6 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   white-space: pre-wrap;
 }
 
-/* Anything focused (tabbing through fields) scrolls clear of the top bar and tabs. */
-.tab-panel * {
-  scroll-margin-top: calc(var(--topbar-h) + var(--tabs-h) + var(--space-l));
-}
-
-.identity-portrait {
-  width: 100%;
-  max-width: 240px;
-  margin-inline: auto;
-}
-
-/* Under the centred portrait, its buttons and status centre too. */
-.identity-upload {
-  text-align: center;
-}
-
-.identity-upload :deep(.buttons) {
-  justify-content: center;
-}
-
-.kv {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 6px var(--space-l);
-  margin: var(--space-l) 0 0;
-  font-size: var(--fs-s);
-}
-
-.kv dt {
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.kv dd {
-  min-width: 0;
-  margin: 0;
-}
-
 /* --- Registering --- */
 .register {
   max-width: 32rem;
@@ -1018,41 +821,7 @@ const saveGear = (ids: string[]) => track(updateSheet({ pilot_gear: ids }))
   align-self: flex-start;
 }
 
-/* --- Phones: the compact header (56px portrait, the figures on one tight row under it) --- */
 @media (max-width: 48rem) {
-  .header {
-    --pad: var(--space-m);
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--space-s) var(--space-m);
-  }
-
-  .banner {
-    height: 6rem;
-  }
-
-  .thumb {
-    width: 56px;
-  }
-
-  .callsign {
-    font-size: 22px;
-  }
-
-  .header-side {
-    grid-column: 1 / -1;
-    justify-content: space-between;
-    padding-top: var(--space-s);
-    border-top: 1px solid var(--rule);
-  }
-
-  .facts {
-    gap: 0 var(--space-l);
-  }
-
-  .facts .label {
-    letter-spacing: 0.04em;
-  }
-
   .next {
     padding: var(--space-s) var(--space-m);
   }

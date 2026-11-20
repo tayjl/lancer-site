@@ -456,24 +456,6 @@ label.field .error {
   font-size: var(--fs-s);
 }
 
-/* Sections two to a row on wide screens (the pilot sheet's stats tab); .span-all takes a whole row. Sections on a row
-   stretch to the same height. One column under 72rem, where five stat tiles would no longer fit a half row. */
-.section-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-l);
-}
-
-.section-grid > .span-all {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 72rem) {
-  .section-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 /* A section's heading: short, uppercase and tracked. Takes the free space in a flex header, so anything beside it
    (points, licence level, an add button) sits at the right. */
 .sheet-label {

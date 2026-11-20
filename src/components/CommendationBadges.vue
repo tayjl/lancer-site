@@ -19,7 +19,7 @@ function show(award: Award) {
 
 <template>
   <section v-if="awards.length" class="medals" aria-label="Commendations">
-    <h2 class="label">Commendations</h2>
+    <h2 class="sr-only">Commendations</h2>
     <ul>
       <li v-for="award in awards" :key="award.id">
         <button type="button" class="medal-button" :aria-label="`${award.commendation.name}: details`" @click="show(award)">
@@ -53,20 +53,7 @@ function show(award: Award) {
 
 <style scoped>
 .medals {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-l);
-  padding: var(--space-m) var(--space-l);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
-}
-
-.medals h2 {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: var(--fs-xs);
+  display: contents; /* the medals sit in the cover's own row */
 }
 
 ul {

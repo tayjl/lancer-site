@@ -4,9 +4,10 @@ import { sourceOf } from '../gameData'
 import { MAX_LICENCE_RANK, rankName } from '../rules'
 import { useRestriction } from '../restriction'
 import { frameRanges, framePick } from '../pickerRows'
-import { makerLogo, useManufacturers } from '../archive'
+import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { chosenFrame, useMechData } from '../mechData'
 import { frameArt } from '../images'
+import { plural } from '../text'
 import type { Info, Unlock } from '../info'
 import MechImage from './MechImage.vue'
 import Icon from './Icon.vue'
@@ -37,6 +38,8 @@ const props = defineProps<{
   details: (id: string) => RankStep[]
   columns?: boolean
   tiers?: boolean
+  // Compact rows (the pilot file) instead of an item card per one held: the same buying, refunds and frame choice.
+  rows?: boolean
   price: number
   balance: number
   editable: boolean
@@ -91,6 +94,20 @@ const picker = useTemplateRef('picker')
 const { frames } = useMechData()
 const manufacturers = useManufacturers()
 const ranges = computed(() => frameRanges(frames.value))
+// --- Rows: what a licence unlocks across its three ranks, and its maker ---
+const stepsOf = computed(() => Object.fromEntries(ranks.value.map(([id]) => [id, props.details(id)])))
+const choiceOf = (id: string) => stepsOf.value[id]?.find((step) => step.choice)?.choice
+const NOUNS = { frame: 'frame', weapon: 'weapon', system: 'system', mod: 'mod' } as const
+const unlockLine = (id: string) => {
+  const all = (stepsOf.value[id] ?? []).flatMap((step) => step.unlocks ?? [])
+  const parts = (Object.keys(NOUNS) as (keyof typeof NOUNS)[])
+    .map((kind) => ({ kind, n: all.filter((u) => u.kind === kind).length }))
+    .filter(({ n }) => n)
+    .map(({ kind, n }) => (kind === 'frame' && n === 1 ? 'the frame' : plural(n, NOUNS[kind])))
+  return parts.length ? `Unlocks ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}.` : 'Unlocks nothing yet.'
+}
+const makerOf = (id: string) => manufacturers.value.find((m) => m.id === frames.value.find((f) => f.id === id)?.source)
+const chosenOption = (id: string) => choiceOf(id)!.options.find((o) => o.value === choiceOf(id)!.value) ?? choiceOf(id)!.options[0]
 // A licence card shows the art of the frame the licence gives (the pilot's choice among its alternates).
 const licenceArt = (id: string) => {
   if (!props.columns) return null
@@ -137,7 +154,44 @@ async function buy(id: string) {
       </span>
     </header>
 
-    <div v-if="ranks.length" class="list">
+    <ul v-if="ranks.length && rows" class="rows">
+      <li v-for="[id, rank] in ranks" :key="id" class="row" :class="columns ? 'lic' : 'tal'" :style="columns ? { '--mf': makerColour(makerOf(id)) } : undefined">
+        <MechImage v-if="columns" class="thumb" size="pick" :art="licenceArt(id)" :logo="licenceLogo(id)" :art-alt="`${nameOf(id)} frame`" />
+        <span v-else class="tile"><Icon name="talent" /></span>
+        <div class="about">
+          <p class="row-name">
+            <InfoButton v-if="optionOf(id)?.info" :label="nameOf(id)" :info="optionOf(id)!.info" />
+            <template v-else>{{ nameOf(id) }}</template>
+            <span v-if="columns && makerOf(id)" class="mf-code"><Icon v-if="makerLogo(makerOf(id))" :src="makerLogo(makerOf(id))!" />{{ makerOf(id)!.id }}</span>
+          </p>
+          <p class="row-sub">{{ columns ? unlockLine(id) : optionOf(id)?.meta }}</p>
+          <fieldset v-if="editable && choiceOf(id)" class="frame-choice">
+            <legend class="label">Frame</legend>
+            <label v-for="option in choiceOf(id)!.options" :key="option.value" class="frame-option">
+              <input type="radio" :name="`${id}-frame`" :checked="choiceOf(id)!.value === option.value" :disabled="saving" @change="choose(id, option.value)" />
+              <Icon name="frame" />{{ option.name }}
+            </label>
+          </fieldset>
+          <p v-else-if="choiceOf(id)" class="frame-chosen">
+            <Icon name="frame" /><span class="dim">Chosen frame:</span>
+            <InfoButton :label="chosenOption(id).name" :info="chosenOption(id).info" />
+          </p>
+        </div>
+        <span class="rankpips" role="img" :aria-label="`Rank ${rankName(rank)} of ${rankName(MAX_LICENCE_RANK)}`">
+          <span v-for="n in MAX_LICENCE_RANK" :key="n" class="rp" :class="{ held: n <= rank }">{{ rankName(n) }}</span>
+        </span>
+        <div v-if="editable" class="row-actions">
+          <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
+          <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
+            <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
+              Raise rank · <span class="num">{{ price }}</span>
+            </button>
+            <span v-if="!affordable" :id="`${id}-why`" class="blocked-reason">Not enough manna</span>
+          </span>
+        </div>
+      </li>
+    </ul>
+    <div v-else-if="ranks.length" class="list">
       <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
         <template #meta>Rank {{ rankName(rank) }}</template>
         <div class="rank-wrap" :class="{ 'with-art': columns }">
@@ -397,7 +451,144 @@ async function buy(id: string) {
   font-size: var(--fs-s);
 }
 
+/* --- Rows: parted by a thin rule, on the page's own surface --- */
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-s) var(--space-m);
+  padding: var(--space-m) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.row:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+
+.row.tal {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+}
+
+/* The maker's colour is only the picture's thin top border (and its logo). */
+.row .thumb {
+  height: 54px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--mf, var(--rule));
+  border-radius: 2px;
+  background: var(--raised);
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 2px;
+  background: var(--type-talent);
+  color: #fff;
+}
+
+.tile .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.row p {
+  max-width: none;
+  margin: 0;
+}
+
+.row-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-s);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.mf-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.mf-code .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--mf);
+}
+
+.row-sub {
+  margin-top: 2px;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+.about .frame-choice,
+.about .frame-chosen {
+  margin-top: var(--space-s);
+}
+
+/* Held ranks are filled; the numeral is always shown, so it never relies on fill alone. */
+.rankpips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.rp {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--text-dim);
+  font: 700 var(--fs-xs) / 1 var(--mono);
+}
+
+.rp.held {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--void);
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  grid-column: 2 / -1;
+  gap: var(--space-s);
+}
+
 @media (max-width: 40rem) {
+  .row {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .row.tal {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .row .rankpips {
+    grid-column: 2;
+  }
+
+  .row .thumb {
+    height: 42px;
+  }
+
   .ladder {
     grid-template-columns: minmax(0, 1fr);
   }

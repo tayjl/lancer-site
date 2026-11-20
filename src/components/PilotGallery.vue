@@ -51,14 +51,12 @@ const title = (item: GalleryItem, at: number) => item.caption || `Picture ${at +
 </script>
 
 <template>
-  <section v-if="editable || items.length" class="panel gallery">
-    <header class="sheet-head">
-      <h2 class="sheet-label">
-        Gallery
-        <span v-if="editable && items.length >= GALLERY_MAX" class="dim count">{{ GALLERY_MAX }} of {{ GALLERY_MAX }} pictures</span>
-      </h2>
+  <div v-if="editable || items.length" class="gallery">
+    <!-- The button and count sit in the section's head (FileSection.vue). -->
+    <Teleport defer to="#gallery-extra">
+      <span v-if="editable && items.length >= GALLERY_MAX"><span class="num">{{ GALLERY_MAX }}</span> of <span class="num">{{ GALLERY_MAX }}</span> pictures</span>
       <button v-if="editable && items.length < GALLERY_MAX" type="button" class="small" :disabled="!!busy" @click="choose(-1)">Add picture</button>
-    </header>
+    </Teleport>
     <input ref="input" type="file" accept="image/*" class="sr-only" tabindex="-1" @change="picked" />
 
     <ul v-if="items.length" class="pictures">
@@ -100,28 +98,13 @@ const title = (item: GalleryItem, at: number) => item.caption || `Picture ${at +
         </div>
       </template>
     </dialog>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
-.count {
-  margin-left: var(--space-s);
-  font-size: var(--fs-xs);
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 .pictures {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-m);
   margin: 0;
   padding: 0;

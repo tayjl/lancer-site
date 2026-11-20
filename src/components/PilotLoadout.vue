@@ -11,8 +11,9 @@ import ItemDetails from './ItemDetails.vue'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
 
-// The pilot's loadout, laid out like COMP/CON's: one armour slot, two weapon slots and three gear slots, each named
-// above its item card. Empty slots say so, with a button to equip one. Each slot only takes items of its type, picked
+// The pilot's loadout: one armour slot, two weapon slots and three gear slots, in three fixed columns (Armour, Weapons,
+// Gear) that never reflow because one card is taller than another; each column stacks its slots from the top, and phones
+// stack the columns. Empty slots say so, with a button to equip one. Each slot only takes items of its type, picked
 // from the catalogue (sheet.pilot_gear holds the ids; the slot comes from the type).
 const props = defineProps<{
   items: Item[]
@@ -25,11 +26,17 @@ const byId = computed(() => new Map(props.items.map((item) => [item.id, item])))
 const layout = computed(() => loadoutSlots(props.chosen, (id) => byId.value.get(id)?.type))
 const nameOf = (id: string) => byId.value.get(id)?.name ?? id
 // Read-only sheets skip empty slots: six empty states are a lot of scrolling past nothing.
-const shownSlots = computed(() => layout.value.slots.filter((slot) => props.editable || (slot.id && byId.value.get(slot.id))))
+const COLUMNS = [
+  { type: 'Armor', title: 'Armour', none: 'No armour.' },
+  { type: 'Weapon', title: 'Weapons', none: 'No weapons.' },
+  { type: 'Gear', title: 'Gear', none: 'No gear.' },
+]
+const columns = computed(() =>
+  COLUMNS.map((column) => ({ ...column, slots: layout.value.slots.filter((slot) => slot.type === column.type && (props.editable || (slot.id && byId.value.get(slot.id)))) })),
+)
 
-// Each slot's name over its card ("Armour", "Weapon 1"), and the word for what it holds.
+// The word for what a slot holds.
 const KINDS: Record<string, string> = { Armor: 'armour', Weapon: 'weapon', Gear: 'gear' }
-const slotName = (slot: Slot) => (slot.type === 'Armor' ? 'Armour' : `${slot.type} ${slot.index + 1}`)
 const emptyText = (slot: Slot) => (slot.id && byId.value.get(slot.id) ? '' : `No ${KINDS[slot.type]} yet.`)
 
 // --- Changing a slot: rebuilds the whole list from the slots ---
@@ -77,22 +84,27 @@ async function equip(id: string) {
 
 <template>
   <section class="pilot-loadout">
-    <h2 class="sheet-label">Loadout</h2>
+    <h3 class="sheet-label">Loadout</h3>
 
-    <ul v-if="shownSlots.length" class="slot-grid">
-      <SlotCard v-for="slot in shownSlots" :key="`${slot.type}-${slot.index}`" :label="slotName(slot)" :empty="emptyText(slot)">
-        <template #action>
-          <button type="button" class="small" :disabled="saving" @click="open(slot)">Add {{ KINDS[slot.type] }}</button>
-        </template>
-        <ItemDetails :item="byId.get(slot.id!)!">
-          <template v-if="editable" #foot>
-            <button type="button" class="small" :disabled="saving" @click="open(slot)">Swap</button>
-            <button type="button" class="small quiet" :disabled="saving" @click="unequip(slot)">Remove</button>
-          </template>
-        </ItemDetails>
-      </SlotCard>
-    </ul>
-    <p v-else class="empty">No gear.</p>
+    <div class="columns">
+      <div v-for="column in columns" :key="column.type" class="column">
+        <h4 class="label">{{ column.title }}</h4>
+        <ul v-if="column.slots.length" class="stack">
+          <SlotCard v-for="slot in column.slots" :key="`${slot.type}-${slot.index}`" :empty="emptyText(slot)">
+            <template #action>
+              <button type="button" class="small" :disabled="saving" @click="open(slot)">Add {{ KINDS[slot.type] }}</button>
+            </template>
+            <ItemDetails :item="byId.get(slot.id!)!">
+              <template v-if="editable" #foot>
+                <button type="button" class="small" :disabled="saving" @click="open(slot)">Swap</button>
+                <button type="button" class="small quiet" :disabled="saving" @click="unequip(slot)">Remove</button>
+              </template>
+            </ItemDetails>
+          </SlotCard>
+        </ul>
+        <p v-else class="empty">{{ column.none }}</p>
+      </div>
+    </div>
 
     <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
     <p v-if="layout.overflow.length" class="notice warn note">
@@ -115,6 +127,36 @@ async function equip(id: string) {
 </template>
 
 <style scoped>
+.columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-l);
+}
+
+.column {
+  min-width: 0;
+}
+
+.column .label {
+  margin: 0 0 var(--space-s);
+  color: var(--text);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-m);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 64rem) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .note {
   margin: var(--space-m) 0 0;
   font-size: var(--fs-s);

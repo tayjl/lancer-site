@@ -62,16 +62,17 @@ async function createMech() {
 </script>
 
 <template>
-  <section class="panel">
-    <header class="sheet-head hangar-head">
-      <h2 class="sheet-label">Mech hangar</h2>
+  <div>
+    <!-- The count and the button sit in the section's head (FileSection.vue). -->
+    <Teleport defer to="#hangar-extra">
+      <span><span class="num">{{ mechs.length }}</span> {{ mechs.length === 1 ? 'mech' : 'mechs' }}</span>
       <span v-if="editable && !addingMech" class="blocked">
         <button type="button" class="small" :disabled="!affordable" :aria-describedby="affordable ? undefined : 'mech-why'" @click="openNewMech">
           <Icon name="plus" />New mech<template v-if="price"> · <span class="num">{{ price }}</span></template>
         </button>
         <span v-if="!affordable" id="mech-why" class="blocked-reason">Not enough manna</span>
       </span>
-    </header>
+    </Teleport>
     <ul v-if="mechs.length" class="hangar">
       <li v-for="mech in mechs" :key="mech.id">
         <RouterLink :to="link(mech.id)" class="mech-card" :style="makerOf(mech.id) ? { '--mf': makerColour(makerOf(mech.id)) } : undefined">
@@ -104,19 +105,12 @@ async function createMech() {
       </div>
     </form>
     <p v-else-if="!mechs.length" class="empty">{{ editable ? 'No mechs yet.' : 'No mechs.' }}</p>
-  </section>
+  </div>
 </template>
 
 <style scoped>
 /* A card per mech, a showcase, so centred: the cards as a group, and the picture, name, frame and class within each.
    Its maker only as the logo and a thin top border (--mf). */
-.hangar-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-m);
-}
-
 .hangar {
   display: flex;
   flex-wrap: wrap;

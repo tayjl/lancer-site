@@ -61,11 +61,18 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* Writing headings are plain sub-section headings: bigger than a log entry's label, with a thin rule under the row. */
 .head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-s) var(--space-m);
+  padding-bottom: var(--space-s);
+  border-bottom: 1px solid var(--rule);
+}
+
+.head .sheet-label {
+  font-size: 16px;
 }
 
 .status {
@@ -90,16 +97,9 @@ onBeforeUnmount(() => {
   color: var(--danger);
 }
 
+/* Read-only writing sits on the page's own surface, with no box around it. */
 .readonly {
   max-width: none;
   margin: 0;
-  padding: 0.75rem;
-  border: 1px solid var(--rule);
-}
-
-/* Already inside a panel (the pilot sheet): no second box around read-only writing. */
-.field.panel .readonly {
-  padding: 0;
-  border: 0;
 }
 </style>

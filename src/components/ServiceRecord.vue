@@ -52,14 +52,12 @@ async function remove(entry: TimelineEntry) {
 </script>
 
 <template>
-  <section class="panel service-record">
-    <header class="sheet-head">
-      <h2 class="sheet-label">Service record</h2>
-      <span class="actions">
-        <button v-if="canLog" type="button" class="small" :disabled="form.open" @click="openForm('player')"><Icon name="plus" />Add entry</button>
-        <button v-if="canGm" type="button" class="small" :disabled="form.open" @click="openForm('gm')"><Icon name="plus" />Add GM entry</button>
-      </span>
-    </header>
+  <div class="service-record">
+    <!-- The buttons sit in the section's head (FileSection.vue). -->
+    <Teleport defer to="#service-record-extra">
+      <button v-if="canLog" type="button" class="small" :disabled="form.open" @click="openForm('player')"><Icon name="plus" />Add log entry</button>
+      <button v-if="canGm" type="button" class="small" :disabled="form.open" @click="openForm('gm')"><Icon name="plus" />Add GM entry</button>
+    </Teleport>
 
     <form v-if="form.open" class="entry-form" @submit.prevent="save">
       <h3 class="label">{{ form.id ? 'Edit' : 'New' }} {{ form.kind === 'gm' ? 'GM entry' : 'entry' }}</h3>
@@ -102,24 +100,10 @@ async function remove(entry: TimelineEntry) {
     <div v-if="sorted.length > SHOWN" class="more">
       <button type="button" class="quiet small" @click="showAll = !showAll">{{ showAll ? 'Show fewer' : `Show all ${sorted.length}` }}</button>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-s);
-  margin-left: auto;
-}
-
 .entry-form {
   display: grid;
   gap: var(--space-m);
