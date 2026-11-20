@@ -68,7 +68,7 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 
 ## Hosted migrations
 
-**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). **Pending: none.** Every migration through `20261121110000_pilot_inventory` is on the hosted project (pushed 2026-11-20). What each adds, and what breaks on a project without it:
+**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). **Pending: none.** Every migration through `20261121120000_mech_public_card` is on the hosted project (applied 2026-11-20). What each adds, and what breaks on a project without it:
 
 | Migration | What it adds |
 |---|---|
