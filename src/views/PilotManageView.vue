@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, reactive, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, nextTick, provide, reactive, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm, isOwner, session } from '../auth'
 import { useBackstoryVisibility } from '../backstory'
@@ -48,7 +48,7 @@ import { useMyPilot, type MiscItem, type OwnedGear, type Sheet } from '../myPilo
 import { GM_EDIT } from '../restriction'
 import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
-import { pilotList, sectionOverride } from '../router'
+import { pilotList } from '../router'
 import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, requirementReason, unmetRequirements, useCatalogue } from '../rules'
 import { capitalise } from '../text'
 
@@ -163,9 +163,8 @@ async function withdraw() {
 }
 
 // Records' breadcrumb leads back to the queue, or to the list the pilot is in.
-const back = computed(() => (reviewing ? { name: 'gm-pilots', label: 'GM pilots' } : pilotList(character.value?.status)))
+const back = computed(() => (reviewing ? { to: { name: 'gm-pilots' }, label: 'GM pilots' } : pilotList(character.value?.status)))
 // The top bar marks that list too (src/router.ts).
-if (route.name === 'pilot-record') watchEffect(() => (sectionOverride.value = back.value.name))
 // Your own mechs open for editing; anyone else's open read-only under their record (editable in a GM's edit mode, kept in the url).
 const mechLink = (mechId: string) =>
   own ? { name: 'mech', params: { mechId } } : { name: 'record-mech', params: { id: pilotId, mechId }, query: gmEditing.value ? { edit: '1' } : undefined }
@@ -412,7 +411,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
   <main class="page manage">
     <nav v-if="!own && character" aria-label="Breadcrumb" class="crumbs">
       <ol>
-        <li><RouterLink :to="{ name: back.name }">{{ back.label }}</RouterLink></li>
+        <li><RouterLink :to="back.to">{{ back.label }}</RouterLink></li>
         <li aria-current="page">{{ character.callsign ?? character.pilot_name }}</li>
       </ol>
     </nav>

@@ -21,6 +21,10 @@ async function go(id?: string) {
   setFolded(id, false)
   await nextTick()
   el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  // Focus follows the jump (the list just closed, so it would fall to the page); the heading is focusable by script only.
+  const heading = document.getElementById(`${id}-title`)
+  heading?.setAttribute('tabindex', '-1')
+  heading?.focus({ preventScroll: true })
   router.replace({ query: route.query, hash: `#${id}` })
 }
 

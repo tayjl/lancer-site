@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, ref, useTemplateRef, watchEffect } from 'vue'
+import { computed, provide, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAction } from '../confirm'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
@@ -37,7 +37,7 @@ import { useSaveStatus } from '../saveStatus'
 import { useCopyLink } from '../copyLink'
 import { usePilotProfile } from '../pilotProfile'
 import { radarAxes } from '../mechOverview'
-import { pilotList, sectionOverride } from '../router'
+import { pilotList } from '../router'
 import { frameBlockedBy, isExotic, mechProblems, requirementReason, restrictionOf, unmetRequirements, useCatalogue } from '../rules'
 import { GM_EDIT, useRestriction } from '../restriction'
 
@@ -64,7 +64,6 @@ provide(GM_EDIT, gmEditing) // so the loadout's and frame pickers know Exotic co
 // The breadcrumb: my pilot's hangar, or the list the pilot is in, then their record's hangar (a section of the pilot file).
 const list = computed(() => pilotList(character.value?.status))
 // The top bar marks that list too (src/router.ts).
-if (route.name === 'record-mech') watchEffect(() => (sectionOverride.value = list.value.name))
 const hangar = computed(() =>
   own
     ? { name: 'pilot', hash: '#hangar' }
@@ -270,7 +269,7 @@ async function scrap() {
       <ol>
         <li v-if="own"><RouterLink :to="hangar">My pilot</RouterLink></li>
         <template v-else>
-          <li><RouterLink :to="{ name: list.name }">{{ list.label }}</RouterLink></li>
+          <li><RouterLink :to="list.to">{{ list.label }}</RouterLink></li>
           <li><RouterLink :to="hangar">{{ character.callsign ?? character.pilot_name }}</RouterLink></li>
         </template>
         <li v-if="mech" aria-current="page">{{ mech.name }}</li>

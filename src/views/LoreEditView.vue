@@ -11,7 +11,7 @@ import SheetField from '../components/SheetField.vue'
 import { confirmAction } from '../confirm'
 import type { Json } from '../lib/database.types'
 import { CHANGED_ELSEWHERE } from '../lib/supabaseClient'
-import { KIND_INFO, LORE_KINDS, deleteLore, entries, isDraft, isKind, loadLore, saveLore, type LoreEntry, type LoreKind } from '../lore'
+import { KIND_INFO, LORE_KINDS, isDraft, isKind, loreSection, type LoreEntry, type LoreKind } from '../lore'
 
 // The GM's editor for one lore entry. Every field saves itself (title, summary and related entries when you leave
 // them or pick, the body a moment after you stop typing); saves run in order (src/lore.ts). Publishing makes it
@@ -19,13 +19,16 @@ import { KIND_INFO, LORE_KINDS, deleteLore, entries, isDraft, isKind, loadLore, 
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
+// Lore or Pithub (the route's meta.section): which table, route names and wording.
+const section = loreSection(route.meta.section)
+const { entries } = section.store
 
 // The fields are taken once the entry has been fetched afresh (not from the shared list's older copy), so the version
 // saves are guarded with (src/lore.ts) is the one on screen.
 const loadError = ref('')
 const fresh = ref(false)
 onMounted(async () => {
-  loadError.value = await loadLore()
+  loadError.value = await section.store.load()
   fresh.value = !loadError.value
 })
 const entry = computed(() => entries.value.find((other) => other.id === id))
@@ -63,7 +66,7 @@ async function save(extra: { published_at?: string | null } = {}) {
   saved.value = false
   const name = title.value.trim()
   const fields = { title: name, kind: kind.value, summary: summary.value, body, related: related.value, ...extra }
-  const failed = !name ? 'A title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await saveLore(id, fields)
+  const failed = !name ? 'A title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await section.store.save(id, fields)
   saving.value--
   error.value = failed ?? ''
   saved.value = !failed
@@ -111,9 +114,9 @@ function addRelated(relatedId: string) {
 const deleteError = ref('') // shown in the danger zone, beside its button
 async function remove() {
   if (!(await confirmAction(`Delete ${entry.value?.title}? Links to it stop working. This can't be undone.`, { confirmLabel: 'Delete entry', danger: true }))) return
-  const failed = await deleteLore(id)
+  const failed = await section.store.remove(id)
   deleteError.value = failed ?? ''
-  if (!failed) router.push({ name: 'lore' })
+  if (!failed) router.push({ name: section.list })
 }
 </script>
 
@@ -121,18 +124,18 @@ async function remove() {
   <main class="page">
     <p v-if="!profile" class="dim">Loading…</p>
     <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
-    <p v-else-if="loadError" class="notice warn" role="alert">Lore didn't load: {{ loadError }}</p>
+    <p v-else-if="loadError" class="notice warn" role="alert">{{ section.name }} didn't load: {{ loadError }}</p>
     <p v-else-if="!fresh" class="dim">Loading…</p>
     <p v-else-if="!entry" class="empty" role="status">
       <span>This entry isn't available.</span>
-      <RouterLink :to="{ name: 'lore' }">Back to Lore</RouterLink>
+      <RouterLink :to="{ name: section.list }">Back to {{ section.name }}</RouterLink>
     </p>
 
     <template v-else>
       <PageHeader
         :title="entry.title"
         summary="Publish when it's ready."
-        :crumbs="[{ label: 'Lore', to: { name: 'lore' } }, { label: entry.title, to: { name: 'lore-entry', params: { id } } }, { label: 'Edit' }]"
+        :crumbs="[{ label: section.name, to: { name: section.list } }, { label: entry.title, to: { name: section.entry, params: { id } } }, { label: 'Edit' }]"
       />
 
       <!-- Where it stands: draft or published, the save status, and what to do next. -->
@@ -147,7 +150,7 @@ async function remove() {
         </template>
         <SaveStatus :saving="saving > 0" :saved="saved" :error="error" :can-retry="!conflict" @retry="save()" />
         <div class="next-actions">
-          <button type="button" class="small" @click="router.push({ name: 'lore-entry', params: { id } })">View entry</button>
+          <button type="button" class="small" @click="router.push({ name: section.entry, params: { id } })">View entry</button>
           <button v-if="draft" type="button" class="primary small" @click="publish">Publish entry</button>
           <button v-else type="button" class="small" @click="unpublish">Unpublish entry</button>
         </div>
@@ -178,7 +181,7 @@ async function remove() {
           </section>
 
           <section class="panel">
-            <SheetField title="Body" :doc="entry.body" editable quiet :links="linkable" :save="saveBody" />
+            <SheetField title="Body" :doc="entry.body" editable quiet :links="section.links ? linkable : undefined" :save="saveBody" />
           </section>
         </div>
 

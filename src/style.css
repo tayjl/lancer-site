@@ -24,7 +24,7 @@
   --dead: #b1afba; /* dead: the dim grey, always with the skull */
   --info: #a6d8ea; /* neutral information and "changed" */
 
-  /* The old terminal accents: only the login screen, the home page's boot sequence and the glitch. Everything else
+  /* The old terminal accents: only the login screen, the home page's boot sequence, the glitch and Pithub's skin. Everything else
      uses the status colours above. */
   --rose: #ff9eb0;
   --sky: #a6d8ea;
@@ -463,6 +463,20 @@ label.field .error {
 .crumbs li + li::before {
   content: '/' / '';
   margin-right: 6px;
+}
+
+/* Touch screens: a crumb link is a full tap target (as button.small above). */
+@media (pointer: coarse) {
+  .crumbs li {
+    display: flex;
+    align-items: center;
+  }
+
+  .crumbs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+  }
 }
 
 /* ───────────────────────── Sections ───────────────────────── */

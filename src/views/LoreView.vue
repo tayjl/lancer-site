@@ -6,19 +6,21 @@ import Icon from '../components/Icon.vue'
 import LoreEntry from '../components/LoreEntry.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { useListPane } from '../listPane'
-import {
-  KIND_INFO, LORE_KINDS, createDraft, entries, entryMeta, isDraft, loadLore, loaded, loreMatches, type LoreKind,
-} from '../lore'
+import { KIND_INFO, LORE_KINDS, entryMeta, isDraft, loreMatches, loreSection, type LoreKind } from '../lore'
 
 // Lore, like the archives' list + detail pane: a slim list of entries (a box per kind, newest first) and, on desktop,
 // the chosen entry beside it. /lore shows the newest; /lore/:id the one in the url (these are shared on Discord). On
-// phones (under 56rem, as the archives) the list is a page and an entry is a page of its own.
+// phones (under 56rem, as the archives) the list is a page and an entry is a page of its own. Pithub (/pithub) is the
+// same page on its own table, with a terminal skin (the .pithub class); the route's meta.section picks which.
 const route = useRoute()
+const section = loreSection(route.meta.section)
+const { entries, loaded } = section.store
+const pithub = route.meta.section === 'pithub'
 const router = useRouter()
 const id = computed(() => String(route.params.id ?? ''))
 
 const error = ref('')
-onMounted(async () => (error.value = await loadLore()))
+onMounted(async () => (error.value = await section.store.load()))
 
 // Search, and the kind filter (none chosen shows every kind).
 const query = ref('')
@@ -45,31 +47,33 @@ const { wide, step } = useListPane({ selected, listed: shown, pane, listBox, act
 const entryPage = computed(() => !wide.value && Boolean(id.value))
 
 async function newEntry() {
-  const draft = await createDraft()
+  const draft = await section.store.createDraft()
   if (draft.error) error.value = draft.error
-  else router.push({ name: 'lore-edit', params: { id: draft.id } })
+  else router.push({ name: section.edit, params: { id: draft.id } })
 }
 
 </script>
 
 <template>
-  <main class="page lore list-pane">
+  <main class="page lore list-pane" :class="{ pithub }">
     <!-- Phones: an entry is a page of its own. -->
     <template v-if="entryPage">
       <p v-if="!loaded" class="dim">Loading…</p>
       <p v-else-if="missing || !selected" class="empty" role="status">
         <span>This entry isn't available.</span>
-        <RouterLink :to="{ name: 'lore' }">Back to Lore</RouterLink>
+        <RouterLink :to="{ name: section.list }">Back to {{ section.name }}</RouterLink>
       </p>
-      <LoreEntry v-else :entry="selected" :entries="entries" page />
+      <LoreEntry v-else :entry="selected" :entries="entries" :section="section" page />
     </template>
 
     <template v-else>
-      <PageHeader title="Lore" :summary="String(route.meta.summary ?? '')">
+      <PageHeader :title="section.name" :summary="String(route.meta.summary ?? '')">
         <button v-if="isGm" type="button" class="primary" @click="newEntry"><Icon name="plus" />New entry</button>
       </PageHeader>
 
-      <p v-if="error" class="notice warn" role="alert">Lore didn't load: {{ error }}</p>
+      <p v-if="pithub" class="node-line" aria-hidden="true">NODE 7F//PIT <span class="flag">UNSECURED</span> CLEARANCE <span class="redact"></span></p>
+
+      <p v-if="error" class="notice warn" role="alert">{{ section.name }} didn't load: {{ error }}</p>
 
       <div class="search">
         <label class="field">
@@ -97,7 +101,7 @@ async function newEntry() {
 
       <p v-if="!loaded && !error" class="dim">Loading…</p>
       <div v-else-if="loaded && !entries.length" class="empty" role="status">
-        <span>No lore yet.</span>
+        <span>{{ section.empty }}</span>
         <button v-if="isGm" type="button" class="small" @click="newEntry">New entry</button>
       </div>
       <div v-else-if="loaded && !shown.length" class="empty" role="status">
@@ -116,7 +120,7 @@ async function newEntry() {
             <ul class="rows">
               <li v-for="entry in group.list" :key="entry.id">
                 <RouterLink
-                  :to="{ name: 'lore-entry', params: { id: entry.id } }"
+                  :to="{ name: section.entry, params: { id: entry.id } }"
                   :replace="wide"
                   class="row"
                   :aria-current="wide && entry === selected ? 'true' : undefined"
@@ -134,9 +138,9 @@ async function newEntry() {
         <div v-if="wide" ref="pane" class="pane" aria-live="polite">
           <p v-if="missing || !selected" class="empty" role="status">
             <span>This entry isn't available.</span>
-            <RouterLink :to="{ name: 'lore' }">Back to Lore</RouterLink>
+            <RouterLink :to="{ name: section.list }">Back to {{ section.name }}</RouterLink>
           </p>
-          <LoreEntry v-else :entry="selected" :entries="entries" />
+          <LoreEntry v-else :entry="selected" :entries="entries" :section="section" />
         </div>
       </div>
     </template>
@@ -204,6 +208,93 @@ async function newEntry() {
 
 .filters .private {
   margin-left: auto;
+}
+
+/* --- Pithub: the same page in a terminal skin. Mono type, square corners, scanlines on the list and the entry window
+   (never full-page or animated), the glitch on the title only. Lilac keeps its one job (links, chosen row, pressed chips). --- */
+.pithub,
+.pithub :is(button, input, .badge, .chip, .kind-chip) {
+  font-family: var(--mono);
+}
+
+.pithub :is(button, input, .group, .pane) {
+  border-radius: 0;
+}
+
+.pithub :deep(.page-header h1) {
+  position: relative;
+  font-family: var(--mono);
+  font-size: var(--fs-xl);
+  animation: glitch 6s steps(1, end) 2s infinite; /* style.css */
+}
+
+.pithub :deep(.page-header h1)::before {
+  content: '>// ' / '';
+  color: var(--text-dim);
+}
+
+.pithub :deep(.page-header h1)::after {
+  content: '_' / '';
+  animation: blink 1.2s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.node-line {
+  margin: 0;
+  color: var(--text-dim);
+  font: 400 var(--fs-xs) / 1.6 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.node-line .flag {
+  padding: 0 4px;
+  border: 1px solid var(--rose);
+  color: var(--rose);
+}
+
+.node-line .redact {
+  display: inline-block;
+  width: 6ch;
+  height: 0.9em;
+  background: var(--text-dim);
+  vertical-align: -0.1em;
+}
+
+.pithub .group {
+  background-image: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text) 3%, transparent) 0 1px, transparent 1px 3px);
+}
+
+.pithub .group-head h2 {
+  text-transform: lowercase;
+}
+
+.pithub .group-head h2::before {
+  content: '~/' / '';
+  color: var(--text-dim);
+}
+
+.pithub .row-facts {
+  font-size: var(--fs-xs);
+}
+
+/* The entry draws its own window (LoreEntry.vue), so the pane has no frame of its own. */
+.pithub .pane {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pithub :deep(.page-header h1),
+  .pithub :deep(.page-header h1)::after {
+    animation: none;
+  }
 }
 
 /* --- The list (22rem) and the chosen entry beside it, each sticky under the top bar and scrolling on its own.

@@ -68,7 +68,7 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 
 ## Hosted migrations
 
-**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). Every migration through `20261121160000_remove_active_effects` is on the hosted project (applied 2026-11-21). What each adds, and what breaks on a project without it:
+**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). Every migration through `20261121170000_pithub_entries` is on the hosted project (applied 2026-11-21). What each adds, and what breaks on a project without it:
 
 | Migration | What it adds |
 |---|---|
@@ -105,3 +105,4 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 | `20261121140000_homebrew_rules` | `bionics.effect_bonuses` / `integrated` / `special_equipment` / `replace_integrated` / `requires` and their `save_bionic` arguments (biomod saves fail without it); submit checks for requirements, granted equipment, replace-mount choices and biomod mod points (`sheet_rule_problems`) |
 | `20261121150000_gm_edit_mode` | `character_sheets.gm_grants` (free ranks and items a GM gave; GM/owner-only, sheet reads and saves that select it fail without it), submit manna check skips granted ranks and items, GMs edit any service record entry |
 | `20261121160000_remove_active_effects` | One-off: strips COMP/CON `active_effects` from `content_items.data` and `edited` (backup in `docs/data/hidden-effects-backup.json`); private helpers only, nothing breaks without it (the importer drops them too) |
+| `20261121170000_pithub_entries` | Pithub table (`pithub_entries`, same columns and rules as lore); `/pithub` fails to load without it |

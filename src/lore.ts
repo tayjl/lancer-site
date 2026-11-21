@@ -42,59 +42,76 @@ export function loreMatches(entry: Pick<LoreEntry, 'title' | 'summary' | 'body'>
   return words.every((word) => text.includes(word))
 }
 
-// Everything the user may read, newest first. Shared by the pages, so moving between them shows entries at once
-// while the latest are fetched again.
-export const entries = shallowRef<LoreEntry[]>([])
-export const loaded = ref(false)
-
-// Writes run one after another, and a fetch waits for them, so a save can't be overtaken (or overwritten by a
-// stale read of the list).
-let queue: Promise<unknown> = Promise.resolve()
-const queued = <T>(run: () => PromiseLike<T>): Promise<T> => {
-  const result = queue.then(run, run)
-  queue = result
-  return result
-}
-
 const sorted = (list: LoreEntry[]) => [...list].sort((a, b) => entryDate(b).localeCompare(entryDate(a)))
 
-// Returns an error message, or '' when it worked.
-export async function loadLore() {
-  const { data, error } = await queued(() => supabase.from('lore_entries').select('*, author:profiles(display_name)'))
-  if (!error) {
-    entries.value = sorted(data as unknown as LoreEntry[])
-    loaded.value = true
+type LoreTable = 'lore_entries' | 'pithub_entries'
+type LoreFields = Pick<TablesUpdate<'lore_entries'>, 'title' | 'kind' | 'summary' | 'body' | 'related' | 'published_at'>
+
+// One store per table. "entries" is everything the user may read, newest first. Shared by the pages, so moving between
+// them shows entries at once while the latest are fetched again.
+function loreStore(table: LoreTable) {
+  const entries = shallowRef<LoreEntry[]>([])
+  const loaded = ref(false)
+  // shortcut: pithub_entries has lore_entries' exact columns, so one table type serves both; split the types if they ever differ.
+  const from = () => supabase.from(table as 'lore_entries')
+
+  // Writes run one after another, and a fetch waits for them, so a save can't be overtaken (or overwritten by a
+  // stale read of the list).
+  let queue: Promise<unknown> = Promise.resolve()
+  const queued = <T>(run: () => PromiseLike<T>): Promise<T> => {
+    const result = queue.then(run, run)
+    queue = result
+    return result
   }
-  return error?.message ?? ''
-}
 
-// A new draft: the GM fills it in on its edit page. Returns the new id, or an error message.
-export async function createDraft() {
-  const { data, error } = await queued(() => supabase.from('lore_entries').insert({ title: 'Untitled entry', kind: 'story' }).select('id').single())
-  return { id: data?.id ?? '', error: error?.message ?? '' }
-}
+  // Returns an error message, or '' when it worked.
+  async function load() {
+    const { data, error } = await queued(() => from().select('*, author:profiles(display_name)'))
+    if (!error) {
+      entries.value = sorted(data as unknown as LoreEntry[])
+      loaded.value = true
+    }
+    return error?.message ?? ''
+  }
 
-// Saves some fields of one entry (in order, after earlier saves), keeping the shared list current. It only writes if the
-// entry is still the version the list holds (loaded or last saved here): if someone else saved it since, nothing is
-// written and the error is CHANGED_ELSEWHERE. Returns an error message, or null.
-export function saveLore(id: string, fields: Pick<TablesUpdate<'lore_entries'>, 'title' | 'kind' | 'summary' | 'body' | 'related' | 'published_at'>) {
-  return queued(async () => {
-    const seen = entries.value.find((entry) => entry.id === id)?.updated_at ?? ''
-    const result = await checkWrite(await supabase.from('lore_entries').update(fields).eq('id', id).eq('updated_at', seen).select('*'), {
-      seen,
-      recheck: () => supabase.from('lore_entries').select('updated_at').eq('id', id).maybeSingle(),
+  // A new draft: the GM fills it in on its edit page. Returns the new id, or an error message.
+  async function createDraft() {
+    const { data, error } = await queued(() => from().insert({ title: 'Untitled entry', kind: 'story' }).select('id').single())
+    return { id: data?.id ?? '', error: error?.message ?? '' }
+  }
+
+  // Saves some fields of one entry (in order, after earlier saves), keeping the shared list current. It only writes if the
+  // entry is still the version the list holds (loaded or last saved here): if someone else saved it since, nothing is
+  // written and the error is CHANGED_ELSEWHERE. Returns an error message, or null.
+  function save(id: string, fields: LoreFields) {
+    return queued(async () => {
+      const seen = entries.value.find((entry) => entry.id === id)?.updated_at ?? ''
+      const result = await checkWrite(await from().update(fields).eq('id', id).eq('updated_at', seen).select('*'), {
+        seen,
+        recheck: () => from().select('updated_at').eq('id', id).maybeSingle(),
+      })
+      // The author never changes, so the entry keeps the one it has.
+      const row = result.row as unknown as Omit<LoreEntry, 'author'> | null
+      if (row) entries.value = sorted(entries.value.map((entry) => (entry.id === id ? { ...entry, ...row } : entry)))
+      return result.error
     })
-    // The author never changes, so the entry keeps the one it has.
-    const row = result.row as unknown as Omit<LoreEntry, 'author'> | null
-    if (row) entries.value = sorted(entries.value.map((entry) => (entry.id === id ? { ...entry, ...row } : entry)))
-    return result.error
-  })
+  }
+
+  function remove(id: string) {
+    return queued(async () => {
+      const { error } = await checkWrite(await from().delete().eq('id', id).select('id'))
+      if (!error) entries.value = entries.value.filter((entry) => entry.id !== id)
+      return error
+    })
+  }
+
+  return { entries, loaded, load, createDraft, save, remove }
 }
 
-export function deleteLore(id: string) {
-  return queued(async () => {
-    const { error } = await checkWrite(await supabase.from('lore_entries').delete().eq('id', id).select('id'))
-    if (!error) entries.value = entries.value.filter((entry) => entry.id !== id)
-    return error
-  })
+// Each section's table, routes and wording. The views pick one by route meta.section; two stores, so moving between
+// lore and Pithub never mixes their lists.
+export const LORE_SECTIONS = {
+  lore: { name: 'Lore', empty: 'No lore yet.', list: 'lore', entry: 'lore-entry', edit: 'lore-edit', links: true, store: loreStore('lore_entries') },
+  pithub: { name: 'Pithub', empty: 'No entries yet.', list: 'pithub', entry: 'pithub-entry', edit: 'pithub-edit', links: false, store: loreStore('pithub_entries') },
 }
+export const loreSection = (section: unknown) => LORE_SECTIONS[section === 'pithub' ? 'pithub' : 'lore']

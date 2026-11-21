@@ -13,10 +13,9 @@ const pages = computed(() => [
   [
     { name: 'pilot', label: 'my pilot' },
     { name: 'registry', label: 'registry' },
-    { name: 'pending', label: 'pending' },
-    { name: 'memorial', label: 'memorial' },
     { name: 'archives', label: 'archives' },
     { name: 'lore', label: 'lore' },
+    { name: 'combat', label: 'combat' },
   ],
   ...(isGm.value
     ? [
@@ -34,7 +33,7 @@ const pages = computed(() => [
 <template>
   <main class="home">
     <h1 class="sr-only">HOR_OS</h1>
-    <BootSequence @done="booted = true" />
+    <BootSequence :link="{ name: 'pithub' }" @done="booted = true" />
 
     <nav class="links" aria-label="Pages">
       <div v-for="(group, i) in pages" :key="i" class="row" :class="{ waiting: !booted }">

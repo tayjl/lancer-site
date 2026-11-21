@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { RouterLink, type RouteLocationRaw } from 'vue-router'
 // The boot text and art come from COMP/CON's HORUS start-up log, by Massif Press (GPL-3.0).
 import art from '../assets/boot/art.txt?raw'
 // The chat is our own. src/chat.ts explains its format.
@@ -12,7 +13,7 @@ import ChatLine from './ChatLine.vue'
 // The HOR_OS boot scrawl: the art (top) and the terminal log (middle). The login page
 // lays them out with the Uplink bar underneath. Any key or a click skips to the end, and it's
 // instant for reduced motion. "done" fires when the log finishes, so the button can appear
-// while the chat is still arriving.
+// while the chat is still arriving. With a "link" (the home page's), the art opens that page once the whole boot has played.
 const toLines = (text: string) => text.replace(/\r/g, '').trimEnd().split('\n')
 
 const introLines = toLines(intro)
@@ -56,6 +57,7 @@ const delays = [
 ]
 const CHAT_DELAY = 1100
 
+defineProps<{ link?: RouteLocationRaw }>()
 const emit = defineEmits<{ done: [] }>()
 const shown = ref(0)
 const chatShown = ref(0)
@@ -116,18 +118,20 @@ onUnmounted(() => {
 
 const visible = (start: number, count: number) => Math.min(Math.max(shown.value - start, 0), count)
 
+// The whole boot, chat included, has played or been skipped (at once for reduced motion).
+const finished = computed(() => chatShown.value === chatLines.length)
 const artShown = computed(() => visible(introLines.length, artLines.length))
 </script>
 
 <template>
-  <!-- Both parts are flavour text only, so screen readers skip them. -->
-  <div class="art-slot" aria-hidden="true" @click="skip">
+  <!-- Both parts are flavour text only, so screen readers skip them (aria-hidden is on the <pre>s, never around a link). -->
+  <component :is="link && finished ? RouterLink : 'div'" :to="link && finished ? link : undefined" :aria-label="link && finished ? 'Pithub' : undefined" class="art-slot" @click="skip">
     <!-- Every art line is laid out from the start (just hidden), so the space is reserved.
          Kept on one line: inside <pre>, any extra line break would show up as a blank line. -->
-    <pre class="art art-full"><span v-for="(parts, i) in artLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="part.tone">{{ part.text }}</span></span></pre>
+    <pre class="art art-full" aria-hidden="true"><span v-for="(parts, i) in artLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="part.tone">{{ part.text }}</span></span></pre>
     <!-- Only one of these two is shown, depending on the column's width (see the @container rule). -->
-    <pre class="art art-small"><span v-for="(parts, i) in smallArtLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="part.tone">{{ part.text }}</span></span></pre>
-  </div>
+    <pre class="art art-small" aria-hidden="true"><span v-for="(parts, i) in smallArtLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="part.tone">{{ part.text }}</span></span></pre>
+  </component>
 
   <div ref="log" class="log" aria-hidden="true" @click="skip">
     <div class="log-lines">
@@ -174,6 +178,12 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
   line-height: 1.15;
   line-height: round(1.15em, 1px);
   animation: glitch 6s steps(1, end) 2s infinite; /* style.css */
+}
+
+a.art-slot {
+  color: inherit;
+  text-decoration: none;
+  cursor: default; /* no hover hint: it's a secret */
 }
 
 .art-line {

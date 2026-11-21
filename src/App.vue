@@ -6,7 +6,6 @@ import { isGm, isOwner, loadProfile, profile, profileError, session } from './au
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import InfoDialog from './components/InfoDialog.vue'
 import { supabase } from './lib/supabaseClient'
-import { sectionOverride } from './router'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,17 +18,16 @@ const logoArt = logo.replace(/\r/g, '').trimEnd()
 const tabs = [
   { name: 'pilot', label: 'My pilot' },
   { name: 'registry', label: 'Registry' },
-  { name: 'pending', label: 'Pending' },
-  { name: 'memorial', label: 'Memorial' },
   { name: 'archives', label: 'Archives' },
   { name: 'lore', label: 'Lore' },
+  { name: 'combat', label: 'Combat' },
 ]
 const gmTabs = computed(() => [
   { name: 'gm-pilots', label: 'Pilots' },
   { name: 'gm-changes', label: 'Changes' },
   ...(isOwner.value ? [{ name: 'gm-content', label: 'Content' }] : []),
 ])
-const isCurrent = (name: string) => route.name === name || (sectionOverride.value ?? route.meta.section) === name
+const isCurrent = (name: string) => route.name === name || route.meta.section === name
 // Set on every tab, so it overrides RouterLink's own (which only marks the exact page).
 const current = (name: string) => (isCurrent(name) ? 'page' : undefined)
 
@@ -97,7 +95,7 @@ async function disconnect() {
     </header>
 
     <!-- Keyed by path, so going from one pilot's record (or your own sheet) to another starts the page afresh. The lore
-         list and its entries are one page (the list keeps its place and search as you read). -->
+         (and Pithub) list and its entries are one page (the list keeps its place and search as you read). -->
     <main v-if="profileError" class="page">
       <div class="notice warn" role="alert">
         <div class="notice-head">
@@ -107,7 +105,7 @@ async function disconnect() {
         <p>Can't reach the server. An owner may need to restore the paused project.</p>
       </div>
     </main>
-    <RouterView v-else :key="route.meta.section === 'lore' ? 'lore' : route.path" />
+    <RouterView v-else :key="route.meta.section === 'lore' || route.meta.section === 'pithub' ? route.meta.section : route.path" />
   </div>
   <!-- The full information on any item (src/info.ts), opened from cards and pickers anywhere. -->
   <InfoDialog />

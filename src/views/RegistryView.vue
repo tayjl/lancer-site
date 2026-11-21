@@ -1,16 +1,35 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '../components/PageHeader.vue'
 import PilotIdCard from '../components/PilotIdCard.vue'
+import SheetTabs from '../components/SheetTabs.vue'
 import { displayColour } from '../pilotColour'
 import { fetchPilotCards, pilotMatches, type PilotCardRow } from '../pilots'
 
-// A grid of pilot ID cards (PilotIdCard.vue, no download or save here) with one status (route meta.status): the registry
-// shows approved pilots, pending the new pilots waiting on a GM, the memorial dead pilots. Cards hold public info only,
-// so every logged-in user sees them. Each card links to the record. The search filters the loaded cards (pilotMatches
+// A grid of pilot ID cards (PilotIdCard.vue, no download or save here) for one list, chosen by the tabs and kept in the
+// url (?list=): approved pilots, the new pilots waiting on a GM (pending), or the dead (memorial). Cards hold public info
+// only, so every logged-in user sees them. Each card links to the record. The search filters the loaded cards (pilotMatches
 // in src/pilots.ts).
+const LISTS = {
+  approved: { label: 'Approved', status: 'approved', summary: 'Every approved pilot.', empty: 'No approved pilots yet.' },
+  pending: { label: 'Pending', status: 'pending', summary: 'New pilots waiting on a GM.', empty: 'No pending pilots.' },
+  memorial: { label: 'Memorial', status: 'dead', summary: 'Pilots who died.', empty: 'No dead pilots.' },
+} as const
+const tabLabels = Object.values(LISTS).map((l) => l.label)
+
 const route = useRoute()
+const router = useRouter()
+const key = computed(() => (route.query.list === 'pending' || route.query.list === 'memorial' ? route.query.list : 'approved'))
+const list = computed(() => LISTS[key.value])
+// Replace, not push, so Back leaves the page instead of walking through the tabs.
+const tab = computed({
+  get: () => list.value.label,
+  set: (label) => {
+    const next = (Object.keys(LISTS) as (keyof typeof LISTS)[]).find((k) => LISTS[k].label === label)!
+    router.replace({ query: { ...route.query, list: next === 'approved' ? undefined : next } })
+  },
+})
 const pilots = shallowRef<PilotCardRow[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -18,10 +37,12 @@ const query = ref('')
 const shown = computed(() => pilots.value.filter((pilot) => pilotMatches(pilot, query.value)))
 
 watch(
-  () => route.meta.status,
+  () => list.value.status,
   async (status) => {
     loading.value = true
-    ;({ pilots: pilots.value, error: error.value } = await fetchPilotCards(status ?? 'approved'))
+    const result = await fetchPilotCards(status)
+    if (status !== list.value.status) return // A newer list was chosen while this loaded.
+    ;({ pilots: pilots.value, error: error.value } = result)
     loading.value = false
   },
   { immediate: true },
@@ -30,13 +51,14 @@ watch(
 
 <template>
   <main class="page">
-    <PageHeader :title="String(route.meta.title)" :summary="route.meta.summary">
+    <PageHeader title="Pilot registry" :summary="list.summary">
       <span v-if="!loading && !error && pilots.length" class="dim"><span class="num">{{ pilots.length }}</span> {{ pilots.length === 1 ? 'pilot' : 'pilots' }}</span>
     </PageHeader>
+    <SheetTabs v-model="tab" :tabs="tabLabels" label="Pilot lists" class="list-tabs" />
 
     <p v-if="loading" class="dim">Loading…</p>
     <p v-else-if="error" class="notice warn" role="alert">Pilots didn't load: {{ error }}</p>
-    <p v-else-if="!pilots.length" class="empty">{{ route.meta.empty }}</p>
+    <p v-else-if="!pilots.length" class="empty">{{ list.empty }}</p>
     <template v-else>
       <div class="search">
         <label class="field">
@@ -70,6 +92,10 @@ watch(
 </template>
 
 <style scoped>
+.list-tabs {
+  margin: calc(-1 * var(--space-s)) 0 var(--space-l);
+}
+
 /* Showcase cards, so the group and each card's player line are centred: one to a row on phones, two or three on desktop. */
 .id-grid {
   display: grid;

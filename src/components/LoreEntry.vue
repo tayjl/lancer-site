@@ -3,13 +3,14 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import { useCopyLink } from '../copyLink'
-import { KIND_INFO, entryMeta, isDraft, type LoreEntry } from '../lore'
+import { KIND_INFO, LORE_SECTIONS, entryMeta, isDraft, type LoreEntry } from '../lore'
 import Icon from './Icon.vue'
 import RichText from './RichText.vue'
 
 // One lore entry, read: crumbs, kind, title, summary, who wrote it and when, the body, then the entries it's related
 // to. In the list's pane on desktop (a second-level heading) and as its own page on phones (the page's heading).
-const props = defineProps<{ entry: LoreEntry; entries: LoreEntry[]; page?: boolean }>()
+const props = defineProps<{ entry: LoreEntry; entries: LoreEntry[]; section: (typeof LORE_SECTIONS)[keyof typeof LORE_SECTIONS]; page?: boolean }>()
+const pithub = props.section === LORE_SECTIONS.pithub
 const router = useRouter()
 
 const kind = computed(() => KIND_INFO[props.entry.kind])
@@ -23,10 +24,11 @@ const { copied, copyLink } = useCopyLink()
 </script>
 
 <template>
-  <article class="entry">
+  <article class="entry" :class="{ pithub }">
+    <p v-if="pithub" class="file-bar" aria-hidden="true">PITHUB://{{ entry.id.slice(0, 8) }}</p>
     <nav class="crumbs" aria-label="Breadcrumb">
       <ol>
-        <li><RouterLink :to="{ name: 'lore' }">Lore</RouterLink></li>
+        <li><RouterLink :to="{ name: section.list }">{{ section.name }}</RouterLink></li>
         <li>{{ kind.plural }}</li>
         <li aria-current="page">{{ entry.title }}</li>
       </ol>
@@ -36,8 +38,8 @@ const { copied, copyLink } = useCopyLink()
       <div class="top">
         <span class="chip kind"><Icon :name="kind.icon" />{{ kind.name }}</span>
         <span class="actions">
-          <span aria-live="polite"><button type="button" class="quiet small" @click="copyLink({ name: 'lore-entry', params: { id: entry.id } })"><Icon name="link" />{{ copied || 'Copy link' }}</button></span>
-          <button v-if="isGm" type="button" class="small" @click="router.push({ name: 'lore-edit', params: { id: entry.id } })">Edit entry</button>
+          <span aria-live="polite"><button type="button" class="quiet small" @click="copyLink({ name: section.entry, params: { id: entry.id } })"><Icon name="link" />{{ copied || 'Copy link' }}</button></span>
+          <button v-if="isGm" type="button" class="small" @click="router.push({ name: section.edit, params: { id: entry.id } })">Edit entry</button>
         </span>
       </div>
       <component :is="page ? 'h1' : 'h2'" class="title">{{ entry.title }}</component>
@@ -56,7 +58,7 @@ const { copied, copyLink } = useCopyLink()
       <ul>
         <li v-for="other in related" :key="other.id">
           <Icon :name="KIND_INFO[other.kind].icon" class="kind-icon" />
-          <RouterLink :to="{ name: 'lore-entry', params: { id: other.id } }">{{ other.title }}</RouterLink>
+          <RouterLink :to="{ name: section.entry, params: { id: other.id } }">{{ other.title }}</RouterLink>
           <span class="dim meta-end">{{ entryMeta(other) }}</span>
         </li>
       </ul>
@@ -210,6 +212,83 @@ const { copied, copyLink } = useCopyLink()
   margin-left: auto;
   font-size: var(--fs-s);
   white-space: nowrap;
+}
+
+/* --- Pithub: the entry as a terminal window (the page's skin is in LoreView.vue). Only mono type and square corners
+   change; the body's line below is the one to drop if the GMs want sans bodies for long stories. --- */
+.pithub,
+.pithub :is(button, .chip, .badge) {
+  font-family: var(--mono);
+}
+
+.pithub.entry {
+  padding: 0 var(--space-xl) var(--space-xl);
+  border: 1px solid var(--rule);
+  background-color: var(--panel);
+  background-image: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--text) 3%, transparent) 0 1px, transparent 1px 3px);
+}
+
+.file-bar {
+  max-width: none; /* paragraphs have a reading measure; the bar spans the window */
+  margin: 0 calc(-1 * var(--space-xl)) var(--space-l);
+  padding: var(--space-xs) var(--space-m);
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
+  color: var(--text-dim);
+  font: 700 var(--fs-xs) / 1.6 var(--mono);
+  letter-spacing: 0.08em;
+}
+
+.pithub .title {
+  font-family: var(--mono);
+}
+
+.pithub .title::before {
+  content: '> ' / '';
+  color: var(--text-dim);
+}
+
+.pithub .summary {
+  font-size: var(--fs-m);
+}
+
+.pithub .meta {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+}
+
+.pithub.entry .lore-body {
+  max-width: 70ch;
+  font-family: var(--mono);
+  font-size: var(--fs-m);
+}
+
+.pithub.entry .lore-body :deep(h3)::before {
+  content: '## ' / '';
+  color: var(--text-dim);
+}
+
+.pithub.entry .lore-body :deep(li)::marker {
+  content: '- ' / '';
+  color: var(--text-dim);
+}
+
+.pithub .related .sheet-label {
+  font-family: var(--mono);
+}
+
+@media (max-width: 40rem) {
+  .pithub .title {
+    font-size: 20px;
+  }
+
+  .pithub.entry {
+    padding: 0 var(--space-l) var(--space-l);
+  }
+
+  .file-bar {
+    margin-inline: calc(-1 * var(--space-l));
+  }
 }
 
 @media (max-width: 40rem) {

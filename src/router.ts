@@ -1,7 +1,5 @@
-import { ref } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { authReady, session } from './auth'
-import type { Tables } from './lib/database.types'
 import LoginView from './views/LoginView.vue'
 
 // The site is character management only: your pilot, the pilot lists, and the GM side of approving and
@@ -19,12 +17,10 @@ declare module 'vue-router' {
     public?: boolean
     // A wider page and top bar (120rem, not 84rem), for working pages such as the content editor.
     wide?: boolean
-    // Card grids (RegistryView): which pilots to list, and what to say when there are none.
-    status?: Tables<'characters'>['status']
-    empty?: string
   }
 }
 
+const PITHUB_META = { title: 'Pithub', summary: 'Files that were never meant to leak.', section: 'pithub' }
 const LORE_META = { title: 'Lore', summary: 'Stories, places and people of the campaign, written by the GMs.', section: 'lore' }
 
 // Every page but the login screen loads its code when first visited, so the first paint downloads less.
@@ -50,7 +46,7 @@ export const router = createRouter({
       path: '/registry',
       name: 'registry',
       component: () => import('./views/RegistryView.vue'),
-      meta: { title: 'Pilot registry', summary: 'Every approved pilot.', status: 'approved', empty: 'No approved pilots yet.' },
+      meta: { title: 'Pilot registry' },
     },
     // A pilot's record: the pilot sheet, read-only (and its mechs' pages).
     {
@@ -65,25 +61,9 @@ export const router = createRouter({
       component: () => import('./views/MechView.vue'),
       meta: { title: 'Mech', section: 'registry' },
     },
-    // New pilots a player has submitted and a GM hasn't decided on, for everyone to read. GMs review them from the gm pilots tab. Changes to
-    // approved pilots hold private data, so they're only in the gm changes tab.
-    {
-      path: '/pending',
-      name: 'pending',
-      component: () => import('./views/RegistryView.vue'),
-      meta: {
-        title: 'Pending pilots',
-        summary: 'New pilots waiting on a GM.',
-        status: 'pending',
-        empty: 'No pending pilots.',
-      },
-    },
-    {
-      path: '/memorial',
-      name: 'memorial',
-      component: () => import('./views/RegistryView.vue'),
-      meta: { title: 'Memorial', summary: 'Pilots who died.', status: 'dead', empty: 'No dead pilots.' },
-    },
+    // The pending and memorial lists are tabs of the registry (RegistryView.vue). Old links keep working.
+    { path: '/pending', redirect: { name: 'registry', query: { list: 'pending' } } },
+    { path: '/memorial', redirect: { name: 'registry', query: { list: 'memorial' } } },
     // Every piece of game content, browsable and searchable (ArchivesView.vue).
     {
       path: '/archives',
@@ -91,10 +71,15 @@ export const router = createRouter({
       component: () => import('./views/ArchivesView.vue'),
       meta: { title: 'Archives' },
     },
+    { path: '/combat', name: 'combat', component: () => import('./views/CombatView.vue'), meta: { title: 'Combat' } },
     // Lore the GMs write: the list with the newest entry (or the one in the url) beside it. /lore/:id urls are shared on Discord.
     { path: '/lore', name: 'lore', component: () => import('./views/LoreView.vue'), meta: LORE_META },
     { path: '/lore/:id', name: 'lore-entry', component: () => import('./views/LoreView.vue'), meta: LORE_META },
     { path: '/lore/:id/edit', name: 'lore-edit', component: () => import('./views/LoreEditView.vue'), meta: { ...LORE_META, gm: true } },
+    // Pithub: lore on its own table with a terminal skin (LoreView.vue). Reached by the home page's art, not the tabs.
+    { path: '/pithub', name: 'pithub', component: () => import('./views/LoreView.vue'), meta: PITHUB_META },
+    { path: '/pithub/:id', name: 'pithub-entry', component: () => import('./views/LoreView.vue'), meta: PITHUB_META },
+    { path: '/pithub/:id/edit', name: 'pithub-edit', component: () => import('./views/LoreEditView.vue'), meta: { ...PITHUB_META, gm: true } },
     // GM tabs. /gm opens the first one.
     { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },
     {
@@ -150,13 +135,8 @@ router.beforeEach(async (to) => {
   if (to.name === 'login' && session.value) return { name: 'home' }
 })
 
-// The list a pilot is in, by status: its route name and label (the record's breadcrumb and top bar tab).
+// The list a pilot is in, by status: a link to it and its label (the record's breadcrumb).
 export const pilotList = (status: string | undefined) =>
-  status === 'pending' ? { name: 'pending', label: 'Pending' } : status === 'dead' ? { name: 'memorial', label: 'Memorial' } : { name: 'registry', label: 'Registry' }
-
-// The tab a page marks when its route meta.section can't say: a pilot record marks the list the pilot is in.
-// Set by the record's view once the pilot loads; cleared when the path changes (App.vue keys views by path).
-export const sectionOverride = ref<string | null>(null)
-router.afterEach((to, from) => {
-  if (to.path !== from.path) sectionOverride.value = null
-})
+  status === 'pending' ? { to: { name: 'registry', query: { list: 'pending' } }, label: 'Pending' }
+  : status === 'dead' ? { to: { name: 'registry', query: { list: 'memorial' } }, label: 'Memorial' }
+  : { to: { name: 'registry' }, label: 'Registry' }
