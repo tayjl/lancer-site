@@ -80,29 +80,27 @@ watch(
   list-style: none;
 }
 
-/* The whole card is the link: hover and focus turn its border lilac. content-visibility skips drawing cards off screen
-   (each is an SVG with a blur filter). */
+/* The card itself is the link, with no panel around it: hover lights its edge lilac (the glow follows the cut corners),
+   focus adds the usual ring. content-visibility skips drawing cards off screen (each is an SVG with a blur filter). */
 .id-link {
   display: block;
   max-width: 36rem;
   margin-inline: auto;
-  border-radius: var(--radius);
   color: inherit;
   text-decoration: none;
   content-visibility: auto;
   contain-intrinsic-size: auto 20rem;
 }
 
-.id-link:hover .panel,
-.id-link:focus-visible .panel {
-  border-color: var(--lilac);
+.id-link .panel {
+  padding: 0;
+  border: 0;
+  background: none;
 }
 
-/* Phones: a thinner panel edge, so the card itself gets the width. */
-@media (max-width: 30rem) {
-  .id-link .panel {
-    padding: var(--space-s);
-  }
+.id-link:hover,
+.id-link:focus-visible {
+  filter: drop-shadow(0 0 3px var(--lilac));
 }
 
 .id-grid p {

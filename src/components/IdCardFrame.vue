@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
+import { useRouter, type RouteLocationRaw } from 'vue-router'
 import { cardInk, cardToPng, saveBlob } from '../idCardExport'
 import { supabase } from '../lib/supabaseClient'
+import Icon from './Icon.vue'
 
 // What the two ID cards share (PilotIdCard.vue, MechIdCard.vue): one SVG, 856 x 540, with the top-right and bottom-left
 // corners cut off, a faint 32px grid, a static diagonal sheen and edge light in the card's accent colour (the cut corners
@@ -20,6 +22,7 @@ const props = defineProps<{
   saveable: boolean // the card shows saved, public data (approved or dead, no open change on screen, content loaded)
   cardVersion?: string | null // the fingerprint of the picture saved to storage
   savePath?: string | null // where to save the picture; null when this viewer may not
+  link?: RouteLocationRaw // the shareable page with a link preview (approved or dead pilots): adds "Copy link"
 }>()
 const emit = defineEmits<{ cardSaved: [version: string] }>()
 
@@ -45,6 +48,23 @@ async function download() {
     result.value = { ok: false, text: `Not downloaded: ${(error as Error).message || 'the card could not be drawn.'}` }
   }
   busy.value = false
+}
+
+// "Copy link" copies the registry address, which has the Discord preview: My pilot's own address (/pilot/...) is the
+// same for every player and shows whoever opens it their own pilot.
+const router = useRouter()
+const copied = ref('')
+let copyTimer: ReturnType<typeof setTimeout> | undefined
+async function copyLink() {
+  if (!props.link) return
+  try {
+    await navigator.clipboard.writeText(new URL(router.resolve(props.link).href, window.location.origin).href)
+    copied.value = 'Copied'
+  } catch {
+    copied.value = 'Not copied'
+  }
+  clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => (copied.value = ''), 2000)
 }
 
 // Discord link previews need a picture at a URL, and the Worker is too small to draw one. So the page saves the card it
@@ -78,7 +98,10 @@ watch(
   },
   { immediate: true },
 )
-onBeforeUnmount(() => clearTimeout(timer))
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  clearTimeout(copyTimer)
+})
 </script>
 
 <template>
@@ -86,6 +109,7 @@ onBeforeUnmount(() => clearTimeout(timer))
     <!-- The button and its result sit in the section's head (FileSection.vue), so both show while the section is folded. -->
     <Teleport v-if="extra" defer :to="`#${extra}`">
       <span v-if="result" class="result" :class="{ error: !result.ok }" :role="result.ok ? 'status' : 'alert'">{{ result.text }}</span>
+      <span v-if="link" aria-live="polite"><button type="button" class="quiet small" @click="copyLink"><Icon name="link" />{{ copied || 'Copy link' }}</button></span>
       <button type="button" class="small" :disabled="busy" @click="download">{{ busy ? 'Drawing…' : 'Download card' }}</button>
     </Teleport>
     <p v-if="note" class="note">{{ note }}</p>

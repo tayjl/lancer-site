@@ -92,6 +92,7 @@ const saveable = computed(() => !props.draftOpen && (props.status === 'approved'
     :saveable="saveable"
     :card-version="cardVersion"
     :save-path="savePath"
+    :link="status === 'approved' || status === 'dead' ? { name: 'record-mech', params: { id, mechId } } : undefined"
     @card-saved="(version) => emit('cardSaved', version)"
   >
     <template #defs>
