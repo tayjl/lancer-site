@@ -28,7 +28,7 @@ function commit(value: string) {
     <div class="line">
       <label class="field">
         <span>Colour</span>
-        <span class="row">
+        <span class="colour-input">
           <input
             class="code"
             type="text"
@@ -71,26 +71,6 @@ function commit(value: string) {
 .field {
   flex: 1;
   min-width: 0;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-}
-
-.row input[type='text'] {
-  flex: 1;
-  min-width: 0;
-}
-
-.row input[type='color'] {
-  flex: none;
-  width: var(--tap);
-  min-height: var(--tap);
-  height: var(--tap);
-  padding: 2px;
-  cursor: pointer;
 }
 
 .error {

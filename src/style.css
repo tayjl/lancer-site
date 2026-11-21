@@ -355,6 +355,64 @@ input[type='number'] {
   box-shadow: 0 0 0 1px var(--lilac);
 }
 
+/* A colour picker: the native input drawn as a swatch of the colour in the same box as the fields, not browser chrome.
+   In <span class="colour-input"> it joins the hex box on its left into one control (PilotColourField, ColourField). */
+input[type='color'] {
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--void);
+  cursor: pointer;
+}
+
+input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 4px;
+}
+
+/* The --rule edge keeps a colour close to the background visible. */
+input[type='color']::-webkit-color-swatch {
+  border: 1px solid var(--rule);
+  border-radius: 0;
+}
+
+input[type='color']::-moz-color-swatch {
+  border: 1px solid var(--rule);
+  border-radius: 0;
+}
+
+input[type='color']:focus {
+  border-color: var(--lilac);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--lilac);
+}
+
+.colour-input {
+  display: flex;
+}
+
+.colour-input input[type='text'] {
+  flex: 1;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.colour-input input[type='color'] {
+  height: auto; /* stretches to the hex box's height */
+  margin-left: -1px; /* one shared border between the two */
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* The focused half sits on top, so its lilac ring isn't hidden under the other half. */
+.colour-input input:focus {
+  position: relative;
+  z-index: 1;
+}
+
 /* A labelled field: <label class="field"><span>name</span><input /><span class="hint">...</span></label>. The first
    span is the uppercase label. */
 label.field {

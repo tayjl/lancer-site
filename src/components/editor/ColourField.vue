@@ -10,14 +10,8 @@ defineProps<{ label: string }>()
 </script>
 
 <template>
-  <span class="colour">
+  <span class="colour-input">
     <input v-model="model" class="code" type="text" spellcheck="false" autocomplete="off" placeholder="#1c9ae8" />
     <input type="color" :value="HEX.test(model) ? model : '#000000'" :aria-label="`${label}: pick a colour`" @input="model = ($event.target as HTMLInputElement).value" />
   </span>
 </template>
-
-<style scoped>
-.colour { display: flex; align-items: center; gap: var(--space-s); }
-.colour input[type='text'] { flex: 1; min-width: 0; }
-.colour input[type='color'] { flex: none; width: var(--tap); min-height: var(--tap); height: var(--tap); padding: 2px; cursor: pointer; }
-</style>
