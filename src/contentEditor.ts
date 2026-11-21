@@ -155,8 +155,6 @@ export const EFFECT_BONUS_TYPES: EffectBonusType[] = [
   { id: 'add_tags', label: 'Adds tags to weapons', value: 'tags', filters: WEAPON_FILTERS },
   { id: 'overcharge', label: 'Overcharge heat', value: 'steps' },
 ]
-// A bonus's condition: short text, never counted, shown as a reminder.
-export const CONDITION_MAX = 120
 const FILTER_NOUNS: Record<BonusFilter, string> = { weapon_types: 'weapon type', weapon_sizes: 'weapon size', range_types: 'range type', damage_types: 'damage type' }
 // Whether the code applies a bonus anywhere: a stat, an effect, damage or attack rolls, any bonus with an accuracy (a check
 // modifier), and the pilot's own stats. Only others are shown as "not counted".
@@ -265,7 +263,6 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
     const id = String(row.id ?? '')
     if (!id) out.push(error(say(who, `effect ${index + 1} needs a type.`), `${at}bonuses.${index}.id`))
     else if (!bonusCounted(row, ctx.statIds)) out.push(warn(say(who, `Effect "${id}" isn't counted in the stats.`), `${at}bonuses.${index}.id`))
-    if (row.condition !== undefined && (typeof row.condition !== 'string' || row.condition.length > CONDITION_MAX)) out.push(error(say(who, `effect ${index + 1} condition must be text of ${CONDITION_MAX} characters or fewer.`), `${at}bonuses.${index}.condition`))
     const effect = effectType(id)
     const why = effect && effectValueProblem(effect, row)
     if (why) out.push(error(say(who, `effect ${index + 1} ${why}`), `${at}bonuses.${index}.val`))

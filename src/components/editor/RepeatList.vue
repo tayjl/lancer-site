@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { Data } from '../../contentEditor'
 import { capitalise } from '../../text'
 import Icon from '../Icon.vue'
-import { latest, useProblems } from './useFields'
+import { latest, useProblems, useRowKeys } from './useFields'
 
 // A list of grouped entries (a weapon's profiles, an item's actions, its deployables): each a folding box with a title and
 // a one-line summary, buttons to move it up or down or remove it, and "Add" under the list. The slots draw the entries:
@@ -21,11 +21,12 @@ defineSlots<{
 
 const { at } = useProblems()
 // Every entry but the first starts folded when the list is drawn (a long form stays short); ones added later start open.
-const folded = ref(new Set(model.value.slice(1).map((_, index) => index + 1)))
+const { keyOf, removed, moved } = useRowKeys()
+const folded = ref(new Set(model.value.slice(1).map((_, index) => keyOf(index + 1))))
 const toggled = (index: number, event: Event) => {
   const next = new Set(folded.value)
-  if ((event.target as HTMLDetailsElement).open) next.delete(index)
-  else next.add(index)
+  if ((event.target as HTMLDetailsElement).open) next.delete(keyOf(index))
+  else next.add(keyOf(index))
   folded.value = next
 }
 const bad = (index: number) => !!props.path && at(`${props.path}.${index}`, true).some((problem) => problem.level === 'error')
@@ -33,15 +34,20 @@ const change = (index: number, changes: Partial<T>) => (model.value = model.valu
 const move = (index: number, by: number) => {
   const next = [...model.value]
   ;[next[index], next[index + by]] = [next[index + by], next[index]]
+  moved(index, by)
   model.value = next
+}
+const remove = (index: number) => {
+  removed(index)
+  model.value = model.value.filter((_, i) => i !== index)
 }
 </script>
 
 <template>
   <div class="rows-in">
     <ol v-if="model.length" class="reps">
-      <li v-for="(item, index) in model" :key="index">
-        <details class="rep" :open="!folded.has(index)" @toggle="toggled(index, $event)">
+      <li v-for="(item, index) in model" :key="keyOf(index)">
+        <details class="rep" :open="!folded.has(keyOf(index))" @toggle="toggled(index, $event)">
           <summary>
             <span class="rep-title"><slot name="title" :item="item" :index="index">{{ capitalise(noun) }} {{ index + 1 }}</slot></span>
             <span class="rep-sum"><slot name="summary" :item="item" :index="index" /></span>
@@ -49,7 +55,7 @@ const move = (index: number, by: number) => {
             <span v-if="!fixed" class="tools">
               <button type="button" class="icon-btn" :disabled="index === 0" :aria-label="`Move ${noun} ${index + 1} up`" @click="move(index, -1)"><Icon name="chevron-up" /></button>
               <button type="button" class="icon-btn" :disabled="index === model.length - 1" :aria-label="`Move ${noun} ${index + 1} down`" @click="move(index, 1)"><Icon name="chevron-down" /></button>
-              <button type="button" class="icon-btn remove" :aria-label="`Remove ${noun} ${index + 1}`" @click="model = model.filter((_, i) => i !== index)"><Icon name="close" /></button>
+              <button type="button" class="icon-btn remove" :aria-label="`Remove ${noun} ${index + 1}`" @click="remove(index)"><Icon name="close" /></button>
             </span>
             <Icon name="chevron-down" class="fold" />
           </summary>

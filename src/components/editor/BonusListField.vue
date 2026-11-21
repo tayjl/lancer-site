@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
-import { CONDITION_MAX, DAMAGE_TYPES, EFFECT_BONUS_TYPES, FRAME_MOUNTS, RANGE_TYPES, WEAPON_MOUNTS, WEAPON_TYPES, bonusCounted, type BonusFilter, type BonusType, type Data, type EffectBonusType } from '../../contentEditor'
+import { DAMAGE_TYPES, EFFECT_BONUS_TYPES, FRAME_MOUNTS, RANGE_TYPES, WEAPON_MOUNTS, WEAPON_TYPES, bonusCounted, type BonusFilter, type BonusType, type Data, type EffectBonusType } from '../../contentEditor'
 import { hiddenTags, tagNames } from '../../gameData'
 import Icon from '../Icon.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
 import TagListField from './TagListField.vue'
 import ToggleChips from './ToggleChips.vue'
-import { latest, useProblems } from './useFields'
+import { latest, useProblems, useRowKeys } from './useFields'
 
 // An item's effects: a type (a stat the build maths counts, see BONUS_TYPES, or one of the effects in EFFECT_BONUS_TYPES), a
-// value that fits the type, and under Options the weapons it aims at, a mount limit, when it applies and whether it sets the
-// base. A row with other fields keeps them; one whose type isn't in the list stays and shows its id.
+// value that fits the type, and under Options the weapons it aims at, a mount limit and whether it sets the base. Only what
+// lasts out of combat and shows on the sheet is edited here (the rest is rules text). A row with other fields (a condition,
+// weapon sizes, a damage type; nothing official or local uses them) keeps them; one whose type isn't in the list stays and shows its id.
 const modelProp = defineModel<Data[]>({ required: true })
 const model = latest(modelProp)
 const props = withDefaults(defineProps<{ types: BonusType[]; path?: string }>(), { path: 'bonuses' })
 const { invalid, at } = useProblems()
+const { keyOf, removed } = useRowKeys()
 const uid = useId()
 const where = (index: number, key: string) => `${props.path}.${index}.${key}`
 
@@ -41,14 +43,14 @@ const FILTER_LABELS: Record<BonusFilter, { label: string; options: string[] }> =
   range_types: { label: 'range types', options: RANGE_TYPES },
   damage_types: { label: 'damage types', options: DAMAGE_TYPES },
 }
-const filtersOf = (bonus: Data) => effectOf(bonus)?.filters ?? []
+const filtersOf = (bonus: Data) => (effectOf(bonus)?.filters ?? []).filter((key) => key !== 'weapon_sizes')
 const isStat = (bonus: Data) => !effectOf(bonus)
 
 const change = (index: number, changes: Data) => (model.value = model.value.map((bonus, i) => (i === index ? { ...bonus, ...changes } : bonus)))
 // A plain number stays a number; anything else (a formula) stays text.
 const setValue = (index: number, text: string) => change(index, { val: /^-?\d+(\.\d+)?$/.test(text.trim()) ? Number(text) : text })
 const startValue = (type?: EffectBonusType) => (!type || type.value === 'number' || type.value === 'whole' ? 1 : type.value === 'steps' ? ['', '', '', ''] : type.value === 'tags' ? [] : undefined)
-// A new type starts from its own value and keeps only the options it allows; the condition always stays.
+// A new type starts from its own value and keeps only the options it allows; a condition stays.
 function setType(index: number, id: string) {
   const old = model.value[index]
   const type = effects.get(id)
@@ -64,29 +66,31 @@ const add = () => (model.value = [...model.value, { id: groups.value[0]?.types[0
 // Options: what's set in them. They start open when anything is set, and can't be folded over a problem.
 const setCount = (bonus: Data) => {
   const effect = effectOf(bonus)
-  const set = [...filtersOf(bonus).filter((key) => Array.isArray(bonus[key]) && (bonus[key] as unknown[]).length), ...(effect?.max && bonus.max ? ['max'] : []), ...(effect?.damageType && bonus.damage_type ? ['damage_type'] : []), ...(bonus.condition ? ['condition'] : []), ...(bonus.replace ? ['replace'] : [])]
+  const set = [...filtersOf(bonus).filter((key) => Array.isArray(bonus[key]) && (bonus[key] as unknown[]).length), ...(effect?.max && bonus.max ? ['max'] : []), ...(bonus.replace ? ['replace'] : [])]
   return set.length
 }
-const opened = ref(new Set(model.value.flatMap((bonus, index) => (setCount(bonus) ? [index] : []))))
+const opened = ref(new Set(model.value.flatMap((bonus, index) => (setCount(bonus) ? [keyOf(index)] : []))))
 const problem = (index: number) => at(`${props.path}.${index}`, true).some((entry) => entry.level === 'error' && !/\.(id|val)$/.test(entry.field ?? ''))
-const isOpen = (index: number) => opened.value.has(index) || problem(index)
+const isOpen = (index: number) => opened.value.has(keyOf(index)) || problem(index)
 const toggle = (index: number) => {
   if (problem(index)) return
   const next = new Set(opened.value)
-  if (!next.delete(index)) next.add(index)
+  if (!next.delete(keyOf(index))) next.add(keyOf(index))
   opened.value = next
 }
-// shortcut: a removed row leaves the open states as they are by position, fine for a short list.
+const remove = (index: number) => {
+  removed(index)
+  model.value = model.value.filter((_, i) => i !== index)
+}
 const optionsId = (index: number) => `${uid}-opts-${index}`
 const setList = (index: number, key: string, value: string[]) => change(index, { [key]: value.length ? value : undefined })
-const text = (index: number, key: string, value: string) => change(index, { [key]: value === '' ? undefined : value })
 const setSteps = (index: number, step: number, value: string) => change(index, { val: Array.from({ length: 4 }, (_, i) => (i === step ? (/^\d+$/.test(value.trim()) ? Number(value) : value) : (model.value[index].val as unknown[] | undefined)?.[i] ?? '')) })
 </script>
 
 <template>
   <div class="rows-in">
     <ul v-if="model.length" class="rows">
-      <li v-for="(bonus, index) in model" :key="index" class="entry">
+      <li v-for="(bonus, index) in model" :key="keyOf(index)" class="entry">
         <div class="line">
           <select :value="bonus.id" :aria-label="`Effect ${index + 1} type`" :aria-invalid="invalid(where(index, 'id')) || undefined" @change="setType(index, ($event.target as HTMLSelectElement).value)">
             <option v-if="!offered.has(String(bonus.id))" :value="bonus.id">{{ bonus.id ? (bonusCounted(bonus) ? bonus.id : `${bonus.id} (not counted)`) : 'Choose…' }}</option>
@@ -103,7 +107,7 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
           <button type="button" class="small quiet opts" :aria-expanded="isOpen(index)" :aria-controls="optionsId(index)" @click="toggle(index)">
             Options{{ setCount(bonus) ? ` (${setCount(bonus)})` : '' }}<Icon name="chevron-down" class="chev" />
           </button>
-          <button type="button" class="icon-btn remove" :aria-label="`Remove effect ${index + 1}`" @click="model = model.filter((_, i) => i !== index)"><Icon name="close" /></button>
+          <button type="button" class="icon-btn remove" :aria-label="`Remove effect ${index + 1}`" @click="remove(index)"><Icon name="close" /></button>
         </div>
         <TagListField v-if="effectOf(bonus)?.value === 'tags'" class="wide" :model-value="Array.isArray(bonus.val) ? bonus.val : []" :tags="tags" :label="`Effect ${index + 1} tags`" :path="where(index, 'val')" @update:model-value="change(index, { val: $event })" />
         <div v-if="effectOf(bonus)?.value === 'steps'" class="steps wide" role="group" :aria-label="`Effect ${index + 1} overcharge steps`">
@@ -114,17 +118,8 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
           <Field v-for="key in filtersOf(bonus)" :key="key" block :label="`Only these ${FILTER_LABELS[key].label}`" :path="where(index, key)">
             <ToggleChips :model-value="(bonus[key] as string[] | undefined) ?? []" :options="FILTER_LABELS[key].options" :label="`Effect ${index + 1} ${FILTER_LABELS[key].label}`" @update:model-value="setList(index, key, $event)" />
           </Field>
-          <Field v-if="effectOf(bonus)?.damageType" label="Damage type" :path="where(index, 'damage_type')">
-            <select :value="bonus.damage_type ?? ''" @change="text(index, 'damage_type', ($event.target as HTMLSelectElement).value)">
-              <option value="">Same as the weapon</option>
-              <option v-for="type in DAMAGE_TYPES" :key="type" :value="type">{{ type }}</option>
-            </select>
-          </Field>
           <Field v-if="effectOf(bonus)?.max" label="Only if fewer mounts than" :path="where(index, 'max')">
             <input type="number" min="1" step="1" class="narrow" :value="bonus.max" @input="change(index, { max: ($event.target as HTMLInputElement).value === '' ? undefined : Number(($event.target as HTMLInputElement).value) })" />
-          </Field>
-          <Field label="Only when" :path="where(index, 'condition')">
-            <input type="text" :maxlength="CONDITION_MAX" :value="bonus.condition ?? ''" @input="text(index, 'condition', ($event.target as HTMLInputElement).value)" />
           </Field>
           <label v-if="isStat(bonus)" class="check"><input type="checkbox" :checked="bonus.replace === true" @change="change(index, { replace: ($event.target as HTMLInputElement).checked || undefined })" />Sets the base</label>
         </div>

@@ -70,3 +70,20 @@ export function useEquipmentOptions() {
       .sort((a, b) => a.name.localeCompare(b.name))
   })
 }
+
+// Stable keys for a list's rows, so a row's own state (a text editor, whether it's folded) follows the row when another
+// is removed or moved. Call "removed" / "moved" with the same index the list changes at; an added row gets a key on first sight.
+export function useRowKeys() {
+  const keys: number[] = []
+  let next = 0
+  const keyOf = (index: number) => (keys[index] ??= next++)
+  return {
+    keyOf,
+    removed: (index: number) => void keys.splice(index, 1),
+    moved: (index: number, by: number) => {
+      const [a, b] = [keyOf(index), keyOf(index + by)]
+      keys[index] = b
+      keys[index + by] = a
+    },
+  }
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { EditorContent, useEditor } from '@tiptap/vue-3'
-import { useTemplateRef } from 'vue'
+import { useTemplateRef, watch } from 'vue'
 import { editorExtensions, splitAroundSelection } from '../richText'
 import { GAME_ICONS, loreHref, SIZES } from '../richTextSafe'
 import { makerLogo } from '../archive'
@@ -13,11 +13,27 @@ const doc = defineModel<unknown>()
 // "html" (the content editor's rules text) makes the value an HTML string, "" when empty, as game data has it.
 const props = defineProps<{ label: string; links?: { id: string; name: string; meta?: string; text?: string }[]; html?: boolean }>()
 
+// What this editor last wrote to the model, so a new value from outside (a list entry removed or moved, Discard) can be told
+// from the echo of its own typing.
+const empty = () => (props.html ? '' : null)
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? empty()) === JSON.stringify(b ?? empty())
+let written: unknown = doc.value
+const attributes = () => ({ attributes: { 'aria-label': props.label, 'aria-multiline': 'true', role: 'textbox' } })
 const editor = useEditor({
   content: (doc.value as object | null) ?? '',
   extensions: editorExtensions(!!props.links),
-  editorProps: { attributes: { 'aria-label': props.label, 'aria-multiline': 'true', role: 'textbox' } },
-  onUpdate: ({ editor }) => (doc.value = props.html ? (editor.isEmpty ? '' : editor.getHTML()) : editor.isEmpty ? null : editor.getJSON()),
+  editorProps: attributes(),
+  onUpdate: ({ editor }) => {
+    written = props.html ? (editor.isEmpty ? '' : editor.getHTML()) : editor.isEmpty ? null : editor.getJSON()
+    doc.value = written
+  },
+})
+// A row's number changes when another row is removed or moved.
+watch(() => props.label, () => editor.value?.setOptions({ editorProps: attributes() }))
+watch(doc, (value) => {
+  if (same(value, written)) return
+  written = value
+  editor.value?.commands.setContent((value as object | null) ?? '', { emitUpdate: false })
 })
 
 const XSMALL = SIZES.xsmall

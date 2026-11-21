@@ -159,10 +159,6 @@ describe('editor checks for the new fields', () => {
     expect(check('systems', { bonuses: [{ id: 'damage', val: 1, damage_type: 'Fire' }] })).toEqual(['Effect 1 has an unknown damage type.'])
     expect(check('systems', { bonuses: [{ id: 'range', val: 1, weapon_sizes: ['Huge'] }] })).toEqual(['Effect 1 has an unknown weapon size.'])
   })
-  it('limits a condition to 120 characters', () => {
-    expect(check('systems', { bonuses: [{ id: 'hp', val: 1, condition: 'x'.repeat(120) }] })).toEqual([])
-    expect(check('systems', { bonuses: [{ id: 'hp', val: 1, condition: 'x'.repeat(121) }] })).toEqual(['Effect 1 condition must be text of 120 characters or fewer.'])
-  })
   it('checks requirements, and what systems and weapons grant', () => {
     expect(check('weapons', { mount: 'Main', type: 'Rifle', requires: [{ kind: 'talent', id: 't_a', rank: 2 }, { kind: 'licence', id: 'mf_a', rank: 1 }, { kind: 'core_bonus', id: 'cb_a' }, { kind: 'item', id: 'ms_a' }] })).toEqual([])
     expect(check('weapons', { mount: 'Main', type: 'Rifle', requires: [{ kind: 'x', id: 'a' }, { kind: 'item' }, { kind: 'talent', id: 't_a', rank: 4 }, { kind: 'core_bonus', id: 'nope' }] }))
