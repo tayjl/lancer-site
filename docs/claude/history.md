@@ -68,7 +68,7 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 
 ## Hosted migrations
 
-**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). Every migration through `20261121170000_pithub_entries` is on the hosted project (applied 2026-11-21). What each adds, and what breaks on a project without it:
+**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). Every migration through `20261121180000_delete_my_account` is on the hosted project (applied 2026-11-21). What each adds, and what breaks on a project without it:
 
 | Migration | What it adds |
 |---|---|
@@ -106,3 +106,17 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 | `20261121150000_gm_edit_mode` | `character_sheets.gm_grants` (free ranks and items a GM gave; GM/owner-only, sheet reads and saves that select it fail without it), submit manna check skips granted ranks and items, GMs edit any service record entry |
 | `20261121160000_remove_active_effects` | One-off: strips COMP/CON `active_effects` from `content_items.data` and `edited` (backup in `docs/data/hidden-effects-backup.json`); private helpers only, nothing breaks without it (the importer drops them too) |
 | `20261121170000_pithub_entries` | Pithub table (`pithub_entries`, same columns and rules as lore); `/pithub` fails to load without it |
+| `20261121180000_delete_my_account` | `delete_my_account()`; `pending_changes.submitted_by` nullable (on delete set null); author triggers allow clearing a deleted author. Delete account fails without it |
+
+## Backups
+A weekly GitHub Action (`.github/workflows/backup.yml`, Sundays) dumps the hosted database, encrypts it and keeps it as a download for 90 days. The repo is public, so only the encrypted file is ever uploaded.
+- **Add two secrets** in GitHub: Settings > Secrets and variables > Actions > Secrets.
+  - `SUPABASE_DB_URL`: in the Supabase dashboard press **Connect**, pick **Session pooler**, copy the string and put your database password in place of `[YOUR-PASSWORD]`.
+  - `BACKUP_PASSPHRASE`: a long random passphrase. Keep a copy in your password manager. Without it the backups can't be opened.
+- **Run it by hand:** Actions > Back up database > Run workflow.
+- **Download and open:** on the finished run, download the `database-backup` artifact (a zip holding one `.gpg` file), unzip it, then:
+  `gpg --decrypt backup-DATE.tar.gz.gpg | tar -xzf -`
+  This gives a `dump` folder with `roles.sql`, `schema.sql` and `data.sql`.
+- **Restore** into an empty Supabase database, in this order:
+  `psql "$DB_URL" -f dump/roles.sql`, then `schema.sql`, then `data.sql`. Try it on a local or throwaway project first.
+- **Hosting headers (2026-11-21):** `public/_headers` sets HSTS, nosniff, Referrer-Policy, Permissions-Policy, X-Frame-Options DENY and a CSP (self only, plus the Supabase origin for images, https and wss). `/registry/*` goes through the Worker but its `ASSETS.fetch` keeps the headers. To test locally: `vite build --mode localdb`, add `http://127.0.0.1:55321` (img-src, connect-src) and `ws://127.0.0.1:55321` to `dist/_headers`, `npx wrangler dev --local`. A new external origin (image host, font, script) must be added to the CSP or it is blocked. The Worker drops index.html's bare-site og tags when it adds a pilot's.

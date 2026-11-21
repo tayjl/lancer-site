@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
-import Icon from './Icon.vue'
+import { computed, nextTick, onMounted, ref, useId, useTemplateRef, watch } from 'vue'
 
 // A radar ("spider") chart, like COMP/CON's frame stats: one spoke per stat, the shape reaching out as far as the
 // stat sits between the lowest and the highest any frame has ("at", 0 to 1). Each label is the stat's name and number,
@@ -19,6 +18,8 @@ const props = defineProps<{
   ink?: { rule: string; text: string; dim: string; font: string; prefix: string }
 }>()
 
+// WebKit misplaces HTML inside an SVG's foreignObject, so symbols are masks (unique ids per chart).
+const maskId = props.ink?.prefix ?? useId()
 const SIZE = 520
 const CENTRE = SIZE / 2
 const RADIUS = 140
@@ -98,15 +99,12 @@ const paint = computed(() => {
     <polygon :points="shape.map((p) => p.join(',')).join(' ')" v-bind="paint.shape" />
     <circle v-for="(p, i) in shape" :key="`dot-${i}`" :cx="p[0]" :cy="p[1]" r="3.5" v-bind="paint.dot" />
     <g v-for="(label, i) in mini ? [] : labels" :key="label.label">
-      <template v-if="label.icon && ink">
-        <mask :id="`${ink.prefix}-${i}`" style="mask-type: alpha">
+      <template v-if="label.icon">
+        <mask :id="`${maskId}-${i}`" style="mask-type: alpha">
           <image :href="label.icon" data-what="stat symbols" :x="label.mark.x" :y="label.mark.y" :width="label.mark.size" :height="label.mark.size" />
         </mask>
-        <rect :x="label.mark.x" :y="label.mark.y" :width="label.mark.size" :height="label.mark.size" :fill="ink.dim" :mask="`url(#${ink.prefix}-${i})`" />
+        <rect :class="{ 'label-icon': !ink }" :x="label.mark.x" :y="label.mark.y" :width="label.mark.size" :height="label.mark.size" :fill="ink?.dim" :mask="`url(#${maskId}-${i})`" />
       </template>
-      <foreignObject v-else-if="label.icon" :x="label.mark.x" :y="label.mark.y" :width="label.mark.size" :height="label.mark.size" class="label-icon">
-        <Icon :src="label.icon" />
-      </foreignObject>
       <text :x="label.tx" :y="label.ty" :text-anchor="label.anchor" dominant-baseline="middle" v-bind="paint.label" :style="labelSize ? { fontSize: `${labelSize}px` } : undefined">
         <template v-if="label.lines.length > 1">
           <tspan v-for="(line, l) in label.lines" :key="l" :x="label.tx" :dy="`${l ? 1.1 : -0.55 * (label.lines.length - 1)}em`">{{ line }}</tspan>
@@ -164,16 +162,9 @@ const paint = computed(() => {
   fill: var(--text);
 }
 
-/* The symbol fills its box, in the labels' colour. */
+/* The symbol, in the labels' colour. */
 .label-icon {
-  overflow: visible;
-  color: var(--text-dim);
-}
-
-.label-icon .icon {
-  display: block;
-  width: 100%;
-  height: 100%;
+  fill: var(--text-dim);
 }
 
 .label {

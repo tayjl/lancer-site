@@ -36,6 +36,7 @@ async function uplink() {
       <button ref="uplinkButton" type="button" class="option" :class="{ waiting: !booted }" @click="uplink">uplink with discord</button>
       <p v-if="error" role="alert" class="error">Uplink failed: {{ error }}</p>
       <ThirdPartyNotice />
+      <RouterLink :to="{ name: 'privacy' }" class="privacy">Privacy</RouterLink>
     </div>
   </main>
 </template>
@@ -67,6 +68,15 @@ async function uplink() {
 
 .uplink button {
   font-size: 1.0625rem;
+}
+
+.privacy {
+  color: var(--text-dim);
+  font: 400 0.6875rem/1.5 var(--mono);
+}
+
+.privacy:hover {
+  color: var(--lilac);
 }
 
 .waiting {

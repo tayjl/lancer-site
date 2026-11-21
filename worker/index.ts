@@ -26,7 +26,11 @@ async function withPreview(request: Request, env: Env, preview: () => Promise<st
   try {
     const tags = await preview()
     if (!tags) return page
-    return new HTMLRewriter().on('head', { element: (head) => void head.append(tags, { html: true }) }).transform(page)
+    // The page's own og tags (index.html's bare-site ones) go, so a pilot's preview never doubles them.
+    return new HTMLRewriter()
+      .on('meta[property^="og:"]', { element: (meta) => void meta.remove() })
+      .on('head', { element: (head) => void head.append(tags, { html: true }) })
+      .transform(page)
   } catch {
     return page // the preview is a nicety: the app must still load
   }

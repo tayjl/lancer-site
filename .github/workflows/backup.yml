@@ -1,0 +1,49 @@
+# Weekly encrypted backup of the hosted Supabase database (Actions > Back up database > Run workflow does it by hand).
+# Setup and restore steps: docs/claude/history.md, "Backups".
+# Needs two repository SECRETS (Settings > Secrets and variables > Actions > Secrets):
+#   SUPABASE_DB_URL     the Session pooler connection string, with the password filled in
+#   BACKUP_PASSPHRASE   the passphrase used to encrypt the backup
+# The repo is public, so only the encrypted .gpg file is uploaded. Nothing unencrypted leaves the job.
+name: Back up database
+
+on:
+  schedule:
+    - cron: '23 3 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check the secrets exist
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "Set the SUPABASE_DB_URL and BACKUP_PASSPHRASE repository secrets." >&2
+            exit 1
+          fi
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Dump the database
+        run: |
+          mkdir dump
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f dump/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f dump/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -s public,auth,storage -f dump/data.sql
+      - name: Encrypt
+        run: |
+          tar -czf - dump | gpg --symmetric --cipher-algo AES256 --batch --yes --passphrase "$BACKUP_PASSPHRASE" -o "backup-$(date -u +%F).tar.gz.gpg"
+          rm -rf dump
+      - uses: actions/upload-artifact@v4
+        with:
+          name: database-backup
+          path: backup-*.tar.gz.gpg
+          retention-days: 90
+          if-no-files-found: error

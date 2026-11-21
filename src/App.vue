@@ -76,6 +76,7 @@ async function disconnect() {
 
         <div class="account">
           <span v-if="profile" class="who">{{ profile.display_name }} <span class="label">{{ profile.role }}</span></span>
+          <RouterLink :to="{ name: 'privacy' }" class="privacy">Privacy</RouterLink>
           <button type="button" class="quiet small" @click="disconnect">Disconnect</button>
           <button type="button" class="small menu" aria-controls="drawer" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
             {{ menuOpen ? 'Close' : 'Menu' }}
@@ -90,6 +91,7 @@ async function disconnect() {
           <span class="label gm">GM</span>
           <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
         </template>
+        <RouterLink :to="{ name: 'privacy' }">Privacy</RouterLink>
         <span v-if="profile" class="label">Signed in as {{ profile.display_name }} ({{ profile.role }})</span>
       </nav>
     </header>
@@ -222,7 +224,8 @@ async function disconnect() {
 /* --- Narrow screens (an owner's full tab set, with Lore, needs about 75rem): logo, Disconnect and Menu; Menu opens the drawer. --- */
 @media (max-width: 77rem) {
   .nav,
-  .who {
+  .who,
+  .privacy {
     display: none;
   }
 

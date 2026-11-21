@@ -428,7 +428,7 @@ export type Database = {
           reviewed_by: string | null
           status: Database["public"]["Enums"]["change_status"]
           submitted_at: string | null
-          submitted_by: string
+          submitted_by: string | null
           updated_at: string
         }
         Insert: {
@@ -443,7 +443,7 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["change_status"]
           submitted_at?: string | null
-          submitted_by: string
+          submitted_by?: string | null
           updated_at?: string
         }
         Update: {
@@ -458,7 +458,7 @@ export type Database = {
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["change_status"]
           submitted_at?: string | null
-          submitted_by?: string
+          submitted_by?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -927,6 +927,7 @@ export type Database = {
         Returns: undefined
       }
       delete_content_item: { Args: { target_id: string }; Returns: undefined }
+      delete_my_account: { Args: never; Returns: undefined }
       dismiss_approval_note: {
         Args: { expected_note: string; target_character_id: number }
         Returns: undefined

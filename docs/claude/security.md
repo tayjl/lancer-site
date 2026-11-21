@@ -35,3 +35,7 @@ Covers: the full wording of the roles and the security rules (RLS, submit-time p
 - **RLS works on whole rows, not fields.** If a player can read a character's row, they can read every field in it with developer tools, even the ones the page doesn't show. The private parts must be secret, so the public parts have to be stored apart from them (for example, in their own table).
 - Test the rules by trying to break them while logged in as a player.
 - Supabase has two keys. The **public** one ("anon" or "publishable") is safe in the browser. The **secret** one ("service_role" or "secret") bypasses every rule. It must never go in the frontend or be committed to git.
+
+## Account deletion (2026-11-21)
+
+`delete_my_account()` (security definer, authenticated only) deletes the caller's pilots and login. Refuses the last owner. Things they wrote for others (lore, service record, reward log, reviews, packs) stay with the author cleared. Storage files can't be removed from SQL, so the site first removes a player's `character-images/<uid>/` files (`deleteAllImages`, paged); GMs and owners skip it because they upload onto other people's pilots. The button is on `/privacy`.

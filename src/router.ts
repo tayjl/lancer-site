@@ -122,7 +122,8 @@ export const router = createRouter({
       meta: { title: 'Content editor', summary: 'Make and change game content.', gm: true, owner: true, section: 'gm-content', wide: true },
     },
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
-    { path: '/:pathMatch(.*)*', redirect: '/' },
+    { path: '/privacy', name: 'privacy', component: () => import('./views/PrivacyView.vue'), meta: { title: 'Privacy', public: true } },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('./views/NotFoundView.vue'), meta: { title: 'Page not found' } },
   ],
 })
 

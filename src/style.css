@@ -1585,6 +1585,7 @@ a.lore-link:focus-visible,
 /* Long writing (appearance, personality, backstory, history): one under another, full width. */
 .dossier .notes {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-xl);
 }
 
@@ -1969,4 +1970,59 @@ a.link-button:focus-visible {
 .ed-form .entry > .err {
   grid-column: 1 / -1;
   margin: 0;
+}
+
+/* The crash screen (src/crash.ts): built without Vue, so it only uses what's here. */
+.crash {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-m);
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-l);
+}
+
+.crash h1,
+.crash h2 {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+
+/* After the site has started: a bar along the bottom, over the page. */
+.crash-bar {
+  position: fixed;
+  inset: auto var(--space-s) var(--space-s);
+  z-index: 1000;
+  flex-flow: row wrap;
+  align-items: center;
+  max-height: 40vh;
+  overflow: auto;
+  padding: var(--space-m);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.crash-bar h2,
+.crash-bar p,
+.crash-bar .crash-details {
+  flex-basis: 100%;
+}
+
+.crash p {
+  margin: 0;
+}
+
+.crash-details {
+  align-self: stretch;
+  margin: 0;
+  padding: var(--space-m);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text-dim);
+  font: 400 var(--fs-s) / 1.5 var(--mono);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

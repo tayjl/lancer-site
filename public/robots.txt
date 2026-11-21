@@ -1,0 +1,3 @@
+# The site is for the campaign only. Discord's link previews ignore robots.txt, so /registry/ cards still work.
+User-agent: *
+Disallow: /

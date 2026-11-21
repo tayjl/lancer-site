@@ -88,9 +88,10 @@ const page = (direction: -1 | 1) => row.value?.scrollBy({ left: direction * row.
   right: 0;
 }
 
+/* Touch swipes the row, and the arrow would hide a half-cut tab. */
 @media (pointer: coarse) {
   .tabs-arrow {
-    min-width: var(--tap);
+    display: none;
   }
 }
 </style>

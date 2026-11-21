@@ -63,6 +63,20 @@ export async function deleteImage(path: string) {
   }
 }
 
+// Every file in a user's own folder (account deletion). The list is paged, so it re-reads until empty; stops with the
+// error if a page can't be listed or removed.
+export async function deleteAllImages(userId: string): Promise<string | null> {
+  const bucket = supabase.storage.from(BUCKET)
+  for (;;) {
+    const { data, error } = await bucket.list(userId, { limit: 100 })
+    if (error) return error.message
+    if (!data.length) return null
+    const removed = await bucket.remove(data.map((file) => `${userId}/${file.name}`))
+    if (removed.error) return removed.error.message
+    if (!removed.data.length) return 'Could not remove your images.' // nothing went, so looping again would never end
+  }
+}
+
 // Every stored image a card uses: the portrait and each mech's picture.
 export function cardImages(card: { pilot_image?: Json | null; mechs?: Json | null }) {
   const mechs = Array.isArray(card.mechs) ? card.mechs : []
