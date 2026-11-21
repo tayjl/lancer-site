@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { BonusType, Data } from '../../contentEditor'
 import { plural } from '../../text'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
+import GrantFields from './GrantFields.vue'
+import RequirementListField from './RequirementListField.vue'
 import RichTextEditor from '../RichTextEditor.vue'
-import { filled, latest, useFields } from './useFields'
+import { filled, latest, list, useFields } from './useFields'
 
 // The form for a core bonus: its manufacturer, its rules, what it changes (bonuses) and any actions it grants.
 const modelProp = defineModel<Data>({ required: true })
@@ -20,6 +23,8 @@ const mounted = f.text('mounted_effect')
 const description = f.text('description')
 const bonuses = f.list<Data>('bonuses')
 const actions = f.list<Data>('actions')
+const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
+const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 </script>
 
 <template>
@@ -47,11 +52,19 @@ const actions = f.list<Data>('actions')
     <Field block label="Description" hint="Flavour text."><RichTextEditor label="Description" html basic v-model="description" /></Field>
   </FoldPanel>
 
-  <FoldPanel title="Bonuses" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
+  <FoldPanel title="Effects" :summary="bonuses.length ? plural(bonuses.length, 'effect') : 'Empty'" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
+  </FoldPanel>
+
+  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+    <GrantFields :data="model" owner="Core bonus" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 
   <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
+  </FoldPanel>
+
+  <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
+    <RequirementListField v-model="requires" />
   </FoldPanel>
 </template>

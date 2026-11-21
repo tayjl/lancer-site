@@ -1,6 +1,6 @@
-import { bonusValue, resolveBonuses, type NamedBonus } from './bonuses'
+import { bonusValue, resolveBonuses, uncountedLine, type NamedBonus } from './bonuses'
 import { flatDamage } from './damage'
-import { toItem, type Item } from './gameData'
+import { tagNames, toItem, type Item } from './gameData'
 import type { MechPrivate, Sheet } from './myPilot'
 
 export function selectWeaponProfile(item: Item, index = 0): Item {
@@ -36,9 +36,10 @@ export function modBlockedBy(mod: Item, weapon: Item, mount: string, options?: W
   return ''
 }
 
-function matches(entry: NamedBonus, item: Item, rangeType?: string, damageType?: string) {
+// A conditional bonus never counts; "anyCondition" asks whether it would, were the condition met (for the sources line).
+function matches(entry: NamedBonus, item: Item, rangeType?: string, damageType?: string, anyCondition = false) {
   const b = entry.bonus
-  if (b.condition || b.detail) return false
+  if ((b.condition && !anyCondition) || b.detail) return false
   for (const [key, values] of Object.entries({ weapon_types: [item.type], weapon_sizes: [item.mount], range_types: rangeType ? [rangeType] : item.range.map(range => range.type), damage_types: damageType ? [damageType] : item.damage.map(damage => damage.type) })) {
     const filter = b[key]
     if (Array.isArray(filter) && filter.length && !values.some(value => filter.some(allowed => String(allowed).toLowerCase() === value.toLowerCase()))) return false
@@ -77,7 +78,7 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
     sources.push('Hunter II: Thrown 5. Thrown weapons return at end of turn.')
   }
   const damage = selected.damage.map(damage => {
-    const entries = bonuses.filter(entry => entry.bonus.id === 'damage' && matches(entry, selected, undefined, damage.type)).flatMap(entry => {
+    const entries = bonuses.filter(entry => entry.bonus.id === 'damage' && !entry.bonus.damage_type && matches(entry, selected, undefined, damage.type)).flatMap(entry => {
       const numeric = bonusValue(entry.bonus.val, variables)
       const expression = numeric === null ? String(entry.bonus.val) : String(numeric)
       return typeof flatDamage(expression) === 'number' ? [{ source: entry.source, expression }] : []
@@ -86,6 +87,15 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
     // Round once after summing the complete dice expression and its modifiers.
     return { ...damage, val: flatDamage(`${damage.val}${entries.map(entry => `${entry.expression.startsWith('-') ? '' : '+'}${entry.expression}`).join('')}`) }
   })
+  // A damage bonus with a damage_type adds that much of it: to the weapon's entry of that type, or as a new one.
+  for (const entry of bonuses.filter(entry => entry.bonus.id === 'damage' && typeof entry.bonus.damage_type === 'string' && matches(entry, selected))) {
+    const type = String(entry.bonus.damage_type), extra = bonusValue(entry.bonus.val, variables)
+    if (extra === null) continue
+    const at = damage.findIndex(have => have.type.toLowerCase() === type.toLowerCase())
+    if (at >= 0) damage[at] = { ...damage[at], val: flatDamage(`${damage[at].val}${extra >= 0 ? '+' : ''}${extra}`) }
+    else damage.push({ type, val: extra })
+    sources.push(`${entry.source}: ${extra >= 0 ? '+' : ''}${extra} ${type.toLowerCase()} damage`)
+  }
   // The mod's added range joins the weapon's range of that type (or is a new one) and its tags join the weapon's. A
   // weapon with a mod is "Modded". Added damage isn't counted: it's conditional (Thermal Charge needs a hit and a
   // charge), so it stays in the mod's own rules text, like every conditional effect.
@@ -120,6 +130,15 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
   const optics = upgraded && options?.accuracy !== false ? 1 : 0
   if (accuracy + (auto || 0) + optics) sources.push(`Accuracy: +${accuracy + (auto || 0) + optics}${auto ? ' (Auto-Stabilizing Hardpoints)' : ''}${optics ? ' (Tweaked Optics)' : ''}`)
   if (options?.smart !== false && upgraded) tags.push({ id: 'tg_smart' })
+  // Tags other bonuses add (add_tags: a list of { id, val? }).
+  for (const entry of bonuses.filter(entry => entry.bonus.id === 'add_tags' && matches(entry, selected)))
+    for (const tag of (Array.isArray(entry.bonus.val) ? entry.bonus.val : []) as { id?: unknown; val?: number | string }[])
+      if (typeof tag?.id === 'string' && !tags.some(have => have.id === tag.id)) {
+        tags.push(tag.val === undefined ? { id: tag.id } : { id: tag.id, val: tag.val })
+        sources.push(`${entry.source}: adds ${tagNames.value.get(tag.id) ?? tag.id}`)
+      }
+  // Conditional modifiers are named but never counted.
+  for (const entry of bonuses) if (['range', 'threat', 'damage', 'add_tags'].includes(entry.bonus.id) && entry.bonus.condition && matches(entry, selected, undefined, undefined, true)) sources.push(uncountedLine(entry.source, entry.bonus, variables))
   if (mod) for (const tag of [...added('added_tags'), { id: 'tg_modded' }]) if (!tags.some(have => have.id === tag.id)) tags.push(tag)
   if (upgraded && (options?.accuracy === false || options?.smart === false)) sources.push('Stripped reactor shielding: Spend 2 Heat to use the alternate area pattern.')
   if (location && sheet.core_bonuses?.includes('cb_overpower_caliber') && coreMounts.cb_overpower_caliber === location.mount * 2 + location.position)

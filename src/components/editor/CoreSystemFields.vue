@@ -6,8 +6,8 @@ import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
-import ItemIdListField from './ItemIdListField.vue'
-import { clean, input, latest, useEquipmentOptions } from './useFields'
+import GrantFields from './GrantFields.vue'
+import { clean, input, latest } from './useFields'
 
 // A frame's core system: its name and lore; the passive that's always on (counted in the mech's numbers when it has
 // bonuses); the core power the pilot switches on (its activation, how long it lasts, rules, actions, bonuses that only
@@ -16,7 +16,6 @@ import { clean, input, latest, useEquipmentOptions } from './useFields'
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
 defineProps<{ bonusTypes: BonusType[] }>()
-const equipment = useEquipmentOptions()
 
 const set = (changes: Data) => (model.value = { ...model.value, ...changes })
 const list = <T,>(key: string) => (Array.isArray(model.value[key]) ? (model.value[key] as T[]) : [])
@@ -38,7 +37,7 @@ const optional = (value: unknown) => (value as string) || undefined
   <Field block label="Passive actions">
     <ActionListField :model-value="list<Data>('passive_actions')" path="core_system.passive_actions" label="Passive action" @update:model-value="set({ passive_actions: clean($event) })" />
   </Field>
-  <Field block label="Passive bonuses">
+  <Field block label="Passive effects">
     <BonusListField :model-value="list<Data>('passive_bonuses')" :types="bonusTypes" path="core_system.passive_bonuses" @update:model-value="set({ passive_bonuses: clean($event) })" />
   </Field>
 
@@ -75,14 +74,12 @@ const optional = (value: unknown) => (value as string) || undefined
   <Field block label="Power actions">
     <ActionListField :model-value="list<Data>('active_actions')" path="core_system.active_actions" label="Power action" @update:model-value="set({ active_actions: clean($event) })" />
   </Field>
-  <Field block label="Power bonuses" hint="Say when they apply in the power rules.">
+  <Field block label="Power effects" hint="Say when they apply in the power rules.">
     <BonusListField :model-value="list<Data>('active_bonuses')" :types="bonusTypes" path="core_system.active_bonuses" @update:model-value="set({ active_bonuses: clean($event) })" />
   </Field>
 
   <h4 class="label sub">Equipment and deployables</h4>
-  <Field block label="Built in" path="core_system.integrated">
-    <ItemIdListField :model-value="list<string>('integrated')" :items="equipment" label="Core system built-in equipment" add="Add built-in equipment" @update:model-value="set({ integrated: clean($event) })" />
-  </Field>
+  <GrantFields :data="model" owner="Core system" path="core_system" @change="set($event)" />
   <Field block label="Deployables">
     <DeployableListField :model-value="list<Data>('deployables')" path="core_system.deployables" @update:model-value="set({ deployables: clean($event) })" />
   </Field>

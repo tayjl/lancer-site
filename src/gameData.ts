@@ -16,7 +16,7 @@ import agilityIcon from './assets/icons/agility.svg'
 import systemsIcon from './assets/icons/systems.svg'
 import engineeringIcon from './assets/icons/engineering.svg'
 import { flatDamageText } from './damage'
-import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
+import { bonusValue, permanentBonus, resolveBonuses, uncountedLine, type NamedBonus } from './bonuses'
 
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
 // bionics, and the custom pilot stats. Characters only store ids; names and details come from here.
@@ -31,12 +31,21 @@ import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './b
 type Value = number | string
 export type Bonus = {
   id: string
-  val: Value
+  // Not every bonus has one (superheavy_mounting); add_tags holds a list.
+  val?: Value
   replace?: boolean
   overwrite?: boolean
   condition?: string
   detail?: string
   [key: string]: unknown
+}
+// What an item, core bonus, talent, frame or biomod needs before it can be used: a talent or licence rank, a core bonus, or another item.
+export type Requirement = { kind: 'talent' | 'licence'; id: string; rank: number } | { kind: 'core_bonus' | 'item'; id: string }
+export const REQUIREMENT_KINDS = ['talent', 'licence', 'core_bonus', 'item'] as const
+export const requirementsOf = (data: unknown): Requirement[] => {
+  const list = (data as { requires?: unknown } | null | undefined)?.requires
+  return (Array.isArray(list) ? list : []).filter((entry): entry is Requirement =>
+    !!entry && typeof entry === 'object' && (REQUIREMENT_KINDS as readonly string[]).includes(entry.kind) && typeof entry.id === 'string')
 }
 export type Item = {
   id: string
@@ -128,13 +137,21 @@ export type Bionic = {
   mod_point_cost: number
   retired: boolean
   bonuses: { stat_id: string; amount: number }[]
+  // The same fields every other kind has (migration 20261121140000_homebrew_rules.sql). "effect_bonuses" holds any bonus
+  // ids (the relation above is "bonuses", the personal-stat amounts).
+  effect_bonuses?: Bonus[]
+  integrated?: string[]
+  special_equipment?: string[]
+  replace_integrated?: boolean
+  requires?: unknown
 }
 export type PilotStat = { id: string; name: string }
 // A talent: three ranks, each with a name and rules text (simple HTML). A core bonus: its manufacturer and
 // rules text. Both from the imported LANCER packs.
 export type TalentRank = { name: string; description: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; exclusive?: boolean; [key: string]: unknown }
-export type Talent = { id: string; name: string; terse: string; ranks: TalentRank[] }
-export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; [key: string]: unknown }
+export type Talent = { id: string; name: string; terse: string; ranks: TalentRank[]; requires?: unknown }
+// integrated / special_equipment: items it builds in or unlocks. replace_integrated: its integrated weapons replace the frame's own.
+export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; replace_integrated?: boolean; [key: string]: unknown }
 
 // A pilot's loadout slots: one armour, two weapons, three gear.
 const LOADOUT = [
@@ -206,14 +223,15 @@ export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bio
       const bionics = installed.filter((entry) => entry.statId === stat.id)
       const bonus = bionics.reduce((sum, entry) => sum + entry.value, 0) + result.value - stat.value
       // Listed under the block only when something changes the stat.
-      return { ...stat, bonus, contributors: result.used.length || bionics.length ? bonusLines(stat.value, result, bionics) : [] }
+      const conditional = extraBonuses.filter(entry => entry.bonus.id === stat.id && entry.bonus.condition).map(entry => uncountedLine(entry.source, entry.bonus))
+      return { ...stat, bonus, contributors: [...(result.used.length || bionics.length ? bonusLines(stat.value, result, bionics) : []), ...conditional] }
     }),
     piloting: values('mech_skills', MECH_SKILLS, 0),
   }
 }
 
 // Only equipped slots count; an old overflowing loadout must not stack several suits of armour.
-export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = []): NamedBonus[] {
+export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = [], bionics: Bionic[] = []): NamedBonus[] {
   const byId = new Map(gear.map(item => [item.id, item]))
   const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
   const sources = layout.slots.flatMap(slot => slot.id && byId.has(slot.id) ? [byId.get(slot.id)!] : [])
@@ -221,13 +239,14 @@ export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [],
   for (const talent of talents) talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).forEach((rank, index) =>
     result.push(...(rank.bonuses ?? []).map(bonus => ({ source: `${talent.name} ${index + 1}`, bonus }))))
   for (const core of coreBonuses) if (sheet.core_bonuses?.includes(core.id)) result.push(...(core.bonuses ?? []).map(bonus => ({ source: core.name, bonus })))
+  for (const bionic of bionics) if (sheet.bionics?.includes(bionic.id)) result.push(...(bionic.effect_bonuses ?? []).map(bonus => ({ source: bionic.name, bonus })))
   return result
 }
 
-export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = []) {
+export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = [], bionics: Bionic[] = []) {
   const byId = new Map(gear.map(item => [item.id, item]))
   const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
-  const bonuses = pilotBonuses(sheet, gear, talents, coreBonuses)
+  const bonuses = pilotBonuses(sheet, gear, talents, coreBonuses, bionics)
   const stats = [
     { id: 'pilot_hp', name: 'HP', value: 6, icon: hpIcon },
     { id: 'pilot_armor', name: 'Armour', value: 0, icon: armourIcon },
@@ -240,7 +259,8 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
       return value === null ? [] : [{ source, value, replace: bonus.replace, overwrite: bonus.overwrite }]
     })
     const result = resolveBonuses(stat.value, matching)
-    return { ...stat, value: layout.unknown.length ? null : Math.max(0, result.value), contributors: layout.unknown.length ? [] : bonusLines(stat.value, result) }
+    const conditional = bonuses.filter(entry => entry.bonus.id === stat.id && entry.bonus.condition).map(entry => uncountedLine(entry.source, entry.bonus))
+    return { ...stat, value: layout.unknown.length ? null : Math.max(0, result.value), contributors: layout.unknown.length ? [] : [...bonusLines(stat.value, result), ...conditional] }
   })
 }
 
@@ -266,7 +286,7 @@ export const bionicItems = (catalogue: Bionic[]) =>
 export function toTalent(id: string, data: unknown): Talent {
   const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: TalentRank[] }
   const ranks = (talent.ranks ?? []).map((rank) => ({ ...rank, name: String(rank.name ?? ''), description: flatDamageText(String(rank.description ?? '')), bonuses: Array.isArray(rank.bonuses) ? rank.bonuses : [] }))
-  return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks }
+  return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks, requires: (talent as { requires?: unknown }).requires }
 }
 export function toCoreBonus(id: string, data: unknown): CoreBonus {
   const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string; bonuses?: Bonus[] }
@@ -295,7 +315,8 @@ export function useGameData() {
     gear.value = gearRows.rows
       .map(({ id, data }) => toItem(id, data))
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
-    bionics.value = bionicRows.rows
+    // The table only holds a list here (a check on the column).
+    bionics.value = bionicRows.rows.map((row) => ({ ...row, effect_bonuses: row.effect_bonuses as Bonus[] }))
     pilotStats.value = statRows.rows
     talents.value = talentRows.rows.map(({ id, data }) => toTalent(id, data)).sort((a, b) => a.name.localeCompare(b.name))
     coreBonuses.value = coreRows.rows

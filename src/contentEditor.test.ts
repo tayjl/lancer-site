@@ -65,8 +65,8 @@ describe('item checks', () => {
   })
   it('checks bonus numbers and formulas, and warns about bonuses the build maths ignores', () => {
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 2 }, { id: 'physicality', val: '1' }, { id: 'sp', val: '{systems}/2' }] })).toEqual([])
-    expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 'lots' }, { val: 1 }] })).toEqual(['Bonus 1 needs a number, or a formula such as {systems}/2.', 'Bonus 2 needs a type.'])
-    expect(texts({ ...vest, bonuses: [{ id: 'range', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Bonus "range" isn\'t counted in the stats.'])
+    expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 'lots' }, { val: 1 }] })).toEqual(['Effect 1 needs a number, or a formula such as {systems}/2.', 'Effect 2 needs a type.'])
+    expect(texts({ ...vest, bonuses: [{ id: 'mystery', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Effect "mystery" isn\'t counted in the stats.'])
   })
   it('accepts dice for damage and shows a missing number', () => {
     expect(texts({ ...vest, damage: [{ type: 'Kinetic', val: '2d6+1' }, { type: 'Energy', val: 3 }] })).toEqual([])
@@ -114,8 +114,8 @@ describe('bionic and personal stat checks', () => {
 
 describe('bonus choices', () => {
   const stats = [{ id: 'physicality', name: 'Physicality' }]
-  it('offers pilot gear only pilot bonuses and the personal stats', () => {
-    expect(bonusTypesFor('pilot_gear', stats).map((type) => type.id)).toEqual(['pilot_hp', 'pilot_armor', 'pilot_speed', 'pilot_edef', 'physicality'])
+  it('offers pilot gear every bonus and the personal stats', () => {
+    expect(bonusTypesFor('pilot_gear', stats).map((type) => type.id)).toEqual(expect.arrayContaining(['pilot_hp', 'mod_points', 'hp', 'physicality']))
   })
   it('offers a core bonus the mech stats as well', () => {
     const ids = bonusTypesFor('core_bonuses', stats).map((type) => type.id)
@@ -169,5 +169,43 @@ describe('validateFaction', () => {
     expect(validateFaction('Harrison Armory', ['Union'])).toEqual([])
     expect(validateFaction('  ', []).map((p) => p.field)).toEqual(['name'])
     expect(validateFaction('union ', ['Union']).map((p) => p.text)).toEqual(['Another faction already has that name.'])
+  })
+})
+
+describe('effect bonuses and core bonus equipment', () => {
+  const core = { id: 'hb_pg_vest', name: 'Core', source: 'GMS', effect: '' }
+  const bonuses = (...list: Record<string, unknown>[]) => texts({ ...core, bonuses: list }, 'core_bonuses')
+  it('accepts each effect bonus with its own kind of value', () => {
+    expect(bonuses(
+      { id: 'add_mount', val: 'Superheavy', max: 3 }, { id: 'add_mount', val: 'Integrated Auxiliary' }, { id: 'superheavy_mounting' },
+      { id: 'cheap_struct', val: 1 }, { id: 'drone_hp', val: 5 }, { id: 'deployable_hp', val: 2 },
+      { id: 'range', val: 1, weapon_types: ['Rifle'], range_types: ['Range'] }, { id: 'threat', val: 1 },
+      { id: 'overcharge', val: ['1', '1d3', '1d6', '1d6+4'] },
+    )).toEqual([])
+  })
+  it('rejects values that do not fit', () => {
+    expect(bonuses({ id: 'add_mount', val: 'Huge' }, { id: 'add_mount', val: 'Main', max: 0 }, { id: 'drone_hp', val: 'lots' }, { id: 'overcharge', val: ['1', '2'] }, { id: 'range', val: 1, weapon_types: ['Wand'] })).toEqual([
+      'Effect 1 needs a mount type.', 'Effect 2 needs a whole number of mounts, 1 or more.', 'Effect 3 needs a number.',
+      'Effect 4 needs four overcharge steps, such as 1, 1d3, 1d6, 1d6+4.', 'Effect 5 has an unknown weapon type.',
+    ])
+  })
+  it('checks built-in and optional items and the replace flag', () => {
+    const known = { ...ctx, known: new Set(['mw_gl']) }
+    const ids = (data: Record<string, unknown>) => problemsFor('core_bonuses', { ...core, ...data }, known).map((p) => p.text)
+    expect(ids({ integrated: ['mw_gl'], special_equipment: ['mw_gl'], replace_integrated: true })).toEqual([])
+    expect(ids({ integrated: ['nope'], special_equipment: ['nada'], replace_integrated: 'yes' })).toEqual([
+      'Item "nope" doesn\'t exist.', 'Item "nada" doesn\'t exist.', 'Replace integrated must be yes or no.',
+    ])
+  })
+})
+
+describe('the "not counted" warning', () => {
+  const warns = (...list: Record<string, unknown>[]) => texts({ id: 'hb_pg_vest', name: 'X', source: 'GMS', effect: '', bonuses: list }, 'core_bonuses', 'warn')
+  it('stays quiet for every bonus the code applies', () => {
+    expect(warns({ id: 'cheap_struct', val: 1 }, { id: 'add_mount', val: 'Main' }, { id: 'superheavy_mounting' }, { id: 'damage', val: 1 },
+      { id: 'attack', accuracy: 1 }, { id: 'engineering', accuracy: -1 }, { id: 'pilot_hp', val: 2 }, { id: 'physicality', val: 1 })).toEqual([])
+  })
+  it('still warns for an id nothing reads', () => {
+    expect(warns({ id: 'mystery', val: 1 })).toEqual(['Effect "mystery" isn\'t counted in the stats.'])
   })
 })

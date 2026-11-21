@@ -18,6 +18,8 @@ import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
 import FoldPanel from './FoldPanel.vue'
+import GrantFields from './GrantFields.vue'
+import RequirementListField from './RequirementListField.vue'
 import RepeatList from './RepeatList.vue'
 import ToggleChips from './ToggleChips.vue'
 import { clean, input, latest, list, useFields, useProblems } from './useFields'
@@ -37,6 +39,7 @@ const description = f.text('description')
 const roles = f.list<string>('mechtype')
 const mounts = f.list<string>('mounts')
 const traits = f.list<Data>('traits')
+const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const rank = computed({ get: () => Number(model.value.license_level) || 0, set: (value: number) => (model.value = { ...model.value, license_level: value }) })
 
 const entry = (value: unknown): Data => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Data) : {})
@@ -195,9 +198,10 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
         <Field block label="Actions">
           <ActionListField :model-value="list<Data>(item.actions)" :path="`traits.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />
         </Field>
-        <Field block label="Bonuses">
+        <Field block label="Effects">
           <BonusListField :model-value="list<Data>(item.bonuses)" :types="mechBonuses" :path="`traits.${index}.bonuses`" @update:model-value="change({ bonuses: clean($event) })" />
         </Field>
+        <GrantFields :data="item" :owner="`Trait ${index + 1}`" :path="`traits.${index}`" @change="change($event)" />
         <Field block label="Deployables">
           <DeployableListField :model-value="list<Data>(item.deployables)" :path="`traits.${index}.deployables`" @update:model-value="change({ deployables: clean($event) })" />
         </Field>
@@ -220,6 +224,10 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
         <p v-else class="dim">No unlocks.</p>
       </li>
     </ul>
+  </FoldPanel>
+
+  <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
+    <RequirementListField v-model="requires" />
   </FoldPanel>
 </template>
 

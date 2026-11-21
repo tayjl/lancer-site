@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import submitRulesSql from '../supabase/migrations/20261121110000_pilot_inventory.sql?raw'
+import submitRulesSql from '../supabase/migrations/20261121140000_homebrew_rules.sql?raw'
 import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
@@ -162,6 +162,15 @@ describe('mechs', () => {
     expect(mechProblems({ frame: 'everest', mounts: [['pistol'], ['rifle'], ['cannon']] }, sheet, catalogue)).toEqual([
       'Superheavy weapon needs a second empty mount.',
     ])
+  })
+
+  it('braces a Superheavy mount on the Heavy mount, else any empty mount', () => {
+    const frameMounts = ['Superheavy', 'Main', 'Heavy']
+    expect(bracingMount(frameMounts, [['cannon'], [null], [null]], 0)).toBe(2)
+    expect(bracingMount(frameMounts, [['cannon'], [null], ['rifle']], 0)).toBe(-1)
+    expect(bracingMount(['Superheavy', 'Main'], [['cannon'], [null]], 0)).toBe(1)
+    expect(bracingMount(['Superheavy', 'Integrated Auxiliary'], [['cannon'], []], 0)).toBe(-1)
+    expect(mechProblems({ frame: 'sh', mounts: [['cannon'], ['rifle']] }, sheet, { ...catalogue, frames: [frame('sh', 0, ['Superheavy', 'Main'])] })).toEqual(['Superheavy weapon needs a second empty mount.'])
   })
 
   it('flags wrong mount sizes, duplicate uniques, two AIs and too many system points', () => {
@@ -349,7 +358,7 @@ describe('what a picker refuses', () => {
   })
 })
 
-// The database refuses a submit that overspends manna (supabase/migrations/20261121110000_pilot_inventory.sql), so its
+// The database refuses a submit that overspends manna (supabase/migrations/20261121140000_homebrew_rules.sql), so its
 // prices must be the page's.
 describe('free gear', () => {
   const types: Record<string, string> = { suit: 'Armor', vest: 'Armor', whip: 'Weapon', gun: 'Weapon', rifle: 'Weapon', kit: 'Gear', odd: 'Mod' }

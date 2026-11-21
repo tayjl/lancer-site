@@ -24,7 +24,7 @@ const named = (id: string, val: unknown, filters: Record<string, unknown> = {}):
 describe('complete core character builds', () => {
   it('upgrades exclusive talent equipment and keeps cumulative nonexclusive grants', () => {
     expect(talentGrants({ talents: { t_engineer: 3, t_nuclear_cavalier: 3, t_technophile: 2, t_walking_armory: 3 } }, talents)).toEqual({
-      integrated: ['mw_prototype_3', 'mw_fuel_rod_gun', 'ms_walking_armory_3'], optional: ['ms_technophile_2'],
+      integrated: ['mw_prototype_3', 'mw_fuel_rod_gun', 'ms_walking_armory_3'], optional: ['ms_technophile_2'], replace: [],
     })
     expect(talentGrants({ talents: { t_engineer: 1 } }, talents).integrated).toEqual(['mw_prototype_1'])
     expect(talentGrants({ talents: { t_engineer: -1 } }, talents).integrated).toEqual([])
@@ -53,7 +53,7 @@ describe('complete core character builds', () => {
     const sheet: Sheet = { mech_skills: { engineering: 3 }, core_bonuses: ['cb_integrated_ammo_feeds', 'cb_the_lesson_of_shaping', 'cb_heatfall_coolant_system'] }
     const effects = mechEffects({ frame: frame().id }, sheet, catalogue)
     const resources = mechResources(sheet, effects)
-    expect(resources).toMatchObject({ aiCap: 2, limited: 3, structureRepairs: 1, overcharge: '1 → 2 → 4 → 4', superheavyMounting: false })
+    expect(resources).toMatchObject({ aiCap: 2, limited: 3, structureRepairs: 1, overcharge: '1 → 2 → 4 → 4' })
     const death = mechEffects({ frame: 'mf_deaths_head' }, {}, catalogue)
     expect(equipmentDetails(weapons.get('mw_assault_rifle')!, {}, death.bonuses).sources).toContain('Attack roll: +1')
     expect(death.reminders.some(entry => entry.text.includes('first ranged attack'))).toBe(true)
@@ -123,7 +123,7 @@ describe('complete core character builds', () => {
     expect(mechProblems(mech, { core_bonuses: ['cb_the_lesson_of_shaping'] }, catalogue).some(problem => problem.includes('Only one AI'))).toBe(false)
     expect(mechProblems(mech, {}, catalogue).some(problem => problem.includes('mounts the frame'))).toBe(true)
     expect(mechProblems({ frame: frame().id, mounts: [[], [], ['mw_assault_rifle', 'mw_tactical_knife']] }, {}, catalogue).some(problem => problem.includes('slots the mount'))).toBe(true)
-    expect(mechProblems({ frame: frame().id, systems: ['ms_technophile_2'] }, {}, catalogue).some(problem => problem.includes('needs its talent rank'))).toBe(true)
+    expect(mechProblems({ frame: frame().id, systems: ['ms_technophile_2'] }, {}, catalogue).some(problem => problem.includes('ms_technophile_2 needs') || problem.includes('needs Technophile'))).toBe(true)
     expect(mechProblems({ frame: frame().id }, { core_bonuses: ['cb_mount_retrofitting'] }, catalogue).some(problem => problem.includes('needs a normal mount'))).toBe(true)
   })
   it('keeps pilot e-defence, excludes pilot evasion and includes permanent talent bonuses', () => {
@@ -187,5 +187,37 @@ describe('weapon mods', () => {
     // Integrated mounts take none, and a Unique mod only once.
     const integratedMount = { frame: frame().id, mounts: [[], [], [], ['mw_assault_rifle']], weapon_mods: { '3:0': 'wm_test_hp' } }
     expect(mechProblems(integratedMount, { core_bonuses: ['cb_integrated_weapon'] }, custom)).toContain("Test mod can't go on Assault Rifle. An integrated mount can't be modified.")
+  })
+})
+
+describe('superheavy mounting, core equipment and mount counting', () => {
+  const base = { ...frame(), mounts: ['Main', 'Main'] }
+  const sheetWith = (...ids: string[]): Sheet => ({ core_bonuses: ids })
+  const shm = { id: 'cb_sh', name: 'Superheavy Mounting', source: 'GMS', effect: '', bonuses: [{ id: 'superheavy_mounting' }] } as CoreBonus
+  const gun = toItem('gl', { name: 'GL', mount: 'Main' }), oldGun = toItem('old', { name: 'Old', mount: 'Main' }), sys = toItem('sys', { name: 'Sys' })
+  const bigGun = { id: 'cb_big', name: 'Big', source: 'GMS', effect: '', integrated: ['gl'], special_equipment: ['sys'], replace_integrated: true } as CoreBonus
+  const integrated = new Map([['gl', gun], ['old', oldGun], ['sys', sys]])
+  it('adds a Superheavy mount only below three non-integrated mounts', () => {
+    const named = [{ source: 's', bonus: { id: 'superheavy_mounting', val: 0 } }]
+    expect(buildFrame(base, {}, {}, [], named)!.mounts).toEqual(['Main', 'Main', 'Superheavy'])
+    expect(buildFrame({ ...base, mounts: ['Main', 'Main', 'Main'] }, {}, {}, [], named)!.mounts).toHaveLength(3)
+    // An integrated mount isn't counted, so the Superheavy mount still comes.
+    expect(buildFrame(base, {}, sheetWith('cb_integrated_weapon'), [], named)!.mounts).toEqual(['Main', 'Main', 'Superheavy', 'Integrated Auxiliary'])
+    const effects = mechEffects({ frame: base.id }, sheetWith('cb_sh'), { ...catalogue, frames: [base], coreBonuses: [shm] })
+    expect(buildFrame(base, {}, sheetWith('cb_sh'), [], effects.bonuses)!.mounts).toContain('Superheavy')
+  })
+  it('add_mount max ignores integrated mounts and takes any mount type', () => {
+    const add = (val: string, max?: number) => [{ source: 's', bonus: { id: 'add_mount', val, max } }]
+    expect(buildFrame({ ...base, mounts: ['Main', 'Main', 'Integrated Auxiliary'] }, {}, {}, [], add('Superheavy', 3))!.mounts).toHaveLength(4)
+    expect(buildFrame(base, {}, {}, [], add('Integrated Auxiliary'))!.mounts).toEqual(['Main', 'Main', 'Integrated Auxiliary'])
+    expect(buildFrame(base, {}, {}, [], add('toString'))!.mounts).toHaveLength(2)
+  })
+  it('adds a core bonus’s integrated items, and replaces the frame’s integrated weapons only on request', () => {
+    const own = { ...base, integrated: ['old', 'sys'] }
+    const built = (bonus: CoreBonus) => buildFrame(own, {}, sheetWith(bonus.id), [], [], { coreBonuses: [bonus], integrated })!.integrated
+    expect(built({ ...bigGun, replace_integrated: undefined })).toEqual(['old', 'sys', 'gl'])
+    expect(built(bigGun)).toEqual(['sys', 'gl'])
+    expect(talentGrants(sheetWith('cb_big'), [], [bigGun])).toEqual({ integrated: ['gl'], optional: ['sys'], replace: ['gl'] })
+    expect(buildFrame(own, {}, {}, [], [], { coreBonuses: [bigGun], integrated })!.integrated).toEqual(['old', 'sys'])
   })
 })

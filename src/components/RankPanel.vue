@@ -34,7 +34,7 @@ export type RankStep = { name?: string; html?: string; unlocks?: Unlock[]; choic
 const props = defineProps<{
   title: string
   noun: string
-  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; exotic?: boolean; stale?: boolean }[]
+  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; exotic?: boolean; stale?: boolean; needs?: string }[]
   held: Record<string, number>
   details: (id: string) => RankStep[]
   columns?: boolean
@@ -130,7 +130,7 @@ const offered = computed(() =>
     .filter((option) => !props.held[option.id] && !option.stale)
     .map((option) => {
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
-      const blocked = restricted(option.id) || (affordable.value ? '' : 'Not enough manna')
+      const blocked = restricted(option.id) || option.needs || (affordable.value ? '' : 'Not enough manna')
       return frame
         ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, frames.value), meta: undefined, blocked }
         : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }

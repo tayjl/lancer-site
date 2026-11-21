@@ -8,6 +8,7 @@ import BonusListField from './BonusListField.vue'
 import DamageField from './DamageField.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
+import RequirementListField from './RequirementListField.vue'
 import TagListField from './TagListField.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import { filled, latest, useFields } from './useFields'
@@ -25,6 +26,7 @@ const description = f.text('description')
 const range = f.list<{ type: string; val: string | number }>('range')
 const damage = f.list<{ type: string; val: string | number }>('damage')
 const bonuses = f.list<Data>('bonuses')
+const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const tagList = f.list<{ id: string; val?: string | number }>('tags')
 const actions = f.list<Data>('actions')
 // Its price in manna. Emptying the box takes the key off, so the item costs the default (rules.ts GEAR_PRICE_DEFAULT).
@@ -66,7 +68,7 @@ const price = computed({
     <Field block label="Damage"><DamageField v-model="damage" kind="damage" /></Field>
   </FoldPanel>
 
-  <FoldPanel title="Bonuses" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
+  <FoldPanel title="Effects" :summary="bonuses.length ? plural(bonuses.length, 'effect') : 'Empty'" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
   </FoldPanel>
 
@@ -76,5 +78,9 @@ const price = computed({
 
   <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
+  </FoldPanel>
+
+  <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
+    <RequirementListField v-model="requires" />
   </FoldPanel>
 </template>

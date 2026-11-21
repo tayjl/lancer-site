@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
-import { BIONIC_SLOTS, type Data } from '../../contentEditor'
+import { BIONIC_SLOTS, bonusTypesFor, type Data } from '../../contentEditor'
 import { useGameData } from '../../gameData'
 import { plural } from '../../text'
 import Icon from '../Icon.vue'
 import RichTextEditor from '../RichTextEditor.vue'
+import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
 import FoldPanel from './FoldPanel.vue'
-import { filled, latest, useFields, useProblems } from './useFields'
+import GrantFields from './GrantFields.vue'
+import RequirementListField from './RequirementListField.vue'
+import { filled, latest, list, useFields, useProblems } from './useFields'
 
 // The form for a biomod (a site table, not pack content): its slot on the body, its own price in manna, the mod points it
 // takes, the personal stats it changes, and its description (flavour) and effect (rules). "Retired" takes it off the list
@@ -31,6 +34,11 @@ const { bionics } = useGameData()
 const slots = computed(() => [...new Set([...BIONIC_SLOTS, ...bionics.value.map((bionic) => bionic.slot).filter(Boolean)])])
 const retired = f.flag('retired')
 const bonuses = f.list<{ stat_id: string; amount: number }>('bonuses')
+// The same effects every other kind has (not the personal stats: the stat bonuses above are those).
+const effects = f.list<Data>('effect_bonuses')
+const effectTypes = bonusTypesFor('bionics', [])
+const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
+const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 
 const taken = (stat: string) => bonuses.value.some((bonus) => bonus.stat_id === stat)
 const change = (index: number, changes: Partial<{ stat_id: string; amount: number }>) =>
@@ -78,11 +86,23 @@ const add = () => {
     <div><button type="button" class="small" :disabled="bonuses.length >= stats.length" @click="add"><Icon name="plus" />Add bonus</button></div>
   </FoldPanel>
 
+  <FoldPanel title="Effects" :summary="effects.length ? plural(effects.length, 'effect') : 'Empty'" :paths="['effect_bonuses']">
+    <BonusListField v-model="effects" :types="effectTypes" path="effect_bonuses" />
+  </FoldPanel>
+
+  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+    <GrantFields :data="model" owner="Biomod" @change="model = { ...model, ...$event }" />
+  </FoldPanel>
+
   <FoldPanel title="Text" :summary="filled([['Description', description], ['Effect', effect]])" :paths="['description', 'effect']">
     <Field label="Description" hint="Flavour text.">
       <textarea v-model="description" rows="4"></textarea>
     </Field>
     <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
+  </FoldPanel>
+
+  <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
+    <RequirementListField v-model="requires" />
   </FoldPanel>
 </template>
 

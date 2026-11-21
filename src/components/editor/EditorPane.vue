@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, provide, ref, shallowRef, useTemplate
 import { confirmAction } from '../../confirm'
 import { bonusTypesFor, errorsOf, kindInfo, newId, problemsFor, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
 import { createItem, deleteItem, homebrewPack, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
-import { invalidateCatalogues } from '../../gameData'
+import { invalidateCatalogues, useGameData } from '../../gameData'
 import { alternateOf, licensedFrames, useMechData } from '../../mechData'
 import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
 import { useSaveStatus } from '../../saveStatus'
@@ -87,6 +87,7 @@ watch(() => working.value.name, (name) => {
 const rawError = ref('')
 // Licences are frames' (a weapon of Marrow II needs the Marrow licence at rank II), so the frames are read for the choice.
 const { frames } = useMechData()
+const { talents, coreBonuses } = useGameData()
 const licences = computed(() => licensedFrames(frames.value).map((frame) => ({ id: frame.id, name: frame.name, source: frame.source })))
 const problems = computed<Problem[]>(() => {
   const found = problemsFor(props.kind, working.value, {
@@ -95,6 +96,8 @@ const problems = computed<Problem[]>(() => {
     statIds: props.stats.map((stat) => stat.id),
     known: props.takenIds,
     licences: new Set(frames.value.map((frame) => frame.id)),
+    talents: new Set(talents.value.map((talent) => talent.id)),
+    coreBonuses: new Set(coreBonuses.value.map((bonus) => bonus.id)),
     alternates: new Set(frames.value.filter((frame) => alternateOf(frame, frames.value)).map((frame) => frame.id)),
   })
   if (isNew && props.kind !== 'bionics' && props.takenIds.has(String(working.value.id))) found.push({ level: 'error', text: 'That ID is already used by another item.', field: 'id' })

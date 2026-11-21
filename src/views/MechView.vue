@@ -30,7 +30,7 @@ import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { useGameData } from '../gameData'
-import { buildFrame, fittedMods, frameRanges, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder, type ReminderKind } from '../mechData'
+import { fittedMods, grantingSources, frameRanges, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder, type ReminderKind } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
@@ -38,7 +38,7 @@ import { useCopyLink } from '../copyLink'
 import { usePilotProfile } from '../pilotProfile'
 import { radarAxes } from '../mechOverview'
 import { pilotList, sectionOverride } from '../router'
-import { frameBlockedBy, isExotic, mechProblems, restrictionOf, useCatalogue } from '../rules'
+import { frameBlockedBy, isExotic, mechProblems, requirementReason, restrictionOf, unmetRequirements, useCatalogue } from '../rules'
 import { GM_EDIT, useRestriction } from '../restriction'
 
 // One of your mechs, opened from the hangar on my pilot, as one scrolling file like the pilot's: a spec sheet at the
@@ -76,7 +76,7 @@ const mech = computed(() => mechs.value.find((m) => m.id === mechId.value))
 const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ?? {})
 
 const { frames, weapons, systems, mods, integrated } = useMechData()
-const { talents } = useGameData()
+const { talents, coreBonuses } = useGameData()
 const catalogue = useCatalogue()
 const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
 // The manufacturer's colour (--mf, from the packs, so new manufacturers just work) is decoration only, as much as the
@@ -91,7 +91,7 @@ const makerStyle = computed(() => {
 })
 // With no image of its own the mech shows its frame's.
 const fallbackArt = computed(() => (baseFrame.value ? frameArt(baseFrame.value, frames.value) : null))
-const grants = computed(() => talentGrants(sheet.value, talents.value))
+const grants = computed(() => talentGrants(sheet.value, talents.value, coreBonuses.value, grantingSources(details.value, sheet.value, catalogue.value)))
 const optional = computed(() => grants.value.optional.map(id => integrated.value.get(id)).filter(item => !!item))
 const availableWeapons = computed(() => [...weapons.value, ...optional.value.filter(item => !!item.mount)])
 const availableSystems = computed(() => [...systems.value, ...optional.value.filter(item => !item.mount)])
@@ -103,7 +103,7 @@ const problems = computed(() =>
     : [],
 )
 const effects = computed(() => mechEffects(details.value, sheet.value, catalogue.value))
-const frame = computed(() => buildFrame(baseFrame.value, details.value, sheet.value, talents.value, effects.value.bonuses))
+const frame = computed(() => effects.value.frame)
 const stats = computed(() => mechStats(frame.value, sheet.value.mech_skills, effects.value.modifiers))
 const resources = computed(() => mechResources(sheet.value, effects.value))
 function capacityFor(changes: Partial<MechPrivate>) {
@@ -211,6 +211,8 @@ const saveLoadout = (changes: Partial<MechPrivate>) => track(savePrivate(changes
 // A licensed frame needs its rank in its licence, and, if the licence has alternate frames, to be the one the pilot chose for it; GMS frames need none. HORUS and NHC frames are GM-only, Exotic ones GM-edit-only.
 const framePicker = useTemplateRef('framePicker')
 const reasonFor = useRestriction()
+// What's on this mech now, for a frame's item requirements.
+const onMech = computed(() => new Set([...(details.value.systems ?? []), ...(details.value.mounts ?? []).flat().filter((id): id is string => !!id), ...Object.values(details.value.weapon_mods ?? {})]))
 const frameOptions = computed(() => {
   const ranges = frameRanges(frames.value)
   return frames.value.map((f) => ({
@@ -218,7 +220,7 @@ const frameOptions = computed(() => {
     name: f.name,
     ...framePick(f, ranges, manufacturers.value, frames.value),
     exotic: isExotic(f),
-    blocked: reasonFor(restrictionOf(f)) || frameBlockedBy(f, frames.value, sheet.value),
+    blocked: reasonFor(restrictionOf(f)) || frameBlockedBy(f, frames.value, sheet.value) || requirementReason(unmetRequirements(f.raw, sheet.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name })),
     info: () => frameInfo(f, frames.value),
   }))
 })
@@ -431,7 +433,6 @@ async function scrap() {
               :sheet="sheet"
               :details="details"
               :bonuses="effects.bonuses"
-              :superheavy-mounting="resources.superheavyMounting"
               :capacity-for="capacityFor"
               :mounts="details.mounts ?? []"
               :installed="details.systems ?? []"
@@ -442,7 +443,6 @@ async function scrap() {
           </FileSection>
 
           <FileSection v-if="showEffects" v-bind="sec(SEC.effects)">
-            <p class="dim intro">These aren't counted in the stats.</p>
             <ul v-if="traitCards.length" class="trait-cards">
               <li v-for="card in traitCards" :key="card.name">
                 <ItemCard type="frame" icon="trait" :name="card.name">
@@ -793,11 +793,6 @@ async function scrap() {
   font-style: italic;
 }
 
-.intro {
-  max-width: none;
-  margin: 0 0 var(--space-m);
-  font-size: var(--fs-s);
-}
 
 .effects {
   display: grid;

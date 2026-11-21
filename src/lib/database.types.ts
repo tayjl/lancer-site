@@ -76,37 +76,52 @@ export type Database = {
         Row: {
           description: string | null
           effect: string
+          effect_bonuses: Json
           id: number
+          integrated: string[]
           manna_cost: number
           mod_point_cost: number
           name: string
+          replace_integrated: boolean
+          requires: Json
           retired: boolean
           slot: string
           source: string | null
+          special_equipment: string[]
           updated_at: string
         }
         Insert: {
           description?: string | null
           effect?: string
+          effect_bonuses?: Json
           id?: never
+          integrated?: string[]
           manna_cost?: number
           mod_point_cost?: number
           name: string
+          replace_integrated?: boolean
+          requires?: Json
           retired?: boolean
           slot?: string
           source?: string | null
+          special_equipment?: string[]
           updated_at?: string
         }
         Update: {
           description?: string | null
           effect?: string
+          effect_bonuses?: Json
           id?: never
+          integrated?: string[]
           manna_cost?: number
           mod_point_cost?: number
           name?: string
+          replace_integrated?: boolean
+          requires?: Json
           retired?: boolean
           slot?: string
           source?: string | null
+          special_equipment?: string[]
           updated_at?: string
         }
         Relationships: []
@@ -921,6 +936,7 @@ export type Database = {
           pilot: string
         }[]
       }
+      permanent_bonus: { Args: { bonus: Json }; Returns: boolean }
       pilot_card: {
         Args: { target_character_id: number }
         Returns: {
@@ -974,12 +990,17 @@ export type Database = {
           new_bonuses: Json
           new_description: string
           new_effect: string
+          new_effect_bonuses?: Json
+          new_integrated?: string[]
           new_mod_cost: number
           new_name: string
           new_price: number
+          new_replace_integrated?: boolean
+          new_requires?: Json
           new_retired: boolean
           new_slot: string
           new_source?: string
+          new_special_equipment?: string[]
           target_id?: number
         }
         Returns: Json
@@ -995,6 +1016,17 @@ export type Database = {
       settle_pilot_gear: {
         Args: { first_approval: boolean; live: Json; proposed: Json }
         Returns: Json
+      }
+      sheet_rule_problems: {
+        Args: { pilot_level: number; sheet: Json }
+        Returns: {
+          at_mech: string
+          problem: string
+        }[]
+      }
+      unmet_requirements: {
+        Args: { needs: Json; owned: string[]; pilot: Json }
+        Returns: string[]
       }
     }
     Enums: {

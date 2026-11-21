@@ -8,6 +8,7 @@ import BonusListField from './BonusListField.vue'
 import DamageField from './DamageField.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
+import RequirementListField from './RequirementListField.vue'
 import ItemBasics from './ItemBasics.vue'
 import TagListField from './TagListField.vue'
 import ToggleChips from './ToggleChips.vue'
@@ -26,6 +27,7 @@ const effect = f.text('effect')
 const description = f.text('description')
 const tagList = f.list<TagEntry>('tags')
 const bonuses = f.list<Data>('bonuses')
+const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const actions = f.list<Data>('actions')
 const allowedTypes = f.list<string>('allowed_types')
 const allowedSizes = f.list<string>('allowed_sizes')
@@ -80,7 +82,11 @@ const adds = computed(() => [plural(addedRange.value.length, 'range'), plural(ad
     <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
   </FoldPanel>
 
-  <FoldPanel title="Bonuses when equipped" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">
+  <FoldPanel title="Effects when equipped" :summary="bonuses.length ? plural(bonuses.length, 'effect') : 'Empty'" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
+  </FoldPanel>
+
+  <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
+    <RequirementListField v-model="requires" />
   </FoldPanel>
 </template>

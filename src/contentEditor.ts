@@ -3,6 +3,7 @@ import { bonusValue } from './bonuses'
 import { flatDamage } from './damage'
 import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
+import { REQUIREMENT_KINDS } from './gameData'
 import { EXOTIC, EXOTIC_TAG } from './rules'
 
 // The content editor's rules (ContentEditorView.vue): the kinds it edits, new ids, and what makes an item's data
@@ -122,25 +123,77 @@ export type BonusType = { id: string; label: string; group: 'Pilot' | 'Personal 
 const bonus = (group: BonusType['group'], id: string, label: string): BonusType => ({ group, id, label })
 export const BONUS_TYPES: BonusType[] = [
   bonus('Pilot', 'pilot_hp', 'Pilot HP'), bonus('Pilot', 'pilot_armor', 'Pilot armour'),
-  bonus('Pilot', 'pilot_speed', 'Pilot speed'), bonus('Pilot', 'pilot_edef', 'Pilot E-defence'),
+  bonus('Pilot', 'pilot_speed', 'Pilot speed'), bonus('Pilot', 'pilot_edef', 'Pilot E-defence'), bonus('Pilot', 'mod_points', 'Mod points'),
   bonus('Mech', 'structure', 'Structure'), bonus('Mech', 'stress', 'Stress'), bonus('Mech', 'hp', 'HP'),
   bonus('Mech', 'heatcap', 'Heat cap'), bonus('Mech', 'armor', 'Armour'), bonus('Mech', 'armor_max', 'Armour maximum'),
   bonus('Mech', 'evasion', 'Evasion'), bonus('Mech', 'speed', 'Speed'), bonus('Mech', 'edef', 'E-defence'),
   bonus('Mech', 'tech_attack', 'Tech attack'), bonus('Mech', 'repcap', 'Repair cap'), bonus('Mech', 'sp', 'System points'),
   bonus('Mech', 'size', 'Size'), bonus('Mech', 'ai_cap', 'AI capacity'), bonus('Mech', 'limited_bonus', 'Limited uses'),
 ]
+// Effect bonuses the code understands that aren't a plain stat number. "value" is what the form asks for: nothing, a number,
+// a whole number (0 or more), a mount type (add_mount, replace_mount), four overcharge steps or a list of tags. "filters": the
+// optional lists the data uses to aim it at some weapons; "max": add_mount's optional "only if fewer than N mounts"
+// (integrated mounts don't count); "damageType": a damage bonus's optional damage_type (it adds that damage). Every kind
+// of content may carry any of them.
+export type BonusFilter = 'weapon_types' | 'weapon_sizes' | 'range_types' | 'damage_types'
+export type EffectBonusType = { id: string; label: string; value: 'none' | 'number' | 'whole' | 'mount' | 'steps' | 'tags'; filters?: BonusFilter[]; max?: boolean; damageType?: boolean }
+const WEAPON_FILTERS: BonusFilter[] = ['weapon_types', 'weapon_sizes', 'range_types', 'damage_types']
+const deployables = (): EffectBonusType[] => ['Drone', 'Deployable'].flatMap((who) =>
+  ['hp:HP', 'armor:armour', 'evasion:evasion', 'edef:E-defence', 'size:size'].map((stat) => {
+    const [key, label] = stat.split(':')
+    return { id: `${who.toLowerCase()}_${key}`, label: `${who} ${label}`, value: 'number' as const }
+  }))
+export const EFFECT_BONUS_TYPES: EffectBonusType[] = [
+  { id: 'add_mount', label: 'Adds a mount', value: 'mount', max: true },
+  { id: 'replace_mount', label: 'Replaces a mount', value: 'mount' },
+  { id: 'superheavy_mounting', label: 'Superheavy mount', value: 'none' },
+  { id: 'cheap_struct', label: 'Structure repair cost', value: 'whole' },
+  ...deployables(),
+  { id: 'range', label: 'Weapon range', value: 'number', filters: WEAPON_FILTERS },
+  { id: 'threat', label: 'Weapon threat', value: 'number', filters: WEAPON_FILTERS },
+  { id: 'damage', label: 'Weapon damage', value: 'number', filters: WEAPON_FILTERS, damageType: true },
+  { id: 'add_tags', label: 'Adds tags to weapons', value: 'tags', filters: WEAPON_FILTERS },
+  { id: 'overcharge', label: 'Overcharge heat', value: 'steps' },
+]
+// A bonus's condition: short text, never counted, shown as a reminder.
+export const CONDITION_MAX = 120
+const FILTER_NOUNS: Record<BonusFilter, string> = { weapon_types: 'weapon type', weapon_sizes: 'weapon size', range_types: 'range type', damage_types: 'damage type' }
+// Whether the code applies a bonus anywhere: a stat, an effect, damage or attack rolls, any bonus with an accuracy (a check
+// modifier), and the pilot's own stats. Only others are shown as "not counted".
+export const bonusCounted = (row: Data, statIds: string[] = []) => {
+  const id = String(row.id ?? '')
+  return BONUS_TYPES.some((type) => type.id === id) || statIds.includes(id) || !!effectType(id) || ['damage', 'attack', 'melee'].includes(id)
+    || row.accuracy !== undefined || (id.startsWith('pilot_') && id !== 'pilot_evasion')
+}
+const effectType = (id: string) => EFFECT_BONUS_TYPES.find((type) => type.id === id)
+const isWhole = (value: unknown) => isNumber(value) && Number.isInteger(Number(value)) && Number(value) >= 0
+// Why a value doesn't fit its effect bonus, or '' when it does.
+function effectValueProblem(type: EffectBonusType, row: Data): string {
+  if (type.value === 'mount' && !FRAME_MOUNTS.includes(String(row.val))) return 'needs a mount type.'
+  if (type.value === 'number' && !isNumber(row.val)) return 'needs a number.'
+  if (type.value === 'whole' && !isWhole(row.val)) return 'needs a whole number, 0 or more.'
+  if (type.value === 'tags' && !(Array.isArray(row.val) && row.val.length && row.val.every((tag) => isObject(tag) && typeof tag.id === 'string' && tag.id && (tag.val === undefined || isNumber(tag.val) || typeof tag.val === 'string')))) return 'needs at least one tag.'
+  if (type.damageType && row.damage_type !== undefined && !DAMAGE_TYPES.includes(String(row.damage_type))) return 'has an unknown damage type.'
+  if (type.value === 'steps' && !(Array.isArray(row.val) && row.val.length === 4 && row.val.every((step) => typeof flatDamage(step as string | number) === 'number'))) return 'needs four overcharge steps, such as 1, 1d3, 1d6, 1d6+4.'
+  if (type.max && row.max !== undefined && row.max !== '' && (!Number.isInteger(Number(row.max)) || Number(row.max) < 1)) return 'needs a whole number of mounts, 1 or more.'
+  for (const key of type.filters ?? []) {
+    const allowed = key === 'weapon_types' ? [...WEAPON_TYPES, ...DATA_ONLY_WEAPON_TYPES] : key === 'weapon_sizes' ? [...WEAPON_MOUNTS, ...DATA_ONLY_MOUNTS] : key === 'damage_types' ? DAMAGE_TYPES : RANGE_TYPES
+    if (row[key] !== undefined && !(Array.isArray(row[key]) && (row[key] as unknown[]).every((value) => allowed.includes(String(value))))) return `has an unknown ${FILTER_NOUNS[key]}.`
+  }
+  return ''
+}
 export const personalBonusTypes = (stats: { id: string; name: string }[]): BonusType[] =>
   stats.map((stat) => bonus('Personal stat', stat.id, stat.name))
-// Pilot gear can only change the pilot; a core bonus any of them.
+// Any kind can carry any bonus; the personal stats only make sense on what a pilot has (gear, core bonuses, talents, biomods).
 export const bonusTypesFor = (kind: EditorKind, stats: { id: string; name: string }[]) =>
-  [...BONUS_TYPES.filter((type) => kind !== 'pilot_gear' || type.group === 'Pilot'), ...(kind === 'pilot_gear' || kind === 'core_bonuses' ? personalBonusTypes(stats) : [])]
+  [...BONUS_TYPES, ...(['pilot_gear', 'core_bonuses', 'talents', 'bionics'].includes(kind) ? personalBonusTypes(stats) : [])]
 
 // The frame form's choices (src/components/editor/FrameForm.vue). A frame is its own licence: license_id is its id, unless it
 // is an alternate of another frame (an alternate Genghis), when license_id is the original's id and variant its name
 // (alternateOf() in mechData.ts reads it); license_level (0 for GMS, otherwise 2) is the rank that unlocks it. "unused" stats are game data the site's mech maths
 // leaves out (no grit, save target or sensors); the form still edits them.
 export const FRAME_ROLES = ['Balanced', 'Striker', 'Defender', 'Support', 'Controller', 'Artillery']
-export const FRAME_MOUNTS = ['Main', 'Heavy', 'Flex', 'Main/Aux', 'Aux/Aux', 'Auxiliary', 'Integrated Auxiliary']
+export const FRAME_MOUNTS = ['Main', 'Heavy', 'Superheavy', 'Flex', 'Main/Aux', 'Aux/Aux', 'Auxiliary', 'Integrated Auxiliary']
 export const FRAME_USES = ['Turn', 'Next Turn', 'Round', 'Next Round', 'Scene', 'Encounter', 'Mission', 'Free']
 export const FRAME_SIZES = [0.5, 1, 2, 3]
 export const FRAME_STATS: { key: string; label: string; unused?: boolean }[] = [
@@ -168,6 +221,9 @@ export type Context = {
   // Every item id (talents grant items) and every frame id (a licence is a frame's), when the editor has them.
   known?: Set<string>
   licences?: Set<string>
+  // Every talent and core bonus id, for requirements.
+  talents?: Set<string>
+  coreBonuses?: Set<string>
   // The frames that are themselves alternates of another (an alternate can't be of one of these).
   alternates?: Set<string>
 }
@@ -207,10 +263,14 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
   for (const [index, bonus] of list(data.bonuses).entries()) {
     const row = entry(bonus)
     const id = String(row.id ?? '')
-    if (!id) out.push(error(say(who, `bonus ${index + 1} needs a type.`), `${at}bonuses.${index}.id`))
-    else if (!known.has(id)) out.push(warn(say(who, `Bonus "${id}" isn't counted in the stats.`), `${at}bonuses.${index}.id`))
+    if (!id) out.push(error(say(who, `effect ${index + 1} needs a type.`), `${at}bonuses.${index}.id`))
+    else if (!bonusCounted(row, ctx.statIds)) out.push(warn(say(who, `Effect "${id}" isn't counted in the stats.`), `${at}bonuses.${index}.id`))
+    if (row.condition !== undefined && (typeof row.condition !== 'string' || row.condition.length > CONDITION_MAX)) out.push(error(say(who, `effect ${index + 1} condition must be text of ${CONDITION_MAX} characters or fewer.`), `${at}bonuses.${index}.condition`))
+    const effect = effectType(id)
+    const why = effect && effectValueProblem(effect, row)
+    if (why) out.push(error(say(who, `effect ${index + 1} ${why}`), `${at}bonuses.${index}.val`))
     // A bonus the build maths doesn't count (an accuracy bonus has no "val") is kept as it is, not evaluated.
-    if (known.has(id) && bonusValue(row.val, FORMULA_VARIABLES) === null) out.push(error(say(who, `bonus ${index + 1} needs a number, or a formula such as {systems}/2.`), `${at}bonuses.${index}.val`))
+    else if (!effect && known.has(id) && bonusValue(row.val, FORMULA_VARIABLES) === null) out.push(error(say(who, `effect ${index + 1} needs a number, or a formula such as {systems}/2.`), `${at}bonuses.${index}.val`))
   }
 
   if (numbers) {
@@ -267,6 +327,7 @@ function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
   if (!WEAPON_TYPES.concat(DATA_ONLY_WEAPON_TYPES).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
   checkPoints(data, out)
   checkLicence(data, ctx, out)
+  checkGrants(data, ctx, out)
   const profiles = list(data.profiles)
   // With profiles, each has its own range and damage; the weapon's own tags, rules and actions are shared.
   checkParts(data, '', '', ctx, out, !profiles.length)
@@ -283,6 +344,7 @@ function checkSystem(data: Data, ctx: Context, out: Problem[]) {
   if (data.type !== undefined && !SYSTEM_TYPES.includes(String(data.type))) out.push(error('Choose the kind of system.', 'type'))
   checkPoints(data, out)
   checkLicence(data, ctx, out)
+  checkGrants(data, ctx, out)
   checkParts(data, '', '', ctx, out, false)
   checkDeployables(data.deployables, ctx, out)
 }
@@ -307,11 +369,34 @@ function checkTalent(data: Data, ctx: Context, out: Problem[]) {
     const who = `Rank ${RANK_NAMES[index] ?? index + 1}`
     if (typeof row.name !== 'string' || !row.name.trim()) out.push(error(`${who} needs a name.`, `ranks.${index}.name`))
     checkParts(row, `ranks.${index}.`, who, ctx, out, false)
-    for (const key of ['integrated', 'special_equipment'] as const) {
-      for (const id of list(row[key])) {
-        if (ctx.known && !ctx.known.has(String(id))) out.push(error(`${who}: Item "${id}" doesn't exist.`, `ranks.${index}.${key}`))
-      }
-    }
+    checkGrants(row, ctx, out, `ranks.${index}.`, who)
+  }
+}
+
+// The built-in and optional items something grants (a core bonus, talent rank, weapon, system or biomod) must exist;
+// replace_integrated is a yes or no.
+function checkGrants(data: Data, ctx: Context, out: Problem[], at = '', who = '') {
+  for (const key of ['integrated', 'special_equipment'] as const)
+    for (const id of list(data[key]))
+      if (ctx.known && !ctx.known.has(String(id))) out.push(error(say(who, `Item "${id}" doesn't exist.`), `${at}${key}`))
+  if (data.replace_integrated !== undefined && typeof data.replace_integrated !== 'boolean') out.push(error(say(who, 'Replace integrated must be yes or no.'), `${at}replace_integrated`))
+}
+
+// What an item needs first (src/rules.ts unmetRequirements): a talent or licence rank, a core bonus or another item.
+export const REQUIREMENT_LABELS: Record<(typeof REQUIREMENT_KINDS)[number], string> = { talent: 'Talent', licence: 'Licence', core_bonus: 'Core bonus', item: 'Item' }
+function checkRequires(data: Data, ctx: Context, out: Problem[]) {
+  if (data.requires === undefined) return
+  if (!Array.isArray(data.requires)) return void out.push(error('Requirements must be a list.', 'requires'))
+  for (const [index, item] of data.requires.entries()) {
+    const row = entry(item)
+    const n = index + 1, at = `requires.${index}`
+    const kind = (REQUIREMENT_KINDS as readonly string[]).includes(String(row.kind)) ? (row.kind as (typeof REQUIREMENT_KINDS)[number]) : undefined
+    const id = String(row.id ?? '')
+    const known = kind === 'talent' ? ctx.talents : kind === 'licence' ? ctx.licences : kind === 'core_bonus' ? ctx.coreBonuses : ctx.known
+    if (!kind) out.push(error(`Requirement ${n} needs a kind.`, `${at}.kind`))
+    else if (!id) out.push(error(`Requirement ${n} needs choosing.`, `${at}.id`))
+    else if (known && !known.has(id)) out.push(error(`Requirement ${n}: ${REQUIREMENT_LABELS[kind]} "${id}" doesn't exist.`, `${at}.id`))
+    if ((kind === 'talent' || kind === 'licence') && (!Number.isInteger(row.rank) || (row.rank as number) < 1 || (row.rank as number) > 3)) out.push(error(`Requirement ${n} needs a rank, I, II or III.`, `${at}.rank`))
   }
 }
 
@@ -390,13 +475,22 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   else if (kind === 'frames') checkFrame(data, ctx, problems)
   else if (kind === 'manufacturers') checkManufacturer(data, problems)
   else checkParts(data, '', '', ctx, problems)
+  if (kind === 'core_bonuses') checkGrants(data, ctx, problems)
+  if (['weapons', 'systems', 'mods', 'pilot_gear', 'core_bonuses', 'talents', 'frames'].includes(kind)) checkRequires(data, ctx, problems)
   return problems
 }
 
 // Where on the body a biomod goes: the form suggests these (and any slot already used); the slot itself is free text.
 export const BIONIC_SLOTS = ['Head', 'Eyes', 'Ears', 'Brain', 'Spine', 'Torso', 'Heart', 'Lungs', 'Arm', 'Hand', 'Leg', 'Foot', 'Skin', 'Nervous system', 'Full body']
-export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'>): Problem[] {
+// A biomod's own bonuses are the stat ones in "bonuses" (the table the personal stats read). Its effect_bonuses (any bonus
+// id, like every other kind's "bonuses"), integrated, special_equipment, replace_integrated and requires are the same
+// fields the other kinds have, in columns of the bionics table.
+export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Partial<Context>): Problem[] {
   const problems: Problem[] = []
+  const full: Context = { id: '', tags: new Map(), ...ctx }
+  checkParts({ bonuses: data.effect_bonuses }, 'effect_', '', full, problems, false)
+  checkGrants(data, full, problems)
+  checkRequires(data, full, problems)
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
   if (typeof data.slot !== 'string' || !data.slot.trim()) problems.push(warn('No slot set.', 'slot'))
   if (typeof data.source !== 'string' || !data.source.trim()) problems.push(warn("No manufacturer. It's listed under Other.", 'source'))

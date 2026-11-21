@@ -47,6 +47,8 @@ export async function loadCounts(): Promise<Record<string, number>> {
   return Object.fromEntries(counts)
 }
 
+// Kinds the list boxes by manufacturer (the box says it, so the row doesn't).
+const MAKER_KINDS: EditorKind[] = ['frames', 'weapons', 'systems', 'mods', 'core_bonuses']
 // What each kind's list shows. Pack items read just a few fields (the rows are big); bionics are a small table.
 export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; error: string | null }> {
   if (kind === 'bionics') {
@@ -63,12 +65,12 @@ export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; err
   }
   const { rows, error } = await fetchAll((from, to) =>
     supabase.from('content_items')
-      .select('id, pack_id, draft, name:data->>name, edited_name:edited->>name, type:data->>type, mount:data->>mount, source:data->>source, edited_id:edited->>id')
+      .select('id, pack_id, draft, name:data->>name, edited_name:edited->>name, type:data->>type, mount:data->>mount, source:data->>source, edited_source:edited->>source, edited_id:edited->>id')
       .eq('kind', kind).order('id').range(from, to))
   return {
     rows: rows.map((row) => {
-      const r = row as unknown as { id: string; pack_id: number; draft: boolean; name: string | null; edited_name: string | null; type: string | null; mount: string | null; source: string | null; edited_id: string | null }
-      return { key: r.id, kind, name: r.edited_name ?? r.name ?? r.id, facts: [r.mount, r.type, r.source].filter(Boolean).join(' · '), packId: r.pack_id, draft: r.draft, edited: r.edited_id !== null }
+      const r = row as unknown as { id: string; pack_id: number; draft: boolean; name: string | null; edited_name: string | null; type: string | null; mount: string | null; source: string | null; edited_source: string | null; edited_id: string | null }
+      return { key: r.id, kind, name: r.edited_name ?? r.name ?? r.id, facts: [r.mount, r.type, ...(MAKER_KINDS.includes(kind) ? [] : [r.source])].filter(Boolean).join(' · '), packId: r.pack_id, draft: r.draft, edited: r.edited_id !== null, source: r.edited_source ?? r.source ?? '' }
     }),
     error,
   }
@@ -112,7 +114,9 @@ export async function homebrewPack(packs: Pack[]): Promise<{ id: number; error?:
 }
 
 // What save_bionic takes, from the form data (the slot is trimmed by the function).
-const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_source: String(working.source ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired, new_bonuses: (working.bonuses ?? []) as Json })
+const ids = (value: unknown) => (Array.isArray(value) ? value.map(String) : [])
+const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_source: String(working.source ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired, new_bonuses: (working.bonuses ?? []) as Json,
+  new_effect_bonuses: (Array.isArray(working.effect_bonuses) ? working.effect_bonuses : []) as Json, new_integrated: ids(working.integrated), new_special_equipment: ids(working.special_equipment), new_replace_integrated: working.replace_integrated === true, new_requires: (Array.isArray(working.requires) ? working.requires : []) as Json })
 
 // A new item, as a draft (pack items), or a new bionic.
 export async function createItem(kind: EditorKind, edits: Data, packId: number | null): Promise<(Saved & { key?: string })> {

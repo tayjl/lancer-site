@@ -158,7 +158,7 @@ describe('frame checks', () => {
   it("keeps bonuses the build maths doesn't count (the data has accuracy ones with no val) without erroring", () => {
     const core = { ...(frame.core_system as Data), active_bonuses: [{ id: 'check', accuracy: 1 }] }
     expect(found('frames', { ...frame, core_system: core }, frameCtx)).toEqual([])
-    expect(problemsFor('frames', { ...frame, core_system: core }, frameCtx)).toEqual([expect.objectContaining({ level: 'warn' })])
+    expect(problemsFor('frames', { ...frame, core_system: core }, frameCtx)).toEqual([])
   })
   it('warns when a frame is not its own licence', () => {
     expect(problemsFor('frames', { ...frame, license_id: 'other' }, frameCtx)).toEqual([expect.objectContaining({ level: 'warn', field: 'license_id' })])

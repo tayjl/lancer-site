@@ -44,7 +44,7 @@ import { GM_EDIT } from '../restriction'
 import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
 import { pilotList, sectionOverride } from '../router'
-import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, useCatalogue } from '../rules'
+import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, requirementReason, unmetRequirements, useCatalogue } from '../rules'
 import { capitalise } from '../text'
 
 // my pilot: your pilot as one scrolling file. A cover (portrait, callsign, name, player, status, medals, then the key
@@ -263,10 +263,10 @@ const bionicOptions = computed(() => {
     return { ...item, gmOnly: false, exotic: r.exotic || r.gmOnly, info: () => bionicInfo(bionics.value[i], statNames) }
   })
 })
-const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value)))
+const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value, bionics.value)))
 // Grit is LANCER's: half the level, rounded up. Shown only; the mech maths doesn't use it.
 const vitals = computed(() => [
-  ...pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value),
+  ...pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value, bionics.value),
   { id: 'grit', name: 'Grit', value: Math.ceil(gm.value.level / 2), icon: gritIcon, contributors: [`Half of level ${gm.value.level}, rounded up`] },
 ])
 
@@ -282,8 +282,10 @@ const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) 
 // Licences: one per original licensed frame (alternate frames share it). Each rank unlocks the frames and gear of that
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
 // can be lowered or removed; the rule check says why.
+// What an item, talent, core bonus or frame still needs of this pilot, as a picker's blocked reason ("Needs Brawler II").
+const needsOf = (data: unknown) => requirementReason(unmetRequirements(data, sheet.value, (sheet.value.owned_gear ?? []).map((owned) => owned.id), { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, itemName: (id) => gear.value.find((item) => item.id === id)?.name }))
 const licenceOptions = computed(() => {
-  const option = (frame: Frame, stale = false) => ({ id: frame.id, name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), ...restrictionOf(frame), stale })
+  const option = (frame: Frame, stale = false) => ({ id: frame.id, needs: needsOf(frame.raw), name: licenceName(frames.value, frame.id), meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), ...restrictionOf(frame), stale })
   const originals = licensedFrames(frames.value)
   return [...originals.map((frame) => option(frame)), ...frames.value.filter((f) => f.licenceLevel > 0 && !originals.includes(f) && sheet.value.licences?.[f.id]).map((frame) => option(frame, true))]
 })
@@ -306,7 +308,7 @@ const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
 // Talents: each rank's name and rules.
-const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, name: t.name, meta: t.terse, info: () => talentInfo(t), ...restrictionOf(t) })))
+const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, needs: needsOf(t), name: t.name, meta: t.terse, info: () => talentInfo(t), ...restrictionOf(t) })))
 const talentDetails = (id: string): RankStep[] =>
   (talents.value.find((t) => t.id === id)?.ranks ?? []).map((r) => ({ name: r.name, html: r.description }))
 const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({ talents: talentRanks }))
@@ -640,6 +642,8 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
                 class="qual"
                 :options="coreBonuses"
                 :licences="sheet.licences ?? {}"
+                :talents="sheet.talents ?? {}"
+                :needs="needsOf"
                 :frames="frames"
                 :taken="sheet.core_bonuses ?? []"
                 :picks="coreBonusPicks(sheet)"
@@ -659,6 +663,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               :editable="editable"
               :can-remove="gmEditing && character.status === 'approved'"
               :balance="balance"
+              :needs="(item) => needsOf(item.raw)"
               :equip="saveEquipped"
               :save-owned="saveOwned"
               :misc="sheet.misc_items ?? []"

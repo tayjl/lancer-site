@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { confirmAction } from '../confirm'
-import { tagNames, toItem, type Item } from '../gameData'
+import { tagNames, toItem, useGameData, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
 import { itemInfo } from '../info'
 import { itemPick } from '../pickerRows'
 import { useManufacturers } from '../archive'
 import { modBlockedBy, modsRefused } from '../equipment'
-import { allowedSizes, fittedMods, MOUNT_HINTS, mountSize, type Frame } from '../mechData'
+import { allowedSizes, fittedMods, MOUNT_HINTS, mountReplacements, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { bracingMount, isLicensed, licenceName, rankName, isExotic, restrictionOf, superheavyMount } from '../rules'
+import { bracingMount, isLicensed, licenceName, rankName, isExotic, requirementReason, restrictionOf, superheavyMount, unmetRequirements } from '../rules'
 import { useRestriction } from '../restriction'
 import { withoutNote } from '../itemNotes'
 import ItemPicker from './ItemPicker.vue'
@@ -39,7 +39,6 @@ const props = defineProps<{
   sheet: Sheet
   details: MechPrivate
   bonuses: NamedBonus[]
-  superheavyMounting: boolean
   capacityFor: (changes: Partial<MechPrivate>) => { sp: number; ai: number }
   save: (changes: Partial<MechPrivate>) => Promise<string | null>
 }>()
@@ -54,7 +53,7 @@ const find = (byId: Map<string, Item>, id: string) => byId.get(id) ?? props.inte
 // A Superheavy weapon's mount, and the empty mount it braces against (-1 when there's none).
 const sizeOf = (id: string) => weaponsById.value.get(id)?.mount
 const superheavyAt = computed(() => superheavyMount(props.mounts, sizeOf))
-const braced = computed(() => (superheavyAt.value < 0 || props.superheavyMounting ? -1 : bracingMount(props.frame?.mounts ?? [], props.mounts, superheavyAt.value)))
+const braced = computed(() => (superheavyAt.value < 0 ? -1 : bracingMount(props.frame?.mounts ?? [], props.mounts, superheavyAt.value)))
 // Whether a Superheavy weapon could go on mount m: some other mount must be empty to brace it.
 const canBrace = (m: number) => bracingMount(props.frame?.mounts ?? [], props.mounts, m) >= 0
 
@@ -136,6 +135,7 @@ type Target = { kind: 'weapon'; m: number; i: number; id: string | null; allowed
 const target = ref<Target | null>(null)
 
 const reasonFor = useRestriction()
+const { talents, coreBonuses } = useGameData()
 const options = computed(() => {
   const t = target.value
   if (!t) return []
@@ -153,10 +153,12 @@ const options = computed(() => {
     const capacity = props.capacityFor(changes)
     const swapped = leaving.reduce((sum, id) => sum + (id ? (weaponsById.value.get(id) ?? modsById.value.get(id))?.sp ?? 0 : 0), 0)
     if (!isLicensed(item, props.licences)) return `Needs ${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}`
+    const unmet = unmetRequirements(item.raw, props.sheet, onMech, { frames: props.frames, talents: talents.value, coreBonuses: coreBonuses.value, itemName: id => (systemsById.value.get(id) ?? weaponsById.value.get(id) ?? modsById.value.get(id) ?? props.integrated.get(id))?.name })
+    if (unmet.length) return requirementReason(unmet)
     if (t.kind === 'mod') { const why = modBlockedBy(item, t.weapon, props.frame?.mounts[t.m] ?? '', props.details.weapon_options?.[key]); if (why) return why }
     if (has('tg_unique') && onMech.includes(item.id)) return 'Already on this mech'
     if (has('tg_ai') && aiCount >= capacity.ai) return 'Not enough AI capacity'
-    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !props.superheavyMounting && !canBrace(t.m)) return 'Needs an empty mount'
+    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !canBrace(t.m)) return 'Needs an empty mount'
     if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough system points'
     return ''
   }
@@ -216,11 +218,12 @@ const spNote = computed(() => {
   const left = (props.spTotal ?? 0) - spUsed.value
   return left < 0 ? `${-left} over` : left === 0 ? 'All used' : `${left} left`
 })
-const coreChoices = [
+// Each choice the player makes about a mount: the core bonuses', then every replace_mount bonus's (keyed by its source).
+const coreChoices = computed(() => [
   { id: 'cb_mount_retrofitting', name: 'Mount Retrofitting' },
   { id: 'cb_auto_stabilizing_hardpoints', name: 'Auto-Stabilizing Hardpoints' },
   { id: 'cb_overpower_caliber', name: 'Overpower Caliber' },
-]
+].filter(choice => props.sheet.core_bonuses?.includes(choice.id)).concat(mountReplacements(props.bonuses).map(({ key, name }) => ({ id: key, name }))))
 function targets(id: string) {
   return (props.frame?.mounts ?? []).flatMap((mount, m) => id === 'cb_overpower_caliber'
     ? (props.mounts[m] ?? []).flatMap((weapon, i) => weapon ? [{ value: m * 2 + i, name: `Mount ${m + 1} · ${find(weaponsById.value, weapon).name}` }] : [])
@@ -249,9 +252,9 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
         <div class="meter-note">{{ spNote }}</div>
       </div>
     </section>
-    <section v-if="frame && coreChoices.some(choice => sheet.core_bonuses?.includes(choice.id))" class="panel">
+    <section v-if="frame && coreChoices.length" class="panel">
       <h2 class="sheet-label">Core bonus assignments</h2>
-      <div v-for="choice in coreChoices.filter(choice => sheet.core_bonuses?.includes(choice.id))" :key="choice.id" class="core-choice">
+      <div v-for="choice in coreChoices" :key="choice.id" class="core-choice">
         <label :for="choice.id">{{ choice.name }}</label>
         <select :id="choice.id" :value="details.core_mounts?.[choice.id] ?? -1" :disabled="!editable || saving" @change="setCore(choice.id, $event)">
           <option :value="-1" disabled>Choose…</option>

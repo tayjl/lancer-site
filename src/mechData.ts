@@ -14,10 +14,10 @@ import sizeHalfIcon from './assets/icons/size-half.svg'
 import size1Icon from './assets/icons/size-1.svg'
 import size2Icon from './assets/icons/size-2.svg'
 import size3Icon from './assets/icons/size-3.svg'
-import { equippedGear, loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
+import { equippedGear, loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bionic, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
 import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
-import { bonusValue, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
+import { bonusReminder, bonusValue, isPilotBonus, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
 import { flatDamage, flatDamageText } from './damage'
 import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES } from './coreRules'
@@ -47,6 +47,7 @@ const MOUNT_SLOTS: Record<string, string[][]> = {
   'Integrated Auxiliary': [['Auxiliary']],
   Main: [['Main', 'Auxiliary']],
   // A Superheavy weapon also needs a second, empty mount: see bracingMount() in src/rules.ts.
+  Superheavy: [['Superheavy']],
   Heavy: [['Superheavy', 'Heavy', 'Main', 'Auxiliary']],
   Flex: [['Main', 'Auxiliary'], ['Auxiliary']],
   'Main/Aux': [['Main', 'Auxiliary'], ['Auxiliary']],
@@ -57,6 +58,7 @@ const MOUNT_SLOTS: Record<string, string[][]> = {
 export const MOUNT_HINTS: Record<string, string> = {
   Main: 'Takes one Main or Auxiliary weapon.',
   Heavy: 'Takes one weapon of any size.',
+  Superheavy: 'Takes one Superheavy weapon.',
   Flex: 'Takes one Main or two Auxiliary weapons.',
   'Main/Aux': 'Takes one Main and one Auxiliary weapon.',
   'Aux/Aux': 'Takes two Auxiliary weapons.',
@@ -120,24 +122,51 @@ export type EffectCatalogue = {
   talents?: Talent[]
   coreBonuses?: CoreBonus[]
   gear?: Item[]
+  bionics?: Bionic[]
 }
 
-export function talentGrants(sheet: Sheet, talents: Talent[]) {
-  const integrated = new Set<string>(), optional = new Set<string>()
+// What taken talent ranks and core bonuses, and the equipped weapons and systems, build in (integrated) or unlock as
+// optional equipment. "replace": the integrated ones whose source also replaces the frame's own integrated weapons.
+type Granting = { integrated?: unknown; special_equipment?: unknown; replace_integrated?: unknown }
+export const idList = (value: unknown) => (Array.isArray(value) ? value.map(String) : [])
+export function talentGrants(sheet: Sheet, talents: Talent[], coreBonuses: CoreBonus[] = [], equipped: { raw?: Record<string, unknown> }[] = []) {
+  const integrated = new Set<string>(), optional = new Set<string>(), replace = new Set<string>()
+  const take = (source: Granting) => {
+    for (const id of idList(source.integrated)) { integrated.add(id); if (source.replace_integrated === true) replace.add(id) }
+    for (const id of idList(source.special_equipment)) optional.add(id)
+  }
+  for (const bonus of coreBonuses) if (sheet.core_bonuses?.includes(bonus.id)) take(bonus)
+  // shortcut: an item granted by an equipped item grants nothing further, upgrade if chains are wanted.
+  for (const item of equipped) take(item.raw ?? {})
   for (const talent of talents) {
     const rank = sheet.talents?.[talent.id] ?? 0
     const ranks = talent.ranks.slice(0, Number.isInteger(rank) ? Math.max(0, Math.min(3, rank)) : 0)
     const exclusive = ranks.reduce((last, entry, index) => entry.exclusive ? index : last, -1)
     ranks.forEach((entry, index) => {
-      if (entry.exclusive && index !== exclusive) return
-      for (const id of entry.integrated ?? []) integrated.add(id)
-      for (const id of entry.special_equipment ?? []) optional.add(id)
+      if (!entry.exclusive || index === exclusive) take(entry)
     })
   }
-  return { integrated: [...integrated], optional: [...optional] }
+  return { integrated: [...integrated], optional: [...optional], replace: [...replace] }
 }
 
-export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet, talents: Talent[], bonuses: NamedBonus[] = []): Frame | null {
+// The equipped weapons and systems that exist in the catalogue (for what they grant).
+export function equippedItems(mech: MechPrivate, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated'>) {
+  return [...(mech.systems ?? []).map(id => catalogue.systems.get(id) ?? catalogue.integrated.get(id)), ...(mech.mounts ?? []).flat().map(id => (id ? catalogue.weapons.get(id) ?? catalogue.integrated.get(id) : undefined))]
+    .filter((item): item is Item => !!item)
+}
+
+// Everything on the mech that can grant equipment: equipped weapons and systems, and the pilot's installed biomods.
+export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated' | 'bionics'>) =>
+  [...equippedItems(mech, catalogue), ...(catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id)).map(bionic => ({ raw: bionic as unknown as Record<string, unknown> }))]
+
+// A source's second replace_mount gets "#1" on its key, so each has its own choice.
+export const choiceKey = (key: string, n: number) => (n ? `${key}#${n}` : key)
+// The mount changes a mech's bonuses offer: the mount each replaces is chosen by the player (mech.core_mounts[key]).
+export const mountReplacements = (bonuses: NamedBonus[]) => bonuses.flatMap(({ source, bonus, key }) =>
+  bonus.id === 'replace_mount' && key && permanentBonus(bonus) && Object.hasOwn(MOUNT_SLOTS, String(bonus.val)) ? [{ key, name: source, type: String(bonus.val) }] : [])
+
+// "core.integrated" (the integrated catalogue) tells weapons from systems, for a core bonus that replaces the frame's integrated weapons.
+export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet, talents: Talent[], bonuses: NamedBonus[] = [], core: { coreBonuses?: CoreBonus[]; integrated?: Map<string, Item>; equipped?: { raw?: Record<string, unknown> }[] } = {}): Frame | null {
   if (!frame) return null
   const mounts = [...frame.mounts]
   const taken = new Set(sheet.core_bonuses ?? [])
@@ -146,13 +175,23 @@ export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet,
     const index = mech.core_mounts?.cb_mount_retrofitting
     if (Number.isInteger(index) && index! >= 0 && index! < mounts.length) mounts[index!] = 'Main/Aux'
   }
+  // Integrated mounts don't count towards a bonus's "fewer than N mounts".
+  const counted = () => mounts.filter(mount => mount !== 'Integrated Auxiliary').length
   for (const { bonus } of bonuses) {
     if (bonus.id !== 'add_mount' || !permanentBonus(bonus)) continue
     const type = String(bonus.val)
-    if (type in MOUNT_SLOTS && (!Number.isFinite(bonus.max) || mounts.length < Number(bonus.max)) && mounts.length < 20) mounts.push(type)
+    if (Object.hasOwn(MOUNT_SLOTS, type) && (!Number.isFinite(bonus.max) || counted() < Number(bonus.max)) && mounts.length < 20) mounts.push(type)
+  }
+  if (bonuses.some(({ bonus }) => bonus.id === 'superheavy_mounting' && permanentBonus(bonus)) && counted() < 3) mounts.push('Superheavy')
+  for (const { key, type } of mountReplacements(bonuses)) {
+    const index = mech.core_mounts?.[key] ?? -1
+    if (Number.isInteger(index) && index >= 0 && index < mounts.length && mounts[index] !== 'Integrated Auxiliary') mounts[index] = type
   }
   if (taken.has('cb_integrated_weapon')) mounts.push('Integrated Auxiliary')
-  return { ...frame, mounts, integrated: [...new Set([...frame.integrated, ...talentGrants(sheet, talents).integrated])] }
+  const grants = talentGrants(sheet, talents, core.coreBonuses, core.equipped)
+  const isWeapon = (id: string) => !!core.integrated?.get(id)?.mount
+  const replaces = grants.replace.some(isWeapon)
+  return { ...frame, mounts, integrated: [...new Set([...(replaces ? frame.integrated.filter(id => !isWeapon(id)) : frame.integrated), ...grants.integrated])] }
 }
 
 export const buildVariables = (sheet: Sheet, frame?: Frame | null) => ({
@@ -182,29 +221,36 @@ const missingFrom = (extra: Bonus[] | undefined, have: Bonus[]) =>
 // unsupported bonuses remain explicit reminders: guessing whether a conditional effect is active would give
 // misleading totals. Equipped items' rules aren't repeated: their own loadout cards already show them.
 export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCatalogue) {
-  const sources: { name: string; bonuses: Bonus[]; origin: Origin }[] = []
+  const sources: { name: string; bonuses: Bonus[]; origin: Origin; key?: string }[] = []
   const reminders: Reminder[] = []
   const addItem = (id: string, items: Map<string, Item>, key = id) => {
     const item = items.get(id) ?? catalogue.integrated.get(id)
     if (item) {
       const selected = selectWeaponProfile(item, mech.weapon_options?.[key]?.profile ?? 0)
-      addRaw(selected.name, '', { ...selected.raw, bonuses: selected.bonuses }, { kind: 'item', name: selected.name }, false)
+      addRaw(selected.name, '', { ...selected.raw, bonuses: selected.bonuses }, { kind: 'item', name: selected.name }, false, id)
     }
     else reminders.push({ kind: 'missing', name: id, source: id, text: "Missing item. Its bonuses aren't counted." })
   }
   // A Unique item duplicated on an invalid loadout must not grant its bonuses twice.
   const baseFrame = catalogue.frames?.find(frame => frame.id === mech.frame)
-  const mountSources = [
-    ...(catalogue.coreBonuses ?? []).filter(bonus => sheet.core_bonuses?.includes(bonus.id)),
-    ...(catalogue.talents ?? []).flatMap(talent => talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0)))),
-    ...(mech.systems ?? []).flatMap(id => { const item = catalogue.systems.get(id) ?? catalogue.integrated.get(id); return item ? [item] : [] }),
-    ...(baseFrame?.raw ? [baseFrame.raw, ...(Array.isArray(baseFrame.raw.traits) ? baseFrame.raw.traits as Record<string, unknown>[] : [])] : []),
-    ...(baseFrame?.raw?.core_system ? [{ bonuses: (baseFrame.raw.core_system as Record<string, unknown>).passive_bonuses }] : []),
+  const traitList = (Array.isArray(baseFrame?.raw?.traits) ? baseFrame!.raw!.traits : []) as Record<string, unknown>[]
+  const mountSources: { key: string; name: string; bonuses: unknown }[] = [
+    ...(catalogue.coreBonuses ?? []).filter(bonus => sheet.core_bonuses?.includes(bonus.id)).map(bonus => ({ key: bonus.id, name: bonus.name, bonuses: bonus.bonuses })),
+    ...(catalogue.talents ?? []).flatMap(talent => talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).map((rank, index) => ({ key: `${talent.id}:${index + 1}`, name: `${talent.name} ${index + 1}`, bonuses: rank.bonuses }))),
+    ...(mech.systems ?? []).flatMap(id => { const item = catalogue.systems.get(id) ?? catalogue.integrated.get(id); return item ? [{ key: id, name: item.name, bonuses: item.bonuses }] : [] }),
+    ...(baseFrame?.raw ? [{ key: baseFrame.id, name: baseFrame.name, bonuses: baseFrame.raw.bonuses }, ...traitList.map((trait, index) => ({ key: `${baseFrame.id}:trait:${index}`, name: `${baseFrame.name} · ${trait.name ?? 'trait'}`, bonuses: trait.bonuses }))] : []),
+    ...(baseFrame?.raw?.core_system ? [{ key: `${baseFrame.id}:core`, name: String((baseFrame.raw.core_system as Record<string, unknown>).name ?? 'Core system'), bonuses: (baseFrame.raw.core_system as Record<string, unknown>).passive_bonuses }] : []),
   ]
-  const mountBonuses = mountSources.flatMap(source => Array.isArray(source.bonuses) ? (source.bonuses as Bonus[]).filter(bonus => bonus?.id === 'add_mount').map(bonus => ({ source: '', bonus })) : [])
-  const frame = buildFrame(baseFrame ?? null, mech, sheet, catalogue.talents ?? [], mountBonuses)
-  const addRaw = (name: string, text: unknown, raw: Record<string, unknown>, origin: Origin, remind = true) => {
-    sources.push({ name, bonuses: Array.isArray(raw.bonuses) ? raw.bonuses as Bonus[] : [], origin })
+  const mountBonuses = mountSources.flatMap(source => {
+    let n = 0
+    return Array.isArray(source.bonuses) ? (source.bonuses as Bonus[]).filter(bonus => ['add_mount', 'superheavy_mounting', 'replace_mount'].includes(bonus?.id)).map(bonus => ({ source: source.name, bonus, key: bonus.id === 'replace_mount' ? choiceKey(source.key, n++) : source.key })) : []
+  })
+  // Installed biomods grant equipment like equipped items do.
+  const installed = (catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id))
+  const granting = grantingSources(mech, sheet, catalogue)
+  const frame = buildFrame(baseFrame ?? null, mech, sheet, catalogue.talents ?? [], mountBonuses, { coreBonuses: catalogue.coreBonuses, integrated: catalogue.integrated, equipped: granting })
+  const addRaw = (name: string, text: unknown, raw: Record<string, unknown>, origin: Origin, remind = true, key?: string) => {
+    sources.push({ name, bonuses: Array.isArray(raw.bonuses) ? raw.bonuses as Bonus[] : [], origin, key })
     if (!remind) return
     const actions: Reminder[] = []
     // Not "synergies": COMP/CON's hints that repeat the rules text already listed.
@@ -233,13 +279,13 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   }
   if (baseFrame?.raw) {
     // The frame's description is lore, not rules.
-    addRaw(baseFrame.name, '', baseFrame.raw, { kind: 'frame', name: baseFrame.name })
-    for (const trait of (Array.isArray(baseFrame.raw.traits) ? baseFrame.raw.traits : []) as Record<string, unknown>[])
+    addRaw(baseFrame.name, '', baseFrame.raw, { kind: 'frame', name: baseFrame.name }, true, baseFrame.id)
+    traitList.forEach((trait, index) =>
       // "from" keeps the trait's name on its actions and bonuses too, so the mech page groups them on the trait's card.
-      addRaw(`${baseFrame.name} · ${trait.name ?? 'trait'}`, trait.description, trait, { kind: 'trait', name: String(trait.name ?? 'Trait'), from: String(trait.name ?? 'Trait') })
+      addRaw(`${baseFrame.name} · ${trait.name ?? 'trait'}`, trait.description, trait, { kind: 'trait', name: String(trait.name ?? 'Trait'), from: String(trait.name ?? 'Trait') }, true, `${baseFrame.id}:trait:${index}`))
     const core = baseFrame.raw.core_system as Record<string, unknown> | undefined
     if (core) {
-      addRaw(`${core.name ?? 'core system'} · passive`, core.passive_effect, { ...core, bonuses: core.passive_bonuses ?? [] }, { kind: 'core', name: String(core.passive_name ?? core.name ?? 'Core system'), from: core.name ? String(core.name) : undefined })
+      addRaw(`${core.name ?? 'core system'} · passive`, core.passive_effect, { ...core, bonuses: core.passive_bonuses ?? [] }, { kind: 'core', name: String(core.passive_name ?? core.name ?? 'Core system'), from: core.name ? String(core.name) : undefined }, true, `${baseFrame.id}:core`)
       if (core.active_effect) {
         // The core power's own action (same name) is listed once, as the power, with the action's chip and text.
         const power = String(core.active_name ?? core.name)
@@ -268,7 +314,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
     for (const slot of layout.slots) {
       const item = slot.id ? byId.get(slot.id) : undefined
-      if (item) sources.push({ name: item.name, bonuses: item.bonuses.filter(bonus => !bonus.id.startsWith('pilot_')), origin: { kind: 'item', name: item.name } })
+      if (item) sources.push({ name: item.name, bonuses: item.bonuses.filter(bonus => !isPilotBonus(bonus.id)), origin: { kind: 'item', name: item.name }, key: item.id })
     }
   }
   const mounts = frame ? (mech.mounts ?? []).slice(0, frame.mounts.length).map((places, index) => places.slice(0, mountSize(frame.mounts[index]))) : mech.mounts ?? []
@@ -291,7 +337,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   for (const id of new Set(sheet.core_bonuses ?? [])) {
     const bonus = catalogue.coreBonuses?.find(bonus => bonus.id === id)
     if (bonus) {
-      addRaw(bonus.name, bonus.effect, bonus, { kind: 'core-bonus', name: bonus.name })
+      addRaw(bonus.name, bonus.effect, bonus, { kind: 'core-bonus', name: bonus.name }, true, id)
       const extra = missingFrom(CORE_CHECK_BONUSES[id], listOf(bonus.bonuses))
       if (extra.length) sources.push({ name: bonus.name, bonuses: extra, origin: { kind: 'core-bonus', name: bonus.name } })
     }
@@ -302,17 +348,21 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     const talent = catalogue.talents?.find(talent => talent.id === id)
     if (!talent) reminders.push({ kind: 'missing', name: id, source: id, text: "Missing talent. Its bonuses aren't counted." })
     talent?.ranks.slice(0, Math.min(rank, 3)).forEach((entry, index) => {
-      addRaw(`${talent.name} ${index + 1}: ${entry.name}`, entry.description, entry, { kind: 'talent', name: entry.name, from: `${talent.name} ${['I', 'II', 'III'][index]}` })
+      addRaw(`${talent.name} ${index + 1}: ${entry.name}`, entry.description, entry, { kind: 'talent', name: entry.name, from: `${talent.name} ${['I', 'II', 'III'][index]}` }, true, `${talent.id}:${index + 1}`)
     })
   }
+  // Installed biomods' bonuses count like any other source's (pilot ones are the pilot's).
+  for (const bionic of installed) sources.push({ name: bionic.name, bonuses: bionic.effect_bonuses ?? [], origin: { kind: 'item', name: bionic.name }, key: `bionic:${bionic.id}` })
   const modifiers: StatModifier[] = []
   const bonuses: NamedBonus[] = []
   const variables = buildVariables(sheet, frame)
   for (const source of sources) {
+    let replacing = 0
     for (const bonus of source.bonuses) {
       if (!bonus || typeof bonus !== 'object') continue
-      if (bonus.id === 'pilot_evasion') continue
-      bonuses.push({ source: source.name, bonus })
+      // Pilot stats are the pilot's (src/gameData.ts), not the mech's.
+      if (isPilotBonus(bonus.id)) continue
+      bonuses.push({ source: source.name, bonus, key: source.key && bonus.id === 'replace_mount' ? choiceKey(source.key, replacing++) : source.key })
       const stat = BONUS_STATS[bonus.id]
       const calculated = bonusValue(bonus.val, variables)
       const numeric = calculated !== null
@@ -323,30 +373,24 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
         && (bonus.replace === undefined || typeof bonus.replace === 'boolean')
         && (bonus.overwrite === undefined || typeof bonus.overwrite === 'boolean'))
         modifiers.push({ stat, source: source.name, value, replace: !!bonus.replace, overwrite: !!bonus.overwrite })
-      else if (bonus.condition || bonus.detail || (!['range', 'damage', 'attack', 'threat', 'add_mount', 'overcharge', 'cheap_struct', 'superheavy_mounting', 'drone_hp', 'deployable_hp'].includes(bonus.id) && bonus.accuracy === undefined)) reminders.push({ ...source.origin, source: source.name, text: bonusReminder(bonus, numeric ? value : null), uncounted: true })
+      else if (bonus.condition || bonus.detail || (!['range', 'damage', 'attack', 'threat', 'add_mount', 'replace_mount', 'add_tags', 'overcharge', 'cheap_struct', 'superheavy_mounting'].includes(bonus.id) && !/^(drone|deployable)_/.test(bonus.id) && bonus.accuracy === undefined)) reminders.push({ ...source.origin, source: source.name, text: bonusReminder(bonus, numeric ? value : null), uncounted: true })
     }
   }
-  return { modifiers, bonuses, reminders }
+  return { modifiers, bonuses, reminders, frame }
 }
 
-// "+10 hp, only when exposed." Bonus ids and {braces} are data, not wording.
-function bonusReminder(bonus: Bonus, value: number | null) {
-  const what = `${value === null ? '' : `${value >= 0 ? '+' : ''}${value} `}${String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')}`
-  const when = bonus.condition ? `, only when ${String(bonus.condition).replace(/[{}]/g, '')}` : ''
-  return `${what}${when}.${bonus.detail ? ` ${bonus.detail}` : ''}`
-}
-
-export function mechResources(sheet: Sheet, effects: ReturnType<typeof mechEffects>) {
+export function mechResources(sheet: Sheet, effects: Pick<ReturnType<typeof mechEffects>, 'modifiers' | 'bonuses'>) {
   const count = (id: string, base = 0) => resolveBonuses(base, effects.modifiers.filter(entry => entry.stat === id)).value
   const overcharge = effects.bonuses.find(entry => entry.bonus.id === 'overcharge' && permanentBonus(entry.bonus) && Array.isArray(entry.bonus.val))
   const checks = effects.bonuses.filter(entry => !entry.bonus.condition && !entry.bonus.detail && typeof entry.bonus.accuracy === 'number' && !['attack', 'melee'].includes(entry.bonus.id))
     .map(entry => ({ source: entry.source, text: `${Number(entry.bonus.accuracy) >= 0 ? '+' : ''}${entry.bonus.accuracy} accuracy on ${entry.bonus.id.replaceAll('_', ' ')} checks` }))
+  const repairCosts = effects.bonuses.flatMap(entry => entry.bonus.id === 'cheap_struct' && permanentBonus(entry.bonus) ? [bonusValue(entry.bonus.val)] : []).filter((cost): cost is number => cost !== null && Number.isInteger(cost) && cost >= 0)
   return {
     aiCap: Math.max(0, count('ai_cap', 1)),
     limited: Math.floor((sheet.mech_skills?.engineering ?? 0) / 2) + count('limited_bonus'),
     overcharge: (overcharge ? (overcharge.bonus.val as unknown as string[]) : ['1', '1d3', '1d6', '1d6+4']).map(step => flatDamage(step)).join(' → '),
-    structureRepairs: effects.bonuses.some(entry => entry.bonus.id === 'cheap_struct' && permanentBonus(entry.bonus) && bonusValue(entry.bonus.val) === 1) ? 1 : 2,
-    superheavyMounting: effects.bonuses.some(entry => entry.bonus.id === 'superheavy_mounting' && permanentBonus(entry.bonus) && entry.bonus.val !== 0 && entry.bonus.val !== '0'),
+    // cheap_struct's value is the cost; the cheapest whole number, 0 or more, wins.
+    structureRepairs: repairCosts.length ? Math.min(...repairCosts) : 2,
     checks,
   }
 }
@@ -467,14 +511,20 @@ export function useMechData() {
   async function load() {
     loadTagNames()
     loadSources()
-    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'mods', 'talents'].map(loadKind))).flatMap((result) => result.rows)
+    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'mods', 'talents', 'core_bonuses'].map(loadKind))).flatMap((result) => result.rows)
     const frameRows = rows.filter((row) => row.kind === 'frames')
     // Built-in and talent-only items can't be picked: they come with a frame or a talent.
     const talentEquipment = rows.filter(row => row.kind === 'talents').flatMap(row => {
       const ranks = (row.data as unknown as Talent)?.ranks ?? []
       return ranks.flatMap(rank => [...(rank.integrated ?? []), ...(rank.special_equipment ?? [])])
     })
-    const builtIn = new Set([...frameRows.flatMap((row) => integratedIds(row.data)), ...talentEquipment])
+    // Core bonuses, weapons and systems can grant equipment too (built in or optional): it comes with them, so it isn't picked.
+    // shortcut: biomods' grants live in the bionics table and aren't read here, so a biomod-only item stays pickable; load bionics here if that matters.
+    const grantedEquipment = rows.filter(row => ['core_bonuses', 'weapons', 'systems'].includes(row.kind)).flatMap(row => {
+      const data = (row.data ?? {}) as { integrated?: unknown; special_equipment?: unknown }
+      return [data.integrated, data.special_equipment].flatMap(list => (Array.isArray(list) ? list.map(String) : []))
+    })
+    const builtIn = new Set([...frameRows.flatMap((row) => integratedIds(row.data)), ...talentEquipment, ...grantedEquipment])
     const pickable = (kind: string) =>
       rows
         .filter((row) => row.kind === kind && !builtIn.has(row.id) && !(row.data as { talent_item?: boolean } | null)?.talent_item)

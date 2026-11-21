@@ -41,7 +41,19 @@ export function bonusValue(value: unknown, variables: Record<string, number> = {
   try { const result = expression(); return at === tokens.length && Number.isFinite(result) ? result : null } catch { return null }
 }
 
-export type NamedBonus = { source: string; bonus: Bonus }
+// "key" is the stable id of where it came from (an item, core bonus or frame id), for choices a bonus asks the player to make.
+export type NamedBonus = { source: string; bonus: Bonus; key?: string }
+// The personal stats and pilot-only ids: counted on the pilot, never on the mech.
+export const PERSONAL_STATS = ['physicality', 'dexterity', 'perception', 'acuity', 'tech_fluency']
+export const isPilotBonus = (id: string) => id.startsWith('pilot_') || id === 'mod_points' || PERSONAL_STATS.includes(id)
+// "+10 hp, only when exposed." Bonus ids and {braces} are data, not wording.
+export function bonusReminder(bonus: Bonus, value: number | null) {
+  const what = `${value === null ? '' : `${value >= 0 ? '+' : ''}${value} `}${String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')}`
+  const when = bonus.condition ? `, only when ${String(bonus.condition).replace(/[{}]/g, '')}` : ''
+  return `${what}${when}.${bonus.detail ? ` ${bonus.detail}` : ''}`
+}
+// A conditional bonus in a stat's or weapon's "where this comes from" lines: named, never counted.
+export const uncountedLine = (source: string, bonus: Bonus, variables: Record<string, number> = {}) => `${source}: ${bonusReminder(bonus, bonusValue(bonus.val, variables))} Not counted.`
 export function permanentBonus(bonus: Bonus) {
   return !bonus.condition && !bonus.detail && !['damage_types', 'range_types', 'weapon_types', 'weapon_sizes'].some(key => Array.isArray(bonus[key]) && (bonus[key] as unknown[]).length)
 }

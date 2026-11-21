@@ -22,6 +22,9 @@ const props = defineProps<{
   taken: string[]
   picks: number
   licences: Record<string, number>
+  talents?: Record<string, number>
+  // What a bonus still needs ("Needs Brawler II"), or ''.
+  needs?: (bonus: CoreBonus) => string
   frames: Frame[]
   editable: boolean
   save: (ids: string[]) => Promise<string | null>
@@ -53,7 +56,8 @@ const picker = useTemplateRef('picker')
 const reasonFor = useRestriction()
 const blocked = (id: string) =>
   reasonFor(restrictionOf(byId.value.get(id) ?? {})) ||
-  (coreBonusProblems({ licences: props.licences, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '').replace(/\.$/, '')
+  (byId.value.get(id) && props.needs?.(byId.value.get(id)!)) ||
+  (coreBonusProblems({ licences: props.licences, talents: props.talents, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '').replace(/\.$/, '')
 // Listed by manufacturer, each with the permanent numbers it adds; what it needs is the blocked reason beside the button.
 const manufacturers = useManufacturers()
 const offered = computed(() =>

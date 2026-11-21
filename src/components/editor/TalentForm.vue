@@ -7,6 +7,7 @@ import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
 import FoldPanel from './FoldPanel.vue'
+import RequirementListField from './RequirementListField.vue'
 import ItemIdListField from './ItemIdListField.vue'
 import RepeatList from './RepeatList.vue'
 import { clean, input, latest, list, useEquipmentOptions, useFields } from './useFields'
@@ -23,6 +24,7 @@ const name = f.text('name')
 const terse = f.text('terse')
 const description = f.text('description')
 const ranks = f.list<Data>('ranks')
+const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 
 const equipment = useEquipmentOptions()
 
@@ -73,7 +75,7 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
         <Field block label="Actions">
           <ActionListField :model-value="list<Data>(item.actions)" :path="`ranks.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />
         </Field>
-        <Field block label="Bonuses">
+        <Field block label="Effects">
           <BonusListField :model-value="list<Data>(item.bonuses)" :types="bonusTypes" :path="`ranks.${index}.bonuses`" @update:model-value="change({ bonuses: clean($event) })" />
         </Field>
         <Field block label="Built in" :path="`ranks.${index}.integrated`">
@@ -86,7 +88,15 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
           <input type="checkbox" :checked="item.exclusive === true" @change="change({ exclusive: ($event.target as HTMLInputElement).checked || undefined })" />
           Only the highest rank's built-in equipment applies.
         </label>
+        <label class="check">
+          <input type="checkbox" :checked="item.replace_integrated === true" @change="change({ replace_integrated: ($event.target as HTMLInputElement).checked || undefined })" />
+          Replaces the frame's built-in weapons
+        </label>
       </template>
     </RepeatList>
+  </FoldPanel>
+
+  <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
+    <RequirementListField v-model="requires" />
   </FoldPanel>
 </template>

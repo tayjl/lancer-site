@@ -35,6 +35,8 @@ const props = defineProps<{
   // A GM's edit mode: owned items can be taken off.
   canRemove: boolean
   balance: number
+  // What an item still needs ("Needs Brawler II"), or ''.
+  needs?: (item: Item) => string
   equip: (keys: string[]) => Promise<string | null>
   saveOwned: (owned: OwnedGear[], equipped?: string[]) => Promise<string | null>
   // A GM's free-text items (Misc, under Stowed); added and removed only in a GM's edit mode ("canRemove").
@@ -206,7 +208,7 @@ const buying = ref(false)
 const reasonFor = useRestriction()
 const catalogueRow = (item: Item) => {
   const restriction = restrictionOf(item)
-  return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked: reasonFor(restriction), exotic: restriction.exotic }
+  return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked: reasonFor(restriction) || props.needs?.(item) || '', exotic: restriction.exotic }
 }
 const byRestriction = (a: PickOption, b: PickOption) => Number(!!a.exotic) - Number(!!b.exotic) || Number(!!a.blocked) - Number(!!b.blocked)
 // Each row shows its price the way the biomod picker does (LoadoutBox.vue).
@@ -253,7 +255,7 @@ const options = computed((): PickOption[] => {
     .filter((entry) => typeOf(entry.id) === slot.type)
     .map((entry) => {
       const item = byId.value.get(entry.id)!
-      return { id: entry.key, name: item.name, ...itemPick(item, tagNames.value, []), meta: entry.notes, info: () => itemInfo(item), blocked: bought(entry) ? 'Needs GM approval' : '' }
+      return { id: entry.key, name: item.name, ...itemPick(item, tagNames.value, []), meta: entry.notes, info: () => itemInfo(item), blocked: bought(entry) ? 'Needs GM approval' : props.needs?.(item) || '' }
     })
     .sort(byRestriction)
 })

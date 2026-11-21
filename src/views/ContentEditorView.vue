@@ -102,37 +102,44 @@ async function chooseKind(label: string) {
   if (next && next.key !== kind.value && (await leave())) setQuery({ cat: next.key, item: undefined })
 }
 
-// The list: a box per pack (Campaign homebrew first, always, so New is at hand), or one for a site table (biomods).
+// The list: a box per manufacturer for what has one (New sits above the boxes), otherwise a box per pack (Campaign homebrew
+// first, always, so New is at hand).
 const query = ref('')
 const SHOWN = 40
-const expanded = ref(new Set<number>())
+const expanded = ref(new Set<string>())
+const BY_MAKER: EditorKind[] = ['frames', 'weapons', 'systems', 'mods', 'core_bonuses', 'bionics']
 const matches = (row: ListRow) => {
   const hay = `${row.name} ${row.key} ${row.facts}`.toLowerCase()
   return query.value.toLowerCase().split(/\s+/).filter(Boolean).every((word) => hay.includes(word))
 }
-const groups = computed<{ id: number; name: string; rows: ListRow[]; total: number; more: number; add: boolean; logo?: string | null; colour?: string }[]>(() => {
+const groups = computed<{ key: string; id: number; name: string; rows: ListRow[]; total: number; more: number; add: boolean; logo?: string | null; colour?: string }[]>(() => {
   const found = rows.value.filter(matches)
   // Factions and commendations: one box.
-  if (kind.value === 'factions' || kind.value === 'commendations') return found.length ? [{ id: 0, name: info.value.label, rows: found, total: rows.value.length, more: 0, add: false }] : []
-  // Biomods: a box per manufacturer like the archives' (archiveGroups: the maker's logo and colour, "Other" for none, Exotic last).
-  if (info.value.site) {
+  if (kind.value === 'factions' || kind.value === 'commendations') return found.length ? [{ key: 'all', id: 0, name: info.value.label, rows: found, total: rows.value.length, more: 0, add: false }] : []
+  // A box per manufacturer like the archives' (archiveGroups: the maker's logo and colour, "Other" for none, Exotic last).
+  if (BY_MAKER.includes(kind.value)) {
     const entries = found.map((row) => ({ category: 'biomods', id: row.key, name: row.name, group: makerId(row.source ?? '') || 'other', level: 0, licence: '', exotic: false, summary: '', search: '' }) as unknown as ArchiveEntry)
-    return archiveGroups(entries, manufacturers.value).map((group) => ({
-      id: 0, name: group.title, rows: group.entries.map((entry) => found.find((row) => row.key === entry.id)!), total: rows.value.filter((row) => (makerId(row.source ?? '') || 'other') === group.key).length,
-      more: 0, add: false, logo: group.logo, colour: group.colour,
-    }))
+    return archiveGroups(entries, manufacturers.value).map((group) => {
+      const all = group.entries.map((entry) => found.find((row) => row.key === entry.id)!)
+      const limit = query.value.trim() || expanded.value.has(group.key) ? Infinity : SHOWN
+      return {
+        key: group.key, id: 0, name: group.title, rows: all.slice(0, limit), total: rows.value.filter((row) => (makerId(row.source ?? '') || 'other') === group.key).length,
+        more: Math.max(0, all.length - limit), add: false, logo: group.logo, colour: group.colour,
+      }
+    })
   }
   const ids = [...new Set(rows.value.map((row) => row.packId))]
   const ordered = [...ids].sort((a, b) => (a === homebrewId.value ? -1 : b === homebrewId.value ? 1 : packName(a).localeCompare(packName(b))))
   if (homebrewId.value === null || !ids.includes(homebrewId.value)) ordered.unshift(homebrewId.value)
   return ordered.map((id) => {
     const all = found.filter((row) => row.packId === id)
-    const limit = query.value.trim() || id === homebrewId.value || expanded.value.has(id ?? 0) ? Infinity : SHOWN
-    return { id: id ?? 0, name: id === null ? HOMEBREW_PACK : packName(id), rows: all.slice(0, limit), total: rows.value.filter((row) => row.packId === id).length, more: Math.max(0, all.length - limit), add: id === homebrewId.value || id === null }
+    const limit = query.value.trim() || id === homebrewId.value || expanded.value.has(String(id ?? 0)) ? Infinity : SHOWN
+    return { key: String(id ?? 0), id: id ?? 0, name: id === null ? HOMEBREW_PACK : packName(id), rows: all.slice(0, limit), total: rows.value.filter((row) => row.packId === id).length, more: Math.max(0, all.length - limit), add: id === homebrewId.value || id === null }
   })
 })
+const byMaker = computed(() => BY_MAKER.includes(kind.value))
 const listed = computed(() => groups.value.flatMap((group) => group.rows))
-const showMore = (id: number) => (expanded.value = new Set([...expanded.value, id]))
+const showMore = (id: string) => (expanded.value = new Set([...expanded.value, id]))
 
 const { wide, step } = useListPane({ selected: itemKey, listed, pane: paneBox, listBox, active: () => wide.value })
 // Like the archives, the pane opens the first listed item when none is chosen (desktop only: phones keep the list). It's
@@ -211,9 +218,9 @@ async function exportLcp() {
           <p v-if="listError" class="notice warn" role="alert">The list didn't load: {{ listError }}</p>
           <p v-else-if="loadingList" class="dim" role="status">Loading…</p>
           <template v-else>
-            <button v-if="info.site" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
-            <p v-if="info.site && !groups.length" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
-            <section v-for="group in groups" :key="group.name" class="group" :class="{ branded: group.logo || (group.colour && group.colour !== 'var(--lilac)') }" :style="group.colour ? { '--mf': group.colour } : undefined">
+            <button v-if="byMaker" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
+            <p v-if="byMaker && !groups.length" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+            <section v-for="group in groups" :key="group.key" class="group" :class="{ branded: group.logo || (group.colour && group.colour !== 'var(--lilac)') }" :style="group.colour ? { '--mf': group.colour } : undefined">
               <header class="group-head">
                 <Icon v-if="group.logo" :src="group.logo" class="group-logo" />
                 <h3>{{ group.name }}</h3>
@@ -233,7 +240,7 @@ async function exportLcp() {
                 </li>
               </ul>
               <p v-if="!group.rows.length && !group.more" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
-              <div v-if="group.more" class="more"><button type="button" class="quiet small" @click="showMore(group.id)">Show {{ group.more }} more</button></div>
+              <div v-if="group.more" class="more"><button type="button" class="quiet small" @click="showMore(group.key)">Show {{ group.more }} more</button></div>
             </section>
           </template>
         </nav>
