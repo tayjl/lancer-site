@@ -7,10 +7,11 @@ import { supabase } from '../lib/supabaseClient'
 // corners cut off, a faint 32px grid, a static diagonal sheen and edge light in the card's accent colour (the cut corners
 // with a soft glow, marks at the two square corners), and the outline. The card draws the rest in the slot ("defs" for
 // its own clips and masks; "<prefix>-scan" and "<prefix>-tint" are here for its picture window). It also owns "Download
-// card" (in the section head, "#<extra>", so it works while the section is folded) and the silent save for link previews.
+// card" (in the section head, "#<extra>", so it works while the section is folded; no extra, no button, as in the pilot
+// lists) and the silent save for link previews.
 const props = defineProps<{
   prefix: string // the start of every id in the SVG, unique on the page
-  extra: string // the section head's spot for the button (FileSection.vue)
+  extra?: string // the section head's spot for the button (FileSection.vue)
   label: string // the card read out for screen readers
   accent: string
   filename: string
@@ -83,7 +84,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 <template>
   <section class="panel id-panel">
     <!-- The button and its result sit in the section's head (FileSection.vue), so both show while the section is folded. -->
-    <Teleport defer :to="`#${extra}`">
+    <Teleport v-if="extra" defer :to="`#${extra}`">
       <span v-if="result" class="result" :class="{ error: !result.ok }" :role="result.ok ? 'status' : 'alert'">{{ result.text }}</span>
       <button type="button" class="small" :disabled="busy" @click="download">{{ busy ? 'Drawing…' : 'Download card' }}</button>
     </Teleport>

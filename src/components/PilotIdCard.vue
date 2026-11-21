@@ -27,10 +27,13 @@ const props = defineProps<{
   draftOpen?: boolean // the page is showing an open change; the card still shows the approved pilot
   cardVersion?: string | null // the fingerprint of the picture saved to storage
   savePath?: string | null // where to save the picture; null when this viewer may not
+  extra?: string // the section head's spot for Download card; none in the pilot lists
 }>()
 const emit = defineEmits<{ cardSaved: [version: string] }>()
 
 const ink = cardInk()
+// Every SVG id starts with this, so the many cards on a pilot list don't share clips, masks and gradients.
+const pre = computed(() => `id-card-${props.id}`)
 const accent = computed(() => props.colour ?? cardToken('--edge', '#6e6c79'))
 // Status gets a small lamp in its status colour (always with the word beside it).
 const lamp = computed(() => {
@@ -76,8 +79,8 @@ const saveable = computed(() => !props.draftOpen && (props.status === 'approved'
 
 <template>
   <IdCardFrame
-    prefix="id-card"
-    extra="pilot-id-extra"
+    :prefix="pre"
+    :extra="extra"
     :label="label"
     :accent="accent"
     :filename="cardFilename(title)"
@@ -89,17 +92,17 @@ const saveable = computed(() => !props.draftOpen && (props.status === 'approved'
     @card-saved="(version) => emit('cardSaved', version)"
   >
     <template #defs>
-      <clipPath id="id-card-portrait"><rect x="36" y="120" width="216" height="288" /></clipPath>
+      <clipPath :id="`${pre}-portrait`"><rect x="36" y="120" width="216" height="288" /></clipPath>
       <!-- Symbols are tinted by filling a block through a mask of the symbol's own shape. -->
-      <mask id="id-card-logo" style="mask-type: alpha"><image :href="iconUrl('license')" data-what="licence symbol" x="36" y="26" width="48" height="48" /></mask>
-      <mask id="id-card-pilot" style="mask-type: alpha"><image :href="iconUrl('pilot')" data-what="pilot symbol" x="104" y="228" width="72" height="72" /></mask>
-      <mask v-for="(url, i) in medalIcons" :id="`id-card-medal-${i}`" :key="i" style="mask-type: alpha">
+      <mask :id="`${pre}-logo`" style="mask-type: alpha"><image :href="iconUrl('license')" data-what="licence symbol" x="36" y="26" width="48" height="48" /></mask>
+      <mask :id="`${pre}-pilot`" style="mask-type: alpha"><image :href="iconUrl('pilot')" data-what="pilot symbol" x="104" y="228" width="72" height="72" /></mask>
+      <mask v-for="(url, i) in medalIcons" :id="`${pre}-medal-${i}`" :key="i" style="mask-type: alpha">
         <image :href="url" :data-what="`medal ${i + 1}`" :x="medalX(i) - 14" :y="MEDAL_Y - 14" width="28" height="28" />
       </mask>
     </template>
 
     <!-- Header: the licence symbol, the title, and a contact chip. -->
-    <rect x="36" y="26" width="48" height="48" :fill="accent" mask="url(#id-card-logo)" />
+    <rect x="36" y="26" width="48" height="48" :fill="accent" :mask="`url(#${pre}-logo)`" />
     <text x="100" y="50" :fill="ink.text" :font-family="`'${SANS_FAMILY}'`" font-size="30" font-weight="700" letter-spacing="5">PILOT LICENCE</text>
     <text x="100" y="74" :fill="ink.dim" :font-family="`'${SANS_FAMILY}'`" font-size="19" font-weight="400" letter-spacing="2">UNION · <tspan :font-family="`'${MONO_FAMILY}'`" font-weight="500">{{ serial }}</tspan></text>
     <g transform="translate(724 28)" fill="none" :stroke="ink.dim" stroke-width="2" opacity="0.8">
@@ -112,11 +115,11 @@ const saveable = computed(() => !props.draftOpen && (props.status === 'approved'
 
     <!-- Portrait window: corner ticks, scan lines and a tint toward the pilot's colour. -->
     <rect x="36" y="120" width="216" height="288" :fill="ink.raised" />
-    <rect v-if="!portraitUrl" x="104" y="228" width="72" height="72" :fill="ink.dim" mask="url(#id-card-pilot)" />
+    <rect v-if="!portraitUrl" x="104" y="228" width="72" height="72" :fill="ink.dim" :mask="`url(#${pre}-pilot)`" />
     <template v-else>
-      <image :href="portraitUrl" data-what="portrait" x="36" y="120" width="216" height="288" preserveAspectRatio="xMidYMid slice" clip-path="url(#id-card-portrait)" />
-      <rect x="36" y="120" width="216" height="288" fill="url(#id-card-tint)" />
-      <rect x="36" y="120" width="216" height="288" fill="url(#id-card-scan)" opacity="0.22" />
+      <image :href="portraitUrl" data-what="portrait" x="36" y="120" width="216" height="288" preserveAspectRatio="xMidYMid slice" :clip-path="`url(#${pre}-portrait)`" />
+      <rect x="36" y="120" width="216" height="288" :fill="`url(#${pre}-tint)`" />
+      <rect x="36" y="120" width="216" height="288" :fill="`url(#${pre}-scan)`" opacity="0.22" />
     </template>
     <rect x="36" y="120" width="216" height="288" fill="none" :stroke="ink.rule" stroke-width="2" />
     <path d="M28 144V112H60M260 144V112H228M28 384V416H60M260 384V416H228" fill="none" :stroke="accent" stroke-width="4" />
@@ -139,7 +142,7 @@ const saveable = computed(() => !props.draftOpen && (props.status === 'approved'
     </g>
     <g v-for="(url, i) in medalIcons" :key="url + i">
       <polygon :points="hex(medalX(i))" :fill="ink.raised" :stroke="accent" stroke-width="3" />
-      <rect :x="medalX(i) - 14" :y="MEDAL_Y - 14" width="28" height="28" :fill="accent" :mask="`url(#id-card-medal-${i})`" />
+      <rect :x="medalX(i) - 14" :y="MEDAL_Y - 14" width="28" height="28" :fill="accent" :mask="`url(#${pre}-medal-${i})`" />
     </g>
     <g v-if="more">
       <polygon :points="hex(moreX)" :fill="ink.raised" :stroke="accent" stroke-width="3" />

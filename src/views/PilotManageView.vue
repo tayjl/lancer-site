@@ -565,6 +565,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               :draft-open="!!approved"
               :card-version="profile.fields.value.card_version"
               :save-path="canSaveCard ? `${character.player_id}/card-${character.id}.png` : null"
+              extra="pilot-id-extra"
               @card-saved="(version) => saveProfile({ card_version: version })"
               :colour="pilotColour"
               :medals="awards.awards.value.map((a) => a.commendation.icon)"

@@ -938,6 +938,24 @@ export type Database = {
           status: Database["public"]["Enums"]["character_status"]
         }[]
       }
+      pilot_cards: {
+        Args: { target_status: Database["public"]["Enums"]["character_status"] }
+        Returns: {
+          approved_at: string
+          callsign: string
+          colour: string
+          created_at: string
+          id: number
+          level: number
+          licence_level: number
+          medals: string[]
+          pilot_image: string
+          pilot_name: string
+          player_name: string
+          status: Database["public"]["Enums"]["character_status"]
+          submitted_at: string
+        }[]
+      }
       pilot_sheet: {
         Args: { target_character_id: number }
         Returns: {

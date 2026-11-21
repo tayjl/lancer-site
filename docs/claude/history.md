@@ -68,7 +68,7 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 
 ## Hosted migrations
 
-**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). **Pending: none.** Every migration through `20261121120000_mech_public_card` is on the hosted project (applied 2026-11-20). What each adds, and what breaks on a project without it:
+**Rule:** a new migration goes to the hosted project **before** the site is pushed, because the pages read the new columns and tables straight away (Supabase's GitHub integration applies migrations on push; check the hosted project first). Every migration through `20261121130000_pilot_cards` is on the hosted project (applied 2026-11-21). What each adds, and what breaks on a project without it:
 
 | Migration | What it adds |
 |---|---|
@@ -101,3 +101,4 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 | `20261121100000_backfill_service_record` | automatic lines for pilots approved before 2026-11-20 |
 | `20261121110000_pilot_inventory` | `owned_gear` / `equipped_gear`, `equip_pilot_gear`, `settle_pilot_gear`, prices |
 | `20261121120000_mech_public_card` | `mech_card()`, `pilot_profiles.mech_card_versions`, card storage policies for mech card names |
+| `20261121130000_pilot_cards` | `pilot_cards(status)`: every pilot's ID card for the pilot lists in one request (logged-in users only) |

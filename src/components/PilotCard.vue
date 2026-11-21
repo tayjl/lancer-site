@@ -6,7 +6,7 @@ import { plural } from '../text'
 import Icon from './Icon.vue'
 import Portrait from './Portrait.vue'
 
-// A pilot's showcase card (the registry, pending, memorial and the GM review queues): portrait, callsign, pilot name,
+// A pilot's showcase card (the GM review queues): portrait, callsign, pilot name,
 // mechs and player, centred. The slot adds a line (the queues' waiting time). The whole card is the link.
 // "colour" is the pilot's own colour: a 3px top border, decoration only.
 const props = defineProps<{ to: RouteLocationRaw; image: string | null; callsign: string | null; name: string; mechs?: string; player?: string; dead?: boolean; colour?: string | null; awards?: number }>()

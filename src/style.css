@@ -946,7 +946,7 @@ label.field .error {
   background: var(--raised);
 }
 
-/* A grid of pilot cards (PilotCard.vue: the registry and the GM queues): showcase cards, so the group is centred.
+/* A grid of pilot cards (PilotCard.vue: the GM queues): showcase cards, so the group is centred.
    Two to a row on phones. */
 .card-grid {
   display: grid;
