@@ -11,3 +11,6 @@ export function useRestriction() {
   const gmEdit = inject(GM_EDIT, ref(false))
   return (r: Partial<Restriction>) => restrictionReason(r, { gm: isGm.value, gmEdit: gmEdit.value })
 }
+
+// True in a GM's edit mode: a GM can do anything there, so pickers ignore every blocked reason (manna, needs, limits).
+export const useGmOverride = () => inject(GM_EDIT, ref(false))

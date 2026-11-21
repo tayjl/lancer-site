@@ -739,11 +739,11 @@ label.field .error {
   white-space: nowrap;
 }
 
-.badge:is(.draft, .pending, .approved, .rejected, .dead) {
+.badge:is(.draft, .pending, .approved, .rejected, .dead, .grant) {
   padding-left: 8px;
 }
 
-.badge:is(.draft, .pending, .approved, .rejected, .dead)::before {
+.badge:is(.draft, .pending, .approved, .rejected, .dead, .grant)::before {
   content: '';
   flex: none;
   width: 14px;
@@ -757,6 +757,7 @@ label.field .error {
 .badge.approved { --c: var(--ok); --badge-icon: url('./assets/icons/approved.svg'); }
 .badge.rejected { --c: var(--danger); --badge-icon: url('./assets/icons/rejected.svg'); }
 .badge.dead { --c: var(--dead); --badge-icon: url('./assets/icons/dead.svg'); }
+.badge.grant { --c: var(--gm); --badge-icon: url('./assets/icons/shield.svg'); }
 
 /* ───────────────────────── Tag chip: square and neutral ───────────────────────── */
 .chips {

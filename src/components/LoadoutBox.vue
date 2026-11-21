@@ -4,7 +4,7 @@ import { useManufacturers } from '../archive'
 import type { Info } from '../info'
 import { makerGroup, type PickOption } from '../pickerRows'
 import { plainText } from '../rulesText'
-import { useRestriction } from '../restriction'
+import { useGmOverride, useRestriction } from '../restriction'
 import ItemCard from './ItemCard.vue'
 import ItemStats from './ItemStats.vue'
 import PickList from './PickList.vue'
@@ -25,6 +25,8 @@ const props = defineProps<{
   editable: boolean
   limit?: { label: string; unit: string; max: number }
   balance?: number
+  // Copies of each item a GM gave free (the sheet's grants): marked with a GM grant badge.
+  granted?: Record<string, number>
   save: (ids: Id[]) => Promise<string | null>
 }>()
 
@@ -63,7 +65,7 @@ const offered = computed(() => {
         stats: [
           ...(item.stats ?? []).map((stat) => ({ ...stat, icon: stat.icon ?? null, kind: 'bonus' })),
           ...(item.cost != null ? [{ kind: 'cost', label: 'mod points', value: String(item.cost), icon: null }] : []),
-          ...(item.price != null ? [{ kind: 'price', label: 'manna', value: String(item.price), icon: null }] : []),
+          ...(item.price != null && !gmOverride.value ? [{ kind: 'price', label: 'manna', value: String(item.price), icon: null }] : []),
         ],
         chips: item.slot ? [{ label: item.slot }] : [],
         group,
@@ -74,9 +76,10 @@ const offered = computed(() => {
 })
 
 const restricted = useRestriction()
+const gmOverride = useGmOverride()
 const tooCostly = (item: Item) => !!props.limit && used.value + (item.cost ?? 0) > props.limit.max
 // Why an item can't be added, or '' if it can.
-const blockedBy = (item: Item) => restricted(item) || (tooCostly(item) ? 'Not enough mod points' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
+const blockedBy = (item: Item) => restricted(item) || (gmOverride.value ? '' : tooCostly(item) ? 'Not enough mod points' : props.balance != null && (item.price ?? 0) > props.balance ? 'Not enough manna' : '')
 
 async function toggle(item: Item) {
   const next = props.chosen.includes(item.id) ? props.chosen.filter((id) => id !== item.id) : [...props.chosen, item.id]
@@ -110,7 +113,7 @@ function open() {
     <ul v-if="chosenItems.length" class="slot-grid">
       <li v-for="item in chosenItems" :key="item.id">
         <ItemCard type="pilot" icon="generic_item" :name="item.name" :info="item.info" :meta="item.cost ? String(item.cost) : ''" :unit="limit?.unit">
-          <p v-if="item.source || item.slot || item.price != null" class="facts sep"><span v-if="item.source">{{ item.source }}</span><span v-if="item.slot">{{ item.slot }}</span><span v-if="item.price != null">{{ item.price }} manna</span></p>
+          <p v-if="item.source || item.slot || item.price != null || granted?.[item.id]" class="facts sep"><span v-if="item.source">{{ item.source }}</span><span v-if="item.slot">{{ item.slot }}</span><span v-if="granted?.[item.id]" class="badge grant">GM grant</span><span v-else-if="item.price != null">{{ item.price }} manna</span></p>
           <ItemStats v-if="item.stats?.length" :stats="item.stats" />
           <RulesText v-if="item.effect" :html="item.effect" />
           <p v-if="item.description" class="description">{{ item.description }}</p>

@@ -10,17 +10,17 @@ import { supabase } from '../lib/supabaseClient'
 import { EXPERIENCE_MAX, award, levelUp, rewardsProblem, type Rewards } from '../rewards'
 import type { Sheet } from '../myPilot'
 import { useGameData } from '../gameData'
-import { formatAmount, licenceLevel, mannaSpent } from '../rules'
+import { formatAmount, licenceLevel, mannaSpent, type Grants } from '../rules'
 import { capitalise } from '../text'
 
 // Waiting pilots are ordered by submission time. The searchable roster includes every pilot,
 // including sent-back and dead records. GM edits save directly; database policies enforce the role.
 // The sheet is read only for what the roster's numbers use: the licences, talents, bionics and owned gear that manna is spent on.
-const SHEET_FIELDS = 'review_note, level, manna, licences:sheet->licences, talents:sheet->talents, bionics:sheet->bionics, owned_gear:sheet->owned_gear'
+const SHEET_FIELDS = 'review_note, level, manna, gm_grants, licences:sheet->licences, talents:sheet->talents, bionics:sheet->bionics, owned_gear:sheet->owned_gear'
 // Experience is GM-only and lives in its own table (pilot_progress); a pilot with no row has 0.
 const PROGRESS_FIELDS = 'progress:pilot_progress(experience)'
 type Pilot = PublicPilot & {
-  sheet: { review_note: string | null; level: number; manna: number; licences: Json; talents: Json; bionics: Json; owned_gear: Json } | null
+  sheet: { review_note: string | null; level: number; manna: number; gm_grants: Json; licences: Json; talents: Json; bionics: Json; owned_gear: Json } | null
   progress: { experience: number } | null
 }
 
@@ -35,6 +35,9 @@ const queueCards = computed(() => waiting.value.map(pilot => ({
   player: pilot.player?.display_name ?? '-', submittedAt: pilot.submitted_at!,
   to: { name: 'gm-review', params: { id: pilot.id } },
 })))
+// A pending pilot opens for review; a living one in GM edit mode; a dead one read-only.
+const sheetLink = (pilot: Pilot) =>
+  pilot.status === 'pending' ? { name: 'gm-review', params: { id: pilot.id } } : { name: 'pilot-record', params: { id: pilot.id }, query: pilot.status === 'dead' ? undefined : { edit: '1' } }
 // A pilot nobody has submitted is a Draft, or Sent back when a GM's note is waiting for its player.
 const sentBack = (pilot: Pilot) => pilot.status === 'pending' && !pilot.submitted_at && !!pilot.sheet?.review_note
 const statusClass = (pilot: Pilot) => (sentBack(pilot) ? 'rejected' : pilot.status === 'pending' && !pilot.submitted_at ? 'draft' : pilot.status)
@@ -70,7 +73,7 @@ const { gear, bionicPrices } = useGameData()
 // A pending pilot has never been approved: its first full loadout is free (rules.ts freeGear). Otherwise the sheet is the live one.
 const spent = (pilot: Pilot) => {
   const sheet = (pilot.sheet ?? {}) as Sheet
-  return mannaSpent(sheet, bionicPrices.value, pilot.mechs.length, gear.value, pilot.status === 'pending' ? null : sheet)
+  return mannaSpent(sheet, bionicPrices.value, pilot.mechs.length, gear.value, pilot.status === 'pending' ? null : sheet, (pilot.sheet?.gm_grants ?? {}) as Grants)
 }
 const left = (pilot: Pilot) => (pilot.sheet?.manna ?? 0) - spent(pilot)
 const licenceRanks = (pilot: Pilot) => licenceLevel((pilot.sheet ?? {}) as Sheet)
@@ -216,7 +219,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                   {{ pilot.mechs.map((mech) => mech.name).join(', ') || '–' }}
                 </td>
                 <td>
-                  <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }" class="link-button">Open sheet</RouterLink>
+                  <RouterLink :to="sheetLink(pilot)" class="link-button">Open sheet</RouterLink>
                   <span v-if="!pilot.sheet" class="save-message error">Sheet missing</span>
                   <span v-if="rowError[pilot.id]" class="save-message error" role="alert">
                     Not saved: {{ rowError[pilot.id] }}

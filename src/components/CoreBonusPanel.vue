@@ -4,7 +4,7 @@ import { confirmAction } from '../confirm'
 import { sourceOf, type CoreBonus } from '../gameData'
 import type { Frame } from '../mechData'
 import { coreBonusProblems, isExotic, restrictionOf } from '../rules'
-import { useRestriction } from '../restriction'
+import { useGmOverride, useRestriction } from '../restriction'
 import { plainText } from '../rulesText'
 import { bonusStats, makerGroup } from '../pickerRows'
 import { useManufacturers } from '../archive'
@@ -54,10 +54,13 @@ async function remove(id: string) {
 const picker = useTemplateRef('picker')
 // HORUS and NHC bonuses are GM-only (blocked for players), Exotic ones GM-edit-only; both listed last.
 const reasonFor = useRestriction()
+const gmOverride = useGmOverride()
 const blocked = (id: string) =>
   reasonFor(restrictionOf(byId.value.get(id) ?? {})) ||
-  (byId.value.get(id) && props.needs?.(byId.value.get(id)!)) ||
-  (coreBonusProblems({ licences: props.licences, talents: props.talents, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '').replace(/\.$/, '')
+  (gmOverride.value
+    ? ''
+    : (byId.value.get(id) && props.needs?.(byId.value.get(id)!)) ||
+      (coreBonusProblems({ licences: props.licences, talents: props.talents, core_bonuses: [...props.taken, id] }, props.frames, props.options)[0] ?? '').replace(/\.$/, ''))
 // Listed by manufacturer, each with the permanent numbers it adds; what it needs is the blocked reason beside the button.
 const manufacturers = useManufacturers()
 const offered = computed(() =>
@@ -109,8 +112,8 @@ async function choose(id: string) {
         </ItemCard>
       </li>
       <li v-if="editable" class="empty">
-        <template v-if="left > 0">
-          <p>{{ plural(left, 'pick') }} left.</p>
+        <template v-if="left > 0 || gmOverride">
+          <p v-if="left > 0">{{ plural(left, 'pick') }} left.</p>
           <button type="button" class="small" :disabled="saving" @click="open">Add core bonus</button>
         </template>
         <p v-else>Next pick at <span class="num">{{ (picks + 1) * 3 }}</span> licence ranks.</p>

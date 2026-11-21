@@ -220,7 +220,7 @@ const frameOptions = computed(() => {
     name: f.name,
     ...framePick(f, ranges, manufacturers.value, frames.value),
     exotic: isExotic(f),
-    blocked: reasonFor(restrictionOf(f)) || frameBlockedBy(f, frames.value, sheet.value) || requirementReason(unmetRequirements(f.raw, sheet.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name })),
+    blocked: reasonFor(restrictionOf(f)) || (gmEditing.value ? '' : frameBlockedBy(f, frames.value, sheet.value) || requirementReason(unmetRequirements(f.raw, sheet.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name }))),
     info: () => frameInfo(f, frames.value),
   }))
 })

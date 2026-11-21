@@ -10,15 +10,15 @@ import RichTextEditor from './RichTextEditor.vue'
 import SaveStatus from './SaveStatus.vue'
 
 // The pilot's service record: a vertical timeline, newest first. Everyone reads it. "canLog": this is your own living
-// pilot, so you add, edit and delete your own log entries. "canGm": a GM (editing or reviewing) adds and edits GM
-// entries and deletes any entry. Automatic "Record" entries can only be deleted (by a GM). The database enforces it all.
+// pilot, so you add, edit and delete your own log entries. "canGm": a GM in edit mode adds GM entries
+// and edits or deletes any entry (Log, GM and Record). The database enforces it all.
 const props = defineProps<{ record: ReturnType<typeof useServiceRecord>; canLog: boolean; canGm: boolean }>()
 
 const sorted = computed(() => sortTimeline(props.record.entries.value))
 const showAll = ref(false)
 const shown = computed(() => shownEntries(sorted.value, showAll.value))
 
-const canEdit = (entry: TimelineEntry) => (entry.kind === 'player' ? props.canLog : entry.kind === 'gm' && props.canGm)
+const canEdit = (entry: TimelineEntry) => props.canGm || (entry.kind === 'player' && props.canLog)
 const canDelete = (entry: TimelineEntry) => canEdit(entry) || props.canGm
 
 // The one open form: a new entry (id null) or an edit of one.

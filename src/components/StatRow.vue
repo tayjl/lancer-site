@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useGmOverride } from '../restriction'
 import Icon from './Icon.vue'
 import StatSources from './StatSources.vue'
 
@@ -18,9 +19,12 @@ const props = defineProps<{
   budget?: number
 }>()
 const emit = defineEmits<{ set: [id: string, value: number] }>()
+// A GM's edit mode ignores the point pool and the maximum.
+const gmOverride = useGmOverride()
+const top = computed(() => (gmOverride.value ? 99 : props.max))
 
 const used = computed(() => props.stats.reduce((sum, stat) => sum + Math.max(0, (stat.value ?? props.min) - props.min), 0))
-const spent = computed(() => props.budget !== undefined && used.value >= props.budget)
+const spent = computed(() => !gmOverride.value && props.budget !== undefined && used.value >= props.budget)
 const overspent = computed(() => props.budget !== undefined && used.value > props.budget)
 const shown = (stat: { value: number | null; bonus?: number }) => {
   if (stat.value === null) return '–'
@@ -30,7 +34,7 @@ const shown = (stat: { value: number | null; bonus?: number }) => {
 // Why a step button is off, for its tooltip.
 const lowerBlocked = (value: number | null) => (value !== null && value <= props.min ? `At the minimum (${props.min})` : undefined)
 const raiseBlocked = (value: number | null) =>
-  value === null ? undefined : value >= props.max ? `At the maximum (${props.max})` : spent.value && value >= props.min ? 'No points left' : undefined
+  value === null ? undefined : value >= top.value ? `At the maximum (${top.value})` : spent.value && value >= props.min ? 'No points left' : undefined
 </script>
 
 <template>
@@ -57,7 +61,7 @@ const raiseBlocked = (value: number | null) =>
             :aria-label="`Lower ${stat.name}`"
             :title="lowerBlocked(stat.value)"
             :disabled="stat.value === null || stat.value <= min"
-            @click="emit('set', stat.id, Math.min(max, stat.value! - 1))"
+            @click="emit('set', stat.id, Math.min(top, stat.value! - 1))"
           >
             <Icon name="minus" />
           </button>
@@ -65,7 +69,7 @@ const raiseBlocked = (value: number | null) =>
             type="button"
             :aria-label="`Raise ${stat.name}`"
             :title="raiseBlocked(stat.value)"
-            :disabled="stat.value === null || stat.value >= max || (spent && stat.value >= min)"
+            :disabled="stat.value === null || stat.value >= top || (spent && stat.value >= min)"
             @click="emit('set', stat.id, Math.max(min, stat.value! + 1))"
           >
             <Icon name="plus" />

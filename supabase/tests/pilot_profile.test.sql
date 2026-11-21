@@ -158,7 +158,7 @@ select throws_ok($$ insert into public.pilot_timeline (character_id, kind, title
 select throws_ok($$ insert into public.pilot_timeline (character_id, kind, title) values (200, 'auto', 'Forged') $$, '42501', null, 'a GM cannot write an auto entry');
 select lives_ok($$ update public.pilot_timeline set title = 'Edited' where id = 'a0000000-0000-4000-8000-000000000020' $$, 'a GM edits a gm entry');
 update public.pilot_timeline set title = 'Forged' where id = 'a0000000-0000-4000-8000-000000000003';
-select is((select title from public.pilot_timeline where id = 'a0000000-0000-4000-8000-000000000003'), 'Two note', 'a GM cannot edit a player''s entry');
+select is((select title from public.pilot_timeline where id = 'a0000000-0000-4000-8000-000000000003'), 'Forged', 'a GM can edit a player''s entry (20261121150000_gm_edit_mode.sql)');
 select lives_ok($$ delete from public.pilot_timeline where id in ('a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000002') $$, 'a GM deletes any entry');
 select is((select count(*)::int from public.pilot_timeline where id in ('a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000002')), 0, 'and they are gone');
 

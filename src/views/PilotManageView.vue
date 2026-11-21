@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, provide, reactive, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { isGm, session } from '../auth'
+import { isGm, isOwner, session } from '../auth'
 import { useBackstoryVisibility } from '../backstory'
 import BackstoryVisibility from '../components/BackstoryVisibility.vue'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
 import ConflictNotice from '../components/ConflictNotice.vue'
+import CommendationAward from '../components/CommendationAward.vue'
 import GmEditBar from '../components/GmEditBar.vue'
+import GmRewards from '../components/GmRewards.vue'
+import ReputationPanel from '../components/ReputationPanel.vue'
+import RewardHistory from '../components/RewardHistory.vue'
 import GmReview from '../components/GmReview.vue'
 import FileIndex from '../components/FileIndex.vue'
 import FileSection from '../components/FileSection.vue'
@@ -30,7 +34,8 @@ import SheetField from '../components/SheetField.vue'
 import StatFigures from '../components/StatFigures.vue'
 import StatRow from '../components/StatRow.vue'
 import StatSources from '../components/StatSources.vue'
-import { BANNER_SIDE } from '../images'
+import { BANNER_SIDE, cardImages, deleteImage } from '../images'
+import { supabase } from '../lib/supabaseClient'
 import { usePilotAwards } from '../commendations'
 import { displayColour } from '../pilotColour'
 import { useServiceRecord } from '../serviceRecord'
@@ -49,14 +54,14 @@ import { capitalise } from '../text'
 
 // my pilot: your pilot as one scrolling file. A cover (portrait, callsign, name, player, status, medals, then the key
 // figures), the "what happens next" bar under it, any notes and the rule check, then numbered sections (identity,
-// pilot ID, service record, capabilities, qualifications, equipment, hangar, GM controls on the review page, gallery) with an index that follows you (a list
+// pilot ID, service record, capabilities, qualifications, equipment, hangar, GM only in a GM's edit mode, gallery) with an index that follows you (a list
 // beside the file, a row under the top bar on phones; the url's #hash names the section). Everything is edited
 // in place and saves itself. While a pilot is pending you can edit it directly; once it's approved, changes are
 // proposed as a draft that a GM approves (src/myPilot.ts).
 // The same page, read-only, is every pilot's record (opened from a card, route param "id"), so a record looks
 // just like your own sheet. Everything on it is public except the backstory (shown only to the pilot's player and
-// GMs, or as a public copy when its player toggles it; src/backstory.ts). On the gm-review route (from the gm: pilots tab) GMs also get their controls: level,
-// manna and, while pending, the decision.
+// GMs, or as a public copy when its player toggles it; src/backstory.ts). A GM's edit mode (?edit=1) is where a GM changes a pilot, rules off: a rewards row in the bar, a GM only section and
+// the danger zone. The gm-review route (from the gm: pilots tab) adds the decision for a pending pilot.
 // Homebrew (src/rules.ts): level (set by GMs) gives HASE points and the mod limit; manna (received from GMs)
 // buys licence ranks, biomods and talent ranks; every 3 licence ranks give a free core bonus.
 
@@ -69,6 +74,7 @@ const {
   character,
   sheet,
   gm,
+  grants,
   reviewNote,
   sheetUpdatedAt,
   playerName,
@@ -132,11 +138,23 @@ function clearChangeNote() {
     // Hidden for this visit only.
   }
 }
-const deathError = ref('') // shown in the danger zone, beside its button
+const deathError = ref('') // the danger zone's own error, shown under its buttons
 async function confirmDeath() {
   const name = character.value!.callsign ?? character.value!.pilot_name
-  if (await confirmAction(`Mark ${name} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))
-    deathError.value = (await track(markDead())) ?? ''
+  if (!(await confirmAction(`Mark ${name} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))) return
+  const failed = await track(markDead())
+  deathError.value = failed ? `Not saved: ${failed}` : ''
+}
+
+// Owners only (the database enforces it): deleting a character also deletes its sheet, changes and reputation. The
+// returned row proves something was deleted, since RLS turns a refused delete into "0 rows" rather than an error.
+async function deletePilot() {
+  const name = character.value!.callsign ?? character.value!.pilot_name
+  if (!(await confirmAction(`Delete ${name}? This removes their sheet, mechs and changes. This can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
+  const { data, error } = await supabase.from('characters').delete().eq('id', character.value!.id).select('id, pilot_image, mechs')
+  deathError.value = error ? `Not deleted: ${error.message}` : (data?.length ? '' : 'Not deleted: Only owners can delete pilots.')
+  if (data?.length) cardImages(data[0]).forEach(deleteImage)
+  if (!deathError.value) router.push({ name: 'gm-pilots' })
 }
 
 async function withdraw() {
@@ -193,7 +211,12 @@ const anyConflict = computed(() => conflict.value || profile.conflict.value)
 const record = useServiceRecord(() => character.value?.id)
 const awards = usePilotAwards(() => character.value?.id)
 const canLog = computed(() => own && !!character.value && character.value.status !== 'dead')
-const canGmRecord = computed(() => isGm.value && (gmEditing.value || reviewing))
+const canGmRecord = computed(() => isGm.value && gmEditing.value)
+const rewardHistoryKey = ref(0) // refreshes the reward history after the rewards row saves
+const rewarded = () => {
+  load()
+  rewardHistoryKey.value++
+}
 // Backstory privacy: the pilot's own player or a GM editing can change it; other viewers see only a public copy.
 const backstory = useBackstoryVisibility(() => character.value?.id)
 const canToggleBackstory = computed(() => gmEditing.value || (!!character.value && character.value.player_id === session.value?.user.id))
@@ -275,7 +298,7 @@ const { frames, weapons, systems, mods } = useMechData()
 const catalogue = useCatalogue()
 // The approved sheet, which says which owned gear was free; null for a pilot never approved (its first full loadout is free).
 const live = computed(() => (character.value?.status === 'pending' ? null : (approved.value?.sheet ?? sheet.value)))
-const spent = computed(() => mannaSpent(sheet.value, bionicPrices.value, mechs.value.length, gear.value, live.value))
+const spent = computed(() => mannaSpent(sheet.value, bionicPrices.value, mechs.value.length, gear.value, live.value, grants.value))
 // Manna is private to the pilot's player and GMs: other viewers get no figure, and nothing to check it against.
 const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) - spent.value)
 
@@ -319,10 +342,10 @@ const saveCoreBonuses = (ids: string[]) => track(updateSheet({ core_bonuses: ids
 const ruleFix = computed(() => (!own || !editable.value ? undefined : draft.value || isDraft.value ? 'draft' : 'own'))
 // Your own sheet (and any dead pilot's) has the next-step bar under the header; GMs on a record get a link to review.
 const hasNext = computed(() => own || character.value?.status === 'dead')
-const gmLink = computed(() => isGm.value && !own && !reviewing)
+const gmLink = computed(() => isGm.value && !own && !reviewing && character.value?.status === 'pending')
 
 // The file's sections, in order (the numbers are part of the design). The gallery is left out for read-only viewers when
-// it is empty, and GM controls show only on the review page. The ids are the url's #hash (a mech page links back to #hangar).
+// it is empty, GM only shows in a GM's edit mode and GM review on a pending pilot's review page. The ids are the url's #hash (a mech page links back to #hangar).
 const SEC = {
   identity: { id: 'identity', title: 'Identity' },
   pilotId: { id: 'pilot-id', title: 'Pilot ID' },
@@ -331,15 +354,20 @@ const SEC = {
   qualifications: { id: 'qualifications', title: 'Qualifications' },
   equipment: { id: 'equipment', title: 'Equipment' },
   hangar: { id: 'hangar', title: 'Hangar' },
-  gm: { id: 'gm-controls', title: 'GM controls' },
+  gm: { id: 'gm-only', title: 'GM only' },
+  review: { id: 'gm-review', title: 'GM review' },
   gallery: { id: 'gallery', title: 'Gallery' },
 }
 const showGallery = computed(() => profileEditable.value || profile.fields.value.gallery.length > 0)
-const showGm = computed(() => reviewing && isGm.value)
+const showGm = computed(() => isGm.value && (gmEditing.value || character.value?.status === 'dead'))
+const showReview = computed(() => reviewing && isGm.value && character.value?.status === 'pending')
+// Marking dead: your own approved pilot, or any approved pilot in a GM's edit mode. Deleting: owners, in edit mode or on a dead pilot.
+const canMarkDead = computed(() => approvedOwn.value || (gmEditing.value && character.value?.status === 'approved'))
+const canDelete = computed(() => isOwner.value && (gmEditing.value || character.value?.status === 'dead'))
 // Numbered by position among the shown sections, so a hidden one leaves no gap.
 const sections = computed(() =>
   Object.values(SEC)
-    .filter((s) => (s !== SEC.gallery || showGallery.value) && (s !== SEC.gm || showGm.value))
+    .filter((s) => (s !== SEC.gallery || showGallery.value) && (s !== SEC.gm || showGm.value) && (s !== SEC.review || showReview.value))
     .map((s, i) => ({ ...s, no: String(i + 1).padStart(2, '0') })),
 )
 const sec = (s: { id: string; title: string }) => sections.value.find((x) => x.id === s.id) ?? { ...s, no: '' }
@@ -361,7 +389,7 @@ const figures = computed(() => [
 // Waits for the catalogues, so mechs don't flash up as "not in the loaded content packs".
 const problems = computed(() =>
   frames.value.length
-    ? pilotProblems(sheet.value, canSeeManna.value ? gm.value : { ...gm.value, manna: Infinity }, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])), live.value)
+    ? pilotProblems(sheet.value, canSeeManna.value ? gm.value : { ...gm.value, manna: Infinity }, catalogue.value, Object.fromEntries(mechs.value.map((m) => [m.id, m.name])), live.value, grants.value)
     : personalStatProblems(sheet.value.pilot_stats),
 )
 
@@ -435,7 +463,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
       >
         <template #actions>
           <RouterLink v-if="gmLink" class="gm-link gm" :to="{ name: 'gm-review', params: { id: character.id } }">
-            {{ character.status === 'pending' ? 'GM review' : 'GM controls' }}
+            GM review
           </RouterLink>
           <button v-if="gmCanEdit && !gmEditing" type="button" class="small gm" @click="setEdit(true)">Edit as GM</button>
         </template>
@@ -466,7 +494,9 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
         :can-retry="!anyConflict"
         @retry="track(retryAll())"
         @done="setEdit(false)"
-      />
+      >
+        <GmRewards :pilot="character" @saved="rewarded" />
+      </GmEditBar>
 
       <!-- What happens next: a sentence and the actions that do it (secondary first, the primary last). A badge only for a
            change, since the cover already shows the pilot's own status. Your own sheet's save status follows the sentence. -->
@@ -615,6 +645,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
                 columns
                 rows
                 :price="PRICES.licenceRank"
+                :granted="grants.licences"
                 :balance="balance"
                 :editable="editable"
                 :save="saveLicences"
@@ -634,6 +665,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
                 tiers
                 rows
                 :price="PRICES.talentRank"
+                :granted="grants.talents"
                 :balance="balance"
                 :editable="editable"
                 :save="saveTalents"
@@ -663,6 +695,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               :editable="editable"
               :can-remove="gmEditing && character.status === 'approved'"
               :balance="balance"
+              :granted="grants.gear"
               :needs="(item) => needsOf(item.raw)"
               :equip="saveEquipped"
               :save-owned="saveOwned"
@@ -677,19 +710,26 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               :editable="editable"
               :limit="{ label: 'Mod points', unit: 'mod', max: modLimit(gm.level) }"
               :balance="balance"
+              :granted="grants.bionics"
               :save="saveBionics"
             />
           </FileSection>
 
           <FileSection v-bind="sec(SEC.hangar)">
-            <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" />
+            <MechHangar :mechs="mechs" :editable="editable" :link="mechLink" :frame-id="frameId" :save="saveMechs" :balance="balance" :granted="grants.mechs" />
           </FileSection>
 
           <FileSection v-if="showGm" v-bind="sec(SEC.gm)">
-            <!-- :key resets the decision box after a decision, so it shows the new status. -->
             <div class="gm-controls">
-              <GmReview :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" :awards="awards" @reviewed="load" @awarded="record.load" />
+              <ReputationPanel v-if="character.status !== 'dead'" :character-id="character.id" />
+              <CommendationAward v-if="character.status !== 'dead'" :awards="awards" @awarded="record.load" />
+              <RewardHistory :character-id="character.id" :refresh="rewardHistoryKey" />
             </div>
+          </FileSection>
+
+          <FileSection v-if="showReview" v-bind="sec(SEC.review)">
+            <!-- :key resets the decision box after a decision, so it shows the new status. -->
+            <GmReview :key="character.status" :pilot="character" :sheet-updated-at="sheetUpdatedAt" :problems="problems" @reviewed="load" />
           </FileSection>
 
           <FileSection v-if="showGallery" v-bind="sec(SEC.gallery)">
@@ -701,14 +741,20 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
             />
           </FileSection>
 
-          <!-- Your approved pilot can die without a GM's approval, after an "are you sure?". -->
-          <section v-if="approvedOwn" class="panel danger-zone">
-            <h2 class="sheet-label">Danger zone</h2>
-            <div class="danger-body">
-              <p class="dim">Mark this pilot dead if they die in the story. This can't be undone.</p>
+          <!-- Your approved pilot can die without a GM's approval, after an "are you sure?"; a GM in edit mode can too, and owners delete. -->
+          <section v-if="canMarkDead || canDelete" class="panel danger-zone">
+            <h2 class="sheet-label">Danger zone<span v-if="!approvedOwn" class="private gm">{{ canMarkDead ? 'GM only' : 'Owner only' }}</span></h2>
+            <div v-if="canMarkDead" class="danger-body">
+              <p class="dim">{{ approvedOwn ? 'Mark this pilot dead if they die in the story.' : `Mark ${character.callsign ?? character.pilot_name} dead if they die in the story.` }} This can't be undone.</p>
               <button type="button" class="danger" @click="confirmDeath">Mark pilot dead</button>
             </div>
-            <p v-if="deathError" class="notice warn" role="alert">Not saved: {{ deathError }}</p>
+            <div v-if="canDelete" class="danger-body">
+              <p class="dim">
+                Deleting {{ character.callsign ?? character.pilot_name }} removes their sheet, mechs and changes. This can't be undone.<span v-if="canMarkDead" class="private gm">Owner only</span>
+              </p>
+              <button type="button" class="danger" @click="deletePilot">Delete pilot</button>
+            </div>
+            <p v-if="deathError" class="notice warn" role="alert">{{ deathError }}</p>
           </section>
         </div>
       </div>

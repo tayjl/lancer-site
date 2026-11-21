@@ -5,6 +5,7 @@ import { makerColour, makerLogo, useManufacturers } from '../archive'
 import { frameArt } from '../images'
 import { useMechData } from '../mechData'
 import { mechProblem } from '../myPilot'
+import { useGmOverride } from '../restriction'
 import { nextMechPrice } from '../rules'
 import type { PublicMech } from '../pilots'
 import Icon from './Icon.vue'
@@ -20,6 +21,8 @@ const props = defineProps<{
   frameId: (mechId: string) => string | undefined
   save: (mechs: PublicMech[]) => Promise<string | null>
   balance: number
+  // How many extra mechs a GM gave free (the sheet's grants): the newest ones get a GM grant badge.
+  granted?: number
 }>()
 const router = useRouter()
 const { frames } = useMechData()
@@ -36,7 +39,8 @@ const makerOf = (mechId: string) => manufacturers.value.find((m) => m.id === fra
 
 // The first mech is free; each one after it costs manna, and the button is blocked when the balance can't cover it.
 const price = computed(() => nextMechPrice(props.mechs.length))
-const affordable = computed(() => props.balance >= price.value)
+const gmOverride = useGmOverride()
+const affordable = computed(() => gmOverride.value || props.balance >= price.value)
 
 // A new mech starts with just a name and manufacturer id, then opens its own page.
 const addingMech = ref(false)
@@ -68,17 +72,18 @@ async function createMech() {
       <span><span class="num">{{ mechs.length }}</span> {{ mechs.length === 1 ? 'mech' : 'mechs' }}</span>
       <span v-if="editable && !addingMech" class="blocked">
         <button type="button" class="small" :disabled="!affordable" :aria-describedby="affordable ? undefined : 'mech-why'" @click="openNewMech">
-          <Icon name="plus" />New mech<template v-if="price"> · <span class="num">{{ price }}</span></template>
+          <Icon name="plus" />New mech<template v-if="price && !gmOverride"> · <span class="num">{{ price }}</span></template>
         </button>
         <span v-if="!affordable" id="mech-why" class="blocked-reason">Not enough manna</span>
       </span>
     </Teleport>
     <ul v-if="mechs.length" class="hangar">
-      <li v-for="mech in mechs" :key="mech.id">
+      <li v-for="(mech, index) in mechs" :key="mech.id">
         <RouterLink :to="link(mech.id)" class="mech-card" :style="makerOf(mech.id) ? { '--mf': makerColour(makerOf(mech.id)) } : undefined">
           <MechImage size="card" :src="mech.image" :art="artOf(mech.id)" :logo="makerLogo(makerOf(mech.id))" :alt="`Image of ${mech.name}`" />
           <span class="mech-about">
             <span class="mech-name">{{ mech.name }}</span>
+            <span v-if="index > 0 && index >= mechs.length - (granted ?? 0)" class="badge grant">GM grant</span>
             <template v-if="frameOf(mech.id)">
               <span class="mech-frame">{{ frameOf(mech.id)!.source }} {{ frameOf(mech.id)!.name }}</span>
               <span v-if="frameOf(mech.id)!.mechtype.length" class="mech-class dim">{{ frameOf(mech.id)!.mechtype.join(' / ') }}</span>

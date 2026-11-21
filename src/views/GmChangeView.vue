@@ -13,8 +13,9 @@ import RichText from '../components/RichText.vue'
 import { useGameData } from '../gameData'
 import type { Character, PendingChange, Sheet } from '../myPilot'
 import { useMechData } from '../mechData'
-import { gearPrice, licenceName, mannaSpent, mechCount, pilotProblems, personalStatProblems, formatAmount, useCatalogue } from '../rules'
+import { gearPrice, licenceName, mannaSpent, mechCount, pilotProblems, personalStatProblems, formatAmount, useCatalogue, type Grants } from '../rules'
 import { cardImages, deleteImage } from '../images'
+import type { Json } from '../lib/database.types'
 import { supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
 import { capitalise, plural } from '../text'
@@ -31,7 +32,7 @@ const route = useRoute()
 const router = useRouter()
 const change = shallowRef<PendingChange | null>(null)
 const pilot = shallowRef<(Character & { player: { display_name: string } | null }) | null>(null)
-const approved = shallowRef<{ sheet: Sheet; level: number; manna: number; updated_at: string } | null>(null)
+const approved = shallowRef<{ sheet: Sheet; level: number; manna: number; gm_grants: Json; updated_at: string } | null>(null)
 const loading = ref(true)
 const error = ref('')
 
@@ -46,7 +47,7 @@ async function load() {
   if (row) {
     const [card, sheetRow] = await Promise.all([
       supabase.from('characters').select('*, player:profiles(display_name)').eq('id', row.character_id).maybeSingle(),
-      supabase.from('character_sheets').select('sheet, level, manna, updated_at').eq('character_id', row.character_id).maybeSingle(),
+      supabase.from('character_sheets').select('sheet, level, manna, gm_grants, updated_at').eq('character_id', row.character_id).maybeSingle(),
     ])
     pilot.value = card.data
     approved.value = sheetRow.data
@@ -118,8 +119,10 @@ const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ block
 // The card holds the mechs (the cost of extra ones counts like any purchase): the approved card now, the proposed one after.
 // A change is always to an approved pilot: its live sheet says which owned gear was free.
 const live = computed(() => approved.value?.sheet ?? null)
-const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value, mechCount(pilot.value?.mechs), gear.value, live.value))
-const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value, mechCount(proposedCard.value.mechs ?? pilot.value?.mechs), gear.value, live.value))
+// What a GM gave this pilot free: it stays off both sides of the cost (a player's change can't touch it).
+const grants = computed(() => (approved.value?.gm_grants ?? {}) as Grants)
+const spentBefore = computed(() => mannaSpent(approved.value?.sheet ?? {}, bionicPrices.value, mechCount(pilot.value?.mechs), gear.value, live.value, grants.value))
+const spentAfter = computed(() => mannaSpent(proposedSheet.value, bionicPrices.value, mechCount(proposedCard.value.mechs ?? pilot.value?.mechs), gear.value, live.value, grants.value))
 const cost = computed(() => spentAfter.value - spentBefore.value)
 const left = computed(() => (approved.value?.manna ?? 0) - spentAfter.value)
 
@@ -134,6 +137,7 @@ const problems = computed(() =>
           (Array.isArray(proposedCard.value.mechs) ? (proposedCard.value.mechs as unknown as PublicMech[]) : []).map((m) => [m.id, m.name]),
         ),
         live.value,
+        grants.value,
       )
     : personalStatProblems(proposedSheet.value.pilot_stats),
 )
@@ -198,7 +202,7 @@ async function reject() {
             <span v-else-if="pending">Not submitted</span>
             <span v-else><span class="badge" :class="change.status">{{ change.status === 'rejected' ? 'Sent back' : capitalise(change.status) }}</span></span>
           </p>
-          <RouterLink :to="{ name: 'gm-review', params: { id: pilot.id } }">Open pilot record</RouterLink>
+          <RouterLink :to="{ name: 'pilot-record', params: { id: pilot.id } }">Open pilot record</RouterLink>
         </div>
         <div>
           <dl class="figures">

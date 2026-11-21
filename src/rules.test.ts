@@ -3,7 +3,7 @@ import submitRulesSql from '../supabase/migrations/20261121140000_homebrew_rules
 import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
 import type { Frame } from './mechData'
-import { bracingMount, freeGear, GEAR_PRICE_DEFAULT, gearPrice, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
+import { adjustGrants, bracingMount, freeGear, GEAR_PRICE_DEFAULT, gearPrice, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -388,5 +388,27 @@ describe('manna prices', () => {
     expect({ licenceRank: price('licence_rank_price'), talentRank: price('talent_rank_price'), extraMech: price('extra_mech_price') }).toEqual(PRICES)
     expect(price('starting_manna')).toBe(STARTING_MANNA)
     expect(price('default_gear_price')).toBe(GEAR_PRICE_DEFAULT)
+  })
+})
+
+describe('GM grants', () => {
+  const prices = new Map([[1, 500], [2, 750]])
+  const gear = [item('knife', { type: 'Weapon', manna_cost: 250 })]
+  const live = { owned_gear: [] }
+  it('takes granted ranks, items and extra mechs off what was spent, never more than the sheet holds', () => {
+    const sheet = { licences: { drake: 2 }, talents: { t_ace: 1 }, bionics: [1, 2], owned_gear: [{ key: 'a', id: 'knife' }, { key: 'b', id: 'knife' }] }
+    const grants = { licences: { drake: 1 }, talents: { t_ace: 1 }, bionics: { 2: 1 }, gear: { knife: 1 }, mechs: 1 }
+    expect(mannaSpent(sheet, prices, 3, gear, live, grants)).toBe(1850)
+    // Granted more than held (the player removed some): only what is still held is free.
+    expect(mannaSpent({ licences: { drake: 1 } }, prices, 1, [], null, { licences: { drake: 3 }, mechs: 2 })).toBe(0)
+    expect(mannaSpent({}, prices, 0, [], null, { licences: { drake: 3 }, gear: { knife: 1 } })).toBe(0)
+  })
+  it('records what a GM adds and lowers the grant first on a removal, never below 0', () => {
+    const added = adjustGrants({}, { licences: { drake: 1 }, bionics: [1] }, { licences: { drake: 3 }, bionics: [1, 2], owned_gear: [{ key: 'a', id: 'knife' }] }, 1, 2)
+    expect(added).toEqual({ licences: { drake: 2 }, bionics: { 2: 1 }, gear: { knife: 1 }, mechs: 1 })
+    const removed = adjustGrants(added, { licences: { drake: 3 }, bionics: [1, 2] }, { licences: { drake: 1 }, bionics: [1] }, 2, 1)
+    expect(removed).toEqual({ gear: { knife: 1 } })
+    expect(adjustGrants({}, { talents: { t_ace: 2 } }, {}, 3, 1)).toEqual({})
+    expect(adjustGrants({ gear: { knife: 1 } }, {}, {}, 0, 0)).toEqual({ gear: { knife: 1 } })
   })
 })

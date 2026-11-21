@@ -166,17 +166,61 @@ export function freeGear(owned: OwnedGear[], typeOf: (id: string) => string | un
   })
 }
 
+// What a GM or owner gave a pilot free in edit mode (character_sheets.gm_grants, GM-only to change, never in the sheet or a
+// change): how many ranks of each licence and talent, copies of each biomod and gear item, and extra mechs.
+export type Grants = { licences?: Record<string, number>; talents?: Record<string, number>; bionics?: Record<string, number>; gear?: Record<string, number>; mechs?: number }
+const GRANT_KINDS = ['licences', 'talents', 'bionics', 'gear'] as const
+const tally = (ids: Iterable<string | number>) => {
+  const counts: Record<string, number> = {}
+  for (const id of ids) counts[id] = (counts[id] ?? 0) + 1
+  return counts
+}
+// What the grants cover, per id: the smaller of what was given and what the sheet still holds.
+const covered = (given: Record<string, number> | undefined, held: Record<string, number>, price: (id: string) => number) =>
+  Object.entries(given ?? {}).reduce((total, [id, n]) => {
+    const count = Math.min(n, Math.max(0, held[id] ?? 0))
+    return count > 0 ? total + count * price(id) : total
+  }, 0)
+// Grants after a GM edit: every rank or item added counts as given, every one taken away lowers the grant first (never below 0).
+export function adjustGrants(grants: Grants, before: Sheet, after: Sheet, mechsBefore: number, mechsAfter: number): Grants {
+  const held = (sheet: Sheet) => ({ licences: sheet.licences ?? {}, talents: sheet.talents ?? {}, bionics: tally(sheet.bionics ?? []), gear: tally((sheet.owned_gear ?? []).map(owned => owned.id)) })
+  const [was, now] = [held(before), held(after)]
+  const next: Grants = { ...grants }
+  for (const kind of GRANT_KINDS) {
+    const list = { ...grants[kind] }
+    for (const id of new Set([...Object.keys(was[kind]), ...Object.keys(now[kind])])) {
+      const given = Math.max(0, (list[id] ?? 0) + (now[kind][id] ?? 0) - (was[kind][id] ?? 0))
+      if (given) list[id] = given
+      else delete list[id]
+    }
+    if (Object.keys(list).length) next[kind] = list
+    else delete next[kind]
+  }
+  const mechs = Math.max(0, (grants.mechs ?? 0) + mechsAfter - mechsBefore)
+  if (mechs) next.mechs = mechs
+  else delete next.mechs
+  return next
+}
+
 // Manna spent: licence ranks, biomods (each at its own price; an id missing from the catalogue costs 0, like any unknown
 // item), talent ranks, every mech after the first, and every owned pilot gear item that isn't free. "mechs" is how many
 // mechs are on the card (characters.mechs), which isn't part of the sheet. "live" is the pilot's approved sheet, or null
-// for a pilot who has never been approved (see freeGear).
-export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>, mechs: number, gear: Item[], live: Sheet | null) => {
+// for a pilot who has never been approved (see freeGear). "grants" (a GM's free gifts) are taken off each kind, never
+// more than the sheet holds.
+export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>, mechs: number, gear: Item[], live: Sheet | null, grants: Grants = {}) => {
   const byId = new Map(gear.map(item => [item.id, item]))
   const owned = sheet.owned_gear ?? []
   const free = freeGear(owned, id => byId.get(id)?.type, live)
+  const paid = owned.filter((_, n) => !free[n] && byId.has(owned[n].id))
+  const extraMechs = Math.max(0, mechs - 1)
   return licenceLevel(sheet) * PRICES.licenceRank + (sheet.bionics ?? []).reduce((total, id) => total + (bionicPrices.get(id) ?? 0), 0) + sum(sheet.talents) * PRICES.talentRank
-    + Math.max(0, mechs - 1) * PRICES.extraMech
-    + owned.reduce((total, { id }, n) => total + (free[n] || !byId.has(id) ? 0 : gearPrice(byId.get(id)!)), 0)
+    + extraMechs * PRICES.extraMech
+    + paid.reduce((total, { id }) => total + gearPrice(byId.get(id)!), 0)
+    - covered(grants.licences, sheet.licences ?? {}, () => PRICES.licenceRank)
+    - covered(grants.talents, sheet.talents ?? {}, () => PRICES.talentRank)
+    - covered(grants.bionics, tally(sheet.bionics ?? []), id => bionicPrices.get(Number(id)) ?? 0)
+    - covered(grants.gear, tally(paid.map(entry => entry.id)), id => gearPrice(byId.get(id)!))
+    - Math.min(Math.max(0, grants.mechs ?? 0), extraMechs) * PRICES.extraMech
 }
 // How many mechs a card's mechs column holds.
 export const mechCount = (mechs: unknown) => (Array.isArray(mechs) ? mechs.length : 0)
@@ -391,10 +435,10 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 // Everything wrong with a pilot's sheet: manna, level-based limits, licences, talents, core bonuses, then
 // each mech by name.
 // "live" is the pilot's approved sheet (null for a never-approved pilot), for the gear that's free.
-export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>, live: Sheet | null): string[] {
+export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>, live: Sheet | null, grants: Grants = {}): string[] {
   const problems = personalStatProblems(sheet.pilot_stats)
   const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, itemName: id => catalogue.gear?.find(gear => gear.id === id)?.name }
-  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length, catalogue.gear ?? [], live)
+  const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length, catalogue.gear ?? [], live, grants)
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 
   const skills = sum(sheet.mech_skills)

@@ -129,6 +129,7 @@ export type Database = {
       character_sheets: {
         Row: {
           character_id: number
+          gm_grants: Json
           level: number
           manna: number
           review_note: string | null
@@ -137,6 +138,7 @@ export type Database = {
         }
         Insert: {
           character_id: number
+          gm_grants?: Json
           level?: number
           manna?: number
           review_note?: string | null
@@ -145,6 +147,7 @@ export type Database = {
         }
         Update: {
           character_id?: number
+          gm_grants?: Json
           level?: number
           manna?: number
           review_note?: string | null

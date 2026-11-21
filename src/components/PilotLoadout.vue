@@ -7,7 +7,7 @@ import { DAMAGE_CHOICES, equipmentDetails, variableDamage } from '../equipment'
 import { itemCard } from '../itemDetails'
 import type { MiscItem, OwnedGear, Sheet } from '../myPilot'
 import { formatAmount, freeGear, gearPrice, restrictionOf } from '../rules'
-import { useRestriction } from '../restriction'
+import { useGmOverride, useRestriction } from '../restriction'
 import { itemPick, type PickGroup, type PickOption } from '../pickerRows'
 import { NOTE_MAX } from '../itemNotes'
 import { capitalise, plural } from '../text'
@@ -35,6 +35,8 @@ const props = defineProps<{
   // A GM's edit mode: owned items can be taken off.
   canRemove: boolean
   balance: number
+  // Copies of each item a GM gave free (the sheet's grants): marked with a GM grant badge.
+  granted?: Record<string, number>
   // What an item still needs ("Needs Brawler II"), or ''.
   needs?: (item: Item) => string
   equip: (keys: string[]) => Promise<string | null>
@@ -84,7 +86,7 @@ const stowedGroups = computed(() =>
 const iconOf = (entry: OwnedGear) => (byId.value.has(entry.id) ? itemCard(byId.value.get(entry.id)!).icon : 'generic_item')
 const rowName = (entry: OwnedGear) => byId.value.get(entry.id)?.name ?? `Unknown item (${entry.id})`
 // The dim text after a row's name: a bought item's price, else its description.
-const rowHint = (entry: OwnedGear) => (bought(entry) ? `Bought in this change · ${priceText(entry)}` : entry.notes ? `"${entry.notes}"` : '')
+const rowHint = (entry: OwnedGear) => (bought(entry) && priceText(entry) ? `Bought in this change · ${priceText(entry)}` : entry.notes ? `"${entry.notes}"` : '')
 
 const stowOpen = ref(false)
 const stowToggle = useTemplateRef('stowToggle')
@@ -146,7 +148,7 @@ const free = computed(() => freeGear(props.owned, typeOf, props.live))
 const priceOf = (id: string) => (byId.value.has(id) ? gearPrice(byId.value.get(id)!) : 0)
 // The price line on a card: while building, whether it's part of the free loadout; afterwards, only for items bought in the change.
 const priceText = (entry: OwnedGear) =>
-  building.value ? (free.value[props.owned.indexOf(entry)] ? 'Free' : `${formatAmount(priceOf(entry.id))} manna`) : bought(entry) ? `${formatAmount(priceOf(entry.id))} manna` : ''
+  gmOverride.value ? '' : building.value ? (free.value[props.owned.indexOf(entry)] ? 'Free' : `${formatAmount(priceOf(entry.id))} manna`) : bought(entry) ? `${formatAmount(priceOf(entry.id))} manna` : ''
 
 // --- Saving: every change goes through run(), which shows its error under the slots, or in the picker for a choice there ---
 const error = ref('')
@@ -206,9 +208,14 @@ const buying = ref(false)
 
 // HORUS and NHC gear is GM-only (blocked for players), Exotic gear GM-edit-only (blocked outside a GM's edit mode); both listed last.
 const reasonFor = useRestriction()
+// A GM's edit mode ignores what an item needs and what it costs.
+const gmOverride = useGmOverride()
+const grantedEntry = (entry: OwnedGear) => (props.granted?.[entry.id] ?? 0) > 0
+const needsOf = (item: Item) => (gmOverride.value ? '' : props.needs?.(item) || '')
+const tooPricey = (cost: number) => !gmOverride.value && cost > props.balance
 const catalogueRow = (item: Item) => {
   const restriction = restrictionOf(item)
-  return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked: reasonFor(restriction) || props.needs?.(item) || '', exotic: restriction.exotic }
+  return { id: item.id, name: item.name, ...itemPick(item, tagNames.value, []), info: () => itemInfo(item), blocked: reasonFor(restriction) || needsOf(item), exotic: restriction.exotic }
 }
 const byRestriction = (a: PickOption, b: PickOption) => Number(!!a.exotic) - Number(!!b.exotic) || Number(!!a.blocked) - Number(!!b.blocked)
 // Each row shows its price the way the biomod picker does (LoadoutBox.vue).
@@ -231,7 +238,7 @@ const options = computed((): PickOption[] => {
       .map((item) => {
         const row = catalogueRow(item)
         const price = gearPrice(item)
-        return { ...row, group: kindGroup(item), stats: [...(row.stats ?? []), priceStat(false, price)], blocked: row.blocked || (price > props.balance ? 'Not enough manna' : '') }
+        return { ...row, group: kindGroup(item), stats: gmOverride.value ? row.stats : [...(row.stats ?? []), priceStat(false, price)], blocked: row.blocked || (tooPricey(price) ? 'Not enough manna' : '') }
       })
       .sort(byRestriction)
   const slot = target.value
@@ -247,7 +254,7 @@ const options = computed((): PickOption[] => {
         const row = catalogueRow(item)
         const after = [...kept, { key: '', id: item.id }]
         const free = freeGear(after, typeOf, null)[after.length - 1]
-        return { ...row, stats: [...(row.stats ?? []), priceStat(free, gearPrice(item))], blocked: row.blocked || (gearCost(after) - before > props.balance ? 'Not enough manna' : '') }
+        return { ...row, stats: gmOverride.value ? row.stats : [...(row.stats ?? []), priceStat(free, gearPrice(item))], blocked: row.blocked || (tooPricey(gearCost(after) - before) ? 'Not enough manna' : '') }
       })
       .sort(byRestriction)
   }
@@ -255,12 +262,12 @@ const options = computed((): PickOption[] => {
     .filter((entry) => typeOf(entry.id) === slot.type)
     .map((entry) => {
       const item = byId.value.get(entry.id)!
-      return { id: entry.key, name: item.name, ...itemPick(item, tagNames.value, []), meta: entry.notes, info: () => itemInfo(item), blocked: bought(entry) ? 'Needs GM approval' : props.needs?.(item) || '' }
+      return { id: entry.key, name: item.name, ...itemPick(item, tagNames.value, []), meta: entry.notes, info: () => itemInfo(item), blocked: bought(entry) ? 'Needs GM approval' : needsOf(item) }
     })
     .sort(byRestriction)
 })
 
-const pickerTitle = computed(() => (buying.value ? 'Buy item' : `Choose ${target.value ? KINDS[target.value.type] : 'pilot gear'}`))
+const pickerTitle = computed(() => (buying.value ? (gmOverride.value ? 'Add item' : 'Buy item') : `Choose ${target.value ? KINDS[target.value.type] : 'pilot gear'}`))
 const pickerEmpty = computed(() => (!buying.value && !building.value && target.value ? `No unequipped ${KINDS_PLURAL[target.value.type]}.` : undefined))
 
 function open(slot: Slot | null) {
@@ -290,7 +297,7 @@ async function choose(id: string) {
   <section class="pilot-loadout">
     <header class="head sheet-head">
       <h3 class="sheet-label">Loadout</h3>
-      <button v-if="editable && live" type="button" class="small" :disabled="saving" @click="open(null)">Buy item</button>
+      <button v-if="editable && live" type="button" class="small" :disabled="saving" @click="open(null)">{{ gmOverride ? 'Add item' : 'Buy item' }}</button>
     </header>
 
     <ul v-if="slots.length" class="slots">
@@ -299,7 +306,8 @@ async function choose(id: string) {
           <button type="button" class="small" :disabled="saving" @click="open(slot)">Add {{ KINDS[slot.type] }}</button>
         </template>
         <ItemDetails :item="shown(entryAt(slot))">
-          <p v-if="priceText(entryAt(slot))" class="facts">{{ priceText(entryAt(slot)) }}</p>
+          <p v-if="grantedEntry(entryAt(slot))" class="facts"><span class="badge grant">GM grant</span></p>
+          <p v-else-if="priceText(entryAt(slot))" class="facts">{{ priceText(entryAt(slot)) }}</p>
           <ItemNote :text="entryAt(slot).notes" :editable="editable" :save="saveNote(entryAt(slot).key)" />
           <label v-if="editable && isVariable(entryAt(slot))" class="field"><span>Damage type</span><select aria-label="damage type" :value="entryAt(slot).damageType ?? ''" :disabled="saving" @change="setDamage(entryAt(slot).key, ($event.target as HTMLSelectElement).value)">
             <option v-if="!entryAt(slot).damageType" value="" disabled>Choose…</option>
@@ -339,7 +347,8 @@ async function choose(id: string) {
                 <span v-if="rowHint(entry) && expanded !== entry.key" class="row-hint">{{ rowHint(entry) }}</span>
               </button>
               <div v-if="expanded === entry.key" :id="`more-${entry.key}`" class="row-more">
-                <p v-if="bought(entry)" class="facts">Bought in this change · {{ priceText(entry) }}</p>
+                <p v-if="grantedEntry(entry)" class="facts"><span class="badge grant">GM grant</span></p>
+                <p v-else-if="bought(entry) && priceText(entry)" class="facts">Bought in this change · {{ priceText(entry) }}</p>
                 <ItemNote :text="entry.notes" :editable="editable" :save="saveNote(entry.key)" />
                 <label v-if="editable && isVariable(entry)" class="field"><span>Damage type</span><select aria-label="damage type" :value="entry.damageType ?? ''" :disabled="saving" @change="setDamage(entry.key, ($event.target as HTMLSelectElement).value)">
                   <option v-if="!entry.damageType" value="" disabled>Choose…</option>

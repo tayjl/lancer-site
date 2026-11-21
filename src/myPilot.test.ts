@@ -35,9 +35,10 @@ vi.mock('./lib/supabaseClient', async (original) => {
     })
     return b
   }
-  return { ...real, supabase: { from } }
+  return { ...real, supabase: { from, rpc: async () => ({ data: [{ sheet: {}, level: 0, updated_at: 's0' }], error: null }) } }
 })
 
+import { isGm } from './auth'
 import { useMyPilot } from './myPilot'
 
 async function open() {
@@ -101,5 +102,24 @@ describe('submitting a new pilot', () => {
     db.mode = 'ok'
     expect(await pilot.submitPilot()).toMatch(/not saved yet/)
     expect(db.updates).toHaveLength(0)
+  })
+})
+
+describe("a GM's edit mode", () => {
+  it('saves the grants with the sheet, and only there', async () => {
+    (isGm as { value: boolean }).value = true
+    const pilot = useMyPilot(1, { gmEdit: () => true })
+    await vi.waitFor(() => expect(pilot.loading.value).toBe(false))
+    await pilot.updateSheet({ licences: { drake: 1 } })
+    expect(db.updates.at(-1)!.payload).toMatchObject({ sheet: { licences: { drake: 1 } }, gm_grants: { licences: { drake: 1 } } })
+    await pilot.updateSheet({ licences: {} })
+    expect(db.updates.at(-1)!.payload.gm_grants).toEqual({})
+    await pilot.updateCharacter({ mechs: [{ id: 'm' }, { id: 'n' }] as never })
+    expect(db.updates.at(-1)!.payload.gm_grants).toEqual({ mechs: 2 })
+    ;(isGm as { value: boolean }).value = false
+    const player = useMyPilot(1, { gmEdit: () => true })
+    await vi.waitFor(() => expect(player.loading.value).toBe(false))
+    await player.updateSheet({ licences: { drake: 1 } })
+    expect(db.updates.at(-1)!.payload).not.toHaveProperty('gm_grants')
   })
 })

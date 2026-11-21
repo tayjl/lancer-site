@@ -10,7 +10,7 @@ import { modBlockedBy, modsRefused } from '../equipment'
 import { allowedSizes, fittedMods, MOUNT_HINTS, mountReplacements, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { bracingMount, isLicensed, licenceName, rankName, isExotic, requirementReason, restrictionOf, superheavyMount, unmetRequirements } from '../rules'
-import { useRestriction } from '../restriction'
+import { useGmOverride, useRestriction } from '../restriction'
 import { withoutNote } from '../itemNotes'
 import ItemPicker from './ItemPicker.vue'
 import SlotCard from './SlotCard.vue'
@@ -50,10 +50,14 @@ const modsById = computed(() => new Map(props.mods.map((item) => [item.id, item]
 // An id missing from the catalogue (e.g. its pack was removed) still shows, by its id.
 const find = (byId: Map<string, Item>, id: string) => byId.get(id) ?? props.integrated.get(id) ?? toItem(id, { name: `Unknown item (${id})` })
 
+// A GM's edit mode: any weapon in any place, and every limit below is ignored (the rule check still lists what breaks).
+const gmOverride = useGmOverride()
+const ANY_SIZE = ['Auxiliary', 'Main', 'Heavy', 'Superheavy']
+
 // A Superheavy weapon's mount, and the empty mount it braces against (-1 when there's none).
 const sizeOf = (id: string) => weaponsById.value.get(id)?.mount
 const superheavyAt = computed(() => superheavyMount(props.mounts, sizeOf))
-const braced = computed(() => (superheavyAt.value < 0 ? -1 : bracingMount(props.frame?.mounts ?? [], props.mounts, superheavyAt.value)))
+const braced = computed(() => (superheavyAt.value < 0 || gmOverride.value ? -1 : bracingMount(props.frame?.mounts ?? [], props.mounts, superheavyAt.value)))
 // Whether a Superheavy weapon could go on mount m: some other mount must be empty to brace it.
 const canBrace = (m: number) => bracingMount(props.frame?.mounts ?? [], props.mounts, m) >= 0
 
@@ -67,7 +71,7 @@ const mountCards = computed(() =>
     const places =
       m === braced.value
         ? []
-        : ids.map((id, i) => ({ index: i, id, allowed: allowedSizes(mount, i, sizes) })).filter((place) => place.id || place.allowed.length)
+        : ids.map((id, i) => ({ index: i, id, allowed: gmOverride.value ? ANY_SIZE : allowedSizes(mount, i, sizes) })).filter((place) => place.id || place.allowed.length)
     return { mount, m, places, bracing: m === braced.value }
   }),
 )
@@ -147,6 +151,7 @@ const options = computed(() => {
   for (const id of leaving) if (id && onMech.includes(id)) onMech.splice(onMech.indexOf(id), 1)
   const aiCount = onMech.filter(id => (systemsById.value.get(id) ?? weaponsById.value.get(id) ?? modsById.value.get(id) ?? props.integrated.get(id))?.tags.some(tag => tag.id === 'tg_ai')).length
   const blockedBy = (item: Item) => {
+    if (gmOverride.value) return ''
     const has = (tag: string) => item.tags.some((t) => t.id === tag)
     const changes = t.kind === 'weapon' ? { mounts: withWeapon(t.m, t.i, item.id), weapon_options: { ...props.details.weapon_options, [key]: {} }, weapon_mods: withoutMod(key) }
       : t.kind === 'mod' ? { weapon_mods: { ...props.details.weapon_mods, [key]: item.id } } : { systems: [...props.installed, item.id] }
@@ -212,7 +217,7 @@ async function choose(id: string) {
 const placeLabel = (allowed: string[]) => (allowed.length >= 4 ? 'any weapon' : `${allowed.join(' or ').toLowerCase()} weapon`)
 // What an empty mount takes, in its empty state; one not listed says what its first place takes.
 const placeHint = (allowed: string[]) => `Takes ${allowed.length >= 4 ? 'a weapon of any size' : `one ${allowed.join(' or ')} weapon`}.`
-const mountHint = (mount: string, allowed: string[]) => (MOUNT_HINTS[mount] ?? placeHint(allowed))
+const mountHint = (mount: string, allowed: string[]) => (gmOverride.value ? placeHint(allowed) : (MOUNT_HINTS[mount] ?? placeHint(allowed)))
 // The system points meter: how full, and what's left.
 const spNote = computed(() => {
   const left = (props.spTotal ?? 0) - spUsed.value

@@ -2,7 +2,7 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import { sourceOf } from '../gameData'
 import { MAX_LICENCE_RANK, rankName } from '../rules'
-import { useRestriction } from '../restriction'
+import { useGmOverride, useRestriction } from '../restriction'
 import { framePick } from '../pickerRows'
 import { frameRanges } from '../mechData'
 import { makerColour, makerLogo, useManufacturers } from '../archive'
@@ -43,6 +43,8 @@ const props = defineProps<{
   rows?: boolean
   price: number
   balance: number
+  // Ranks a GM gave free, per id (the sheet's grants): marked with a GM grant badge and dashed pips.
+  granted?: Record<string, number>
   editable: boolean
   save: (next: Record<string, number>) => Promise<string | null>
   // Saves the frame chosen for a licence (RankStep.choice); resolves to an error message or null.
@@ -52,13 +54,17 @@ const props = defineProps<{
 const optionOf = (id: string) => props.options.find((option) => option.id === id)
 const nameOf = (id: string) => optionOf(id)?.name ?? id
 const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
-const affordable = computed(() => props.balance >= props.price)
+const gmOverride = useGmOverride()
+const grantedOf = (id: string) => Math.min(props.granted?.[id] ?? 0, props.held[id] ?? 0)
+const rankLabel = (id: string, rank: number) => `Rank ${rankName(rank)} of ${rankName(MAX_LICENCE_RANK)}${grantedOf(id) ? `, ${plural(grantedOf(id), 'rank')} a GM grant` : ''}`
+const affordable = computed(() => gmOverride.value || props.balance >= props.price)
 const reasonFor = useRestriction()
 const restricted = (id: string) => reasonFor(optionOf(id) ?? {})
 // Licences are frame-purple, talents brown (the --type-* tokens).
 const look = computed(() => (props.columns ? { type: 'frame' as const, icon: 'license' } : { type: 'talent' as const, icon: 'talent' }))
 // What a rank's box says about it: held, the next one to buy, or locked behind it. Prices only while editable.
-const status = (i: number, rank: number) => (i < rank ? 'held' : !props.editable ? '' : i === rank ? 'next' : 'locked')
+// A GM's edit mode has no prices, so the next and locked ranks say nothing.
+const status = (i: number, rank: number) => (i < rank ? 'held' : !props.editable || gmOverride.value ? '' : i === rank ? 'next' : 'locked')
 
 const error = ref('')
 const saving = ref(false)
@@ -130,7 +136,7 @@ const offered = computed(() =>
     .filter((option) => !props.held[option.id] && !option.stale)
     .map((option) => {
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
-      const blocked = restricted(option.id) || option.needs || (affordable.value ? '' : 'Not enough manna')
+      const blocked = restricted(option.id) || (gmOverride.value ? '' : option.needs) || (affordable.value ? '' : 'Not enough manna')
       return frame
         ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, frames.value), meta: undefined, blocked }
         : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }
@@ -155,7 +161,7 @@ async function buy(id: string) {
       <slot name="summary" />
       <span v-if="editable" class="blocked">
         <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${noun}-why`" @click="open">
-          <Icon name="plus" />Add {{ noun }} · <span class="num">{{ price }}</span>
+          <Icon name="plus" />Add {{ noun }}<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
         </button>
         <span v-if="!affordable" :id="`${noun}-why`" class="blocked-reason">Not enough manna</span>
       </span>
@@ -170,6 +176,7 @@ async function buy(id: string) {
             <InfoButton v-if="optionOf(id)?.info" :label="nameOf(id)" :info="optionOf(id)!.info" />
             <template v-else>{{ nameOf(id) }}</template>
             <span v-if="columns && makerOf(id)" class="mf-code"><Icon v-if="makerLogo(makerOf(id))" :src="makerLogo(makerOf(id))!" />{{ makerOf(id)!.id }}</span>
+            <span v-if="grantedOf(id)" class="badge grant">GM grant</span>
           </p>
           <p class="row-sub">{{ columns ? unlockLine(id) : optionOf(id)?.meta }}</p>
           <fieldset v-if="editable && choiceOf(id)" class="frame-choice">
@@ -184,14 +191,14 @@ async function buy(id: string) {
             <InfoButton :label="chosenOption(id).name" :info="chosenOption(id).info" />
           </p>
         </div>
-        <span class="rankpips" role="img" :aria-label="`Rank ${rankName(rank)} of ${rankName(MAX_LICENCE_RANK)}`">
-          <span v-for="n in MAX_LICENCE_RANK" :key="n" class="rp" :class="{ held: n <= rank }">{{ rankName(n) }}</span>
+        <span class="rankpips" role="img" :aria-label="rankLabel(id, rank)">
+          <span v-for="n in MAX_LICENCE_RANK" :key="n" class="rp" :class="{ held: n <= rank, granted: n <= rank && n > rank - grantedOf(id) }">{{ rankName(n) }}</span>
         </span>
         <div v-if="editable" class="row-actions">
           <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
           <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
             <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
-              Raise rank · <span class="num">{{ price }}</span>
+              Raise rank<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
             </button>
             <span v-if="!affordable" :id="`${id}-why`" class="blocked-reason">Not enough manna</span>
           </span>
@@ -200,7 +207,7 @@ async function buy(id: string) {
     </ul>
     <div v-else-if="ranks.length" class="list">
       <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
-        <template #meta>Rank {{ rankName(rank) }}</template>
+        <template #meta>Rank {{ rankName(rank) }}<span v-if="grantedOf(id)" class="badge grant">GM grant</span></template>
         <div class="rank-wrap" :class="{ 'with-art': columns }">
           <MechImage v-if="columns" size="licence" :art="licenceArt(id)" :logo="licenceLogo(id)" :art-alt="`${nameOf(id)} frame`" />
           <ol :class="columns ? 'ladder' : 'tiers'">
@@ -235,7 +242,7 @@ async function buy(id: string) {
           <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
           <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
             <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
-              Raise rank · <span class="num">{{ price }}</span>
+              Raise rank<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
             </button>
             <span v-if="!affordable" :id="`${id}-why`" class="blocked-reason">Not enough manna</span>
           </span>
@@ -246,7 +253,7 @@ async function buy(id: string) {
 
     <p v-if="error" class="notice warn note" role="alert">Not saved: {{ error }}</p>
 
-    <ItemPicker ref="picker" :title="`Add ${noun} · ${price} manna`" :options="offered" :saving="saving" :error="error" @choose="buy" />
+    <ItemPicker ref="picker" :title="gmOverride ? `Add ${noun}` : `Add ${noun} · ${price} manna`" :options="offered" :saving="saving" :error="error" @choose="buy" />
   </section>
 </template>
 
@@ -556,6 +563,11 @@ async function buy(id: string) {
   border-radius: 2px;
   color: var(--text-dim);
   font: 700 var(--fs-xs) / 1 var(--mono);
+}
+
+.rp.granted {
+  outline: 1px dashed var(--gm);
+  outline-offset: 2px;
 }
 
 .rp.held {

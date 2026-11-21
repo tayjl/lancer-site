@@ -7,7 +7,7 @@ import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
 import { PUBLIC_COLUMNS } from './changeDiff'
 import { NOT_SUBMITTED } from './saveStatus'
 import type { PublicMech } from './pilots'
-import { STARTING_MANNA, type GmFields } from './rules'
+import { adjustGrants, STARTING_MANNA, type GmFields, type Grants } from './rules'
 
 // A pilot for pilot_management and the mech pages: the public card (characters table) and the private sheet
 // (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
@@ -90,6 +90,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // Level (gained narratively) and manna received. They live beside the sheet, not in it, and only GMs can
   // change them (the database enforces it). See src/rules.ts for what they give.
   const gm = ref<GmFields>({ level: 0, manna: STARTING_MANNA })
+  // What a GM gave this pilot free (rules.ts Grants). Recorded by GM edit mode, saved with the sheet; never in the sheet itself.
+  const grants = ref<Grants>({})
   // A GM's note when they send a pilot back (it's a draft again). Cleared when it's submitted again.
   const reviewNote = ref('')
   const playerName = ref('')
@@ -149,7 +151,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   async function load() {
     conflict.value = false
     unsaved.clear()
-    const query = supabase.from('characters').select('*, player:profiles(display_name), sheet:character_sheets(sheet, level, manna, review_note, updated_at)')
+    const query = supabase.from('characters').select('*, player:profiles(display_name), sheet:character_sheets(sheet, level, manna, gm_grants, review_note, updated_at)')
     const { data, error } = await (pilotId
       ? query.eq('id', pilotId)
       : query.eq('player_id', session.value!.user.id).in('status', ['pending', 'approved']).order('created_at').limit(1)
@@ -157,13 +159,14 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     loadError.value = error?.message ?? ''
     const { player, sheet: fullRow, ...row } = data ?? { player: null, sheet: null }
     // Someone else's pilot: the sheet without the backstory, manna and notes (pilot_sheet, public to every logged-in user).
-    let privateRow: { sheet: Json; level: number; manna?: number; review_note?: string | null; updated_at?: string } | null = fullRow
+    let privateRow: { sheet: Json; level: number; manna?: number; gm_grants?: Json; review_note?: string | null; updated_at?: string } | null = fullRow
     if (data && pilotId && !fullRow) privateRow = (await supabase.rpc('pilot_sheet', { target_character_id: data.id })).data?.[0] ?? null
     character.value = data ? (row as Character) : null
     playerName.value = player?.display_name ?? ''
     if (data) {
       sheet.value = (privateRow?.sheet ?? {}) as unknown as Sheet
       gm.value = { level: privateRow?.level ?? 0, manna: privateRow?.manna ?? 0 }
+      grants.value = (privateRow?.gm_grants ?? {}) as Grants
       reviewNote.value = privateRow?.review_note ?? ''
       sheetUpdatedAt.value = privateRow?.updated_at ?? ''
       // Your own sheet may not exist yet (the first save creates it), but it's still yours to fill in.
@@ -266,13 +269,15 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       sheet.value = { ...sheet.value, equipped_gear: (data?.equipped ?? undefined) as string[] | undefined }
     }
     const body = sheet.value as unknown as NonNullable<Json>
+    // Grants are GM-only to change, so only a GM's edit mode sends them (one write with the sheet).
+    const extra = gmEditing.value ? { gm_grants: grants.value as NonNullable<Json> } : {}
     const seen = sheetUpdatedAt.value
     const result = seen
-      ? await checkWrite(await supabase.from('character_sheets').update({ sheet: body }).eq('character_id', c.id).eq('updated_at', seen).select('updated_at'), {
+      ? await checkWrite(await supabase.from('character_sheets').update({ sheet: body, ...extra }).eq('character_id', c.id).eq('updated_at', seen).select('updated_at'), {
           seen,
           recheck: () => supabase.from('character_sheets').select('updated_at').eq('character_id', c.id).maybeSingle(),
         })
-      : await checkWrite(await supabase.from('character_sheets').upsert({ character_id: c.id, sheet: body }).select('updated_at'))
+      : await checkWrite(await supabase.from('character_sheets').upsert({ character_id: c.id, sheet: body, ...extra }).select('updated_at'))
     // Keeps "what this page is showing" current, so a GM approving after editing isn't refused as stale.
     if (result.row) sheetUpdatedAt.value = result.row.updated_at
     return result.error
@@ -296,13 +301,20 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
 
   // Changes only the given card columns, on screen straight away (so quick edits build on each other), then saves.
   function updateCharacter(changes: TablesUpdate<'characters'>) {
+    const before = mechs.value.length
     character.value = { ...character.value!, ...changes }
-    return save(draft.value ? 'draft' : 'card')
+    const kind = save(draft.value ? 'draft' : 'card')
+    // An extra mech added or removed in GM edit mode changes the grants, which are saved with the sheet.
+    if (!gmEditing.value || mechs.value.length === before) return kind
+    grants.value = adjustGrants(grants.value, sheet.value, sheet.value, before, mechs.value.length)
+    return Promise.all([kind, save('sheet')]).then((results) => results.find(Boolean) ?? null)
   }
 
   // Merges changes into the private sheet straight away, then saves it.
   function updateSheet(changes: Partial<Sheet>) {
+    const before = sheet.value
     sheet.value = { ...sheet.value, ...changes }
+    if (gmEditing.value) grants.value = adjustGrants(grants.value, before, sheet.value, 0, 0)
     return save(draft.value ? 'draft' : 'sheet')
   }
 
@@ -422,6 +434,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     character,
     sheet,
     gm,
+    grants,
     reviewNote,
     sheetUpdatedAt,
     playerName,
