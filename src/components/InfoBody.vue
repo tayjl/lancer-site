@@ -92,7 +92,7 @@ const source = computed(() => sourceOf(props.info.id ?? ''))
         </dl>
         <ul v-else class="cards" :class="{ stack: group.stack }">
           <li v-for="(card, c) in group.cards" :key="c" class="card">
-            <InfoRule v-bind="rule(card)"><UnlockList v-if="card.unlocks?.length" :items="card.unlocks" links /></InfoRule>
+            <InfoRule v-bind="rule(card)"><UnlockList v-if="card.unlocks?.length" :items="card.unlocks" links cards /></InfoRule>
           </li>
         </ul>
       </section>

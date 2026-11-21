@@ -111,7 +111,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
     facts: facts(
       { text: frame.mechtype.join(' / ') },
       `Mounts: ${frame.mounts.join(', ')}`,
-      { text: frame.licenceLevel ? `Licence: ${(alternateOf(frame, frames) ?? frame).name} ${rankName(frame.licenceLevel)}` : 'No licence needed' },
+      { text: frame.licenceLevel ? `Licence: ${(alternateOf(frame, frames) ?? frame).name}` : 'No licence needed' },
     ),
     lore: paragraphs(text(frame.description)),
     // The frame's own numbers, before HASE and bonuses.

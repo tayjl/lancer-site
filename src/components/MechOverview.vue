@@ -1,29 +1,25 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import type { NamedBonus } from '../bonuses'
-import { makerColour } from '../archive'
 import { equipmentDetails } from '../equipment'
 import { tagNames, type Item } from '../gameData'
-import { frameArt, imageUrl } from '../images'
-import type { Manufacturer } from '../info'
+import { frameArt } from '../images'
 import { itemCard, itemDetails, symbolOf } from '../itemDetails'
 import { damageTotals, radarAxes, reach } from '../mechOverview'
 import { frameRanges, mountSize, type Frame, type mechStats } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { rankName } from '../rules'
 import Icon from './Icon.vue'
 import ItemStats from './ItemStats.vue'
 import MechImage from './MechImage.vue'
 import RadarChart from './RadarChart.vue'
 
-// The mech page's at-a-glance panel: the frame's identity (its picture, or its maker's logo; roles, size, licence), a radar of this build's own stats against every frame, a diagram of the
+// The mech page's at-a-glance panel: the frame's identity (its picture, or its maker's logo; its roles), a radar of this build's own stats against every frame, a diagram of the
 // loadout (a box per mount, a cell per weapon place with its damage and range, empty places dashed, systems as chips,
 // the system points meter), and the damage and reach the equipped weapons add up to. Symbols and numbers, not text.
 const props = defineProps<{
   frame: Frame
   baseFrame: Frame
   frames: Frame[]
-  maker?: Manufacturer
   logo: string | null
   // The mech's own uploaded image (a stored path) and its name: shown in place of the frame's art when there is one.
   image: string | null
@@ -103,9 +99,7 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
         <!-- The mech's picture, the one place it shows on the profile tab: its upload, else the frame's art, else the maker's logo, dim. -->
         <MechImage size="overview" :src="image" :art="art" :logo="logo" :alt="`Image of ${name}`" :art-alt="`${baseFrame.name} frame art`" />
         <ul class="chips">
-          <li v-if="logo && (art || imageUrl(image))" class="maker-mark"><Icon :src="logo" class="small-logo" :style="{ color: makerColour(maker) }" /><span class="sr-only">{{ baseFrame.source }}</span></li>
           <li v-for="role in baseFrame.mechtype" :key="role" class="chip">{{ role }}</li>
-          <li class="chip"><Icon name="license" />{{ baseFrame.licenceLevel ? `Rank ${rankName(baseFrame.licenceLevel)}` : 'GMS' }}</li>
         </ul>
         <!-- The page's image upload, while editable. -->
         <slot />
@@ -218,24 +212,8 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
   min-width: 0;
 }
 
-.small-logo {
-  width: 28px;
-  height: 28px;
-}
-
-.maker-mark {
-  display: inline-flex;
-  align-items: center;
-}
-
 .identity .chips {
   justify-content: center;
-}
-
-.chips .chip .icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
 }
 
 .radar {

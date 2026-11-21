@@ -113,8 +113,8 @@ export function itemPick(item: Item, tagNames: Map<string, string>, manufacturer
 const STRIP = ['size', 'hp', 'evasion', 'edef', 'speed', 'armour', 'heat', 'system_points']
 const AXES = ['hp', 'evasion', 'edef', 'speed', 'heat', 'system_points']
 
-// "rank": whether to show the licence rank that unlocks the frame (the frame picker does; a licence is bought at rank I).
-export function framePick(frame: Frame, ranges: Map<string, { min: number; max: number }>, manufacturers: Manufacturer[], rank = true, frames: Frame[] = []): PickExtras {
+// No licence rank: every licensed frame comes at rank II, so it says nothing.
+export function framePick(frame: Frame, ranges: Map<string, { min: number; max: number }>, manufacturers: Manufacturer[], frames: Frame[] = []): PickExtras {
   const stats = mechStats(frame, undefined, [])
   const stat = (id: string) => stats.find((entry) => entry.id === id)!
   const at = (id: string) => {
@@ -124,7 +124,7 @@ export function framePick(frame: Frame, ranges: Map<string, { min: number; max: 
   return {
     look: { type: 'frame', icon: 'frame' },
     stats: STRIP.map((id) => ({ kind: 'frame', label: stat(id).name, icon: stat(id).icon, value: half(stat(id).value) })),
-    chips: [...(rank && frame.licenceLevel > 0 ? [{ label: `Rank ${rankName(frame.licenceLevel)}`, icon: 'license' }] : []), ...frame.mechtype.map((label) => ({ label })), ...frame.mounts.map((label) => ({ label, icon: 'weapon' }))],
+    chips: [...frame.mechtype.map((label) => ({ label })), ...frame.mounts.map((label) => ({ label, icon: 'weapon' }))],
     art: frameArt(frame, frames),
     radar: AXES.map((id) => ({ label: stat(id).name, value: half(stat(id).value), at: at(id) })),
     group: makerGroup(frame.source, manufacturers),

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { isGm } from '../auth'
+import { useCopyLink } from '../copyLink'
 import { KIND_INFO, entryMeta, isDraft, type LoreEntry } from '../lore'
 import Icon from './Icon.vue'
 import RichText from './RichText.vue'
@@ -18,20 +19,7 @@ const related = computed(() =>
 )
 
 // "Copy link" puts this entry's full address on the clipboard and says so for a moment.
-const copied = ref('')
-let timer: ReturnType<typeof setTimeout> | undefined
-async function copyLink() {
-  try {
-    const { href } = router.resolve({ name: 'lore-entry', params: { id: props.entry.id } })
-    await navigator.clipboard.writeText(new URL(href, window.location.origin).href)
-    copied.value = 'Copied'
-  } catch {
-    copied.value = 'Not copied'
-  }
-  clearTimeout(timer)
-  timer = setTimeout(() => (copied.value = ''), 2000)
-}
-onBeforeUnmount(() => clearTimeout(timer))
+const { copied, copyLink } = useCopyLink()
 </script>
 
 <template>
@@ -48,7 +36,7 @@ onBeforeUnmount(() => clearTimeout(timer))
       <div class="top">
         <span class="chip kind"><Icon :name="kind.icon" />{{ kind.name }}</span>
         <span class="actions">
-          <span aria-live="polite"><button type="button" class="quiet small" @click="copyLink"><Icon name="link" />{{ copied || 'Copy link' }}</button></span>
+          <span aria-live="polite"><button type="button" class="quiet small" @click="copyLink({ name: 'lore-entry', params: { id: entry.id } })"><Icon name="link" />{{ copied || 'Copy link' }}</button></span>
           <button v-if="isGm" type="button" class="small" @click="router.push({ name: 'lore-edit', params: { id: entry.id } })">Edit entry</button>
         </span>
       </div>

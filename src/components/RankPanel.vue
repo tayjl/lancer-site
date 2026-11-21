@@ -132,7 +132,7 @@ const offered = computed(() =>
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
       const blocked = restricted(option.id) || (affordable.value ? '' : 'Not enough manna')
       return frame
-        ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, false, frames.value), meta: undefined, blocked }
+        ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, frames.value), meta: undefined, blocked }
         : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }
     })
     .sort((a, b) => Number(!!optionOf(a.id)?.exotic) - Number(!!optionOf(b.id)?.exotic) || Number(!!restricted(a.id)) - Number(!!restricted(b.id))),

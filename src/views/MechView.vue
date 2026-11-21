@@ -34,6 +34,7 @@ import { buildFrame, fittedMods, frameRanges, mechEffects, mechResources, mechSt
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
+import { useCopyLink } from '../copyLink'
 import { usePilotProfile } from '../pilotProfile'
 import { radarAxes } from '../mechOverview'
 import { pilotList, sectionOverride } from '../router'
@@ -148,7 +149,8 @@ const traitCards = computed(() => {
   return [...cards].map(([name, entries]) => ({ name, entries }))
 })
 const coreEntries = computed(() => effects.value.reminders.filter((entry) => entry.kind === 'core' || entry.kind === 'core-power'))
-const otherReminders = computed(() => effects.value.reminders.filter((entry) => !['trait', 'core', 'core-power'].includes(entry.kind)))
+// Talents aren't shown here: the pilot page shows them (their bonuses still count in the stats).
+const otherReminders = computed(() => effects.value.reminders.filter((entry) => !['trait', 'core', 'core-power', 'talent'].includes(entry.kind)))
 const coreSystem = computed(() => (baseFrame.value?.raw?.core_system ?? {}) as { name?: string; description?: string })
 const coreLabel = (entry: Reminder) =>
   entry.kind === 'core-power' ? 'Core power' : entry.source === `${coreSystem.value.name ?? 'core system'} · passive` ? 'Passive' : undefined
@@ -163,7 +165,7 @@ const SEC = {
   profile: { id: 'mech-profile', title: 'Profile' },
   card: { id: 'mech-card', title: 'Registration card' }, // folded until first opened
 }
-const showEffects = computed(() => !!frame.value && effects.value.reminders.length > 0)
+const showEffects = computed(() => !!frame.value && traitCards.value.length + coreEntries.value.length + otherReminders.value.length > 0)
 // Numbered by position among the shown sections, so a hidden one leaves no gap.
 const sections = computed(() =>
   Object.values(SEC)
@@ -185,6 +187,8 @@ async function saveCardVersion(version: string) {
   const error = await profile.update({ mech_card_versions: { ...profile.fields.value.mech_card_versions, [mechId.value]: version } })
   if (error) console.warn('Card version not saved', error)
 }
+
+const { copied, copyLink } = useCopyLink()
 
 // --- The save status shown on the plate, for the one-line fields ---
 const { saving, saved, error: saveError, track } = useSaveStatus()
@@ -212,7 +216,7 @@ const frameOptions = computed(() => {
   return frames.value.map((f) => ({
     id: f.id,
     name: f.name,
-    ...framePick(f, ranges, manufacturers.value, true, frames.value),
+    ...framePick(f, ranges, manufacturers.value, frames.value),
     exotic: isExotic(f),
     blocked: reasonFor(restrictionOf(f)) || frameBlockedBy(f, frames.value, sheet.value),
     info: () => frameInfo(f, frames.value),
@@ -319,6 +323,10 @@ async function scrap() {
             </span>
             <span v-if="baseFrame?.mechtype.length">{{ baseFrame.mechtype.join(' / ') }}</span>
           </div>
+          <!-- The registry address with the Discord preview, as on the registration card: approved or dead pilots only. -->
+          <span v-if="character?.status === 'approved' || character?.status === 'dead'" class="copy-link" aria-live="polite">
+            <button type="button" class="quiet small" @click="copyLink({ name: 'record-mech', params: { id: character.id, mechId: mech.id } })"><Icon name="link" />{{ copied || 'Copy link' }}</button>
+          </span>
           <SaveStatus v-if="own && (saveError || saving || saved)" :saving="saving" :saved="saved" :error="saveError" :can-retry="!conflict" @retry="track(retry())" />
         </div>
         <dl class="facts">
@@ -348,7 +356,6 @@ async function scrap() {
         :frame="frame"
         :base-frame="baseFrame"
         :frames="frames"
-        :maker="maker"
         :logo="logo"
         :image="mech.image"
         :name="mech.name"
@@ -611,6 +618,10 @@ async function scrap() {
 
 .frame-info {
   color: var(--lilac);
+}
+
+.copy-link {
+  margin-top: var(--space-s);
 }
 
 /* Callsign and name: plain text with a faint underline that says they can be edited. */
@@ -876,10 +887,11 @@ async function scrap() {
   }
 }
 
-/* Phones: the plate's fields and frame button tap-sized. */
+/* Phones: the plate's fields and buttons tap-sized. */
 @media (max-width: 40rem) {
   .inline,
-  .subline button {
+  .subline button,
+  .copy-link button {
     min-height: var(--tap);
   }
 }
