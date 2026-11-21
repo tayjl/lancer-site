@@ -74,7 +74,7 @@ describe('complete core character builds', () => {
       core_system: { name: 'Assault Grapples', active_name: 'Omni-harpoon', active_effect: 'Fires harpoons.', active_actions: [{ name: 'Omni-harpoon', activation: 'Quick', trigger: 'You fire.', detail: 'Hull save.' }] },
     } }
     const { reminders } = mechEffects({ frame: custom.id }, {}, { ...catalogue, frames: [custom] })
-    expect(reminders.filter(entry => entry.name === 'Lock/Kill')).toEqual([expect.objectContaining({ kind: 'trait', text: 'The longer, fuller text.' })])
+    expect(reminders.filter(entry => entry.name === 'Lock/Kill')).toEqual([expect.objectContaining({ kind: 'trait', text: 'Short.' })])
     expect(reminders.filter(entry => entry.name === 'Omni-harpoon')).toEqual([expect.objectContaining({ kind: 'core-power', activation: 'Quick', text: '<b>Trigger:</b> You fire.<br><b>Effect:</b> Hull save.' })])
   })
   it('increases drone HP from Hydra and Drone Commander without increasing the mech HP', () => {

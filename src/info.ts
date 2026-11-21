@@ -41,9 +41,10 @@ const list = (value: unknown) => (Array.isArray(value) ? value : [])
 const facts = (...all: (InfoFact | string)[]): InfoFact[] =>
   all.map((fact) => (typeof fact === 'string' ? { text: fact } : fact)).filter((fact) => fact.text)
 const card = (heading: string, html: unknown): InfoCard[] => (text(html) ? [{ heading, html: flatDamageText(text(html)) }] : [])
-// On attack / hit / crit effects, actions and deployables (itemRules), as cards.
-const rules = (raw: Record<string, unknown>): InfoCard[] =>
-  itemRules(raw).map(({ name, text, ...action }) => ({ heading: name, html: text, ...action }))
+// On attack / hit / crit effects, actions and deployables (itemRules), as cards. COMP/CON's active effects (kept in the data
+// for a later combat screen) aren't shown, except for something with no rules text of its own ("effects").
+const rules = (raw: Record<string, unknown>, effects = false): InfoCard[] =>
+  itemRules(raw, effects).map(({ name, text, ...action }) => ({ heading: name, html: text, ...action }))
 // Groups with nothing in them are left out.
 const groups = (...all: InfoGroup[]) => all.filter((group) => group.cards.length)
 // Lore separates its paragraphs with single line breaks; as real paragraphs they get space between them.
@@ -51,11 +52,11 @@ const paragraphs = (html: string) => html.split(/<br\s*\/?>/i).map((part) => par
 // Item descriptions are short: their paragraphs read better run together.
 const merged = (html: string) => html.replace(/\s*<br\s*\/?>\s*/gi, ' ')
 // An action named like the trait or core power it belongs to repeats it (COMP/CON's data often has both): show it
-// once, under the parent's heading, with the action's chip, numbers and text (the more detailed version); every
-// same-named action goes. Differently named actions stay, in "rest".
+// once, under the parent's heading, with the action's chip, numbers and text; every same-named action goes. One with no
+// chip or numbers only rewords the parent's own text (which is what owners edit), so it's used only when the parent has none. Differently named actions stay, in "rest".
 function absorb(parent: InfoCard, name: string, actions: InfoCard[]) {
   const twins = actions.filter((action) => sameName(action.heading, name))
-  const twin = twins.find((action) => action.activation || action.stats?.length) ?? twins.sort((a, b) => b.html.length - a.html.length)[0]
+  const twin = twins.find((action) => action.activation || action.stats?.length) ?? (parent.html ? undefined : twins.sort((a, b) => b.html.length - a.html.length)[0])
   return {
     card: twin ? { ...twin, heading: parent.heading } : parent,
     rest: actions.filter((action) => !twins.includes(action)),
@@ -91,7 +92,7 @@ export function itemInfo(item: Item): Info {
     lore: effect ? merged(text(item.description)) : '',
     stats: itemDetails(item, tagNames.value).stats,
     groups: groups(
-      { title: 'Rules', stack: true, cards: [...(effect ? card('Effect', effect) : card('Description', merged(text(item.description)))), ...rules(raw)] },
+      { title: 'Rules', stack: true, cards: [...(effect ? card('Effect', effect) : card('Description', merged(text(item.description)))), ...rules(raw, !effect && !text(item.description))] },
       { title: 'Tags', tags: true, cards: tagCards(item.tags) },
     ),
   }
@@ -121,7 +122,7 @@ export function frameInfo(frame: Frame, frames: Frame[] = []): Info {
       // One card per trait, its other actions (e.g. a reaction) inside it. Untitled: the cards say what they are.
       { look: 'traits', cards: traits.flatMap((trait) => {
         const name = text(trait.name) || 'Trait'
-        const { card: main, rest } = absorb({ heading: name, html: flatDamageText(text(trait.description)) }, name, rules(trait))
+        const { card: main, rest } = absorb({ heading: name, html: flatDamageText(text(trait.description)) }, name, rules(trait, !text(trait.description)))
         return main.html || rest.length ? [{ ...main, ...(rest.length ? { actions: rest } : {}) }] : []
       }) },
       {

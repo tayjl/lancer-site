@@ -270,9 +270,10 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
         })
       }
     }
-    // An action named like its trait (or core system) repeats it: show it once, with the action's chip and text.
+    // An action named like its trait (or core system) repeats it: show it once, with the action's chip and text. One with no
+    // chip only rewords the trait's own text (what owners edit), so it's used only when the trait has none.
     const twins = actions.filter(action => sameName(action.name, origin.name))
-    const twin = twins.find(action => action.activation) ?? twins.sort((a, b) => b.text.length - a.text.length)[0]
+    const twin = twins.find(action => action.activation) ?? (text ? undefined : twins.sort((a, b) => b.text.length - a.text.length)[0])
     if (twin) reminders.push({ ...origin, activation: twin.activation, source: name, text: twin.text })
     else if (text) reminders.push({ ...origin, source: name, text: flatDamageText(String(text)) })
     reminders.push(...actions.filter(action => !twins.includes(action)))

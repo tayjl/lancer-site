@@ -91,8 +91,9 @@ describe('full information', () => {
     const info = frameInfo({ ...base, raw })
     const [trait] = info.groups[0].cards
     expect(trait.heading).toBe('Grapple Cable')
-    expect(trait.html).toContain('You can Grapple targets within Range 5.')
-    expect(trait.html).not.toContain('The Blackbeard can Grapple.')
+    // The same-named active effect has no chip or numbers: it only rewords the trait, so the trait's own text shows.
+    expect(trait.html).toContain('The Blackbeard can Grapple.')
+    expect(trait.html).not.toContain('You can Grapple targets within Range 5.')
     expect(trait.html).not.toContain('Reel In')
     expect(trait.actions).toEqual([expect.objectContaining({ heading: 'Reel In', activation: 'Quick', html: 'Pull.' })])
     expect(info.groups.map(group => group.look)).toEqual(['traits', 'core'])
