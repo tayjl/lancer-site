@@ -11,7 +11,7 @@ import tags from '@massif/lancer-data/lib/tags.json'
 import manufacturers from '@massif/lancer-data/lib/manufacturers.json'
 import { version } from '@massif/lancer-data/package.json'
 import type { Json } from './lib/database.types'
-import type { LcpKind, LcpPack } from './lcp'
+import { withoutActiveEffects, type LcpKind, type LcpPack } from './lcp'
 
 export const coreContent: LcpPack = {
   manifest: {
@@ -23,7 +23,7 @@ export const coreContent: LcpPack = {
     (rows as unknown as Record<string, Json>[])
       // COMP/CON's missing-data placeholders are not playable equipment.
       .filter(row => typeof row.id === 'string' && !row.id.startsWith('missing_'))
-      .map(data => ({ id: String(data.id), kind: kind as LcpKind, data })),
+      .map(data => ({ id: String(data.id), kind: kind as LcpKind, data: withoutActiveEffects(data) })),
   ),
   ignored: [],
   warnings: [],

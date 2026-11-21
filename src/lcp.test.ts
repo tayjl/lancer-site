@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
-import { planLcp, readLcp, writeLcp, type InstalledPack } from './lcp'
+import { planLcp, readLcp, withoutActiveEffects, writeLcp, type InstalledPack } from './lcp'
 
 const manifest = { name: 'Test pack', author: 'Test author', version: '1.0.0', description: 'Test content.' }
 const archive = (files: Record<string, unknown> = {}) => zipSync(Object.fromEntries(Object.entries({
@@ -86,5 +86,19 @@ describe('writeLcp', () => {
     expect(pack.manifest).toMatchObject(manifest)
     expect(pack.items.map(({ kind, data }) => ({ kind, data }))).toEqual(items)
     expect(pack.ignored).toEqual([])
+  })
+})
+
+describe('withoutActiveEffects', () => {
+  it('drops active_effects at any depth and keeps siblings', () => {
+    const input = { id: 'a', active_effects: [1], traits: [{ name: 't', active_effects: [{ x: 1 }], keep: 1 }], core_system: { name: 'c', active_effects: [], deep: { active_effects: 1, ok: true } } }
+    expect(withoutActiveEffects(input)).toEqual({ id: 'a', traits: [{ name: 't', keep: 1 }], core_system: { name: 'c', deep: { ok: true } } })
+    expect(input.traits[0].active_effects).toEqual([{ x: 1 }])
+  })
+  it('leaves non-objects alone', () => {
+    expect(withoutActiveEffects(null)).toBeNull()
+    expect(withoutActiveEffects('active_effects')).toBe('active_effects')
+    expect(withoutActiveEffects(3)).toBe(3)
+    expect(withoutActiveEffects([1, 'a'])).toEqual([1, 'a'])
   })
 })

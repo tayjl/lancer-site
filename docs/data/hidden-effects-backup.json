@@ -1,0 +1,1748 @@
+{
+  "note": "COMP/CON active_effects removed from content_items on 2026-11-21 (live database). 'in' says whether it was in the pack's original (data) or the campaign edit (edited). Merge what matters into the parent's rules text by hand.",
+  "items": 59,
+  "copies": 102,
+  "entries": [
+    {
+      "item": "cb_order_of_leander",
+      "kind": "core_bonuses",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Order of Leander",
+      "parentText": "The Order of Leander is a Leandric States Alliance commendation given to those who have shown \"exemplary character, courage, and determination under great adversity.\" While primarily a military citation, precedent exists for it to be awarded to civilians as well, with a number of noteworthy historical figures having earned it for efforts during natural disasters, search-and-rescue missions, and medical crises. In Cressidium's settled history, no one from any other world has ever earned this award, but whether you come from beyond the stars or not, for your service in defense of both the LSA as well as Cressidium you have earned the right to wear it with pride.",
+      "hiddenCopies": [
+        {
+          "condition": "Order of Leander ability has been expended and you take Structure damage.",
+          "detail": "You may use Order of Leander a second time this scene.",
+          "name": "Order of Leander: Structure Damage"
+        }
+      ]
+    },
+    {
+      "item": "mf_amber_phantom",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Hyperawareness",
+      "parentText": "At the start of each round, until the Amber Phantom takes its turn, all attacks against it are made with +1 Difficulty and it makes all saves with +1 Accuracy.",
+      "hiddenCopies": [
+        {
+          "detail": "At the start of each round, until you take your turn, all attacks against you are made with +1 Difficulty and you make all saves with +1 Accuracy.",
+          "name": "Hyperawareness"
+        }
+      ]
+    },
+    {
+      "item": "mf_atlas",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "BLOODLINE Active Assist",
+      "parentText": "The ATLAS extends microneedles into the musculature and ancillary nervous system of its pilot, melding flesh, machine, and the memory of all who wore it before.",
+      "hiddenCopies": [
+        {
+          "detail": "For the rest of the scene, you move an additional 1 space when you voluntarily move for any reason (e.g. standard moves, BOOST, movement from systems or talents).",
+          "name": "Final Hunt: Movement"
+        },
+        {
+          "add_other": [
+            {
+              "target": "self",
+              "type": "cover",
+              "val": "soft"
+            }
+          ],
+          "detail": "For the rest of the scene, you benefit from soft cover at all times, no matter where you are.",
+          "name": "Final Hunt: Soft Cover"
+        },
+        {
+          "detail": "For the rest of the scene, you can HIDE even in the open, without requiring cover.",
+          "name": "Final Hunt: Hide"
+        },
+        {
+          "add_status": [
+            {
+              "id": "prone",
+              "save": "hull"
+            }
+          ],
+          "condition": "You are Hidden and make a melee or ranged attack",
+          "detail": "When active, 1/round, when you make a melee or ranged attack while HIDDEN, your target must also succeed on a HULL save or be knocked PRONE. This takes place before the attack is rolled.",
+          "frequency": "1/round",
+          "name": "Final Hunt: Knockdown"
+        }
+      ]
+    },
+    {
+      "item": "mf_atlas",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Giantkiller",
+      "parentText": "The Atlas counts as SIZE 1 for RAM and GRAPPLE. It ignores engagement from larger characters and can freely move through and share the spaces they occupy (even if they’re hostile). While occupying the same spaces as any character, it gains soft cover, even from that character.",
+      "hiddenCopies": [
+        {
+          "detail": "You count as size 1 for the purposes of ramming and grappling. You ignores engagement from actors larger than yourself, can share space with larger actors (even hostile ones) and move through their spaces unimpeded. While sharing space with any character, you gain soft cover, even from that character.",
+          "name": "Giantkiller"
+        }
+      ]
+    },
+    {
+      "item": "mf_atlas",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Finishing Blow",
+      "parentText": "1/round, deal +1d6 bonus damage on a successful melee attack against a PRONE target.",
+      "hiddenCopies": [
+        {
+          "bonus_damage": {
+            "detail": "Once per round, you can deal +1d6 bonus damage with a successful melee attack against a prone target.",
+            "val": "1d6",
+            "weapon_types": [
+              "Melee"
+            ]
+          },
+          "condition": "Target is Prone",
+          "detail": "You can deal +1d6 bonus damage with a successful melee attack against a prone target.",
+          "frequency": "1/round",
+          "name": "Finishing Blow"
+        }
+      ]
+    },
+    {
+      "item": "mf_balor_alt_hecatoncheires",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Dispersed Profile",
+      "parentText": "When the Hecatoncheires is in soft cover, ranged attackers receive +2 Difficulty instead of +1 Difficulty.",
+      "hiddenCopies": [
+        {
+          "detail": "When you are in soft cover, ranged attackers receive +2 Difficulty instead of +1 Difficulty.",
+          "name": "Dispersed Profile"
+        }
+      ]
+    },
+    {
+      "item": "mf_balor_alt_hecatoncheires",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Smoke and Mirrors",
+      "parentText": "The Hecatoncheires can always Hide in an area of soft cover, regardless of Engagement or enemy traits and systems.",
+      "hiddenCopies": [
+        {
+          "detail": "You can always Hide in an area of soft cover, regardless of Engagement or enemy traits and systems.",
+          "name": "Smoke and Mirrors"
+        }
+      ]
+    },
+    {
+      "item": "mf_balor_alt_hecatoncheires",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Panoptes Targeting",
+      "parentText": "The Hecatoncheires' Smart weapons ignore the Invisible status of characters within sensors.",
+      "hiddenCopies": [
+        {
+          "detail": "Your Smart weapons ignore the Invisible status of characters within Sensors.",
+          "name": "Panoptes Targeting"
+        }
+      ]
+    },
+    {
+      "item": "mf_black_witch_alt_orchidea",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Perfect Parry",
+      "parentText": "The Orchis and all adjacent allied characters have IMMUNITY to all damage and effects from missed attacks.",
+      "hiddenCopies": [
+        {
+          "detail": "You and all adjacent allied characters have IMMUNITY to all damage and effects from missed attacks.",
+          "name": "Perfect Parry"
+        }
+      ]
+    },
+    {
+      "item": "mf_black_witch_alt_orchidea",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Guardian",
+      "parentText": "Adjacent allied characters can use the Orchis for hard cover.",
+      "hiddenCopies": [
+        {
+          "detail": "Adjacent allied characters can use you for hard cover.",
+          "name": "Guardian"
+        }
+      ]
+    },
+    {
+      "item": "mf_black_witch_alt_orchidea",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Royal Guard",
+      "parentText": "When an allied mech adjacent to the Orchis moves, the Orchis can also move with that character as long as it doesn’t break adjacency, mirroring that character’s movement. The Orchis is still affected by obstructions and, between its turns, can only move a total number of spaces with this ability equal to its SPEED + 1. This effect doesn’t take a reaction, and doesn’t provoke reactions or obey engagement.",
+      "hiddenCopies": [
+        {
+          "detail": "When an allied mech adjacent to you moves, you can also move with that character as long as you don’t break adjacency, mirroring that character’s movement. You are still affected by obstructions and, between your turns, can only move a total number of spaces with this ability equal to your SPEED + 1. This effect doesn’t take a reaction, and doesn’t provoke reactions or obey engagement.",
+          "name": "Royal Guard"
+        }
+      ]
+    },
+    {
+      "item": "mf_caliban",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Wrecking Ball",
+      "parentText": "The Caliban counts as Size 3 when inflicting knockback with any Ram, Ranged, or Melee Attack.",
+      "hiddenCopies": [
+        {
+          "detail": "You count as size 3 when inflicting knockback from any ranged or melee attack.",
+          "name": "Wrecking Ball"
+        }
+      ]
+    },
+    {
+      "item": "mf_caliban",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Pursue Prey",
+      "parentText": "When the Caliban inflicts KNOCKBACK as part of any action, it can move an equal number of spaces towards the same target by the most direct route possible. This movement is part of the same action, ignores engagement and doesn’t provoke reactions.",
+      "hiddenCopies": [
+        {
+          "detail": "When you inflict knockback as part of any action, you can move an equal number of spaces towards the same target by the most direct route possible. This movement is part of the same action, ignores engagement and doesn’t provoke reactions.",
+          "name": "Pursue Prey"
+        }
+      ]
+    },
+    {
+      "item": "mf_caliban",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Slam",
+      "parentText": "1/round, when the Caliban knocks a character into a wall, mech, or other obstruction that would cause it to stop moving, it may force its target to pass a HULL save or take 1d6 Kinetic Damage and become IMPAIRED until the end of its next turn.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "duration": "end_next_turn_target",
+              "id": "impaired"
+            }
+          ],
+          "condition": "You knock a character into a wall, mech, or other obstruction that would cause it to stop moving",
+          "damage": [
+            {
+              "type": "Kinetic",
+              "val": "1d6"
+            }
+          ],
+          "detail": "1/round, when you knock a character into a wall, mech, or other obstruction that would cause it to stop moving, you may force its target to pass a HULL save or take 1d6 Kinetic Damage and become IMPAIRED until the end of its next turn.",
+          "frequency": "1/round",
+          "name": "Slam",
+          "save": {
+            "stat": "hull"
+          }
+        }
+      ]
+    },
+    {
+      "item": "mf_chomolungma",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Brilliance",
+      "parentText": "1/scene, the Chomolungma may take any Quick Tech action as a free action, and then may either Bolster or Lock On as a free action.",
+      "hiddenCopies": [
+        {
+          "detail": "Take any Quick Tech action as a free action, and then may either Bolster or Lock On as a free action.",
+          "frequency": "1/scene",
+          "name": "Brilliance"
+        }
+      ]
+    },
+    {
+      "item": "mf_chomolungma",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Data Siphon",
+      "parentText": "Whenever the Chomolungma makes a tech attack against a hostile character, it may also automatically Scan them.",
+      "hiddenCopies": [
+        {
+          "condition": "Make a tech attack against a hostile character.",
+          "detail": "Whenever you make a tech attack against a hostile character, you may also automatically Scan them.",
+          "name": "Data Siphon"
+        }
+      ]
+    },
+    {
+      "item": "mf_chomolungma",
+      "kind": "frames",
+      "in": "edited",
+      "path": "traits[0]",
+      "parent": "Brilliance",
+      "parentText": "<p>1/scene, the Chomolungma may take any Quick Tech action as a free action, and then may either Bolster or Lock On as a free action.</p>",
+      "hiddenCopies": [
+        {
+          "detail": "Take any Quick Tech action as a free action, and then may either Bolster or Lock On as a free action.",
+          "frequency": "1/scene",
+          "name": "Brilliance"
+        }
+      ]
+    },
+    {
+      "item": "mf_chomolungma",
+      "kind": "frames",
+      "in": "edited",
+      "path": "traits[1]",
+      "parent": "Data Siphon",
+      "parentText": "Whenever the Chomolungma makes a tech attack against a hostile character, it may also automatically Scan them.",
+      "hiddenCopies": [
+        {
+          "condition": "Make a tech attack against a hostile character.",
+          "detail": "Whenever you make a tech attack against a hostile character, you may also automatically Scan them.",
+          "name": "Data Siphon"
+        }
+      ]
+    },
+    {
+      "item": "mf_Empakaai_alt_blackbeard",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "The Descent to Kalunga",
+      "parentText": "<i><p>Upon Ololade Omotanwa’s sculpted mountain a message is inscribed under the cold-span limiters of Iku’s Hand.</p><p>“I gift to you a mountain.</p><p> Rolling hills, curvilinear egresses, a shattered spine, and a crown glazed in voluminous spires. Let this be a treaty to your foes. Your promise is that their eyes will witness the beauty that is Iku’s hands before they descend to Kalunga. Hell, fire and dark ash, together they will burn cavities in souls.</p><p>I gift you my mountain.”</p></i>",
+      "hiddenCopies": [
+        {
+          "detail": "For the rest of the scene, while Grappling you count as 1 Size larger than the combined size of all targets you are currently Grappling.",
+          "name": "Marrow Anchors"
+        }
+      ]
+    },
+    {
+      "item": "mf_Empakaai_alt_blackbeard",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Untenable Power",
+      "parentText": "1/round. the Empakaai may give a Hull check or save it forced +1 difficulty.",
+      "hiddenCopies": [
+        {
+          "detail": "1/round, you may give a Hull check or save you force +1 Difficulty.",
+          "frequency": "1/round",
+          "name": "Untenable Power"
+        }
+      ]
+    },
+    {
+      "item": "mf_Empakaai_alt_blackbeard",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Indomitable Force",
+      "parentText": "The Empakaai gains RESISTANCE to damage and HEAT dealt from characters it is GRAPPLING.",
+      "hiddenCopies": [
+        {
+          "detail": "You gain Resistance to damage and Heat dealt from characters you are Grappling.",
+          "name": "Indomitable Force"
+        }
+      ]
+    },
+    {
+      "item": "mf_emperor",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Darian Regalia",
+      "parentText": null,
+      "hiddenCopies": [
+        {
+          "add_other": [
+            {
+              "type": "overshield",
+              "val": 2
+            }
+          ],
+          "condition": "Mech is targeted by an attack using the Marathon Arc Bow",
+          "damage": [
+            {
+              "ap": true,
+              "type": "Energy",
+              "val": 2
+            }
+          ],
+          "detail": "For the rest of this scene, any mech targeted by an attack using the Marathon Arc Bow releases a bolt of lightning after the attack resolves, striking a character of your choice within RANGE 3, which can be the character it originated from. This lightning bolt either deals 2 AP damage (no attack or save) or increases the target’s OVERSHIELD by +2. The same character can be struck by multiple bolts.",
+          "name": "Xerxes Apex",
+          "range": [
+            {
+              "type": "range",
+              "val": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_emperor",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Storm Shield",
+      "parentText": "The Emperor’s HP is not increased by its pilot's GRIT. Instead, at the start of any scene, the Emperor gains OVERSHIELD equal to 6+GRIT. This OVERSHIELD refreshes any time the Emperor takes structure damage.",
+      "hiddenCopies": [
+        {
+          "add_other": [
+            {
+              "target": "self",
+              "type": "overshield",
+              "val": "6 + {grit}"
+            }
+          ],
+          "condition": "At the start of any scene or when taking structure damage",
+          "detail": "You gain OVERSHIELD equal to 6 + GRIT. This OVERSHIELD refreshes any time you takes structure damage",
+          "name": "Storm Shield"
+        }
+      ]
+    },
+    {
+      "item": "mf_emperor",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Imperial Vestment",
+      "parentText": "Whenever the Emperor grants OVERSHIELD to another character, it gains the same amount of OVERSHIELD. If the Emperor gains OVERSHIELD from any source, including this trait, it increases its current OVERSHIELD by that amount instead of replacing it. Its OVERSHIELD cannot exceed the amount granted by Storm Shield.",
+      "hiddenCopies": [
+        {
+          "add_other": [
+            {
+              "target": "self",
+              "type": "overshield",
+              "val": 1
+            }
+          ],
+          "condition": "You grant OVERSHIELD to another character",
+          "detail": "Gain the same amount of OVERSHIELD.",
+          "name": "Imperial Vestment"
+        }
+      ]
+    },
+    {
+      "item": "mf_emperor",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Sovereign Presence",
+      "parentText": "1/round, when the Emperor targets a character with an attack, it can condemn that character, forcing them to make an ENGINEERING save. On a failure, the target takes +1 damage any time they take damage until the start of the Emperor’s next turn.",
+      "hiddenCopies": [
+        {
+          "detail": "1/round, when the Emperor targets a character with an attack, it can condemn that character, forcing them to make an ENGINEERING save. On a failure, the target takes +1 damage any time they take damage until the start of the Emperor's next turn.",
+          "frequency": "1/round",
+          "name": "Sovereign Presence"
+        }
+      ]
+    },
+    {
+      "item": "mf_genghis_alt_worldkiller_genghis_mk_i",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Juggernaut Reactor",
+      "parentText": "Inside his great suit the fireman smiles. He is a salamander upon the world, belching flame, cleaning away history, and leaving a new land for the living.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "aoe": true,
+              "duration": "next_turn_end_target",
+              "id": "immobilized",
+              "save": "hull"
+            }
+          ],
+          "damage": [
+            {
+              "aoe": true,
+              "ap": true,
+              "type": "Energy",
+              "val": "1d6"
+            }
+          ],
+          "detail": "For the rest of the scene, your FURIOSA aura grows to Burst 2, and you ignore all difficult terrain, simply melting through it. If you overheat during this time, your mech releases a blast of heat that melts the ground beneath it. Characters other than you within the affected area of FURIOSA take 1d6 AP Energy damage and must succeed on a HULL save or become IMMOBILIZED until the end of their next turn. The area then becomes difficult terrain for the rest of the scene.",
+          "name": "A Pleasure to Burn"
+        }
+      ]
+    },
+    {
+      "item": "mf_genghis_alt_worldkiller_genghis_mk_i",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "TBK Munitions",
+      "parentText": "The Genghis’s attacks ignore resistance to Burn and Heat.",
+      "hiddenCopies": [
+        {
+          "detail": "Your attacks ignore resistance to Burn and Heat.",
+          "name": "TBK Munitions"
+        }
+      ]
+    },
+    {
+      "item": "mf_genghis_alt_worldkiller_genghis_mk_i",
+      "kind": "frames",
+      "in": "edited",
+      "path": "core_system",
+      "parent": "Juggernaut Reactor",
+      "parentText": "Inside his great suit the fireman smiles. He is a salamander upon the world, belching flame, cleaning away history, and leaving a new land for the living.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "aoe": true,
+              "duration": "next_turn_end_target",
+              "id": "immobilized",
+              "save": "hull"
+            }
+          ],
+          "damage": [
+            {
+              "aoe": true,
+              "ap": true,
+              "type": "Energy",
+              "val": "1d6"
+            }
+          ],
+          "detail": "For the rest of the scene, your FURIOSA aura grows to Burst 2, and you ignore all difficult terrain, simply melting through it. If you overheat during this time, your mech releases a blast of heat that melts the ground beneath it. Characters other than you within the affected area of FURIOSA take 1d6 AP Energy damage and must succeed on a HULL save or become IMMOBILIZED until the end of their next turn. The area then becomes difficult terrain for the rest of the scene.",
+          "name": "A Pleasure to Burn"
+        }
+      ]
+    },
+    {
+      "item": "mf_genghis_alt_worldkiller_genghis_mk_i",
+      "kind": "frames",
+      "in": "edited",
+      "path": "traits[1]",
+      "parent": "TBK Munitions",
+      "parentText": "The Genghis’s attacks ignore resistance to Burn and Heat.",
+      "hiddenCopies": [
+        {
+          "detail": "Your attacks ignore resistance to Burn and Heat.",
+          "name": "TBK Munitions"
+        }
+      ]
+    },
+    {
+      "item": "mf_gilgamesh",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Exoframe Engineering",
+      "parentText": "The Gilgamesh was designed from the ground up to be easy and inexpensive to both construct and maintain, but to Harrison Armory \"inexpensive\" does not equal shoddy or inefficient. Instead, the Gilgamesh utilizes a unique two-stage chassis design in which an inner \"core chassis\" is first created before a secondary outer \"exoframe\" is built upon that core, including additional armor, brachial/limb extensions, and hardpoints. The end result is a deceptively elegant design capable of not only extensive customization but also exceptionally simple field repairs. A series of interlocking clamps and explosive bolts anchor various exoframe components and appendages in place, and when sufficient structural integrity is compromised these sections can be swiftly jettisoned and just as quickly replaced, allowing Legionnaires to continue fighting through catastrophic damage that would render other chassis inoperable.<br><br>This construction also allows power to be selectively rerouted between the core chassis and exoframe components, bypassing system failures and even enhancing overall performance for brief periods, though the strain this puts on the exoframe necessarily limits its use to critical situations only.",
+      "hiddenCopies": [
+        {
+          "add_other": {
+            "target": "self",
+            "type": "overshield",
+            "value": "{grit}+4"
+          },
+          "detail": "You gain Immunity to all conditions not caused by your own systems, talents, etc, until the end of your next turn, and clear all such conditions you already have (including that that can't be cleared normally). You also clear Exposed, stand from Prone, and gain Grit+4 Overshield. At the end of your next turn, clear this Overshield. This ability can be used even if you would not normally be able to take this action (e.g., if you are Stunned).<br><br>Using this ability during combat counts as expending a Limited charge.",
+          "name": "Exo Amplification"
+        }
+      ]
+    },
+    {
+      "item": "mf_gilgamesh",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Locked and Loaded",
+      "parentText": "The Gilgamesh has a Loadout Die, 1d6 starting at 6. Each time it expends a Limited charge, reduce the value of the Loadout Die by 1. When the Loadout Die reaches 1, you may reset it to 6 to reroll one attack, check, or save, though the second result must be kept. The value of the Loadout Die persists between scenes but resets to 6 when you perform a Full Repair.",
+      "hiddenCopies": [
+        {
+          "detail": "The Gilgamesh has a Loadout Die, 1d6 starting at 6. Each time it expends a Limited charge, reduce the value of the Loadout Die by 1. When the Loadout Die reaches 1, you may reset it to 6 to reroll one attack, check, or save, though the second result must be kept. The value of the Loadout Die persists between scenes but resets to 6 when you perform a Full Repair.",
+          "name": "Locked and Loaded"
+        }
+      ]
+    },
+    {
+      "item": "mf_gilgamesh",
+      "kind": "frames",
+      "in": "edited",
+      "path": "core_system",
+      "parent": "Exoframe Engineering",
+      "parentText": "The Gilgamesh was designed from the ground up to be easy and inexpensive to both construct and maintain, but to Harrison Armory \"inexpensive\" does not equal shoddy or inefficient. Instead, the Gilgamesh utilizes a unique two-stage chassis design in which an inner \"core chassis\" is first created before a secondary outer \"exoframe\" is built upon that core, including additional armor, brachial/limb extensions, and hardpoints. The end result is a deceptively elegant design capable of not only extensive customization but also exceptionally simple field repairs. A series of interlocking clamps and explosive bolts anchor various exoframe components and appendages in place, and when sufficient structural integrity is compromised these sections can be swiftly jettisoned and just as quickly replaced, allowing Legionnaires to continue fighting through catastrophic damage that would render other chassis inoperable.<br><br>This construction also allows power to be selectively rerouted between the core chassis and exoframe components, bypassing system failures and even enhancing overall performance for brief periods, though the strain this puts on the exoframe necessarily limits its use to critical situations only.",
+      "hiddenCopies": [
+        {
+          "add_other": {
+            "target": "self",
+            "type": "overshield",
+            "value": "{grit}+4"
+          },
+          "detail": "You gain Immunity to all conditions not caused by your own systems, talents, etc, until the end of your next turn, and clear all such conditions you already have (including that that can't be cleared normally). You also clear Exposed, stand from Prone, and gain Grit+4 Overshield. At the end of your next turn, clear this Overshield. This ability can be used even if you would not normally be able to take this action (e.g., if you are Stunned).<br><br>Using this ability during combat counts as expending a Limited charge.",
+          "name": "Exo Amplification"
+        }
+      ]
+    },
+    {
+      "item": "mf_kidd",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Rapid Deployment",
+      "parentText": "On its first turn in any combat scene, the Kidd can deploy or activate any one system with the drone or deployable tag as a free action.",
+      "hiddenCopies": [
+        {
+          "detail": "On its first turn in any combat, you can deploy or activate any one system with the DRONE or DEPLOYABLE tag as a free action.",
+          "frequency": "1/scene",
+          "name": "Rapid Deployment"
+        }
+      ]
+    },
+    {
+      "item": "mf_kidd",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Recycle",
+      "parentText": "At the end of any scene in which the Kidd used REROUTE POWER, it restores 1 charge to a LIMITED system of its choice with the DRONE or DEPLOYABLE tag.",
+      "hiddenCopies": [
+        {
+          "detail": "At the end of any scene in which you used REROUTE POWER, restore 1 charge to a LIMITED system of your choice with the DRONE or DEPLOYABLE tag.",
+          "name": "Recycle"
+        }
+      ]
+    },
+    {
+      "item": "mf_kobold",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Mimic Carapace",
+      "parentText": "When the Kobold starts its turn adjacent to a piece of terrain or hard cover of SIZE 1 or larger it becomes INVISIBLE as long as it remains adjacent. It ceases to be INVISIBLE if it attacks or takes damage.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "id": "invisible"
+            }
+          ],
+          "condition": "At the start of your turn when you are adjacent to a piece of terrain or hard cover of size 1 or larger",
+          "detail": "You become INVISIBLE as long as you remain adjacent. You cease to be INVISIBLE if you attack or take damage.",
+          "name": "Mimic Carapace"
+        }
+      ]
+    },
+    {
+      "item": "mf_kutuzov",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Expulsion Zone",
+      "parentText": "1/round, when the Kutuzov Activates or otherwise uses a Shield system during its turn, it may knock all hostile characters of its choice within Sensors back 3 spaces.",
+      "hiddenCopies": [
+        {
+          "detail": "1/round, when the Kutuzov Activates or otherwise uses a Shield system during its turn, it may knock all hostile characters of its choice within Sensors back 3 spaces.",
+          "frequency": "1/round",
+          "name": "Expulsion Zone",
+          "range": [
+            {
+              "type": "Range",
+              "val": "{sensors}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_kutuzov",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Emergency Blinkfields",
+      "parentText": "Whenever the Kutuzov or any allied character within Sensors takes the Brace reaction, they clear Shredded (or ignore its effects if it can't be cleared normally) from hostile sources, and attacks they Brace against can't inflict Shredded.",
+      "hiddenCopies": [
+        {
+          "detail": "Whenever the Kutuzov or any allied character within Sensors takes the Brace reaction, they clear Shredded (or ignore its effects if it can't be cleared normally) from hostile sources, and attacks they Brace against can't inflict Shredded.",
+          "name": "Emergency Blinkfields",
+          "range": [
+            {
+              "type": "Range",
+              "val": "{sensors}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_lancaster_alt_taraxacum",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Crossland-Pattern Survey Sensors",
+      "parentText": "<p>Initial Taraxacum design drafts called for a highly sensitive, custom-printed sensor suite. Unfortunately, a litany of design flaws forced engineers on Crossland to fit the first prototypes with existing sensor modules meant for high-altitude survey drones.</p><p>Test pilots immediately took a shine to the replacement sensors despite their significant power draw, referring to them as “God’s eyes”. Their ability to resolve terrain through even the thickest vegetation massively simplified wilderness navigation and landing, while tuning them to pick up specific emission bands conferred an obvious combat advantage in high-density environments.</p>",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "aoe": "burst 4",
+              "id": "lockon"
+            }
+          ],
+          "detail": "Scan all hostile characters within and below a burst 4 area. You may apply Lock On to any characters scanned this way. This action is <b>Efficient</b> and will refund 1 Core Point at the end of any scene in which this action was used.",
+          "name": "Omnispectrum Sensor Burst"
+        }
+      ]
+    },
+    {
+      "item": "mf_lancaster_alt_taraxacum",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "ROC Superlifter Flight System",
+      "parentText": "The Taraxacum may hover when it moves. As long as it is only carrying objects or allied characters, the Taraxacum may ignore restrictions on carrying caused by flight.<br><br>At the end of any of the Taraxacum's turns in which it uses this trait, it takes heat equal to 1 + the total Size of objects and characters it is carrying.",
+      "hiddenCopies": [
+        {
+          "detail": "You may hover when you move. While only carrying objects or allied characters, ignore restrictions on carrying caused by flight. At the end of any turn in which you use this trait, take heat equal to 1 + the total Size of objects and characters you are carrying.",
+          "name": "ROC Superlifter Flight System"
+        }
+      ]
+    },
+    {
+      "item": "mf_lancaster_alt_taraxacum",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Relay Coupling",
+      "parentText": "When the Taraxacum targets an allied character within sensors with a system or tech action, they may use the Taraxacum's Sensors and line of sight for tech actions until the start of its next turn.",
+      "hiddenCopies": [
+        {
+          "detail": "When you target an allied character within Sensors with a system or tech action, they may use your Sensors and line of sight for tech actions until the start of your next turn.",
+          "name": "Relay Coupling"
+        }
+      ]
+    },
+    {
+      "item": "mf_lich",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Chronostutter",
+      "parentText": "“Drink Deep, and Descend.”",
+      "hiddenCopies": [
+        {
+          "condition": "Any character successfully attacks, effects, or takes an action against another character within SENSORS",
+          "detail": "1/round, when any character successfully attacks, effects, or takes an action against another character within SENSORS, you may interrupt it before it resolves. The character taking the action is pushed up to 3 spaces in a direction of your choice, even if they have IMMUNITY to involuntary movement. You teleport to one of the spaces originally occupied by that character, or as close as possible, no matter how far away it was. The initial attack, effect, or action resolves with you as its target. You receive all damage, conditions, statuses, and effects, and the action must be carried out without changes. For example, if the effect was to teleport an allied character to a certain space, you are teleported to that space instead; if the effect was to repair an allied character, you are repaired instead; if the effect was to deal damage and KNOCKBACK, you take the damage (using your ARMOR, RESISTANCE, etc.) and are knocked back in the same direction as the original target would be; if the effect was to inflict a condition or status, you receive that condition or status instead. Initiating this interruption does not count as a reaction. Effects that target the self cannot be interrupted this way.",
+          "frequency": "1/round",
+          "name": "Glitch Time"
+        }
+      ]
+    },
+    {
+      "item": "mf_lycan",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Subversive Signature",
+      "parentText": "As a chassis designed for covert operations, the Lycan leverages the Manticore's affinity for electromagnetics in order to further obscure its precise nature, wrapping itself in a layered mesh of sensor baffles and wideband interference signals that disrupt and distort recognition scans and targeting systems. The effects of this distortion field are so intense that they even cause sporadic, uncontrolled power fluctuations in nearby systems, and pilots who have survived combat with Lycan PG chassis report experiencing intermittent electronics blackouts and even reduced reactor output upon approach.<br><br>However, the most distinctive feature of the Lycan by far is its ability to shift from its default, heavily-armored configuration to a more aggressive assault mode. This transformation is dramatic and known to cause panic among enemy forces as the Lycan's true nature is suddenly revealed in an explosive jettisoning of armor plating and a violent surge of power diverted towards the chassis' concealed shock claws, a series of retractable, high-temperature arc blades based on Manticore armament designs and embedded with a series of retaliatory \"self-sharpening\" heuristics.",
+      "hiddenCopies": [
+        {
+          "detail": "For the rest of the scene: base Armor becomes 0, base Speed becomes 6, Slag Carapace and Interference Field are disabled, and you gain the Shock Claws integrated weapon.",
+          "name": "Go Loud"
+        }
+      ]
+    },
+    {
+      "item": "mf_lycan",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Interference Field",
+      "parentText": "All hostile characters within Range 3 of the Lycan take +1 Difficulty on all attacks that do not target the Lycan.",
+      "hiddenCopies": [
+        {
+          "detail": "All hostile characters within Range 3 of the Lycan take +1 Difficulty on all attacks that do not target the Lycan.",
+          "name": "Interference Field",
+          "range": [
+            {
+              "type": "Range",
+              "val": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_lycan",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Power Flux",
+      "parentText": "1/round, when the Lycan takes heat, a hostile character within Range 3 must pass a Systems save or become Impaired and Slowed until the end of their next turn.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "id": "impaired",
+              "save": "systems"
+            },
+            {
+              "id": "slow",
+              "save": "systems"
+            }
+          ],
+          "detail": "1/round, when the Lycan takes heat, a hostile character within Range 3 must pass a Systems save or become Impaired and Slowed until the end of their next turn.",
+          "frequency": "1/round",
+          "name": "Power Flux",
+          "range": [
+            {
+              "type": "Range",
+              "val": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_micro_monarch",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Vigilante Omnidirectional Launchers",
+      "parentText": "1/Round, on a critical hit against a character, the Viceroy may immediately deal 2 Explosive damage to all characters of its choice within Range 3 of itself and knock them back 1 space.",
+      "hiddenCopies": [
+        {
+          "detail": "1/Round, on a critical hit, deal 2 Explosive damage to all characters of your choice within Range 3 and knock them back 1 space.",
+          "frequency": "1/round",
+          "name": "Vigilante Omnidirectional Launchers"
+        }
+      ]
+    },
+    {
+      "item": "mf_minotaur_alt_wraith",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Execration of the Names of the Unworthy Dead",
+      "parentText": "“I inscribe thy name, I threaten thee with the second death. I kill thy name, and this I kill thee again in the afterlife.“",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "aoe": true,
+              "duration": "next_turn_end_target",
+              "id": "intangible"
+            }
+          ],
+          "condition": "You use this ability",
+          "detail": "One hostile character and one allied character both within Range 5 and line of sight to you or a void husk, become INTANGIBLE until the end of your next turn. Two characters must be chosen for this effect to occur.",
+          "name": "Weighing of Inequitable Hearts",
+          "range": [
+            {
+              "type": "range",
+              "val": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_minotaur_alt_wraith",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Sculptor of Fate",
+      "parentText": "1/round, when the Calendula hits a character with a tech attack, it can create a void husk in a free space within RANGE 3 of its target. Void husks are INTANGIBLE objects that don’t cause obstruction. The husk is the same SIZE as its target, has IMMUNITY to all damage and effects, and emits a BURST 2 aura while active that affects both Intangible and tangible characters. Hostile characters are SLOWED while they are at least partly in the area. The Calendula can create any number of husks, all of which disintegrate at the end of the scene.",
+      "hiddenCopies": [
+        {
+          "condition": "Calendula hits a character with a tech attack",
+          "detail": "You can create a void husk in a free space within RANGE 3 of its target. Void husks are INTANGIBLE objects that don’t cause obstruction. The husk is the same SIZE as its target, has IMMUNITY to all damage and effects, and emits a BURST 2 aura while active that affects both Intangible and tangible characters. Hostile characters are SLOWED while they are at least partly in the area. You can create any number of husks, all of which disintegrate at the end of the scene.",
+          "frequency": "1/round",
+          "name": "Sculptor of Fate"
+        }
+      ]
+    },
+    {
+      "item": "mf_minotaur_alt_wraith",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Grammaton Law",
+      "parentText": "SLOWED hostile characters are also SHREDDED while within Range 3 of the Calendula.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "id": "shredded"
+            }
+          ],
+          "condition": "Hostile character is SLOWED and within Range 3 of Calendula",
+          "detail": "SLOWED hostile characters are also SHREDDED while within Range 3 of the Calendula.",
+          "name": "Grammaton Law",
+          "range": [
+            {
+              "type": "range",
+              "val": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_sagarmatha",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Rallying Cry",
+      "parentText": null,
+      "hiddenCopies": [
+        {
+          "add_resist": [
+            {
+              "aoe": true,
+              "resistance": "all"
+            }
+          ],
+          "add_special": [
+            {
+              "aoe": true,
+              "attribute": "Affected by Rallying Cry",
+              "detail": "Gain RESISTANCE to all damage and heat and +1 Accuracy all on checks and saves"
+            }
+          ],
+          "duration": "next_turn_end_self",
+          "name": "Raise the Banner",
+          "target": "ally"
+        }
+      ]
+    },
+    {
+      "item": "mf_sagarmatha",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Guardian",
+      "parentText": "Adjacent allied characters can use the Sagarmatha as hard cover.",
+      "hiddenCopies": [
+        {
+          "detail": "Adjacent allied characters can use you as hard cover.",
+          "name": "Guardian"
+        }
+      ]
+    },
+    {
+      "item": "mf_sagarmatha",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Heroism",
+      "parentText": "1/scene the Sagarmatha can brace without sacrificing any actions or movement on its following turn.",
+      "hiddenCopies": [
+        {
+          "detail": "You can brace without sacrificing any actions or movement on your following turn.",
+          "frequency": "1/scene",
+          "name": "Heroism"
+        }
+      ]
+    },
+    {
+      "item": "mf_sagarmatha",
+      "kind": "frames",
+      "in": "edited",
+      "path": "core_system",
+      "parent": "Rallying Cry",
+      "parentText": null,
+      "hiddenCopies": [
+        {
+          "add_resist": [
+            {
+              "aoe": true,
+              "resistance": "all"
+            }
+          ],
+          "add_special": [
+            {
+              "aoe": true,
+              "attribute": "Affected by Rallying Cry",
+              "detail": "Gain RESISTANCE to all damage and heat and +1 Accuracy all on checks and saves"
+            }
+          ],
+          "duration": "next_turn_end_self",
+          "name": "Raise the Banner",
+          "target": "ally"
+        }
+      ]
+    },
+    {
+      "item": "mf_sherman_alt_tagetes",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Chorak Skirmish Gear",
+      "parentText": "Tilimsan is a harsh proving ground for any mech. Baking heat, scouring sand, dry lightning, and treacherous terrain are challenge enough for designers, but Company Tempeste’s technical requirements are just as uncompromising as the landscape. Popular rumor has it that one headstrong Ispahsalari artisan who refused to integrate the company’s aftermarket modifications on aesthetic grounds simply never returned from the desert.",
+      "hiddenCopies": [
+        {
+          "detail": "When you stabilize, you may activate this system to create a stationary burst 2 zone of soft cover that lasts until the end of your next turn. While benefiting from this soft cover, you and allied characters may clear 1d3+1 heat as a protocol. This ability is <b>Efficient</b> and will refund 1 Core Point at the end of any scene in which this ability was used.",
+          "name": "SANDSTORM Heat Dispersal System"
+        }
+      ]
+    },
+    {
+      "item": "mf_sherman_alt_tagetes",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Fusilier",
+      "parentText": "When you install a ranged weapon on the Tagetes (or during a Full Repair), you may change its weapon type to Rifle. Weapons with their type changed in this way gain Overkill.",
+      "hiddenCopies": [
+        {
+          "detail": "When you install a ranged weapon on the Tagetes (or during a Full Repair), you may change its weapon type to Rifle. Weapons with their type changed in this way gain Overkill.",
+          "name": "Fusilier"
+        }
+      ]
+    },
+    {
+      "item": "mf_sherman_alt_tagetes",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Rank Discipline",
+      "parentText": "While adjacent to an allied mech, the Tagetes gains +1 Accuracy on all skill checks and saves.",
+      "hiddenCopies": [
+        {
+          "condition": "Adjacent to an allied mech",
+          "detail": "Gain +1 Accuracy on all skill checks and saves.",
+          "name": "Rank Discipline"
+        }
+      ]
+    },
+    {
+      "item": "mf_sherman_alt_tagetes",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Eterane Construction",
+      "parentText": "When you Stabilize, you may choose one of the following in addition to other options:<ul><li>Reload all loading weapons</li><li>Clear any burn currently affecting your mech</li><li>Clear a condition that wasn’t caused by one of your own systems, talents, etc.</li><li>Clear an adjacent allied character’s condition that wasn’t caused by one of their own systems, talents, etc.</li></ul>",
+      "hiddenCopies": [
+        {
+          "detail": "When you Stabilize, you may choose one of the following in addition to other options:<ul><li>Reload all loading weapons</li><li>Clear any burn currently affecting your mech</li><li>Clear a condition that wasn’t caused by one of your own systems, talents, etc.</li><li>Clear an adjacent allied character’s condition that wasn’t caused by one of their own systems, talents, etc.</li></ul>",
+          "name": "Eterane Construction"
+        }
+      ]
+    },
+    {
+      "item": "mf_sherman_alt_tagetes",
+      "kind": "frames",
+      "in": "edited",
+      "path": "core_system",
+      "parent": "Chorak Skirmish Gear",
+      "parentText": "Tilimsan is a harsh proving ground for any mech. Baking heat, scouring sand, dry lightning, and treacherous terrain are challenge enough for designers, but Company Tempeste’s technical requirements are just as uncompromising as the landscape. Popular rumor has it that one headstrong Ispahsalari artisan who refused to integrate the company’s aftermarket modifications on aesthetic grounds simply never returned from the desert.",
+      "hiddenCopies": [
+        {
+          "detail": "When you stabilize, you may activate this system to create a stationary burst 2 zone of soft cover that lasts until the end of your next turn. While benefiting from this soft cover, you and allied characters may clear 1d3+1 heat as a protocol. This ability is <b>Efficient</b> and will refund 1 Core Point at the end of any scene in which this ability was used.",
+          "name": "SANDSTORM Heat Dispersal System"
+        }
+      ]
+    },
+    {
+      "item": "mf_sunzi",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Safe Harbor",
+      "parentText": "When allied characters within Range 50 of the Sunzi teleport or are teleported, free spaces adjacent to the Sunzi are always valid end destinations.",
+      "hiddenCopies": [
+        {
+          "detail": "When allied characters within Range 50 of you teleport or are teleported, free spaces adjacent to you are always valid end destinations.",
+          "name": "Safe Harbor"
+        }
+      ]
+    },
+    {
+      "item": "mf_sunzi",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Anchor",
+      "parentText": "The Sunzi has Immunity to involuntary movement caused by other characters.",
+      "hiddenCopies": [
+        {
+          "detail": "You have Immunity to involuntary movement caused by other characters.",
+          "name": "Anchor"
+        }
+      ]
+    },
+    {
+      "item": "mf_swallowtail_alt_swallowtail_ranger_variant",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Gaia Inheritance",
+      "parentText": "Outnumbered, outgunned, and lacking the ability to mass-produce mechs, the rangers have had to rely on the legacy of Hercynia itself to protect them. Each of their Swallowtails is an ingenious, fast-moving suite of meshed software and gear, uniquely tweaked by generations of hardened warriors – imperfect in a way that would make any SSC smith shiver. Each wears its own unique name, has its own unique ballad, and is recorded in the osteomemetics of its home city.",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "aoe": true,
+              "id": "invisible",
+              "target": "ally"
+            }
+          ],
+          "detail": "You create three Burst 1 patches of smoke in spaces within line of sight and Range 5. These patches grant soft cover to characters at least partly within them. They last for the rest of the scene. Additionally, for the rest of the scene, allied characters within your SENSORS gain the benefits of GROUNDED.",
+          "name": "Guerrilla Warfare"
+        }
+      ]
+    },
+    {
+      "item": "mf_swallowtail_alt_swallowtail_ranger_variant",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Scout Battlefield",
+      "parentText": "<p>Before the first round of any combat and before any deployment takes place, place up to two of the following in free spaces anywhere on the battlefield:</p> <ul> <li>A 2 x 2 zone that does not impede movement and grants soft cover to characters at least partly within it.</li> <li>A 2 x 2 zone that is difficult terrain.</li> <li>A SIZE 1 piece of hard cover.</li> </ul> <p>They can't be placed within 4 spaces of each other. The same option can be chosen more than once. These objects and zones represent naturally occurring terrain on the battlefield, and you can work with the GM to decide what they are.</p>",
+      "hiddenCopies": [
+        {
+          "detail": "Before the first round of any combat and before any deployment takes place, place up to two of the following in free spaces anywhere on the battlefield: A 2 x 2 zone that does not impede movement and grants soft cover to characters at least partly within it. A 2 x 2 zone that is difficult terrain. A SIZE 1 piece of hard cover. They can't be placed within 4 spaces of each other. The same option can be chosen more than once. These objects and zones represent naturally occurring terrain on the battlefield, and you can work with the GM to decide what they are.",
+          "frequency": "1/scene",
+          "name": "Scout Battlefield"
+        }
+      ]
+    },
+    {
+      "item": "mf_swallowtail_alt_swallowtail_ranger_variant",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Invigorating Scanners",
+      "parentText": "1/round when the Swallowtail inflicts Lock On, an allied character in its sensor range and line of sight can move up to its speed as a reaction.",
+      "hiddenCopies": [
+        {
+          "detail": "When you inflict LOCK ON, an allied character in your sensor range and line of sight can move up to its speed as a reaction.",
+          "frequency": "1/round",
+          "name": "Invigorating Scanners"
+        }
+      ]
+    },
+    {
+      "item": "mf_swallowtail_alt_swallowtail_ranger_variant",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Weathering",
+      "parentText": "The Swallowtail ignores difficult terrain.",
+      "hiddenCopies": [
+        {
+          "detail": "You ignore difficult terrain.",
+          "name": "Weathering"
+        }
+      ]
+    },
+    {
+      "item": "mf_tokugawa_alt_enkidu",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[0]",
+      "parent": "Primal Fury",
+      "parentText": "<p>When the Enkidu ends its turn in the DANGER ZONE, it rears up, extends its PLASMA TALONS (see below), and enters a state of primal fury with the following effects:</p> <ul> <li>On hit, characters struck by the Enkidu's PLASMA TALONS immediately become IMMOBILIZED until the end of their next turn.</li> <li>As a special reaction, the Enkidu must use its PLASMA TALONS to attack any character (hostile or allied) that enters, exits or moves more than 1 space within its THREAT. This special reaction can be used once a turn, any number of times a round, and doesn’t count against the maximum number of reactions a turn, so the Enkidu can take other reactions normally.</li> </ul> <p>This state ends at the start of the Enkidu's turn, or if the Enkidu exits the DANGER ZONE.</p>",
+      "hiddenCopies": [
+        {
+          "add_status": [
+            {
+              "aoe": true,
+              "id": "immobilized"
+            }
+          ],
+          "detail": "When you end your turn in the DANGER ZONE, you enter the Primal Fury state with the following effects: On hit, characters struck by your PLASMA TALONS immediately become IMMOBILIZED until the end of their next turn. As a special reaction, you must use your PLASMA TALONS to attack any character (hostile or allied) that enters, exits or moves more than 1 space within your THREAT. This special reaction can be used once a turn, any number of times a round, and doesn’t count against the maximum number of reactions you can take on your turn, so you can take other reactions normally. This state ends at the start of your turn, or if you exit the DANGER ZONE.",
+          "frequency": "1/turn",
+          "name": "Primal Fury"
+        }
+      ]
+    },
+    {
+      "item": "mf_tokugawa_alt_enkidu",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "All Fours",
+      "parentText": "While it’s in the DANGER ZONE, the Enkidu can’t make ranged or tech attacks but has 6 base SPEED.",
+      "hiddenCopies": [
+        {
+          "detail": "While you’re in the DANGER ZONE, you can’t make ranged or tech attacks but have 6 base SPEED.",
+          "name": "All Fours"
+        }
+      ]
+    },
+    {
+      "item": "mf_tokugawa_alt_enkidu",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[3]",
+      "parent": "Bloodsense",
+      "parentText": "The Enkidu always knows if characters are at or under half of their maximum HP, but not the exact number.",
+      "hiddenCopies": [
+        {
+          "detail": "You always know if characters are at or under half of their maximum HP, but not the exact number.",
+          "name": "Bloodsense"
+        }
+      ]
+    },
+    {
+      "item": "mf_white_witch",
+      "kind": "frames",
+      "in": "data",
+      "path": "core_system",
+      "parent": "Ferroreactive Shell",
+      "parentText": "“The first test nearly ended the program. Exotic Materials is a … liberal department within the Constellation, but even our executives were hesitant to approve a second run. The data generated by WW_01 was invaluable, and we were sure we could get it right with a second test – all we needed was the sigma on its rewrite cone! Suits just get leery when systems fail. They forget that progress takes blood – sometimes literally – as payment for a breakthrough.”",
+      "hiddenCopies": [
+        {
+          "activation": "None",
+          "condition": "Your armor increases from Ferroreactive Armor",
+          "damage": [
+            {
+              "aoe": "burst 1",
+              "ap": true,
+              "type": "Kinetic",
+              "val": 1
+            }
+          ],
+          "detail": "For the rest of the scene, Ferroreactive Armor gives +2 Armor each time instead of +1, to a max of +12. Each time your armor increases in this way, your mech deals 1 AP kinetic damage to all characters in a Burst 1 area as it draws raw material from the environment.",
+          "name": "Hyperactive mode"
+        }
+      ]
+    },
+    {
+      "item": "mf_white_witch",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[1]",
+      "parent": "Harden",
+      "parentText": "When the White Witch braces, it gains overshield equal to 4 + GRIT before it takes damage.",
+      "hiddenCopies": [
+        {
+          "add_other": [
+            {
+              "target": "self",
+              "type": "overshield",
+              "val": "4 + {grit}"
+            }
+          ],
+          "condition": "Bracing",
+          "detail": "When you Brace, gain overshield equal to 4 + GRIT before you take damage.",
+          "name": "Harden"
+        }
+      ]
+    },
+    {
+      "item": "mf_white_witch",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[2]",
+      "parent": "Fluid Burst",
+      "parentText": "When an allied character in Range 2 of the White Witch takes damage from a hostile source, the White Witch can reduce the damage by 1 and deal 1 AP kinetic damage to itself.",
+      "hiddenCopies": [
+        {
+          "condition": "Ally in Range 2 takes damage from hostile source",
+          "damage": [
+            {
+              "ap": true,
+              "target": "self",
+              "type": "Kinetic",
+              "val": 1
+            }
+          ],
+          "detail": "When an allied character in Range 2 of you takes damage from a hostile source, you can reduce the damage by 1 and deal 1 AP kinetic damage to yourself.",
+          "name": "Fluid Burst",
+          "range": [
+            {
+              "type": "range",
+              "val": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "item": "mf_white_witch",
+      "kind": "frames",
+      "in": "data",
+      "path": "traits[3]",
+      "parent": "Guardian",
+      "parentText": "Adjacent allied characters can use this mech as hard cover.",
+      "hiddenCopies": [
+        {
+          "detail": "Adjacent allied characters can use you as hard cover.",
+          "name": "Guardian"
+        }
+      ]
+    },
+    {
+      "item": "ms_accelerate",
+      "kind": "systems",
+      "in": "data",
+      "path": "actions[0]",
+      "parent": "Accelerate",
+      "parentText": "Choose and mark two free spaces within your line of sight that share a surface and are within Range 5 of each other. Characters that start their turn in one of these spaces or enter one for the first time in a round are pushed as far as possible in a straight line towards the other space. If they collide with an obstruction, they stop moving. They may avoid being pushed with a successful Hull save. Grenades, Deployables, or other loose objects of Size 1 or smaller that are thrown or deployed into one of the spaces are also pushed towards the other space before activating or detonating. They activate or detonate early if they are forced to stop by another character or object. This effect lasts for the rest of the scene, or until you take this Quick Tech option again.",
+      "hiddenCopies": [
+        {
+          "detail": "Characters that start their turn in one of your marked spaces or enter one for the first time in a round are pushed as far as possible in a straight line towards the other space. If they collide with an obstruction, they stop moving. They may avoid being pushed with a successful Hull save. Grenades, Deployables, or other loose objects of Size 1 or smaller that are thrown or deployed into one of the spaces are also pushed towards the other space before activating or detonating. They activate or detonate early if they are forced to stop by another character or object.",
+          "name": "Accelerate",
+          "save": {
+            "stat": "hull"
+          }
+        }
+      ]
+    },
+    {
+      "item": "ms_armament_redundancy",
+      "kind": "systems",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Armament Redundancy",
+      "parentText": "By installing additional armor plating, redundant firing circuits, and enhanced insulation to magazines the longevity of a frame’s armaments can be greatly enhanced.",
+      "hiddenCopies": [
+        {
+          "detail": "You may choose to ignore weapon destruction from SYSTEM TRAUMA when taking structure damage. Usable once before each Full Repair.",
+          "name": "Armament Redundancy"
+        }
+      ]
+    },
+    {
+      "item": "ms_champions_favor",
+      "kind": "systems",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Champion's Favor",
+      "parentText": "These mech-scale golden laurels granted to pankration mechani champions house a small but sophisticated shield generator. The shield provides both protection and a distinctively colored visual shimmer, referred to as a champion's “aura” or “halo”.",
+      "hiddenCopies": [
+        {
+          "add_other": {
+            "type": "overshield",
+            "val": 1
+          },
+          "detail": "At the start of your turn, gain 1 Overshield.",
+          "frequency": "1/turn",
+          "name": "Champion's Favor"
+        }
+      ]
+    },
+    {
+      "item": "ms_entangled_co-consciousness_rig",
+      "kind": "systems",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Entangled Co-Consciousness Rig",
+      "parentText": "<p>House Montmorency carried one of the most impressive win streaks ever seen under the glittering skies of Ispahsalar into the Kreoss, and scored victory after victory until an elite team of Sand-men gave their lives to extract the secret of their exceptional performance.</p><p>Neurolink interfaces fitted with custom paracausal entanglement systems connected each of House Montmorency's pilots together, allowing them to draw on each other’s expertise and even subconscious reactions to gain an edge in combat. Once the mystery was revealed, rules committees were encouraged to find against the use of these systems in the House Games. Other competitions followed suit, and the minor house’s dominance finally came to an end.</p>",
+      "hiddenCopies": [
+        {
+          "detail": "If a hostile character or a structure damage check would cause you to become Stunned, you may instead turn control of your mech over to its Entangled Co-Consciousness Rig. If you do, you do not become Stunned, but you cannot pick the controls back up or turn over control to any other AI on your next turn.",
+          "name": "Entangled Co-Consciousness Rig",
+          "trigger": "You would become Stunned from a hostile character or structure damage check."
+        }
+      ]
+    },
+    {
+      "item": "ms_exo_anti_armor_signature_weapon",
+      "kind": "pilot_gear",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Anti-Armor Signature Weapon",
+      "parentText": "If a pilot takes an Anti-Armor Signature Weapon on a mission, they can’t take any other pilot weapons.",
+      "hiddenCopies": [
+        {
+          "detail": "If you take this weapon on a mission, you can't take any other pilot weapons.",
+          "name": "Anti-Armor Signature Weapon"
+        }
+      ]
+    },
+    {
+      "item": "ms_hardpoint_reinforcement",
+      "kind": "systems",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Hardpoint Reinforcement",
+      "parentText": "Also developed in IPS-N’s ongoing Titan–Enceladus Field Project, hardpoint reinforcement systems further strengthen frames, ensuring an across-the-board increase in Caliban chassis TTK.",
+      "hiddenCopies": [
+        {
+          "add_resist": [
+            {
+              "duration": "turn_end_self",
+              "resistance": "all"
+            }
+          ],
+          "condition": "You are not Slowed or Immobilized",
+          "detail": "As long as you are not Slowed or Immobilized, you gain Resistance to all damage during your turn.",
+          "name": "Hardpoint Reinforcement"
+        }
+      ]
+    },
+    {
+      "item": "ms_madrigal_active_camo",
+      "kind": "pilot_gear",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Madrigal Active Camo",
+      "parentText": "<p><b>Requirement</b>: Weapons and Gear with “Madrigal” in the name may only be equipped if the Pilot is wearing the “Madrigal Boarding Carapace”.</p><p>If your pilot is on foot, ranged attacks originating from beyond Range 3 treat you as having Hard Cover.</p>",
+      "hiddenCopies": [
+        {
+          "detail": "While on foot, ranged attacks from beyond Range 3 treat you as having Hard Cover.",
+          "name": "Madrigal Active Camo"
+        }
+      ]
+    },
+    {
+      "item": "ms_madrigal_jump_system",
+      "kind": "pilot_gear",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Madrigal Jump System",
+      "parentText": "<p><b>Requirement</b>: Weapons and Gear with “Madrigal” in the name may only be equipped if the Pilot is wearing the “Madrigal Boarding Carapace”.</p><p>If your pilot is on foot you may Fly when you Boost. You must end this movement on solid ground or begin falling.</p>",
+      "hiddenCopies": [
+        {
+          "detail": "While on foot, you may Fly when you Boost. You must end on solid ground or begin falling.",
+          "name": "Madrigal Jump System"
+        }
+      ]
+    },
+    {
+      "item": "ms_madrigal_thermal_visor",
+      "kind": "pilot_gear",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Madrigal Thermal Visor",
+      "parentText": "<p><b>Requirement</b>: Weapons and Gear with “Madrigal” in the name may only be equipped if the Pilot is wearing the “Madrigal Boarding Carapace”.</p><p>If your pilot is on foot your attacks ignore Cover.</p>",
+      "hiddenCopies": [
+        {
+          "detail": "While on foot, your attacks ignore Cover.",
+          "name": "Madrigal Thermal Visor"
+        }
+      ]
+    },
+    {
+      "item": "ms_rapid_maneuver_jets",
+      "kind": "systems",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Rapid Maneuver Jets",
+      "parentText": "Further streamlining and miniaturizing IPS-N’s Ramjet system, IPS-N’s new RMJ frame-volatility package increases a chassis’ control envelope, ensuring its pilot can maintain enhanced mobility at pace. This control, coupled with a raw increase in speed, makes any chassis far more difficult to successfully engage.",
+      "hiddenCopies": [
+        {
+          "add_other": [
+            {
+              "target": "self",
+              "type": "overshield",
+              "val": 3
+            }
+          ],
+          "detail": "You fly, gain Overshield 3, and ignore engagement from and may freely pass through spaces occupied by larger characters (but not end your turn in their spaces). You must end this movement in a space on which you can stand, or else you fall.",
+          "frequency": "1/round",
+          "name": "Rapid Maneuver Jets",
+          "trigger": "When you Boost"
+        }
+      ]
+    },
+    {
+      "item": "mw_fusion_rifle",
+      "kind": "weapons",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Fusion Rifle",
+      "parentText": "Bootstrapped from powerful ore mining lasers, the Kobold’s simple fusion rifle is no less deadly for its humble origins. By burning through solid-state batteries to produce the necessary reaction, the rifle’s simple mechanism proved simple enough for untrained Ungratefuls to learn. As their tactics improved and Baronic forces were pushed back, the fusion rifle took on an iconic reputation and has become a symbol of resistance across the Baronies – often seen stenciled on walls and crossed on Ungrateful flags.",
+      "hiddenCopies": [
+        {
+          "detail": "This weapon deals damage equal to its range from the target (up to a maximum of 6 Energy Damage).",
+          "name": "Fusion Rifle"
+        }
+      ]
+    },
+    {
+      "item": "mw_unraveler",
+      "kind": "weapons",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Unraveler",
+      "parentText": "Speaker 2 (M.A2.SP2) [Audio, length: 120:36][34% corruption][Dated 18593U, 01:50] [UIB-TERMAGANTTANGENT ROYAL]<br>“Dark. Wet. Drink deep, and descend. The water is warm and well. It is very busy here, though you cannot see it. The swimmers are curious. Open your mouth.”",
+      "hiddenCopies": [
+        {
+          "detail": "If an attack from this weapon would not deal enough damage to destroy its target or cause it to take at least 1 structure damage, it instead only deals Reliable 2 damage, even on a hit.",
+          "name": "Unraveler"
+        }
+      ]
+    },
+    {
+      "item": "pg_personal_shielding",
+      "kind": "pilot_gear",
+      "in": "data",
+      "path": "(item)",
+      "parent": "Personal Kinetic Shielding",
+      "parentText": "Kinetic shields are a common choice for personal defense among Karrakin nobles. Despite lacking features considered vital by most pilots, such as strength-augmentation, mech interface components, and protection against environmental hazards, shields have a few notable advantages over hardsuits. Most importantly, their generator packs are compact and easily concealed, enabling discreet use and providing protection with minimal impact on the user’s fashion choices.",
+      "hiddenCopies": [
+        {
+          "detail": "While active, you cannot make ranged attacks. When hit by a ranged weapon, reduce the damage by 1d6. If damage is not reduced to zero, the shield burns out and is unusable until the next Rest or Full Repair.",
+          "name": "Personal Kinetic Shielding"
+        }
+      ]
+    },
+    {
+      "item": "t_demolitionist",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[0]",
+      "parent": "Frag and Clear",
+      "parentText": "When you use a Grenade, you may choose one character in the affected area to ignore its effects. Additionally, at the end of each scene, you restore 1 charge to each Limited system with the Mine tag for each undetonated Mine you deployed from that system.",
+      "hiddenCopies": [
+        {
+          "detail": "When you use a Grenade, you may choose one character in the affected area to ignore its effects. At the end of each scene, you restore 1 charge to each Limited system with the Mine tag for each undetonated Mine you deployed from that system.",
+          "name": "Frag and Clear"
+        }
+      ]
+    },
+    {
+      "item": "t_demolitionist",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[1]",
+      "parent": "Quarterback",
+      "parentText": "Your Grenades gain +3 Range, and you can plant Mines up to Range 3 (or add +3 Range to them if they have one). Additionally, you do not require line of sight for Grenades and Mines as long as it's possible to trace a path to the target.",
+      "hiddenCopies": [
+        {
+          "detail": "Your Grenades gain +3 Range, and you can plant Mines up to Range 3 (or add +3 Range). You do not require line of sight for Grenades and Mines as long as it's possible to trace a path to the target.",
+          "name": "Quarterback"
+        }
+      ]
+    },
+    {
+      "item": "t_demolitionist",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[2]",
+      "parent": "Fire in the Hole",
+      "parentText": "<p>Your explosive charges have been enhanced with customized payloads. 1/round, you may choose one of the following:</p> <ul> <li>When you throw a Grenade, up to three characters within Range 3 of the targeted space take 2 explosive damage and are knocked back 1 space in a direction of your choice by explosive shrapnel.</li> <li>When a character fails a save against one of your Mines, they take +1d6 explosive bonus damage. If the mine deals no damage normally when detonated, whether it forces a save or not, one character in the affected area takes 1d6 explosive damage instead.</li> </ul>",
+      "hiddenCopies": [
+        {
+          "detail": "1/round, choose one: When you throw a Grenade, up to three characters within Range 3 of the targeted space take 2 explosive damage and are knocked back 1 space; OR when a character fails a save against your Mine, they take +1d6 explosive bonus damage (or 1d6 if the mine normally deals no damage).",
+          "frequency": "1/round",
+          "name": "Fire in the Hole"
+        }
+      ]
+    },
+    {
+      "item": "t_empath",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[1]",
+      "parent": "Bend to Will",
+      "parentText": "1/scene when an allied character in line of sight makes a structure or overheating check, they can roll twice and choose either result.",
+      "hiddenCopies": [
+        {
+          "condition": "An allied character in line of sight makes a structure or overheating check.",
+          "detail": "1/scene when an allied character in line of sight makes a structure or overheating check, they can roll twice and choose either result.",
+          "frequency": "1/scene",
+          "name": "Bend to Will"
+        }
+      ]
+    },
+    {
+      "item": "t_house_guard",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[0]",
+      "parent": "Front Rank",
+      "parentText": "You count as adjacent when you are within Range 2 for the purposes of your effects on allied characters (from your traits, talents, systems, or weapons) that require adjacency to your mech.",
+      "hiddenCopies": [
+        {
+          "detail": "You count as adjacent when you are within Range 2 for the purposes of your effects on allied characters (from your traits, talents, systems, or weapons) that require adjacency to your mech.",
+          "name": "Front Rank"
+        }
+      ]
+    },
+    {
+      "item": "t_house_guard",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[1]",
+      "parent": "Greater Guardian",
+      "parentText": "Your mech gains the Guardian trait if it doesn’t already have it (adjacent allies can use your mech as hard cover). Guardian now additionally grants soft cover to all adjacent allies from all directions.",
+      "hiddenCopies": [
+        {
+          "detail": "Your mech gains the Guardian trait if it doesn’t already have it (adjacent allies can use your mech as hard cover). Guardian now additionally grants soft cover to all adjacent allies from all directions.",
+          "name": "Greater Guardian"
+        }
+      ]
+    },
+    {
+      "item": "t_iconoclast",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[2]",
+      "parent": "Transcension",
+      "parentText": "Gain a Transcendence Die, a d3 starting at 3. When you use “Transmuting Spark,” reduce the die by 1. If the die is at 1 when you use “Transmuting Spark,” you may immediately enter a transcendent state and reset the Transcendence Die to 3. This has the following effects until the end of your next turn: <br><ul><li>Your Transcendence Die can’t decrease.</li><li>“Memetic Spark” gains +4 damage and +5 Range.</li><li>Unless flying or climbing, you are forced to permanently Hover exactly 1 Space above any surface at all times.</li><li>You gain Immunity to involuntary movement.</li></ul><br>Whenever you cascade and lose control of your mech, you enter a transcendent state for the duration. Cascading NHPs have access to the benefits of this Talent. Your Transcendence Die resets at the end of the Scene.",
+      "hiddenCopies": [
+        {
+          "detail": "When Transcendence Die is at 1 and you use Transmuting Spark, enter transcendent state (reset die to 3). Until end of next turn: die can't decrease, Memetic Spark gains +4 damage and +5 Range, you hover 1 space above surfaces, gain Immunity to involuntary movement.",
+          "name": "Transcendent State"
+        }
+      ]
+    },
+    {
+      "item": "t_pankrati",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[0]",
+      "parent": "Veni",
+      "parentText": "You gain +1 Accuracy to melee attacks against Immobilized or Slowed targets.",
+      "hiddenCopies": [
+        {
+          "detail": "You gain +1 Accuracy to melee attacks against Immobilized or Slowed targets.",
+          "name": "Veni"
+        }
+      ]
+    },
+    {
+      "item": "t_pankrati",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[2]",
+      "parent": "Vici",
+      "parentText": "If you start your Valiant Charge adjacent to any allied characters, they may immediately Boost as a reaction after your charge resolves.",
+      "hiddenCopies": [
+        {
+          "detail": "If you start your Valiant Charge adjacent to any allied characters, they may immediately Boost as a reaction after your charge resolves.",
+          "name": "Vici"
+        }
+      ]
+    },
+    {
+      "item": "t_prospector",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[1]",
+      "parent": "Gold Fever",
+      "parentText": "Hostile characters within the area when an Entrance is created must succeed on a Hull save or be knocked Prone. <br>Additionally, after you use \"Create Entrance,\" allied characters completely within your initial Entrance may use \"Subterranean Reposition\" even though it is not their turn.",
+      "hiddenCopies": [
+        {
+          "detail": "Hostile characters within the area when an Entrance is created must succeed on a Hull save or be knocked Prone. After using Create Entrance, allied characters completely within your initial Entrance may use Subterranean Reposition even though it is not their turn.",
+          "name": "Gold Fever"
+        }
+      ]
+    },
+    {
+      "item": "t_prospector",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[2]",
+      "parent": "Mother Lode",
+      "parentText": "\"Create Entrance\" becomes 1/Round and you may use it an additional time each Scene.  All Entrances you create are connected for the purposes of Tunneling.",
+      "hiddenCopies": [
+        {
+          "detail": "Create Entrance becomes 1/Round and you may use it an additional time each Scene. All Entrances you create are connected for Tunneling.",
+          "name": "Mother Lode"
+        }
+      ]
+    },
+    {
+      "item": "t_spaceborn",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[1]",
+      "parent": "Sea Legs",
+      "parentText": "1/round, when your mech is involuntarily moved by another character’s attack or by failing a save forced by another character, you can choose the direction you move. Additionally, when your mech clears Prone, you may move 2 spaces in any direction as a free action. This movement ignores engagement and doesn’t provoke reactions",
+      "hiddenCopies": [
+        {
+          "condition": "You are involuntarily moved or clear Prone",
+          "detail": "1/round, when your mech is involuntarily moved by another character’s attack or by failing a save forced by another character, you can choose the direction you move. Additionally, when your mech clears Prone, you may move 2 spaces in any direction as a free action. This movement ignores engagement and doesn’t provoke reactions.",
+          "frequency": "1/round",
+          "name": "Sea Legs"
+        }
+      ]
+    },
+    {
+      "item": "t_spaceborn",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[2]",
+      "parent": "Scrapper",
+      "parentText": "1/round, when your mech hits a character with a melee attack, it can immediately give that character +1 Difficulty on all checks or saves to avoid Knockback, Prone, Slowed or Immobilized until the end of its next turn, including any effects that are part of the triggering attack.",
+      "hiddenCopies": [
+        {
+          "add_special": [
+            {
+              "attribute": "Affected by Scrapper",
+              "detail": "+1 Difficulty on all checks or saves to avoid Knockback, Prone, Slowed or Immobilized.",
+              "duration": "end_next_turn_target"
+            }
+          ],
+          "condition": "You hit a character with a melee attack",
+          "detail": "1/round, when your mech hits a character with a melee attack, it can immediately give that character +1 Difficulty on all checks or saves to avoid Knockback, Prone, Slowed or Immobilized until the end of its next turn, including any effects that are part of the triggering attack.",
+          "frequency": "1/round",
+          "name": "Scrapper"
+        }
+      ]
+    },
+    {
+      "item": "t_sysop",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[0]",
+      "parent": "Inoculation",
+      "parentText": "When you Bolster an allied character, the additional Accuracy they gain lasts until their next skill check or save.",
+      "hiddenCopies": [
+        {
+          "add_special": [
+            {
+              "attribute": "Inoculated",
+              "detail": "The additional Accuracy you gained from Bolster lasts until your next skill check or save."
+            }
+          ],
+          "detail": "When you Bolster an allied character, the additional Accuracy they gain lasts until their next skill check or save.",
+          "name": "Inoculation"
+        }
+      ]
+    },
+    {
+      "item": "t_sysop",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[1]",
+      "parent": "Firewall",
+      "parentText": "When you Bolster an allied character, tech attacks against them receive +1 Difficulty until the end of their next turn.",
+      "hiddenCopies": [
+        {
+          "add_special": [
+            {
+              "attribute": "Firewall",
+              "detail": "Tech attacks against you receive +1 Difficulty until the end of your next turn."
+            }
+          ],
+          "detail": "When you Bolster an allied character, tech attacks against them receive +1 Difficulty until the end of their next turn.",
+          "name": "Firewall"
+        }
+      ]
+    },
+    {
+      "item": "t_sysop",
+      "kind": "talents",
+      "in": "data",
+      "path": "ranks[2]",
+      "parent": "Aggressive Countermeasures",
+      "parentText": "1/round, when you Bolster an ally, you induce a special cycle into their reactor. They reduce the next amount of heat they would take from a hostile character to 0, and that character takes 2 heat and becomes Impaired until the end of their next turn. This effect does not stack, and lasts until triggered.",
+      "hiddenCopies": [
+        {
+          "add_special": [
+            {
+              "attribute": "Aggressive Countermeasures",
+              "detail": "The next amount of heat you would take from a hostile character is reduced to 0. The hostile character takes 2 heat and becomes Impaired until the end of their next turn. This effect does not stack, and lasts until triggered."
+            }
+          ],
+          "detail": "1/round, when you Bolster an allied character, you induce a special cycle in their reactor. They reduce the next amount of heat they would take from a hostile character to 0, and that character takes 2 heat and becomes Impaired until the end of their next turn. This effect does not stack, and lasts until triggered.",
+          "frequency": "1/round",
+          "name": "Aggressive Countermeasures"
+        }
+      ]
+    }
+  ]
+}

@@ -32,6 +32,13 @@ const MAX_ITEMS = 10_000
 class LcpError extends Error {}
 const object = (value: unknown): value is Record<string, Json> => !!value && typeof value === 'object' && !Array.isArray(value)
 
+// COMP/CON's active_effects only reword the rules text (developer decision 2026-11-21), so imports drop them at any depth.
+export function withoutActiveEffects<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(withoutActiveEffects) as T
+  if (!object(value)) return value
+  return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'active_effects').map(([key, v]) => [key, withoutActiveEffects(v)])) as T
+}
+
 export const plainPackText = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
 // Read only the root files used by this character manager. Never extract files onto disk.
@@ -86,7 +93,7 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
       if (typeof value.name !== 'string' || !value.name.trim()) throw new LcpError(`Item ${value.id} in ${filename} needs a name.`)
       if (ids.has(value.id)) throw new LcpError(`Duplicate item ID: ${value.id}.`)
       ids.add(value.id)
-      items.push({ id: value.id, kind, data: value })
+      items.push({ id: value.id, kind, data: withoutActiveEffects(value) })
       if (items.length > MAX_ITEMS) throw new LcpError('A pack can have at most 10,000 items.')
     }
   }
