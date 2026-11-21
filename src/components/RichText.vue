@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { h, type VNode } from 'vue'
 import { RouterLink } from 'vue-router'
-import { sanitiseDoc, type SafeNode } from '../richTextSafe'
+import Icon from './Icon.vue'
+import { GAME_ICONS, sanitiseDoc, type SafeNode } from '../richTextSafe'
 
 // Shows formatted text saved by the editor. It's always cleaned by sanitiseDoc() first, then drawn
 // with plain Vue elements, so text written by other players can't inject anything (see src/richTextSafe.ts).
@@ -11,9 +12,11 @@ const TAGS = { paragraph: 'p', heading: 'h3', bulletList: 'ul', listItem: 'li' }
 
 function draw(node: SafeNode): VNode | string {
   if (node.type === 'hardBreak') return h('br')
+  if (node.type === 'gameIcon') return h('span', { role: 'img', style: { display: 'inline-flex', verticalAlign: '-0.125em' }, 'aria-label': GAME_ICONS.find((icon) => icon.name === node.name)?.label }, h(Icon, { name: node.name }))
   if (node.type !== 'text') return h(TAGS[node.type], node.content.map(draw))
   let out: VNode | string = node.text
-  if (node.size) out = h('span', { style: { fontSize: node.size } }, out)
+  if (node.size || node.color) out = h('span', { style: { fontSize: node.size, color: node.color } }, out)
+  if (node.glitch) out = h('span', { class: 'glitch' }, out)
   if (node.underline) out = h('u', out)
   if (node.italic) out = h('em', out)
   if (node.bold) out = h('strong', out)

@@ -42,26 +42,27 @@ describe('sanitiseDoc', () => {
     ])
   })
 
-  it('keeps colour saved before the colour buttons were removed, but never draws it', () => {
-    const coloured = doc({ type: 'paragraph', content: [text('purple', [{ type: 'textStyle', attrs: { color: 'var(--lilac)', fontSize: null } }])] })
-    // The editor's schema keeps the colour, so saving the field again doesn't drop it...
-    const schema = getSchema(editorExtensions())
-    const loaded = schema.nodeFromJSON(coloured)
-    expect(loaded.toJSON()).toEqual(coloured)
-    // ...but draws the mark without it, in the editor and in the read-only view.
-    const mark = loaded.firstChild!.firstChild!.marks[0]
-    expect(JSON.stringify(mark.type.spec.toDOM!(mark, true))).not.toContain('color')
-    expect(sanitiseDoc(coloured)).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: 'purple' }] }])
+  it('keeps a plain hex colour', () => {
+    const coloured = doc({ type: 'paragraph', content: [text('purple', [{ type: 'textStyle', attrs: { color: '#aa88ff', fontSize: null } }])] })
+    expect(getSchema(editorExtensions()).nodeFromJSON(coloured).toJSON()).toEqual(coloured)
+    expect(sanitiseDoc(coloured)).toEqual([{ type: 'paragraph', content: [{ type: 'text', text: 'purple', color: '#aa88ff' }] }])
   })
 
   it('drops colours and sizes that are not on the list, including attempts to sneak in extra CSS', () => {
-    const [paragraph] = sanitiseDoc(
-      doc({
-        type: 'paragraph',
-        content: [text('x', [{ type: 'textStyle', attrs: { color: 'red; background: url(https://evil.example)', fontSize: '400px' } }])],
-      }),
-    )
-    expect(paragraph).toEqual({ type: 'paragraph', content: [{ type: 'text', text: 'x' }] })
+    for (const color of ['red; background: url(https://evil.example)', 'rgb(1,2,3)', 'red', 'var(--lilac)', '#fff', '#aa88ff;x']) {
+      const [paragraph] = sanitiseDoc(doc({ type: 'paragraph', content: [text('x', [{ type: 'textStyle', attrs: { color, fontSize: '400px' } }])] }))
+      expect(paragraph).toEqual({ type: 'paragraph', content: [{ type: 'text', text: 'x' }] })
+    }
+  })
+
+  it('keeps allowed game icons, extra-small text and the glitch', () => {
+    const nodes = sanitiseDoc(doc({ type: 'paragraph', content: [{ type: 'gameIcon', attrs: { name: 'hp' } }, text('g', [{ type: 'glitch' }, { type: 'textStyle', attrs: { fontSize: '0.75em' } }])] }))
+    expect(nodes).toEqual([{ type: 'paragraph', content: [{ type: 'gameIcon', name: 'hp' }, { type: 'text', text: 'g', glitch: true, size: '0.75em' }] }])
+  })
+
+  it('drops unknown game icons and their extra attributes', () => {
+    const [paragraph] = sanitiseDoc(doc({ type: 'paragraph', content: [{ type: 'gameIcon', attrs: { name: '../evil' } }, { type: 'gameIcon', attrs: { name: 'hp', onclick: 'x' } }] }))
+    expect(paragraph).toEqual({ type: 'paragraph', content: [{ type: 'gameIcon', name: 'hp' }] })
   })
 
   it('drops node types and marks the editor does not offer, like images, links and code', () => {

@@ -2,7 +2,8 @@
 import { EditorContent, useEditor } from '@tiptap/vue-3'
 import { useTemplateRef } from 'vue'
 import { editorExtensions, splitAroundSelection } from '../richText'
-import { loreHref, SIZES } from '../richTextSafe'
+import { GAME_ICONS, loreHref, SIZES } from '../richTextSafe'
+import { makerLogo } from '../archive'
 import Icon from './Icon.vue'
 import ItemPicker from './ItemPicker.vue'
 
@@ -20,6 +21,7 @@ const editor = useEditor({
   onUpdate: ({ editor }) => (doc.value = props.html ? (editor.isEmpty ? '' : editor.getHTML()) : editor.isEmpty ? null : editor.getJSON()),
 })
 
+const XSMALL = SIZES.xsmall
 const SMALL = SIZES.small
 const LARGE = SIZES.large
 
@@ -32,6 +34,16 @@ const toggleUnderline = () => chain()?.toggleUnderline().run()
 const split = () => chain()?.command(({ tr }) => !!splitAroundSelection(tr))
 const toggleList = () => split()?.toggleBulletList().run()
 const toggleHeading = () => split()?.toggleHeading({ level: 3 }).run()
+const setColour = (e: Event) => chain()?.setColor((e.target as HTMLInputElement).value).run()
+const toggleGlitch = () => chain()?.toggleMark('glitch').run()
+// HORUS's own logo (a bundled shape), drawn like the other tools' symbols.
+const glitchLogo = makerLogo({ id: 'HORUS' } as Parameters<typeof makerLogo>[0]) ?? undefined
+const iconPicker = useTemplateRef('iconPicker')
+const insertIcon = (name: string | number) => {
+  chain()?.insertContent({ type: 'gameIcon', attrs: { name } }).run()
+  iconPicker.value?.close()
+}
+const iconOptions = GAME_ICONS.map((icon) => ({ id: icon.name, name: icon.label }))
 const setSize = (size?: string) => (size ? chain()?.setFontSize(size) : chain()?.unsetFontSize())?.run()
 
 // The link button: on plain selected text it asks which entry to link to; on a link it takes the link off.
@@ -45,7 +57,7 @@ const linkTo = (id: string) => {
 
 // Which buttons show as pressed, for the text where the cursor is.
 const is = (name: string, attrs?: Record<string, unknown>) => editor.value?.isActive(name, attrs) ?? false
-const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textStyle', { fontSize: LARGE })
+const isNormalSize = () => !is('textStyle', { fontSize: XSMALL }) && !is('textStyle', { fontSize: SMALL }) && !is('textStyle', { fontSize: LARGE })
 </script>
 
 <template>
@@ -58,9 +70,18 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
         <button type="button" class="tool mark" aria-label="Underline" title="Underline" :aria-pressed="is('underline')" @click="toggleUnderline"><u>U</u></button>
       </span>
       <span v-if="!basic" class="group">
+        <button type="button" class="tool" aria-label="Extra-small text" title="Extra-small text" :aria-pressed="is('textStyle', { fontSize: XSMALL })" @click="setSize(XSMALL)">XS</button>
         <button type="button" class="tool" aria-label="Small text" title="Small text" :aria-pressed="is('textStyle', { fontSize: SMALL })" @click="setSize(SMALL)">S</button>
         <button type="button" class="tool" aria-label="Normal text" title="Normal text" :aria-pressed="isNormalSize()" @click="setSize()">M</button>
         <button type="button" class="tool" aria-label="Large text" title="Large text" :aria-pressed="is('textStyle', { fontSize: LARGE })" @click="setSize(LARGE)">L</button>
+      </span>
+      <span v-if="!basic" class="group">
+        <input type="color" class="tool colour" aria-label="Text colour" title="Text colour" :value="editor?.getAttributes('textStyle').color ?? '#ffffff'" @input="setColour" />
+        <button type="button" class="tool" aria-label="Clear colour" title="Clear colour" @click="chain()?.unsetColor().run()">Clear</button>
+      </span>
+      <span v-if="!basic" class="group">
+        <button type="button" class="tool" aria-label="Glitch" title="Glitch" :aria-pressed="is('glitch')" @click="toggleGlitch"><Icon :src="glitchLogo" /></button>
+        <button type="button" class="tool" aria-label="Insert game icon" title="Insert game icon" @click="iconPicker?.open()"><Icon name="range" /></button>
       </span>
       <span class="group">
         <button type="button" class="tool" aria-label="Bullet list" title="Bullet list" :aria-pressed="is('bulletList')" @click="toggleList"><Icon name="list" /></button>
@@ -79,6 +100,7 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
       </span>
     </div>
     <EditorContent :editor="editor" />
+    <ItemPicker v-if="!basic" ref="iconPicker" title="Add game icon" :options="iconOptions" empty="No game icons." @choose="insertIcon" />
     <ItemPicker v-if="links" ref="picker" title="Link entry" :options="links" empty="No other entries to link." @choose="linkTo" />
   </div>
 </template>
@@ -135,6 +157,7 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
 @media (max-width: 30rem) {
   .toolbar { gap: var(--space-xs); }
   .tool { min-width: 34px; padding: 0; }
+  .tool.colour { width: 34px; }
 }
 
 .tool:focus-visible {
@@ -144,6 +167,27 @@ const isNormalSize = () => !is('textStyle', { fontSize: SMALL }) && !is('textSty
 .tool .icon {
   width: 18px;
   height: 18px;
+}
+
+.tool.colour:focus-visible {
+  outline: 2px solid var(--lilac);
+}
+
+.tool.colour {
+  height: var(--tap);
+  padding: var(--space-xs);
+  background: transparent;
+  cursor: pointer;
+}
+
+/* A game symbol in the writing area: 1em, in the text colour (RichText.vue draws the same with Icon.vue). */
+.editor :deep(.game-icon) {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  background: currentColor;
+  mask: center / contain no-repeat;
 }
 
 .tool.mark {

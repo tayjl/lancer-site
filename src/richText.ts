@@ -1,20 +1,33 @@
 // The rich-text editor's TipTap setup. What it saves is cleaned and read back by src/richTextSafe.ts.
-import { Extension, type Extensions } from '@tiptap/vue-3'
+import { Mark, Node, type Extensions } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import { FontSize, TextStyle } from '@tiptap/extension-text-style'
+import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style'
+import { iconUrl } from './icons'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { ResolvedPos } from '@tiptap/pm/model'
 
-// Text colour is no longer offered: each colour has one meaning site-wide. Colour saved before then stays in the
-// document (the attribute is kept, so the editor doesn't drop it on the next save) but is drawn as normal text.
-const SavedColour = Extension.create({
-  name: 'savedColour',
-  addGlobalAttributes: () => [
-    { types: ['textStyle'], attributes: { color: { default: null, parseHTML: () => null, renderHTML: () => ({}) } } },
+// The HORUS glitch: text that flickers (the global .glitch class, which stills for reduced motion).
+const Glitch = Mark.create({
+  name: 'glitch',
+  parseHTML: () => [{ tag: 'span[data-glitch]' }],
+  renderHTML: () => ['span', { 'data-glitch': '', class: 'glitch' }, 0],
+})
+
+// A LANCER symbol in the text: one inline, unsplittable item. The editor draws it as a mask in the text colour, like Icon.vue.
+const GameIcon = Node.create({
+  name: 'gameIcon',
+  inline: true,
+  group: 'inline',
+  atom: true,
+  addAttributes: () => ({ name: { default: null } }),
+  parseHTML: () => [{ tag: 'span[data-icon]', getAttrs: (el) => ({ name: (el as HTMLElement).dataset.icon }) }],
+  renderHTML: ({ node }) => [
+    'span',
+    { 'data-icon': node.attrs.name, class: 'game-icon', style: `mask-image: url(${JSON.stringify(iconUrl(String(node.attrs.name)) ?? '')})` },
   ],
 })
 
-// The editor's extensions (RichTextEditor.vue): bold, italic, underline, three sizes, bullet lists and small
+// The editor's extensions (RichTextEditor.vue): bold, italic, underline, four sizes, free text colour, the glitch and game icons, bullet lists and small
 // headings. Everything else StarterKit offers is off, so the editor can only produce what RichText.vue shows.
 // The lore editor adds links to other lore entries (and nothing else). The mark never opens, auto-detects or
 // auto-converts anything: a link only exists when a GM picks an entry for the selected text.
@@ -31,7 +44,9 @@ export const editorExtensions = (links = false): Extensions => [
   }),
   TextStyle,
   FontSize,
-  SavedColour,
+  Color,
+  Glitch,
+  GameIcon,
 ]
 
 // The heading and list buttons change whole blocks, so with part of a paragraph selected this first cuts the block(s)
