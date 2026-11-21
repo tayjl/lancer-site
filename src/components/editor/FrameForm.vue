@@ -140,7 +140,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
       </div>
     </Field>
     <Field block label="Description" hint="Flavour text.">
-      <RichTextEditor label="Frame description" html basic v-model="description" />
+      <RichTextEditor label="Frame description" html v-model="description" />
     </Field>
   </FoldPanel>
 
@@ -193,7 +193,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
           </Field>
         </div>
         <Field block label="Rules text">
-          <RichTextEditor :label="`Trait ${index + 1} rules text`" html basic :model-value="String(item.description ?? '')" @update:model-value="change({ description: $event })" />
+          <RichTextEditor :label="`Trait ${index + 1} rules text`" html :model-value="String(item.description ?? '')" @update:model-value="change({ description: $event })" />
         </Field>
         <Field block label="Actions">
           <ActionListField :model-value="list<Data>(item.actions)" :path="`traits.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />

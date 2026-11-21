@@ -67,7 +67,7 @@ async function remove(entry: TimelineEntry) {
       </div>
       <div class="details">
         <span class="label">Details (optional)</span>
-        <RichTextEditor :key="formKey" v-model="body" label="Details" basic />
+        <RichTextEditor :key="formKey" v-model="body" label="Details" />
       </div>
       <p v-if="form.error" class="error" role="alert">Not saved: {{ form.error }}</p>
       <div class="row buttons">

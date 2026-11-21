@@ -42,4 +42,21 @@ describe('rules text', () => {
     expect(firstLine(parseRules('One.<br>Two.'))).toEqual(['One.'])
     expect(firstLine(parseRules('<i>Just one.</i>'))).toEqual([{ tag: 'i', children: ['Just one.'] }])
   })
+
+  it('keeps allowed sizes, colours, glitch, icons and headings', () => {
+    expect(parseRules('<h3>Title</h3><span style="font-size: 0.75em; color:#FF00aa">x</span><span data-glitch="">g</span><span data-icon="burn"></span>')).toEqual([
+      { tag: 'h3', children: ['Title'] },
+      { tag: 'span', children: ['x'], size: '0.75em', color: '#FF00aa' },
+      { tag: 'span', children: ['g'], glitch: true },
+      { tag: 'icon', name: 'burn' },
+    ])
+  })
+
+  it('drops other styles, unknown icons and other attributes', () => {
+    expect(parseRules('<span style="color:#ff0000;background:url(x)">a</span>')).toEqual([{ tag: 'span', children: ['a'], color: '#ff0000' }])
+    expect(parseRules('<span style="color:red">a</span><span style="font-size:99px">b</span>')).toEqual(['a', 'b'])
+    expect(parseRules('<span style="color: rgb(255, 0, 16);">a</span>')).toEqual([{ tag: 'span', children: ['a'], color: '#ff0010' }])
+    expect(parseRules('<span style="color: rgb(256, 0, 0)">a</span><span style="color: rgba(1, 2, 3, 0.5)">b</span>')).toEqual(['a', 'b'])
+    expect(parseRules('<span data-icon="nope" onclick="x" class="glitch" href="y">c</span>')).toEqual(['c'])
+  })
 })

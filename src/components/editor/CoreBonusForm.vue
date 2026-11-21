@@ -45,11 +45,11 @@ const grants = computed(() => list<string>(model.value.integrated).length + list
   </FoldPanel>
 
   <FoldPanel title="Rules" :summary="filled([['Effect', effect], ['Mounted effect', mounted], ['Description', description]])" :paths="['effect', 'mounted_effect', 'description']">
-    <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
+    <Field block label="Effect"><RichTextEditor label="Effect" html v-model="effect" /></Field>
     <Field block label="Mounted effect">
-      <RichTextEditor label="Mounted effect" html basic v-model="mounted" />
+      <RichTextEditor label="Mounted effect" html v-model="mounted" />
     </Field>
-    <Field block label="Description" hint="Flavour text."><RichTextEditor label="Description" html basic v-model="description" /></Field>
+    <Field block label="Description" hint="Flavour text."><RichTextEditor label="Description" html v-model="description" /></Field>
   </FoldPanel>
 
   <FoldPanel title="Effects" :summary="bonuses.length ? plural(bonuses.length, 'effect') : 'Empty'" :paths="['bonuses']">

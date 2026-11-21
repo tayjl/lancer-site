@@ -26,13 +26,13 @@ const optional = (value: unknown) => (value as string) || undefined
 <template>
   <Field label="Name" path="core_system.name"><input type="text" autocomplete="off" :value="val('name')" @input="set({ name: input($event) })" /></Field>
   <Field block label="Lore" hint="Flavour text.">
-    <RichTextEditor label="Core system lore" html basic :model-value="val('description')" @update:model-value="set({ description: optional($event) })" />
+    <RichTextEditor label="Core system lore" html :model-value="val('description')" @update:model-value="set({ description: optional($event) })" />
   </Field>
 
   <h4 class="label sub">Passive</h4>
   <Field label="Passive name"><input type="text" autocomplete="off" :value="val('passive_name')" @input="set({ passive_name: optional(input($event)) })" /></Field>
   <Field block label="Passive rules">
-    <RichTextEditor label="Core passive rules" html basic :model-value="val('passive_effect')" @update:model-value="set({ passive_effect: optional($event) })" />
+    <RichTextEditor label="Core passive rules" html :model-value="val('passive_effect')" @update:model-value="set({ passive_effect: optional($event) })" />
   </Field>
   <Field block label="Passive actions">
     <ActionListField :model-value="list<Data>('passive_actions')" path="core_system.passive_actions" label="Passive action" @update:model-value="set({ passive_actions: clean($event) })" />
@@ -69,7 +69,7 @@ const optional = (value: unknown) => (value as string) || undefined
     </Field>
   </div>
   <Field block label="Power rules">
-    <RichTextEditor label="Core power rules" html basic :model-value="val('active_effect')" @update:model-value="set({ active_effect: $event })" />
+    <RichTextEditor label="Core power rules" html :model-value="val('active_effect')" @update:model-value="set({ active_effect: $event })" />
   </Field>
   <Field block label="Power actions">
     <ActionListField :model-value="list<Data>('active_actions')" path="core_system.active_actions" label="Power action" @update:model-value="set({ active_actions: clean($event) })" />

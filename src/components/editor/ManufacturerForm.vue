@@ -58,7 +58,7 @@ const description = f.text('description')
   </FoldPanel>
 
   <FoldPanel title="Text" :summary="filled([['Motto', quote], ['Description', description]])" :paths="['quote', 'description']">
-    <Field block label="Motto"><RichTextEditor label="Motto" html basic v-model="quote" /></Field>
-    <Field block label="Description"><RichTextEditor label="Description" html basic v-model="description" /></Field>
+    <Field block label="Motto"><RichTextEditor label="Motto" html v-model="quote" /></Field>
+    <Field block label="Description"><RichTextEditor label="Description" html v-model="description" /></Field>
   </FoldPanel>
 </template>

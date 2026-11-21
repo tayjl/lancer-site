@@ -30,6 +30,6 @@ const hidden = f.flag('hidden')
   </FoldPanel>
 
   <FoldPanel title="What it means" :summary="filled([['Rules text', description]])" :paths="['description']">
-    <RichTextEditor label="What the tag means" html basic v-model="description" />
+    <RichTextEditor label="What the tag means" html v-model="description" />
   </FoldPanel>
 </template>

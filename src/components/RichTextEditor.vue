@@ -10,9 +10,8 @@ import ItemPicker from './ItemPicker.vue'
 // The paragraph editor (extensions in src/richText.ts). The value is TipTap's JSON document, or null when empty.
 const doc = defineModel<unknown>()
 // "links" (only the lore editor sets it) adds a "Link to entry" button, with these entries to pick from.
-// "html" (the content editor's rules text) makes the value an HTML string, "" when empty, as game data has it; "basic"
-// leaves out the sizes and headings, so it only writes what RulesText.vue shows (bold, italic, underline, lists).
-const props = defineProps<{ label: string; links?: { id: string; name: string; meta?: string; text?: string }[]; html?: boolean; basic?: boolean }>()
+// "html" (the content editor's rules text) makes the value an HTML string, "" when empty, as game data has it.
+const props = defineProps<{ label: string; links?: { id: string; name: string; meta?: string; text?: string }[]; html?: boolean }>()
 
 const editor = useEditor({
   content: (doc.value as object | null) ?? '',
@@ -69,23 +68,23 @@ const isNormalSize = () => !is('textStyle', { fontSize: XSMALL }) && !is('textSt
         <button type="button" class="tool mark" aria-label="Italic" title="Italic" :aria-pressed="is('italic')" @click="toggleItalic"><em>I</em></button>
         <button type="button" class="tool mark" aria-label="Underline" title="Underline" :aria-pressed="is('underline')" @click="toggleUnderline"><u>U</u></button>
       </span>
-      <span v-if="!basic" class="group">
+      <span class="group">
         <button type="button" class="tool" aria-label="Extra-small text" title="Extra-small text" :aria-pressed="is('textStyle', { fontSize: XSMALL })" @click="setSize(XSMALL)">XS</button>
         <button type="button" class="tool" aria-label="Small text" title="Small text" :aria-pressed="is('textStyle', { fontSize: SMALL })" @click="setSize(SMALL)">S</button>
         <button type="button" class="tool" aria-label="Normal text" title="Normal text" :aria-pressed="isNormalSize()" @click="setSize()">M</button>
         <button type="button" class="tool" aria-label="Large text" title="Large text" :aria-pressed="is('textStyle', { fontSize: LARGE })" @click="setSize(LARGE)">L</button>
       </span>
-      <span v-if="!basic" class="group">
+      <span class="group">
         <input type="color" class="tool colour" aria-label="Text colour" title="Text colour" :value="editor?.getAttributes('textStyle').color ?? '#ffffff'" @input="setColour" />
         <button type="button" class="tool" aria-label="Clear colour" title="Clear colour" @click="chain()?.unsetColor().run()">Clear</button>
       </span>
-      <span v-if="!basic" class="group">
+      <span class="group">
         <button type="button" class="tool" aria-label="Glitch" title="Glitch" :aria-pressed="is('glitch')" @click="toggleGlitch"><Icon :src="glitchLogo" /></button>
         <button type="button" class="tool" aria-label="Insert game icon" title="Insert game icon" @click="iconPicker?.open()"><Icon name="range" /></button>
       </span>
       <span class="group">
         <button type="button" class="tool" aria-label="Bullet list" title="Bullet list" :aria-pressed="is('bulletList')" @click="toggleList"><Icon name="list" /></button>
-        <button v-if="!basic" type="button" class="tool" aria-label="Heading" title="Heading" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading"><Icon name="heading" /></button>
+        <button type="button" class="tool" aria-label="Heading" title="Heading" :aria-pressed="is('heading', { level: 3 })" @click="toggleHeading"><Icon name="heading" /></button>
       </span>
       <span v-if="links" class="group">
         <button
@@ -100,7 +99,7 @@ const isNormalSize = () => !is('textStyle', { fontSize: XSMALL }) && !is('textSt
       </span>
     </div>
     <EditorContent :editor="editor" />
-    <ItemPicker v-if="!basic" ref="iconPicker" title="Add game icon" :options="iconOptions" empty="No game icons." @choose="insertIcon" />
+    <ItemPicker ref="iconPicker" title="Add game icon" :options="iconOptions" empty="No game icons." @choose="insertIcon" />
     <ItemPicker v-if="links" ref="picker" title="Link entry" :options="links" empty="No other entries to link." @choose="linkTo" />
   </div>
 </template>

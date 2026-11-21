@@ -3,6 +3,7 @@ import { Mark, Node, type Extensions } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style'
 import { iconUrl } from './icons'
+import { GAME_ICONS } from './richTextSafe'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import type { ResolvedPos } from '@tiptap/pm/model'
 
@@ -21,10 +22,16 @@ const GameIcon = Node.create({
   atom: true,
   addAttributes: () => ({ name: { default: null } }),
   parseHTML: () => [{ tag: 'span[data-icon]', getAttrs: (el) => ({ name: (el as HTMLElement).dataset.icon }) }],
-  renderHTML: ({ node }) => [
-    'span',
-    { 'data-icon': node.attrs.name, class: 'game-icon', style: `mask-image: url(${JSON.stringify(iconUrl(String(node.attrs.name)) ?? '')})` },
-  ],
+  // Saved as the name only (a built asset url must never end up in game data); the editor draws it in the node view.
+  renderHTML: ({ node }) => ['span', { 'data-icon': node.attrs.name }],
+  addNodeView: () => ({ node }) => {
+    const dom = document.createElement('span')
+    dom.className = 'game-icon'
+    dom.contentEditable = 'false'
+    dom.style.maskImage = `url(${JSON.stringify(iconUrl(String(node.attrs.name)) ?? '')})`
+    dom.setAttribute('aria-label', GAME_ICONS.find((icon) => icon.name === node.attrs.name)?.label ?? '')
+    return { dom }
+  },
 })
 
 // The editor's extensions (RichTextEditor.vue): bold, italic, underline, four sizes, free text colour, the glitch and game icons, bullet lists and small

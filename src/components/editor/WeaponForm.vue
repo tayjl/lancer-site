@@ -90,16 +90,16 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
           <TagListField :model-value="list<TagEntry>(item.tags)" :tags="tags" :path="`profiles.${index}.tags`" @update:model-value="change({ tags: clean($event) })" />
         </Field>
         <Field block label="Rules text" hint="Empty uses the weapon's rules text.">
-          <RichTextEditor :label="`Profile ${index + 1} rules text`" html basic :model-value="String(item.effect ?? '')" @update:model-value="change({ effect: text($event) })" />
+          <RichTextEditor :label="`Profile ${index + 1} rules text`" html :model-value="String(item.effect ?? '')" @update:model-value="change({ effect: text($event) })" />
         </Field>
         <Field block label="On attack">
-          <RichTextEditor :label="`Profile ${index + 1} on attack`" html basic :model-value="String(item.on_attack ?? '')" @update:model-value="change({ on_attack: text($event) })" />
+          <RichTextEditor :label="`Profile ${index + 1} on attack`" html :model-value="String(item.on_attack ?? '')" @update:model-value="change({ on_attack: text($event) })" />
         </Field>
         <Field block label="On hit">
-          <RichTextEditor :label="`Profile ${index + 1} on hit`" html basic :model-value="String(item.on_hit ?? '')" @update:model-value="change({ on_hit: text($event) })" />
+          <RichTextEditor :label="`Profile ${index + 1} on hit`" html :model-value="String(item.on_hit ?? '')" @update:model-value="change({ on_hit: text($event) })" />
         </Field>
         <Field block label="On critical hit">
-          <RichTextEditor :label="`Profile ${index + 1} on critical hit`" html basic :model-value="String(item.on_crit ?? '')" @update:model-value="change({ on_crit: text($event) })" />
+          <RichTextEditor :label="`Profile ${index + 1} on critical hit`" html :model-value="String(item.on_crit ?? '')" @update:model-value="change({ on_crit: text($event) })" />
         </Field>
         <Field block label="Actions" hint="Empty uses the weapon's actions.">
           <ActionListField :model-value="list<Data>(item.actions)" :path="`profiles.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />
@@ -125,11 +125,11 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
   </FoldPanel>
 
   <FoldPanel title="Text" :summary="filled([['Rules text', effect], ['On attack', onAttack], ['On hit', onHit], ['On critical hit', onCrit], ['Lore', description]])" :paths="['effect', 'on_attack', 'on_hit', 'on_crit', 'description']">
-    <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
+    <Field block label="Rules text"><RichTextEditor label="Rules text" html v-model="effect" /></Field>
     <template v-if="!profiles.length">
-      <Field block label="On attack"><RichTextEditor label="On attack" html basic v-model="onAttack" /></Field>
-      <Field block label="On hit"><RichTextEditor label="On hit" html basic v-model="onHit" /></Field>
-      <Field block label="On critical hit"><RichTextEditor label="On critical hit" html basic v-model="onCrit" /></Field>
+      <Field block label="On attack"><RichTextEditor label="On attack" html v-model="onAttack" /></Field>
+      <Field block label="On hit"><RichTextEditor label="On hit" html v-model="onHit" /></Field>
+      <Field block label="On critical hit"><RichTextEditor label="On critical hit" html v-model="onCrit" /></Field>
     </template>
     <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>

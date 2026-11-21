@@ -49,7 +49,7 @@ describe('sanitiseDoc', () => {
   })
 
   it('drops colours and sizes that are not on the list, including attempts to sneak in extra CSS', () => {
-    for (const color of ['red; background: url(https://evil.example)', 'rgb(1,2,3)', 'red', 'var(--lilac)', '#fff', '#aa88ff;x']) {
+    for (const color of ['red; background: url(https://evil.example)', 'rgb(1,2,300)', 'rgba(1,2,3,0.5)', 'red', 'var(--lilac)', '#fff', '#aa88ff;x']) {
       const [paragraph] = sanitiseDoc(doc({ type: 'paragraph', content: [text('x', [{ type: 'textStyle', attrs: { color, fontSize: '400px' } }])] }))
       expect(paragraph).toEqual({ type: 'paragraph', content: [{ type: 'text', text: 'x' }] })
     }

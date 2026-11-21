@@ -14,6 +14,15 @@ export const loreHref = (id: string) => `/lore/${id}`
 
 // Text colour: only a plain #rrggbb ever passes, so no stored value can carry extra CSS.
 const COLOUR = /^#[0-9a-f]{6}$/i
+const RGB = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i
+// A text colour as #rrggbb, or undefined. Browsers can hand back "rgb(255, 0, 0)" for a colour set as hex.
+export function safeColour(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  if (COLOUR.test(value.trim())) return value.trim()
+  const rgb = RGB.exec(value.trim())
+  if (!rgb || rgb.slice(1).some((part) => Number(part) > 255)) return undefined
+  return '#' + rgb.slice(1).map((part) => Number(part).toString(16).padStart(2, '0')).join('')
+}
 
 // The LANCER symbols text may hold (file names in src/assets/icons), for the editor's picker and the sanitiser.
 export const GAME_ICONS = [
@@ -80,7 +89,8 @@ function sanitiseText(text: string, marks: unknown): SafeText {
     if (mark.type === 'glitch') safe.glitch = true
     if (mark.type === 'textStyle' && isObject(mark.attrs)) {
       const { fontSize, color } = mark.attrs
-      if (typeof color === 'string' && COLOUR.test(color)) safe.color = color
+      const colour = safeColour(color)
+      if (colour) safe.color = colour
       if (SIZE_VALUES.includes(fontSize as string)) safe.size = fontSize as string
     }
   }

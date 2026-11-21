@@ -50,7 +50,7 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
       <input v-model="terse" type="text" autocomplete="off" />
     </Field>
     <Field block label="Description" hint="Flavour text.">
-      <RichTextEditor label="Description" html basic v-model="description" />
+      <RichTextEditor label="Description" html v-model="description" />
     </Field>
   </FoldPanel>
 
@@ -70,7 +70,7 @@ const fixRanks = () => (ranks.value = RANK_NAMES.map((_, index) => ranks.value[i
           <input type="text" :value="item.name" autocomplete="off" @input="change({ name: input($event) })" />
         </Field>
         <Field block label="Rules text">
-          <RichTextEditor :label="`Rank ${roman(index)} rules text`" html basic :model-value="String(item.description ?? '')" @update:model-value="change({ description: $event })" />
+          <RichTextEditor :label="`Rank ${roman(index)} rules text`" html :model-value="String(item.description ?? '')" @update:model-value="change({ description: $event })" />
         </Field>
         <Field block label="Actions">
           <ActionListField :model-value="list<Data>(item.actions)" :path="`ranks.${index}.actions`" @update:model-value="change({ actions: clean($event) })" />

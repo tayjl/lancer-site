@@ -68,7 +68,7 @@ const adds = computed(() => [plural(addedRange.value.length, 'range'), plural(ad
   </FoldPanel>
 
   <FoldPanel title="Text" :summary="filled([['Rules text', effect], ['Lore', description]])" :paths="['effect', 'description']">
-    <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
+    <Field block label="Rules text"><RichTextEditor label="Rules text" html v-model="effect" /></Field>
     <Field label="Lore" hint="Flavour text.">
       <textarea v-model="description" rows="3"></textarea>
     </Field>

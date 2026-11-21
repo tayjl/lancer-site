@@ -57,9 +57,9 @@ const price = computed({
   </FoldPanel>
 
   <FoldPanel title="Rules" :summary="filled([['Rules text', effect], ['Description', description]])" :paths="['effect', 'description']">
-    <Field block label="Rules text"><RichTextEditor label="Rules text" html basic v-model="effect" /></Field>
+    <Field block label="Rules text"><RichTextEditor label="Rules text" html v-model="effect" /></Field>
     <Field block label="Description" hint="Shown as the rules when there are none.">
-      <RichTextEditor label="Description" html basic v-model="description" />
+      <RichTextEditor label="Description" html v-model="description" />
     </Field>
   </FoldPanel>
 

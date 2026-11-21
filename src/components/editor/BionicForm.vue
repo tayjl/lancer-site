@@ -98,7 +98,7 @@ const add = () => {
     <Field label="Description" hint="Flavour text.">
       <textarea v-model="description" rows="4"></textarea>
     </Field>
-    <Field block label="Effect"><RichTextEditor label="Effect" html basic v-model="effect" /></Field>
+    <Field block label="Effect"><RichTextEditor label="Effect" html v-model="effect" /></Field>
   </FoldPanel>
 
   <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">

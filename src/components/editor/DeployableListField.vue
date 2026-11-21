@@ -38,7 +38,7 @@ const number = (text: string) => (text.trim() === '' ? undefined : Number(text))
         </Field>
       </div>
       <Field block label="Rules">
-        <RichTextEditor :label="`Deployable ${index + 1} rules`" html basic :model-value="String(item.detail ?? '')" @update:model-value="change({ detail: $event })" />
+        <RichTextEditor :label="`Deployable ${index + 1} rules`" html :model-value="String(item.detail ?? '')" @update:model-value="change({ detail: $event })" />
       </Field>
       <Field block label="Deployable actions">
         <ActionListField :model-value="Array.isArray(item.actions) ? (item.actions as Data[]) : []" :path="`${path}.${index}.actions`" label="Deployable action" @update:model-value="change({ actions: $event.length ? $event : undefined })" />

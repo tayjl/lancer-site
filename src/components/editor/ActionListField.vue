@@ -43,7 +43,7 @@ const where = (index: number, key: string) => `${props.path}.${index}.${key}`
         </Field>
       </div>
       <Field block label="Rules">
-        <RichTextEditor :label="`${label ?? 'Action'} ${index + 1} rules`" html basic :model-value="String(item.detail ?? '')" @update:model-value="change({ detail: $event })" />
+        <RichTextEditor :label="`${label ?? 'Action'} ${index + 1} rules`" html :model-value="String(item.detail ?? '')" @update:model-value="change({ detail: $event })" />
       </Field>
     </template>
   </RepeatList>
