@@ -17,6 +17,7 @@ describe('combat loadout', () => {
     const mounts = everest.mounts.map(mount => (mount === 'Flex' ? ['mw_missile_rack'] : mount === 'Main' ? ['mw_assault_rifle'] : []))
     const { rows, sizes, tagIds, structureRepairs } = combatLoadout({ frame: everest.id, mounts }, {}, catalogue, tagNames)
     expect(rows.filter(row => row.block === 'weapons').map(row => row.label)).toEqual(expect.arrayContaining(['Main Rifle', 'Auxiliary Launcher']))
+    expect(rows.filter(row => row.block === 'weapons').every(row => row.item?.name === row.name)).toBe(true)
     expect([...sizes].sort()).toEqual(['Auxiliary', 'Main'])
     expect(tagIds.has('tg_reliable') && tagIds.has('tg_loading')).toBe(true)
     expect(structureRepairs).toBe(1)

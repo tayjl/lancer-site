@@ -42,7 +42,8 @@ export async function fetchAll<T>(
   const rows: T[] = []
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await page(from, from + PAGE_SIZE - 1)
-    if (error) return { rows: [], error: OFFLINE_MESSAGES.test(error.message) ? OFFLINE : error.message }
+    // An empty message would read as success to the catalogue cache, so it falls back to OFFLINE.
+    if (error) return { rows: [], error: readError(error.message) || OFFLINE }
     rows.push(...(data ?? []))
     if ((data?.length ?? 0) < PAGE_SIZE) return { rows, error: null }
   }

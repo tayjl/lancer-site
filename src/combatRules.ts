@@ -2,29 +2,23 @@
 // An action's "text" is rules text: plain words, or the small HTML RulesText.vue allows (<b>, <i>, lists). Table and
 // glossary strings are plain text. "activation" is an ActionChip word (Quick, Full, Reaction, Free, Overcharge,
 // Protocol, Quick Tech, Full Tech, Invade); leave it out for no chip.
-// Section ids are the #hash and the fold key (src/fileSections.ts, shared with the pilot and mech pages), so keep them
-// unique and stable. The "combat-" prefix keeps them from clashing with those pages' ids.
-export type CombatAction = { name: string; activation?: string; frequency?: string; text: string }
-// tags: the tag ids a TAGS row explains, so the guide can show only the ones on your gear.
-export type CombatRow = { value: string; name?: string; text: string; icon?: string; tags?: string[] } // tables and glossaries
+// "gist" is the one short line a collapsed row shows; a row without one shows its text's first sentence.
+export type CombatAction = { name: string; activation?: string; frequency?: string; gist?: string; text: string }
+// tags: the tag ids a TAGS row explains, so the guide can show only the ones on your gear. short: a narrower value for the
+// value column of a row list, where "7 or less" wouldn't fit.
+export type CombatRow = { value: string; short?: string; name?: string; gist?: string; text: string; icon?: string; tags?: string[] } // tables and lists
 export type CombatFormula = { formula: string; note?: string; example: string }
 
-export const COMBAT_SECTIONS: { id: string; title: string }[] = [
-  { id: 'combat-loadout', title: 'Your loadout' },
-  { id: 'combat-turn', title: 'Your turn' },
-  { id: 'combat-quick', title: 'Quick actions' },
-  { id: 'combat-full', title: 'Full and free actions' },
-  { id: 'combat-reactions', title: 'Reactions' },
-  { id: 'combat-attacks', title: 'Attacks and damage' },
-  { id: 'combat-checks', title: 'Checks and saves' },
-  { id: 'combat-structure', title: 'Structure and stress' },
-  { id: 'combat-repair', title: 'Rest and Full Repair' },
-  { id: 'combat-statuses', title: 'Statuses' },
-  { id: 'combat-movement', title: 'Movement and terrain' },
-  { id: 'combat-range', title: 'Range and areas' },
-  { id: 'combat-foot', title: 'Pilots and drones' },
-  { id: 'combat-weapons', title: 'Weapons and tags' },
-  { id: 'combat-conversions', title: 'Conversions' },
+// The guide's tabs, in order. The id is the url's ?tab=.
+export const COMBAT_TABS: { id: string; label: string }[] = [
+  { id: 'kit', label: 'Your kit' },
+  { id: 'actions', label: 'Actions' },
+  { id: 'attacks', label: 'Attacks' },
+  { id: 'checks', label: 'Checks' },
+  { id: 'statuses', label: 'Statuses' },
+  { id: 'movement', label: 'Movement and range' },
+  { id: 'structure', label: 'Structure' },
+  { id: 'posting', label: 'Posting' },
 ]
 
 export const TURN_ORDER: string[] = [
@@ -191,7 +185,7 @@ export const REPAIRS: CombatRow[] = [
   { value: 'Full Repair', text: 'Downtime between missions, when the GM calls it. Everything returns: HP, Structure, Stress, Repairs, Limited uses, destroyed parts and your Core Power. Overcharge goes back to 1 Heat.' },
 ]
 
-export const STATUSES: CombatRow[] = [
+const STATUS_ROWS: CombatRow[] = [
   { value: 'Barrier-protected', text: "From a Shield. Ranged attacks against you get −2 (1 Difficulty). Melee isn't affected. It doesn't stack with Screened." },
   { value: 'Burn X', text: 'Take X burn damage at the end of your turn, ignoring armour. Then Burn goes down by 1 + half your Engineering (rounded down) until it reaches 0. Stabilize clears it at once.' },
   { value: 'Danger zone', text: "Your Heat is at least half your Heat cap. Danger zone tags work while you're in it." },
@@ -212,6 +206,14 @@ export const STATUSES: CombatRow[] = [
   { value: 'Shutdown', text: "You're Stunned, lose all active system effects, and are immune to tech attacks, until you spend a full action to Boot up." },
   { value: 'Slowed', text: "You can't use Speed gateways (only Standard repositioning) and can't Boost." },
   { value: 'Stunned', text: 'Until the end of your next turn you can take only 1 quick action (no full actions, Movement, Overcharge or reactions). Attacks against you get +2 (1 Accuracy).' },
+]
+
+// Grouped by what they do. "Conditions" is the word Stabilize and Shut down use.
+const statuses = (...names: string[]) => names.map((name) => STATUS_ROWS.find((row) => row.value.startsWith(name))!)
+export const STATUS_GROUPS: { title: string; icon: string; rows: CombatRow[] }[] = [
+  { title: 'Cover and stealth', icon: 'shield', rows: statuses('Barrier-protected', 'Screened', 'Obscured', 'Hidden', 'Invisible', 'Intangible') },
+  { title: 'Conditions', icon: 'warning', rows: statuses('Immobilized', 'Impaired', 'Jammed', 'Lock on', 'Shredded', 'Slowed', 'Stunned') },
+  { title: 'Other statuses', icon: 'info', rows: statuses('Burn X', 'Danger zone', 'Down and out', 'Engaged', 'Exposed', 'Prone', 'Shutdown') },
 ]
 
 export const SPEED_GATEWAYS: CombatRow[] = [
@@ -248,9 +250,9 @@ export const RANGE_BONUSES: CombatRow[] = [
   { value: '+1 to +2 Threat', text: 'Melee only. Make melee attacks and declare Overwatch against targets at Close range (2+) without entering Engagement.' },
 ]
 export const SENSORS: CombatRow[] = [
-  { value: '7 or less', name: 'Short range', text: 'Engaged or Close range only.' },
+  { value: '7 or less', short: '≤7', name: 'Short range', text: 'Engaged or Close range only.' },
   { value: '8–14', name: 'Tactical', text: 'Anywhere in the central firefight (Medium range).' },
-  { value: '15 or more', name: 'Battlefield-wide', text: 'Anywhere in the scene. Ignores Obscured for Lock on and Search.' },
+  { value: '15 or more', short: '15+', name: 'Battlefield-wide', text: 'Anywhere in the scene. Ignores Obscured for Lock on and Search.' },
 ]
 export const AURAS: CombatRow[] = [
   { value: '1–2', text: 'Anyone Engaged with you or sharing your immediate cover.' },
@@ -317,3 +319,33 @@ export const RECHARGE: CombatRow[] = [
   { value: 'Recharge 5+ or 5+', text: 'A 2-turn cooldown, or triggers on a critical hit.' },
   { value: 'Recharge 6 or 6', text: 'A 3-turn cooldown, or once a scene.' },
 ]
+
+// Gists (see CombatRow.gist), set by name or value so the arrays above keep the handbook's wording.
+const gists = (rows: { name?: string; value?: string; gist?: string }[], map: Record<string, string>) =>
+  rows.forEach((row) => { row.gist = map[(row.name ?? row.value)!] ?? row.gist })
+gists(TURN_STEPS, { Protocol: 'Turn on a protocol at the very start of your turn.', Movement: "Move using your mech's Speed.", '1 full action or 2 quick actions': 'Take 1 full action or 2 quick actions.', Overcharge: 'Gain 1 extra quick action for Heat.', Reaction: 'Declare 1 reaction in advance.' })
+gists(SCENE_RESOURCES, { "Lancer's Edge": 'Add +2 to any attack, check or save.', "Lancer's Precision": 'Turn a hit into a critical hit.' })
+gists(QUICK_ACTIONS, {
+  Skirmish: 'Attack with 1 weapon.', Reload: 'Reload one Loading weapon or mount.', 'Lock on': 'Mark a target as Locked on.', Bolster: 'Give an ally +2 on their next check or save.',
+  Hide: "Become Hidden if you're out of sight and not Engaged.", Search: 'Find a Hidden target.', Ram: 'Knock an adjacent target Prone.', Grapple: 'Hold an adjacent target in place.',
+  'Skill check': 'Make a check when the GM calls for one.', 'Shut down': 'Clear all Heat and Exposed, then gain Shutdown.', Eject: 'Throw the pilot clear to Close range.',
+  'Self-destruct': 'Your mech explodes at the end of your next turn.', 'Quick tech': "Choose Invade, Scan, Lock on, Bolster or a system's option.", Invade: 'Tech attack for 2 Heat plus a hacking effect.',
+  'Fragment signal': 'The basic Invade option.', Scan: 'Learn one thing about a target. No roll.',
+})
+gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core Power': "Use your frame's core power." })
+gists([IMPROVISED, JOCKEY, OVERCHARGE], { 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })
+gists(REACTIONS, { Brace: 'Halve the next damaging attack on you.', Overwatch: 'Get a free attack on a target that moves away.', 'Reaction systems': 'Declare them at the end of your turn too.' })
+gists(STATUS_ROWS, {
+  'Barrier-protected': 'Ranged attacks against you get −2.', Screened: 'Ranged attacks against you get −2.', Obscured: 'Attacks from beyond Close get −2. You can Hide.',
+  Invisible: 'Attacks against you get −2. You can Hide in the open.', Intangible: "Physical and tech attacks can't affect you.", Impaired: '−2 on all attacks, checks and saves.',
+  Jammed: 'You can only Move, Boost, Improvised attack, Grapple or Ram.', 'Lock on': 'The next attacker gets +2 against you.', Slowed: "You can't use Speed gateways or Boost.",
+  Stunned: 'You can take only 1 quick action. Attacks against you get +2.', 'Danger zone': 'Your Heat is at least half your Heat cap.', 'Down and out (pilot status)': 'A pilot at 0 HP dies from any more damage.',
+  Engaged: "You're Engaged with anyone at Range 1.", Exposed: 'Kinetic, explosive and energy damage you take is doubled.', Prone: 'Attacks against you get +2. You count as Slowed.',
+  Shutdown: 'Stunned and immune to tech attacks until you Boot up.',
+})
+gists(SPEED_GATEWAYS, { 'Standard repositioning': 'Move around your local area.', 'Cross-field maneuver': 'Cross the main battlefield in one move.', 'Extreme dash': 'Break out of a brawl and cross the field.' })
+gists(TERRAIN, { 'Difficult terrain': 'Crossing it takes 2 off your Speed.', 'Dangerous terrain': 'Entering it or ending your turn in it costs a penalty.' })
+gists(AREAS, { Burst: 'Everyone around you.', Blast: 'The target plus 1 or 2 nearby targets.', Cone: 'Up to 2 or 3 targets in a forward arc.', Line: 'The target plus 1 or 2 targets behind them.' })
+gists(REPAIRS, { Rest: 'A short break between scenes.', 'Full Repair': 'Downtime between missions. Everything returns.' })
+gists(TAGS, { Loading: 'Fires once, then needs a Reload or Stabilize.', 'Reliable X': 'Deals X damage even on a miss.', Seeking: "Ignores cover, but can't hit Obscured targets." })
+gists(WEAPON_SIZES, { Auxiliary: 'Light weapons. Two on a mount fire together.' })

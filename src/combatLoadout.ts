@@ -1,7 +1,7 @@
 import { OVERCHARGE_HEAT } from './combatRules'
 import { equippedGear, LOADOUT, type Item } from './gameData'
 import { cardRules, itemDetails, type ItemRule, type ItemStat } from './itemDetails'
-import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mountSize, type EffectCatalogue, type Frame } from './mechData'
+import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame } from './mechData'
 import type { MechPrivate, Sheet } from './myPilot'
 import { selectWeaponProfile } from './equipment'
 import { capitalise } from './text'
@@ -19,7 +19,8 @@ export type LoadoutRow = {
   tags: string[]
   html: string
   rules: ItemRule[]
-  mods: { name: string; html: string; tags: string[] }[]
+  mods: { name: string; html: string; tags: string[]; item: Item }[]
+  item?: Item
 }
 
 const BLOCK_OF: Partial<Record<string, LoadoutBlock>> = { frame: 'frame', trait: 'frame', core: 'frame', 'core-power': 'frame', talent: 'talents', 'core-bonus': 'core-bonuses' }
@@ -41,7 +42,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     const rules = cardRules(item)
     item.tags.forEach(tag => tagIds.add(tag.id))
     rules.forEach(rule => needs(rule.activation))
-    return { block, label, name: item.name, stats: keep(stats, kinds), tags, html: text, rules, mods: [] }
+    return { block, label, name: item.name, stats: keep(stats, kinds), tags, html: text, rules, mods: [], item }
   }
 
   if (frame) {
@@ -57,7 +58,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
         const { tags, text } = itemDetails(mod, tagNames)
         mod.tags.forEach(tag => tagIds.add(tag.id))
         tagIds.add('tg_mod')
-        row.mods.push({ name: mod.name, html: text, tags })
+        row.mods.push({ name: mod.name, html: text, tags, item: mod })
       }
       if (item.mount) sizes.add(item.mount)
       rows.push(row)
@@ -91,7 +92,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     const slot = item && LOADOUT.find(slot => slot.type === item.type)?.label
     if (item) rows.push(itemRow('gear', item, slot && slot.toLowerCase() !== 'pilot gear' ? capitalise(slot) : undefined, ['range', 'damage', 'bonus']))
   }
-  return { rows, missing, tagIds, sizes, structureRepairs: resources.structureRepairs, frame }
+  return { rows, missing, tagIds, sizes, structureRepairs: resources.structureRepairs, frame, overcharge: resources.overcharge, stats: mechStats(frame, sheet.mech_skills, effects.modifiers) }
 }
 
 const catalogueItem = (own: Map<string, Item>, catalogue: EffectCatalogue, id: string) => own.get(id) ?? catalogue.integrated.get(id)

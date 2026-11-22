@@ -1,41 +1,44 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ActionChip from '../components/ActionChip.vue'
+import gritIcon from '../assets/icons/skill.svg'
 import { catalogueError } from '../catalogue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
-import FileIndex from '../components/FileIndex.vue'
-import FileSection from '../components/FileSection.vue'
+import CombatGroup from '../components/CombatGroup.vue'
+import CombatTurn from '../components/CombatTurn.vue'
 import Icon from '../components/Icon.vue'
-import InfoRule from '../components/InfoRule.vue'
 import PageHeader from '../components/PageHeader.vue'
+import SheetTabs from '../components/SheetTabs.vue'
 import { searchWords } from '../archive'
+import { actionEntry, firstSentence, plainEntry, rowEntry, turnEntries, type CombatEntry } from '../combatEntries'
 import { combatLoadout, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
 import {
-  ATTACK_EXTRAS, AREAS, ATTACK_FORMULAS, ATTACK_RESULTS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, COMBAT_SECTIONS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DAMAGE_TYPES,
+  ATTACK_EXTRAS, AREAS, ATTACK_FORMULAS, ATTACK_RESULTS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, COMBAT_TABS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DAMAGE_TYPES,
   DEFENCES, DICE, DICE_NOTE, DRONES_NOTE, FOOT_RULES, FULL_ACTIONS, IMPROVISED, JOCKEY, KNOCKBACK, KNOCKBACK_NOTE, MOVEMENT_NOTE, OVERCHARGE, OVERCHARGE_HEAT, OVERCHARGE_LATER,
   PILOT_CHECKS_NOTE, PILOT_DCS, POST_FOOTER, POST_NOTES, PUSHING_THROUGH, QUICK_ACTIONS, RANGE_BONUSES, RANGE_TALENTS, RANGE_TIERS, REACTIONS, REACTIONS_NOTE, RECHARGE, REPAIRS,
-  RESOURCES_NOTE, RESULTS_NOTE, SCENE_RESOURCES, SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STATUSES, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TAGS, TERRAIN,
-  TURN_ORDER, TURN_STEPS, WEAPON_SIZES,
+  RESULTS_NOTE, SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STATUS_GROUPS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TAGS, TERRAIN, TURN_ORDER, WEAPON_SIZES,
+  type CombatAction,
 } from '../combatRules'
 import { tagNames } from '../gameData'
+import { itemInfo, type Info } from '../info'
+import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useCatalogue } from '../rules'
 import { plainText } from '../rulesText'
 
-// The combat guide: what you can do on your turn, read-only. The text is in src/combatRules.ts. Sections use the
-// pilot file's numbered sections and sticky index. The first section is your own loadout (src/combatLoadout.ts), and
-// "Weapons and tags" shows only the sizes and tags on that gear. One search box looks through every rule on the page.
+// The combat guide: what you can do on your turn, read-only. The text is in src/combatRules.ts. A summary of your turn
+// (CombatTurn.vue) sits beside the tabs on a desktop and on the first two tabs on a phone. Each tab is cards of rows
+// (CombatGroup.vue): rules open in place, your own kit opens its full information (src/combatLoadout.ts, the same
+// as the mech page). One search box looks through every row of every tab.
 const route = useRoute()
 const router = useRouter()
-const ordinals = ['1st', '2nd', '3rd', '4th']
 // The last track step is "Blow up. The mech is wrecked.": its first sentence is shown bold.
 const lead = (text: string) => text.split('. ')[0] + '.'
 const rest = (text: string) => text.slice(lead(text).length).trim()
 
 // Your living pilot as a GM approved it: what's in play, not a change still in draft.
-const { character, sheet, approved, loading, loadError, load } = useMyPilot()
+const { character, sheet, approved, loading, loadError, load, gm } = useMyPilot()
 const catalogue = useCatalogue()
 const live = computed(() => approved.value ?? { character: character.value, sheet: sheet.value })
 const mechList = computed(() => (Array.isArray(live.value.character?.mechs) ? live.value.character.mechs : []) as unknown as PublicMech[])
@@ -47,102 +50,209 @@ const loadout = computed(() =>
     ? combatLoadout((mech.value && live.value.sheet.mechs?.[mech.value.id]) || {}, live.value.sheet, catalogue.value, tagNames.value)
     : null,
 )
-const BLOCKS: { key: LoadoutBlock; title: string }[] = [
-  { key: 'weapons', title: 'Weapons' },
-  { key: 'systems', title: 'Systems' },
-  { key: 'frame', title: 'Frame' },
-  { key: 'talents', title: 'Talents' },
-  { key: 'core-bonuses', title: 'Core bonuses' },
-  { key: 'gear', title: 'Pilot gear' },
-]
+const frame = computed(() => loadout.value?.frame ?? null)
+// The mech's key numbers for the summary, with the pilot's Grit. None without a frame.
+const vitals = computed(() => {
+  const l = loadout.value
+  if (!l?.frame) return []
+  const stats = ['hp', 'heat', 'armour', 'evasion', 'speed', 'edef', 'tech_attack'].map((id) => l.stats.find((stat) => stat.id === id)!)
+  return [...stats, { id: 'grit', name: 'Grit', icon: gritIcon, value: Math.ceil(gm.value.level / 2) }]
+})
+const overcharge = computed(() => (loadout.value?.frame ? loadout.value.overcharge : null))
 
-// Search: every word must appear somewhere in a row. A matching section title shows the whole section, a matching
-// block heading or note the whole block, otherwise only the matching rows.
+// The tabs. The url holds the tab (?tab=actions, left out for the first) beside ?mech=.
+const urlTab = computed(() => COMBAT_TABS.find((tab) => tab.id === route.query.tab) ?? COMBAT_TABS[0])
+const tabBar = useTemplateRef<HTMLElement>('tabBar')
+const panel = useTemplateRef<HTMLElement>('panel')
+// Searching shows "All" until a tab is picked.
+const picked = ref(false)
+const view = computed<string>({
+  get: () => (searching.value && !picked.value ? 'All' : urlTab.value.label),
+  set: (label) => {
+    picked.value = label !== 'All'
+    const id = COMBAT_TABS.find((tab) => tab.label === label)?.id
+    if (id) router.replace({ query: { ...route.query, tab: id === COMBAT_TABS[0].id ? undefined : id }, hash: route.hash })
+    // A new tab starts at its top, not wherever the last one was scrolled to.
+    nextTick(() => {
+      const gap = (panel.value?.getBoundingClientRect().top ?? 0) - (tabBar.value?.getBoundingClientRect().bottom ?? 0)
+      if (gap < 0) window.scrollBy({ top: gap })
+    })
+  },
+})
+
+// Search: every word must appear somewhere in a row. A matching tab label keeps the whole tab, a matching card title or
+// note the whole card; otherwise only the matching rows.
 const query = ref('')
 const searchBox = useTemplateRef<HTMLInputElement>('searchBox')
 const words = computed(() => searchWords(query.value))
 const searching = computed(() => words.value.length > 0)
-const flat = (value: unknown): string[] => (Array.isArray(value) ? value.flatMap(flat) : value && typeof value === 'object' ? Object.values(value).flatMap(flat) : value == null ? [] : [String(value)])
+watch(searching, () => (picked.value = false))
+const flat = (value: unknown): string[] => (Array.isArray(value) ? value.flatMap(flat) : value && typeof value === 'object' ? Object.values(value).flatMap(flat) : typeof value === 'string' || typeof value === 'number' ? [String(value)] : [])
 const hit = (...parts: unknown[]) => {
   const text = plainText(flat(parts).join(' ')).toLowerCase()
   return words.value.every((word) => text.includes(word))
 }
-const rowsFor = (id: string) => {
-  const all = searching.value && hit(COMBAT_SECTIONS.find((sec) => sec.id === id)?.title)
-  return <T,>(rows: T[], ...context: unknown[]) => (!searching.value || all || hit(context) ? rows : rows.filter((row) => hit(row)))
-}
+const shownText = (e: CombatEntry) => [e.name, e.value, e.label, e.gist, e.tag, e.tags, e.frequency, e.heat]
 
-// Trimming: with a mech and its frame loaded, only the weapon sizes and tags on your gear. "Show all rules" lifts it,
+// Trimming: with a mech and its frame loaded, only the weapon sizes and tags on your gear. "Show all tags" lifts it,
 // and so does searching.
 const showAll = ref(false)
 const canTrim = computed(() => !!loadout.value?.frame)
-const trimmed = computed(() => canTrim.value && !showAll.value)
-const gearSizes = computed(() => (trimmed.value ? WEAPON_SIZES.filter((row) => loadout.value!.sizes.has(row.value)) : WEAPON_SIZES))
-const gearTags = computed(() => (trimmed.value ? TAGS.filter((row) => row.tags?.some((id) => loadout.value!.tagIds.has(id))) : TAGS))
-// Everest: "Lodestar: 1 Repair restores 1 Structure."
-const repairs = computed(() => {
-  const n = loadout.value?.structureRepairs
-  return loadout.value?.frame && mech.value ? [...REPAIRS, { value: mech.value.name, text: `${n} ${n === 1 ? 'Repair restores' : 'Repairs restore'} 1 Structure.` }] : REPAIRS
-})
+const trimmed = computed(() => canTrim.value && !showAll.value && !searching.value)
 
-// The rows to draw in each block, by section (its id without "combat-").
-const shown = computed(() => {
-  const turn = rowsFor('combat-turn'), quick = rowsFor('combat-quick'), full = rowsFor('combat-full'), reactions = rowsFor('combat-reactions'), attacks = rowsFor('combat-attacks')
-  const checks = rowsFor('combat-checks'), structure = rowsFor('combat-structure'), repair = rowsFor('combat-repair'), statuses = rowsFor('combat-statuses')
-  const movement = rowsFor('combat-movement'), range = rowsFor('combat-range'), foot = rowsFor('combat-foot'), weapons = rowsFor('combat-weapons'), conversions = rowsFor('combat-conversions')
-  const mine = rowsFor('combat-loadout')
-  return {
-    loadout: Object.fromEntries(BLOCKS.map(({ key, title }) => [key, mine(loadout.value?.rows.filter((row) => row.block === key) ?? [], title)])) as Record<LoadoutBlock, LoadoutRow[]>,
-    turn: {
-      order: turn(TURN_ORDER, 'Turn order'),
-      steps: turn(TURN_STEPS),
-      resources: turn(SCENE_RESOURCES, 'Scene resources', RESOURCES_NOTE),
-      post: turn([...POST_NOTES, POST_FOOTER], 'Your post', 'Example footer'),
-    },
-    quick: { quick: quick(QUICK_ACTIONS) },
-    full: { full: full(FULL_ACTIONS), overcharge: full([OVERCHARGE], OVERCHARGE_LATER, 'Heat') },
-    reactions: { reactions: reactions(REACTIONS, REACTIONS_NOTE) },
-    attacks: {
-      formulas: attacks(ATTACK_FORMULAS),
-      results: attacks(ATTACK_RESULTS, 'Results', RESULTS_NOTE),
-      damage: attacks(DAMAGE_FORMULAS, 'Damage', DAMAGE_TYPES),
-      defences: attacks(DEFENCES, 'Defence baselines'),
-      extras: attacks(ATTACK_EXTRAS, 'More attack rules'),
-      improvised: attacks([IMPROVISED], 'More attack rules'),
-    },
-    checks: {
-      formulas: checks(CHECK_FORMULAS),
-      results: checks(CHECK_RESULTS),
-      dcs: checks(PILOT_DCS, 'Pilot checks', PILOT_CHECKS_NOTE),
-      pushing: checks([PUSHING_THROUGH], 'Pushing through'),
-    },
-    structure: { triggers: structure(STRUCTURE_TRIGGERS), track: structure(STRUCTURE_STRESS, 'Structure', 'Stress'), note: structure([STRUCTURE_NOTE]) },
-    repair: { repairs: repair(repairs.value) },
-    statuses: { statuses: statuses(STATUSES) },
-    movement: { gateways: movement(SPEED_GATEWAYS, 'Speed', MOVEMENT_NOTE), terrain: movement(TERRAIN, 'Terrain'), knockback: movement(KNOCKBACK, 'Knockback', KNOCKBACK_NOTE) },
-    range: {
-      tiers: range(RANGE_TIERS, 'Range'),
-      areas: range(AREAS, 'Areas'),
-      bonuses: range(RANGE_BONUSES, 'Range and Threat bonuses'),
-      sensors: range(SENSORS, 'Sensors', SENSORS_NOTE),
-      auras: range(AURAS, 'Auras', AURAS_NOTE),
-      talents: range(RANGE_TALENTS, 'Range in talents'),
-      cover: range([COVER_NOTE], 'Cover'),
-    },
-    foot: { foot: foot(FOOT_RULES, 'Pilots on foot'), jockey: foot([JOCKEY], 'Pilots on foot'), drones: foot([DRONES_NOTE], 'Drones and deployables'), size: foot([SIZE_NOTE], 'Size') },
-    weapons: { sizes: weapons(searching.value ? WEAPON_SIZES : gearSizes.value, 'Weapon sizes'), tags: weapons(searching.value ? TAGS : gearTags.value, 'Tags') },
-    conversions: { dice: conversions(DICE, 'Dice damage', DICE_NOTE, CONVERSIONS_NOTE), recharge: conversions(RECHARGE, 'Recharge and chance rolls') },
-  }
-})
+// A card: its rows, and "data" for the body the template draws (formulas, tables), each datum tagged with its kind "k".
+type Datum = { k: string } & Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+type Group = { title: string; icon: string; colour?: string; meta?: string; note?: string; entries?: CombatEntry[]; mine?: CombatEntry[]; data?: Datum[]; groupActivation?: string }
+const data = (k: string, rows: object[]): Datum[] => rows.map((row) => ({ k, ...row }))
+const size = (g: Group) => (g.entries?.length ?? 0) + (g.mine?.length ?? 0) + (g.data?.length ?? 0)
+const ofKind = (g: Group, k: string) => g.data?.filter((d) => d.k === k) ?? []
 
-// The index lists the sections you'd see without searching, numbered by position, so a number stays the same while you
-// search. The weapons section drops out when trimming leaves it empty.
-const visible = (id: string) =>
-  (id === 'combat-loadout' && !searching.value) || Object.values((shown.value as Record<string, Record<string, unknown[]>>)[id.slice(7)]).some((rows) => rows.length)
-const sections = computed(() =>
-  COMBAT_SECTIONS.filter((sec) => visible(sec.id) || sec.id !== 'combat-weapons' || gearSizes.value.length || gearTags.value.length).map((sec, i) => ({ ...sec, no: String(i + 1).padStart(2, '0') })),
+// Rows that matched only in their hidden text start open, so you see why.
+const find = (g: Group, whole: boolean, on: boolean): Group | null => {
+  if (!on || whole || hit(g.title, g.note)) return size(g) ? g : null
+  const keep = (list?: CombatEntry[]) => list?.filter((e) => hit(shownText(e), e.text)).map((e) => ({ ...e, open: !!e.text && !hit(shownText(e)) }))
+  const found = { ...g, entries: keep(g.entries), mine: keep(g.mine), data: g.data?.filter((d) => hit(d)) }
+  return size(found) ? found : null
+}
+
+type Column = Group[]
+type TabContent = { id: string; label: string; columns: Column[]; tags: Column[] }
+const ACTIONS = [
+  { key: 'quick', title: 'Quick actions', icon: 'activation_quick' },
+  { key: 'protocol', title: 'Protocols', icon: 'protocol' },
+  { key: 'full', title: 'Full actions', icon: 'activation_full' },
+  { key: 'tech', title: 'Tech actions', icon: 'tech_quick' },
+  { key: 'free', title: 'Free actions', icon: 'free_action' },
+  { key: 'reaction', title: 'Reactions', icon: 'reaction' },
+]
+// Overcharge is a free action, and so is a power with no chip (Core Power).
+const actionKey = (activation?: string) => {
+  const colour = activationOf(activation)?.colour
+  return !colour || colour === 'overcharge' ? 'free' : colour
+}
+const kitBlocks: { key: LoadoutBlock; title: string; icon: string; colour: string }[] = [
+  { key: 'weapons', title: 'Weapons', icon: 'weapon', colour: '--type-weapon' },
+  { key: 'systems', title: 'Systems', icon: 'system', colour: '--type-system' },
+  { key: 'gear', title: 'Pilot gear', icon: 'pilot', colour: '--type-pilot' },
+  { key: 'frame', title: 'Frame', icon: 'frame', colour: '--type-frame' },
+  { key: 'talents', title: 'Talents', icon: 'talent', colour: '--type-talent' },
+  { key: 'core-bonuses', title: 'Core bonuses', icon: 'corebonus', colour: '--type-core' },
+]
+// A kit row opens the item's full information; a trait, talent or core bonus has no item, so its text is the card.
+const kitInfo = (row: LoadoutRow): Info =>
+  row.item
+    ? itemInfo(row.item)
+    : { kind: row.label ?? '', name: row.name, facts: [], stats: [], groups: [{ cards: [{ heading: '', html: row.html, activation: row.activation }] }] }
+const kitEntries = (block: LoadoutBlock): CombatEntry[] =>
+  (loadout.value?.rows ?? []).filter((row) => row.block === block).flatMap((row) => [
+    { label: row.label, name: row.name, activation: row.activation, stats: row.stats, tags: row.tags, gist: firstSentence(row.html) || undefined, info: () => kitInfo(row) },
+    ...row.mods.map((m) => ({ label: 'Mod', name: m.name, tags: m.tags, gist: firstSentence(m.html) || undefined, mod: true, info: () => itemInfo(m.item) })),
+  ])
+// Your kit's own actions (a system's, a trait's, a core power's), for the Actions cards.
+const kitActions = computed<(CombatEntry & { key: string })[]>(() =>
+  (loadout.value?.rows ?? []).flatMap((row) => [
+    ...(activationOf(row.activation) ? [{ label: row.label, name: row.name, activation: row.activation, text: row.html }] : []),
+    ...row.rules.filter((rule) => activationOf(rule.activation)).map((rule) => ({ label: row.name, name: rule.name, activation: rule.activation, frequency: rule.frequency, stats: rule.stats, text: rule.text })),
+  ]).map((entry) => ({ ...entry, key: actionKey(entry.activation), gist: firstSentence(entry.text) || undefined })),
 )
-const listed = computed(() => sections.value.filter((sec) => visible(sec.id)))
+// Everest: "Lodestar: 1 Repair restores 1 Structure."
+const repairLine = computed(() => {
+  const n = loadout.value?.structureRepairs
+  return loadout.value?.frame && mech.value ? [plainEntry(`${mech.value.name}: ${n} ${n === 1 ? 'Repair restores' : 'Repairs restore'} 1 Structure.`)] : []
+})
+
+// Every tab's cards. "on" applies the search; "trim" cuts the tags to your gear; "turnCards" adds your turn's cards to
+// Actions (the summary hides them while searching).
+function build(on: boolean, trim: boolean, turnCards = on): TabContent[] {
+  const l = loadout.value
+  const heat = l?.frame ? l.overcharge : OVERCHARGE_HEAT.join(' → ')
+  const speed = l?.frame ? (l.stats.find((stat) => stat.id === 'speed')?.value ?? null) : null
+  const sizes = trim ? WEAPON_SIZES.filter((row) => l!.sizes.has(row.value)) : WEAPON_SIZES
+  const tags = trim ? TAGS.filter((row) => row.tags?.some((id) => l!.tagIds.has(id))) : TAGS
+  const turn = turnEntries(speed, l?.frame ? l.overcharge : null)
+  const general: CombatAction[] = [...QUICK_ACTIONS, OVERCHARGE, ...FULL_ACTIONS, IMPROVISED, JOCKEY, ...REACTIONS]
+  const actions = Object.fromEntries(ACTIONS.map((a) => [a.key, [] as CombatEntry[]]))
+  for (const action of general) {
+    const entry = actionEntry(action)
+    if (action === OVERCHARGE) Object.assign(entry, { heat, text: `${action.text}<br>${OVERCHARGE_LATER}` })
+    actions[actionKey(action.activation)].push(entry)
+  }
+  const action = (key: string): Group => {
+    const a = ACTIONS.find((x) => x.key === key)!
+    return { title: a.title, icon: a.icon, colour: `--act-${key}`, groupActivation: key === 'tech' ? undefined : key, entries: actions[key], mine: kitActions.value.filter((entry) => entry.key === key), note: key === 'reaction' ? REACTIONS_NOTE : undefined }
+  }
+  const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, entries: kitEntries(b.key), meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
+  const [weapons, systems, gear, frameCard, talents, core] = kitBlocks.map(block)
+  const [cover, conditions, other] = STATUS_GROUPS.map((g): Group => ({ title: g.title, icon: g.icon, entries: g.rows.map((row) => rowEntry(row)) }))
+  const rows = (list: Parameters<typeof rowEntry>[0][], options?: Parameters<typeof rowEntry>[1]) => list.map((row) => rowEntry(row, options))
+  const plain = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => plainEntry(row.text, row.value))
+
+  const content: [string, Column[], Column[]?][] = [
+    ['kit', [[weapons, systems, gear], [frameCard, talents, core]], [[
+      { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', entries: tags.map((row) => ({ tag: row.value, gist: row.gist ?? firstSentence(row.text), text: row.text })) },
+    ], [
+      { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', entries: rows(sizes) },
+    ]]],
+    ['actions', [[...(turnCards ? [{ title: 'Your turn', icon: 'list', entries: turn.steps }, { title: 'Scene resources', icon: 'star', note: 'They reset every combat or scene.', entries: turn.resources }] : []), action('quick')], ['protocol', 'full', 'tech', 'free', 'reaction'].map(action)]],
+    ['attacks', [[
+      { title: 'Attack rolls', icon: 'crosshair', data: data('f', ATTACK_FORMULAS) },
+      { title: 'Results', icon: 'approved', note: RESULTS_NOTE, data: data('m', ATTACK_RESULTS) },
+    ], [
+      { title: 'Damage', icon: 'explosive', data: [...data('type', DAMAGE_TYPES), ...data('f', DAMAGE_FORMULAS)] },
+      { title: 'Dice conversions', icon: 'list', note: `${CONVERSIONS_NOTE} ${DICE_NOTE}`, data: [...data('dice', DICE), ...data('recharge', RECHARGE)] },
+      { title: 'Defence baselines', icon: 'evasion', data: data('def', DEFENCES) },
+      { title: 'Attack terms', icon: 'book-open', entries: rows(ATTACK_EXTRAS) },
+    ]]],
+    ['checks', [[
+      { title: 'Checks and saves', icon: 'systems', data: [...data('f', CHECK_FORMULAS), ...data('chk', CHECK_RESULTS)] },
+    ], [
+      { title: 'Pilot checks', icon: 'pilot', note: PILOT_CHECKS_NOTE, data: data('dc', PILOT_DCS) },
+      { title: 'Pushing through', icon: 'star', entries: [plainEntry(PUSHING_THROUGH)] },
+    ]]],
+    ['statuses', [[cover, conditions], [other]]],
+    ['movement', [[
+      { title: 'Speed', icon: 'speed', note: MOVEMENT_NOTE, entries: rows(SPEED_GATEWAYS, { column: true }) },
+      { title: 'Terrain', icon: 'map-pin', entries: rows(TERRAIN) },
+      { title: 'Knockback', icon: 'arrow-left', note: KNOCKBACK_NOTE, entries: plain(KNOCKBACK) },
+      { title: 'Areas', icon: 'blast', entries: rows(AREAS) },
+    ], [
+      { title: 'Range', icon: 'range', entries: rows(RANGE_TIERS, { column: true, gist: false }) },
+      { title: 'Sensors', icon: 'perception', note: SENSORS_NOTE, entries: rows(SENSORS, { column: true, gist: false }) },
+      { title: 'Auras', icon: 'info', note: AURAS_NOTE, entries: plain(AURAS) },
+      { title: 'Range and Threat bonuses', icon: 'crosshair', entries: plain(RANGE_BONUSES) },
+      { title: 'Range in talents', icon: 'talent', entries: plain(RANGE_TALENTS) },
+      { title: 'Cover', icon: 'shield', entries: [plainEntry(COVER_NOTE)] },
+    ]]],
+    ['structure', [[
+      { title: 'Structure and stress', icon: 'structure', data: [...data('tr', STRUCTURE_TRIGGERS), ...data('track', STRUCTURE_STRESS), { k: 'note', text: STRUCTURE_NOTE }] },
+    ], [
+      { title: 'Rest and Full Repair', icon: 'repair', entries: [...rows(REPAIRS), ...repairLine.value] },
+      { title: 'Pilots and drones', icon: 'pilot', entries: [...rows(FOOT_RULES), plainEntry(DRONES_NOTE), plainEntry(SIZE_NOTE)] },
+    ]]],
+    ['posting', [[
+      { title: 'Turn order', icon: 'list', entries: TURN_ORDER.map((line) => plainEntry(line)) },
+    ], [
+      { title: 'Your post', icon: 'book-open', data: [...data('note', POST_NOTES.map((text) => ({ text }))), { k: 'footer', text: POST_FOOTER }] },
+    ]]],
+  ]
+  return content.map(([id, columns, tagColumns = []]) => {
+    const label = COMBAT_TABS.find((tab) => tab.id === id)!.label
+    const whole = on && hit(label)
+    const sift = (cols: Column[]) => cols.map((col) => col.map((g) => find(g, whole, on)).filter((g): g is Group => !!g)).filter((col) => col.length)
+    return { id, label, columns: sift(columns), tags: sift(tagColumns) }
+  })
+}
+const count = (tabs: TabContent[]) => tabs.map((tab) => [...tab.columns, ...tab.tags].flat().reduce((n, g) => n + size(g), 0))
+const tabs = computed(() => build(searching.value, trimmed.value))
+// Every row, to count the search's matches against.
+const total = computed(() => count(build(false, false, true)).reduce((a, b) => a + b, 0))
+const counts = computed(() => count(tabs.value))
+const matches = computed(() => counts.value.reduce((a, b) => a + b, 0))
+const tabNames = computed(() => (searching.value ? ['All', ...COMBAT_TABS.map((tab) => tab.label)] : COMBAT_TABS.map((tab) => tab.label)))
+const tabCounts = computed(() => ({ All: matches.value, ...Object.fromEntries(COMBAT_TABS.map((tab, i) => [tab.label, counts.value[i]])) }))
+// The tabs on show: the one picked, or every tab with matches under its own heading.
+const showing = computed(() => (view.value === 'All' ? tabs.value.filter((_, i) => counts.value[i]) : tabs.value.filter((tab) => tab.label === view.value)))
+
 const clear = () => {
   query.value = ''
   searchBox.value?.focus()
@@ -153,556 +263,362 @@ const clear = () => {
   <main class="page">
     <PageHeader title="Combat" summary="What you can do on your turn, and the rules to look up." />
     <CatalogueNotice />
-    <div class="tools">
-      <div class="search">
-        <label class="field">
-          <span>Search</span>
-          <input ref="searchBox" v-model="query" type="search" placeholder="Action, status or tag" @keydown.esc="query = ''" />
-        </label>
-        <button v-if="query" type="button" class="small" @click="clear">Clear</button>
+    <div class="combat">
+      <div class="tools">
+        <div class="search">
+          <label class="field">
+            <span>Search</span>
+            <input ref="searchBox" v-model="query" type="search" placeholder="Action, status or tag" @keydown.esc="query = ''" />
+          </label>
+          <button v-if="query" type="button" class="small" @click="clear">Clear</button>
+        </div>
+        <p v-if="searching" class="dim count" role="status"><span class="num">{{ matches }}</span> of <span class="num">{{ total }}</span></p>
       </div>
-      <p v-if="searching" class="dim count" role="status"><span class="num">{{ listed.length }}</span> of <span class="num">{{ sections.length }}</span> sections</p>
-      <!-- Hidden, not removed, until the loadout loads, so the page doesn't jump down when it appears. -->
-      <label class="show-all" :class="{ unready: !canTrim }"><input v-model="showAll" type="checkbox" :disabled="!canTrim" /> Show all rules</label>
-    </div>
-    <p v-if="searching && !listed.length" class="empty">Nothing matches that search.</p>
-    <div v-else class="dossier">
-      <FileIndex :sections="listed" />
-      <div class="file">
-        <FileSection v-for="sec in listed" :id="sec.id" :key="sec.id" :no="sec.no" :title="sec.title" :fixed="searching">
-          <template v-if="sec.id === 'combat-loadout'">
-            <p v-if="loading" class="dim" role="status">Loading…</p>
-            <template v-else-if="loadError">
-              <p class="notice warn" role="alert">Your pilot didn't load: {{ loadError }}</p>
-              <button type="button" class="small" @click="load()">Retry</button>
-            </template>
-            <p v-else-if="!live.character" class="empty">No pilot yet.</p>
-            <template v-else>
-              <p v-if="!mech" class="empty">No mechs yet.</p>
-              <div v-else class="mech-pick">
-                <label v-if="mechList.length > 1" class="field">
-                  <span>Mech</span>
-                  <select :value="mech.id" @change="chooseMech(($event.target as HTMLSelectElement).value)">
-                    <option v-for="m in mechList" :key="m.id" :value="m.id">{{ m.name }}</option>
-                  </select>
-                </label>
-                <p v-else class="mech-name">{{ mech.name }}</p>
-                <p v-if="loadout" class="dim frame-line">{{ loadout.frame ? `${loadout.frame.source} ${loadout.frame.name}` : 'Choose a frame first.' }}</p>
-              </div>
-              <!-- A failed read shows as the game content notice instead. -->
-              <p v-if="!loadout && !catalogueError" class="dim" role="status">Loading…</p>
-              <template v-for="b in BLOCKS" :key="b.key">
-                <template v-if="shown.loadout[b.key].length">
-                  <h3 class="sheet-label">{{ b.title }}</h3>
-                  <ul class="actions">
-                    <li v-for="(row, n) in shown.loadout[b.key]" :key="`${row.name}:${n}`">
-                      <InfoRule :level="4" :label="row.label" :heading="row.name" :activation="row.activation" :stats="row.stats" :html="row.html">
-                        <p v-if="row.tags.length" class="chip-row tags"><span v-for="t in row.tags" :key="t" class="chip">{{ t }}</span></p>
-                        <InfoRule v-for="r in row.rules" :key="r.name" :level="5" class="ruled" :heading="r.name" :activation="r.activation" :frequency="r.frequency" :stats="r.stats" :html="r.text" />
-                        <InfoRule v-for="m in row.mods" :key="m.name" :level="5" class="ruled" label="Mod" :heading="m.name" :html="m.html" />
-                      </InfoRule>
+
+      <div v-if="!searching || matches" ref="tabBar" class="tab-bar">
+        <SheetTabs v-model="view" :tabs="tabNames" :counts="searching ? tabCounts : undefined" label="Combat rules" />
+      </div>
+
+      <CombatTurn
+        :loading="loading"
+        :load-error="loadError"
+        :has-pilot="!!live.character"
+        :mech-list="mechList"
+        :mech="mech"
+        :ready="!!loadout || !!catalogueError"
+        :frame="frame"
+        :frames="catalogue.frames"
+        :vitals="vitals"
+        :overcharge="overcharge"
+        :tab="urlTab.id"
+        :searching="searching"
+        @choose-mech="chooseMech"
+        @retry="load()"
+      />
+
+      <p v-if="searching && !matches" class="empty">Nothing matches that search.</p>
+      <div v-else ref="panel" class="tab-panel">
+        <p v-if="!showing.length" class="empty">Nothing matches that search.</p>
+        <template v-for="t in showing" :key="t.id">
+          <h2 :class="view === 'All' ? 'result-tab' : 'sr-only'">{{ t.label }}</h2>
+          <template v-for="(columns, part) in [t.columns, t.tags]" :key="part">
+            <div v-if="part === 1 && columns.length" class="sheet-head">
+              <h3 class="sheet-label">Tags and weapon sizes</h3>
+              <label v-if="canTrim && !searching" class="show-all"><input v-model="showAll" type="checkbox" /> Show all tags</label>
+            </div>
+            <div v-if="columns.length" class="columns">
+              <div v-for="(column, c) in columns" :key="c" class="column">
+                <CombatGroup
+                  v-for="g in column"
+                  :key="g.title"
+                  :title="g.title"
+                  :icon="g.icon"
+                  :colour="g.colour"
+                  :meta="g.meta"
+                  :note="g.note"
+                  :entries="g.entries"
+                  :mine="g.mine"
+                  :group-activation="g.groupActivation"
+                >
+                  <ul v-if="ofKind(g, 'type').length" class="damage-types">
+                    <li v-for="d in ofKind(g, 'type')" :key="d.name" class="damage-type" :style="{ '--c': `var(--dmg-${d.icon})` }"><Icon :name="d.icon" />{{ d.name }}</li>
+                  </ul>
+                  <ul v-if="ofKind(g, 'f').length" class="rows-plain">
+                    <li v-for="f in ofKind(g, 'f')" :key="f.formula">
+                      <p class="formula-line">{{ f.formula }}</p>
+                      <p v-if="f.note">{{ f.note }}</p>
+                      <p class="example"><span class="label">Example</span>{{ f.example }}</p>
                     </li>
                   </ul>
-                </template>
-              </template>
-              <p v-for="id in loadout?.missing ?? []" :key="id" class="note dim missing"><Icon name="warning" />Unknown item ({{ id }})</p>
-            </template>
+                  <ul v-if="ofKind(g, 'm').length" class="rows-plain">
+                    <li v-for="row in ofKind(g, 'm')" :key="row.margin">
+                      <p class="result-margin">{{ row.margin }}<span v-if="row.note" class="dim result-note">{{ row.note }}</span></p>
+                      <p class="result-line"><span class="label">Attack</span><span><b>{{ row.physical[0] }}</b> {{ row.physical[1] }}</span></p>
+                      <p class="result-line"><span class="label">Tech attack</span><span><b>{{ row.tech[0] }}</b> {{ row.tech[1] }}</span></p>
+                    </li>
+                  </ul>
+                  <table v-if="ofKind(g, 'dice').length" class="table">
+                    <thead>
+                      <tr><th scope="col">Dice</th><th scope="col">Becomes</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ofKind(g, 'dice')" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
+                    </tbody>
+                  </table>
+                  <table v-if="ofKind(g, 'recharge').length" class="table">
+                    <thead>
+                      <tr><th scope="col">Roll</th><th scope="col">Becomes</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ofKind(g, 'recharge')" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
+                    </tbody>
+                  </table>
+                  <table v-if="ofKind(g, 'def').length" class="table">
+                    <thead>
+                      <tr><th scope="col">Mech</th><th scope="col">Evasion</th><th scope="col">E-defence</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ofKind(g, 'def')" :key="row.mech"><th scope="row">{{ row.mech }}</th><td class="num">{{ row.evasion }}</td><td class="num">{{ row.edef }}</td></tr>
+                    </tbody>
+                  </table>
+                  <table v-if="ofKind(g, 'chk').length" class="table">
+                    <thead>
+                      <tr><th scope="col">Your total</th><th scope="col">Result</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ofKind(g, 'chk')" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
+                    </tbody>
+                  </table>
+                  <table v-if="ofKind(g, 'dc').length" class="table">
+                    <thead>
+                      <tr><th scope="col">DC</th><th scope="col">Task</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ofKind(g, 'dc')" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td>{{ row.text }}</td></tr>
+                    </tbody>
+                  </table>
+                  <ul v-if="ofKind(g, 'tr').length" class="rows-plain">
+                    <li v-for="row in ofKind(g, 'tr')" :key="row.name" class="trigger"><Icon :name="row.icon" class="dim" /><span><b>{{ row.name }}</b> {{ row.text }}</span></li>
+                  </ul>
+                  <table v-if="ofKind(g, 'track').length" class="table track">
+                    <thead>
+                      <tr>
+                        <th scope="col">Damage</th>
+                        <th scope="col"><Icon name="structure" /> Structure</th>
+                        <th scope="col"><Icon name="reactor" /> Stress</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="row in ofKind(g, 'track')" :key="row.n">
+                        <th scope="row"><span class="pips" aria-hidden="true"><i v-for="p in 4" :key="p" :class="{ on: p <= row.n }"></i></span><span class="num">{{ row.n }}</span></th>
+                        <td v-if="row.n === 4"><b>{{ lead(row.structure) }}</b> {{ rest(row.structure) }}</td>
+                        <td v-else>{{ row.structure }}</td>
+                        <td v-if="row.n === 4"><b>{{ lead(row.stress) }}</b> {{ rest(row.stress) }}</td>
+                        <td v-else>{{ row.stress }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <ul v-if="ofKind(g, 'note').length" class="rows-plain">
+                    <li v-for="row in ofKind(g, 'note')" :key="row.text"><p>{{ row.text }}</p></li>
+                  </ul>
+                  <template v-if="ofKind(g, 'footer').length">
+                    <p class="label footer-label">Example footer</p>
+                    <pre class="footer code">{{ POST_FOOTER }}</pre>
+                  </template>
+                </CombatGroup>
+              </div>
+            </div>
           </template>
-
-          <template v-else-if="sec.id === 'combat-turn'">
-            <template v-if="shown.turn.order.length">
-              <p class="label">Turn order</p>
-              <ul class="order">
-                <li v-for="line in shown.turn.order" :key="line">{{ line }}</li>
-              </ul>
-            </template>
-            <ol v-if="shown.turn.steps.length" class="steps">
-              <li v-for="step in shown.turn.steps" :key="step.name">
-                <span class="step-no num" aria-hidden="true">{{ TURN_STEPS.indexOf(step) + 1 }}</span>
-                <InfoRule :level="3" :heading="step.name" :activation="step.activations.length === 1 ? step.activations[0] : undefined" :frequency="step.frequency" :html="step.text">
-                  <p v-if="step.activations.length > 1" class="chip-row"><ActionChip v-for="act in step.activations" :key="act" :activation="act" /></p>
-                </InfoRule>
-              </li>
-            </ol>
-            <template v-if="shown.turn.resources.length">
-              <h3 class="sheet-label">Scene resources</h3>
-              <p class="note dim">{{ RESOURCES_NOTE }}</p>
-              <ul class="actions">
-                <li v-for="res in shown.turn.resources" :key="res.name"><InfoRule :level="4" :heading="res.name" :frequency="res.frequency" :html="res.text" /></li>
-              </ul>
-            </template>
-            <template v-if="shown.turn.post.length">
-              <h3 class="sheet-label">Your post</h3>
-              <template v-for="row in shown.turn.post" :key="row">
-                <template v-if="row === POST_FOOTER">
-                  <p class="label">Example footer</p>
-                  <pre class="footer code">{{ POST_FOOTER }}</pre>
-                </template>
-                <p v-else class="note">{{ row }}</p>
-              </template>
-            </template>
-          </template>
-
-          <ul v-else-if="sec.id === 'combat-quick'" class="actions">
-            <li v-for="action in shown.quick.quick" :key="action.name"><InfoRule :level="3" :heading="action.name" :activation="action.activation" :frequency="action.frequency" :html="action.text" /></li>
-          </ul>
-
-          <ul v-else-if="sec.id === 'combat-full'" class="actions">
-            <li v-for="action in shown.full.full" :key="action.name"><InfoRule :level="3" :heading="action.name" :activation="action.activation" :frequency="action.frequency" :html="action.text" /></li>
-            <li v-if="shown.full.overcharge.length">
-              <InfoRule :level="3" :heading="OVERCHARGE.name" :activation="OVERCHARGE.activation" :frequency="OVERCHARGE.frequency" :html="OVERCHARGE.text">
-                <ol class="heat-steps" aria-label="Overcharge Heat cost">
-                  <li v-for="(heat, n) in OVERCHARGE_HEAT" :key="n">
-                    <span class="label">{{ ordinals[n] }}</span>
-                    <span class="num">{{ heat }}</span>
-                    <span class="heat-word"><Icon name="heat" />Heat</span>
-                  </li>
-                </ol>
-                <p class="note dim">{{ OVERCHARGE_LATER }}</p>
-              </InfoRule>
-            </li>
-          </ul>
-
-          <template v-else-if="sec.id === 'combat-reactions'">
-            <p class="note">{{ REACTIONS_NOTE }}</p>
-            <ul class="actions">
-              <li v-for="action in shown.reactions.reactions" :key="action.name"><InfoRule :level="3" :heading="action.name" :activation="action.activation" :frequency="action.frequency" :html="action.text" /></li>
-            </ul>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-attacks'">
-            <ul v-if="shown.attacks.formulas.length" class="formulas">
-              <li v-for="f in shown.attacks.formulas" :key="f.formula" class="formula">
-                <p class="formula-line">{{ f.formula }}</p>
-                <p v-if="f.note" class="note">{{ f.note }}</p>
-                <p class="example"><span class="label">Example</span>{{ f.example }}</p>
-              </li>
-            </ul>
-            <template v-if="shown.attacks.results.length">
-              <h3 class="sheet-label">Results</h3>
-              <p class="note">{{ RESULTS_NOTE }}</p>
-              <table class="table wrap results">
-                <thead>
-                  <tr><th scope="col">Your total</th><th scope="col">Attack</th><th scope="col">Tech attack</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.attacks.results" :key="row.margin">
-                    <th scope="row">{{ row.margin }}<span v-if="row.note" class="dim row-note">{{ row.note }}</span></th>
-                    <td data-label="Attack"><b>{{ row.physical[0] }}</b> {{ row.physical[1] }}</td>
-                    <td data-label="Tech attack"><b>{{ row.tech[0] }}</b> {{ row.tech[1] }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.attacks.damage.length">
-              <h3 class="sheet-label">Damage</h3>
-              <ul class="sep damage-types">
-                <li v-for="t in DAMAGE_TYPES" :key="t.name" class="damage-type" :style="{ '--c': `var(--dmg-${t.icon})` }"><Icon :name="t.icon" />{{ t.name }}</li>
-              </ul>
-              <ul class="formulas">
-                <li v-for="f in shown.attacks.damage" :key="f.formula" class="formula">
-                  <p class="formula-line">{{ f.formula }}</p>
-                  <p v-if="f.note" class="note">{{ f.note }}</p>
-                  <p class="example"><span class="label">Example</span>{{ f.example }}</p>
-                </li>
-              </ul>
-            </template>
-            <template v-if="shown.attacks.defences.length">
-              <h3 class="sheet-label">Defence baselines</h3>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Mech</th><th scope="col">Evasion</th><th scope="col">E-defence</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.attacks.defences" :key="row.mech"><th scope="row">{{ row.mech }}</th><td class="num">{{ row.evasion }}</td><td class="num">{{ row.edef }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.attacks.extras.length || shown.attacks.improvised.length">
-              <h3 class="sheet-label">More attack rules</h3>
-              <dl v-if="shown.attacks.extras.length" class="glossary">
-                <div v-for="row in shown.attacks.extras" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-              </dl>
-              <ul v-if="shown.attacks.improvised.length" class="actions">
-                <li><InfoRule :level="4" :heading="IMPROVISED.name" :activation="IMPROVISED.activation" :html="IMPROVISED.text" /></li>
-              </ul>
-            </template>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-checks'">
-            <ul v-if="shown.checks.formulas.length" class="formulas">
-              <li v-for="f in shown.checks.formulas" :key="f.formula" class="formula">
-                <p class="formula-line">{{ f.formula }}</p>
-                <p class="example"><span class="label">Example</span>{{ f.example }}</p>
-              </li>
-            </ul>
-            <table v-if="shown.checks.results.length" class="table wrap">
-              <thead>
-                <tr><th scope="col">Your total</th><th scope="col">Result</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in shown.checks.results" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-              </tbody>
-            </table>
-            <template v-if="shown.checks.dcs.length">
-              <h3 class="sheet-label">Pilot checks</h3>
-              <p class="note">{{ PILOT_CHECKS_NOTE }}</p>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">DC</th><th scope="col">Task</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.checks.dcs" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <p v-if="shown.checks.pushing.length" class="note"><b>Pushing through:</b> {{ PUSHING_THROUGH }}</p>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-structure'">
-            <p v-for="t in shown.structure.triggers" :key="t.name" class="trigger"><Icon :name="t.icon" class="dim" /><span><b>{{ t.name }}</b> {{ t.text }}</span></p>
-            <table v-if="shown.structure.track.length" class="table wrap track">
-              <thead>
-                <tr>
-                  <th scope="col">Damage</th>
-                  <th scope="col"><Icon name="structure" /> Structure</th>
-                  <th scope="col"><Icon name="reactor" /> Stress</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in shown.structure.track" :key="row.n">
-                  <th scope="row"><span class="pips" aria-hidden="true"><i v-for="p in 4" :key="p" :class="{ on: p <= row.n }"></i></span><span class="num">{{ row.n }}</span></th>
-                  <td v-if="row.n === 4"><b>{{ lead(row.structure) }}</b> {{ rest(row.structure) }}</td>
-                  <td v-else>{{ row.structure }}</td>
-                  <td v-if="row.n === 4"><b>{{ lead(row.stress) }}</b> {{ rest(row.stress) }}</td>
-                  <td v-else>{{ row.stress }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p v-if="shown.structure.note.length" class="note">{{ STRUCTURE_NOTE }}</p>
-          </template>
-
-          <dl v-else-if="sec.id === 'combat-repair'" class="glossary">
-            <div v-for="row in shown.repair.repairs" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-          </dl>
-
-          <dl v-else-if="sec.id === 'combat-statuses'" class="glossary">
-            <div v-for="row in shown.statuses.statuses" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-          </dl>
-
-          <template v-else-if="sec.id === 'combat-movement'">
-            <template v-if="shown.movement.gateways.length">
-              <p class="note">{{ MOVEMENT_NOTE }}</p>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Speed</th><th scope="col">Move</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.movement.gateways" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td><b>{{ row.name }}</b>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.movement.terrain.length">
-              <h3 class="sheet-label">Terrain</h3>
-              <dl class="glossary">
-                <div v-for="row in shown.movement.terrain" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-              </dl>
-            </template>
-            <template v-if="shown.movement.knockback.length">
-              <h3 class="sheet-label">Knockback</h3>
-              <p class="note">{{ KNOCKBACK_NOTE }}</p>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Knockback</th><th scope="col">Effect</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.movement.knockback" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-range'">
-            <table v-if="shown.range.tiers.length" class="table wrap">
-              <thead>
-                <tr><th scope="col">Range</th><th scope="col">Reaches</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in shown.range.tiers" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td><b>{{ row.name }}</b>{{ row.text }}</td></tr>
-              </tbody>
-            </table>
-            <template v-if="shown.range.areas.length">
-              <h3 class="sheet-label">Areas</h3>
-              <dl class="glossary">
-                <div v-for="row in shown.range.areas" :key="row.value"><dt><Icon v-if="row.icon" :name="row.icon" class="dim" />{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-              </dl>
-            </template>
-            <template v-if="shown.range.bonuses.length">
-              <h3 class="sheet-label">Range and Threat bonuses</h3>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Bonus</th><th scope="col">Effect</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.range.bonuses" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.range.sensors.length">
-              <h3 class="sheet-label">Sensors</h3>
-              <p class="note">{{ SENSORS_NOTE }}</p>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Sensors</th><th scope="col">Reach</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.range.sensors" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td><b>{{ row.name }}</b>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.range.auras.length">
-              <h3 class="sheet-label">Auras</h3>
-              <p class="note">{{ AURAS_NOTE }}</p>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Within range</th><th scope="col">Covers</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.range.auras" :key="row.value"><th scope="row" class="num">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.range.talents.length">
-              <h3 class="sheet-label">Range in talents</h3>
-              <dl class="glossary">
-                <div v-for="row in shown.range.talents" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-              </dl>
-            </template>
-            <template v-if="shown.range.cover.length">
-              <h3 class="sheet-label">Cover</h3>
-              <p class="note">{{ COVER_NOTE }}</p>
-            </template>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-foot'">
-            <template v-if="shown.foot.foot.length || shown.foot.jockey.length">
-              <h3 class="sheet-label">Pilots on foot</h3>
-              <dl v-if="shown.foot.foot.length" class="glossary">
-                <div v-for="row in shown.foot.foot" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-              </dl>
-              <ul v-if="shown.foot.jockey.length" class="actions">
-                <li><InfoRule :level="4" :heading="JOCKEY.name" :activation="JOCKEY.activation" :html="JOCKEY.text" /></li>
-              </ul>
-            </template>
-            <template v-if="shown.foot.drones.length">
-              <h3 class="sheet-label">Drones and deployables</h3>
-              <p class="note">{{ DRONES_NOTE }}</p>
-            </template>
-            <template v-if="shown.foot.size.length">
-              <h3 class="sheet-label">Size</h3>
-              <p class="note">{{ SIZE_NOTE }}</p>
-            </template>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-weapons'">
-            <p v-if="trimmed && !searching" class="note dim">Showing the sizes and tags on your gear.</p>
-            <template v-if="shown.weapons.sizes.length">
-              <h3 class="sheet-label">Weapon sizes</h3>
-              <dl class="glossary">
-                <div v-for="row in shown.weapons.sizes" :key="row.value"><dt>{{ row.value }}</dt><dd>{{ row.text }}</dd></div>
-              </dl>
-            </template>
-            <template v-if="shown.weapons.tags.length">
-              <h3 class="sheet-label">Tags</h3>
-              <dl class="glossary">
-                <div v-for="row in shown.weapons.tags" :key="row.value"><dt><span class="chip">{{ row.value }}</span></dt><dd>{{ row.text }}</dd></div>
-              </dl>
-            </template>
-          </template>
-
-          <template v-else-if="sec.id === 'combat-conversions'">
-            <p class="note">{{ CONVERSIONS_NOTE }}</p>
-            <template v-if="shown.conversions.dice.length">
-              <h3 class="sheet-label">Dice damage</h3>
-              <p class="note">{{ DICE_NOTE }}</p>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Dice</th><th scope="col">Becomes</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.conversions.dice" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-            <template v-if="shown.conversions.recharge.length">
-              <h3 class="sheet-label">Recharge and chance rolls</h3>
-              <table class="table wrap">
-                <thead>
-                  <tr><th scope="col">Roll</th><th scope="col">Becomes</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="row in shown.conversions.recharge" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>
-                </tbody>
-              </table>
-            </template>
-          </template>
-        </FileSection>
+          <p v-for="id in !searching && t.id === 'kit' ? (loadout?.missing ?? []) : []" :key="id" class="note dim missing"><Icon name="warning" />Unknown item ({{ id }})</p>
+        </template>
       </div>
     </div>
   </main>
 </template>
 
 <style scoped>
-.actions {
+/* Layout: one column on phones and tablets. From 64rem the summary is a column on the left, and the search, tabs and
+   cards stack beside it. */
+.combat {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-  gap: 0 var(--space-xl);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-l);
+}
+
+@media (min-width: 64rem) {
+  .combat {
+    grid-template-columns: 21rem minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      'turn tools'
+      'turn tabs'
+      'turn panel';
+    align-items: start;
+    column-gap: var(--space-xl);
+  }
+
+  .combat > :deep(.turn) {
+    grid-area: turn;
+  }
+
+  .tools {
+    grid-area: tools;
+  }
+
+  .tab-bar {
+    grid-area: tabs;
+  }
+
+  .tab-panel,
+  .combat > .empty {
+    grid-area: panel;
+  }
+}
+
+/* It's about 870px tall, so it only sticks where the window can hold it. */
+@media (min-width: 64rem) and (min-height: 60rem) {
+  .combat > :deep(.turn) {
+    position: sticky;
+    top: calc(var(--topbar-h) + var(--space-l));
+  }
+}
+
+/* Search */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-s) var(--space-m);
+}
+
+.search {
+  display: flex;
+  flex: 0 1 36rem;
+  align-items: flex-end;
+  gap: var(--space-s);
+  min-width: 0;
+}
+
+.search .field {
+  flex: 1;
+}
+
+.search input {
+  width: 100%;
+  font-size: 1rem;
+}
+
+.count {
+  align-self: center;
   margin: 0;
-  padding: 0;
-  list-style: none;
+  font-size: var(--fs-s);
 }
 
-.actions li {
-  padding: var(--space-m) 0;
-  border-top: 1px solid var(--rule);
+@media (max-width: 40rem) {
+  .search {
+    flex-basis: 100%;
+  }
 }
 
-/* Sub-heads and notes inside a section */
-.sheet-label {
-  margin-top: var(--space-xl);
+/* The tabs stick under the top bar, with the page's background so rows don't show through. */
+.tab-bar {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 2;
+  background: var(--void);
 }
 
-.sheet-label:first-child {
+/* A tab's columns of cards: side by side when there's room. A column is a plain stack, so opening a row only moves the
+   cards under it. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-m);
+  align-items: start;
+}
+
+.column {
+  display: grid;
+  gap: var(--space-m);
+  min-width: 0;
+}
+
+.result-tab {
+  margin: var(--space-xl) 0 var(--space-m);
+  font: 700 var(--fs-l) / 1.2 var(--sans);
+}
+
+.result-tab:first-child {
   margin-top: 0;
 }
 
-.note {
-  max-width: 68ch;
-  margin: 0 0 var(--space-m);
+.tab-panel > .sheet-head {
+  margin-top: var(--space-l);
 }
 
-/* Turn order: plain short lines */
-.order {
-  max-width: 68ch;
-  margin: 0 0 var(--space-m);
-  padding-left: var(--space-l);
+.show-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-s);
+  min-height: var(--tap);
+  font-size: var(--fs-s);
+  cursor: pointer;
 }
 
-/* Turn steps: number column, one column list */
-.steps {
-  display: grid;
+.show-all input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--lilac);
+}
+
+.missing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-s);
+  margin: var(--space-m) 0 0;
+  font-size: var(--fs-s);
+}
+
+/* Bodies inside a card: lookup tables, formulas and results */
+.table {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  border: 0;
 }
 
-.steps > li {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: var(--space-m);
-  padding: var(--space-m) 0;
+.table + .table {
   border-top: 1px solid var(--rule);
 }
 
-.step-no {
-  color: var(--text-dim);
-  font-size: var(--fs-l);
-  font-weight: 700;
-  line-height: 24px;
-}
-
-.chip-row {
-  display: flex;
-  gap: var(--space-s);
-  margin: 0;
-}
-
-/* Lookup tables: the global .table, wrapping and top-aligned */
-.table.wrap {
-  max-width: 60rem;
-  margin-bottom: var(--space-m);
-}
-
-.table.wrap th,
-.table.wrap td {
+.table th,
+.table td {
   vertical-align: top;
   white-space: normal;
 }
 
 /* Short headers stay on one line, so "E-defence" doesn't break at its hyphen. */
-.table.wrap thead th {
+.table thead th {
   white-space: nowrap;
 }
 
-.table.wrap tbody th {
+.table tbody th {
   color: var(--text);
   font-size: var(--fs-s);
   letter-spacing: 0;
   text-transform: none;
 }
 
-.table.wrap td b {
-  display: block;
-}
-
-.row-note {
-  display: block;
-  font-weight: 400;
-}
-
-/* Name and meaning lists */
-.glossary {
-  display: grid;
+.rows-plain {
   margin: 0;
-}
-
-.glossary > div {
-  display: grid;
-  grid-template-columns: 12rem minmax(0, 1fr);
-  gap: var(--space-m);
-  padding: var(--space-s) 0;
-  border-top: 1px solid var(--rule);
-}
-
-.glossary dt {
-  display: flex;
-  align-items: center;
-  align-self: start;
-  gap: var(--space-s);
-  font-weight: 700;
-}
-
-.glossary dd {
-  max-width: 68ch;
-  margin: 0;
-}
-
-/* Formula boxes with a worked example */
-.formulas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-  gap: var(--space-m);
-  margin: 0 0 var(--space-l);
   padding: 0;
   list-style: none;
 }
 
-.formula {
+.rows-plain > li {
   display: grid;
-  align-content: start;
-  gap: var(--space-s);
-  padding: var(--space-m);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
+  gap: 4px;
+  padding: var(--space-s) var(--space-m);
 }
 
-.formula p {
+.rows-plain > li + li,
+.damage-types + .rows-plain,
+.rows-plain + .rows-plain,
+.table + .rows-plain {
+  border-top: 1px solid var(--rule);
+}
+
+.rows-plain p {
   margin: 0;
 }
 
-.formula-line {
+.formula-line,
+.result-margin {
   font-weight: 700;
+}
+
+.result-note {
+  display: block;
+  font-size: var(--fs-s);
+  font-weight: 400;
 }
 
 .example {
@@ -714,49 +630,21 @@ const clear = () => {
   margin-right: var(--space-s);
 }
 
-/* Overcharge heat: 4 boxes in a row */
-.heat-steps {
+.result-line {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 6.5rem minmax(0, 1fr);
   gap: var(--space-s);
-  max-width: 24rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  font-size: var(--fs-s);
 }
 
-.heat-steps li {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  padding: var(--space-s) var(--space-xs);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  text-align: center;
-}
-
-.heat-steps .num {
-  font-size: var(--fs-l);
-  font-weight: 700;
-}
-
-.heat-word {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: var(--fs-xs);
-}
-
-.heat-word .icon {
-  color: var(--dmg-heat);
+.result-line .label {
+  padding-top: 2px;
 }
 
 /* Structure and stress */
 .trigger {
   display: flex;
   gap: var(--space-s);
-  max-width: 68ch;
-  margin: 0 0 var(--space-m);
 }
 
 .trigger .icon {
@@ -784,8 +672,12 @@ const clear = () => {
 
 /* Damage-type icons keep COMP/CON's colours */
 .damage-types {
-  margin: 0 0 var(--space-m);
-  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-l);
+  margin: 0;
+  padding: var(--space-s) var(--space-m);
+  border-bottom: 1px solid var(--rule);
   list-style: none;
 }
 
@@ -801,155 +693,17 @@ const clear = () => {
 }
 
 /* The footer example */
+.footer-label {
+  margin: 0;
+  padding: var(--space-s) var(--space-m) 0;
+}
+
 .footer {
   margin: 0;
   padding: var(--space-m);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
   font-size: var(--fs-s);
   line-height: 1.6;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
-}
-
-/* Search and "Show all rules" */
-.tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-s) var(--space-l);
-  margin-top: var(--space-l);
-}
-
-.search {
-  display: flex;
-  flex: 0 1 36rem;
-  align-items: flex-end;
-  gap: var(--space-s);
-  min-width: 0;
-}
-
-.search .field {
-  flex: 1;
-}
-
-.search input {
-  width: 100%;
-  font-size: 1rem;
-}
-
-.count {
-  align-self: center;
-  margin: 0;
-  font-size: var(--fs-s);
-}
-
-.show-all {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-s);
-  min-height: var(--tap);
-  margin-left: auto;
-  cursor: pointer;
-}
-
-.show-all.unready {
-  visibility: hidden;
-}
-
-.show-all input {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--lilac);
-}
-
-/* Your loadout */
-.tags {
-  flex-wrap: wrap;
-  margin-top: var(--space-xs);
-}
-
-.ruled {
-  margin-top: var(--space-s);
-  padding-top: var(--space-s);
-  border-top: 1px solid var(--rule);
-}
-
-.mech-pick {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-xs) var(--space-l);
-  margin-bottom: var(--space-l);
-}
-
-.mech-pick .field {
-  flex: 0 1 20rem;
-}
-
-.mech-name {
-  margin: 0;
-  font-size: var(--fs-l);
-  font-weight: 700;
-}
-
-.frame-line {
-  margin: 0;
-}
-
-.missing {
-  display: flex;
-  align-items: center;
-  gap: var(--space-s);
-}
-
-@media (max-width: 40rem) {
-  .search {
-    flex-basis: 100%;
-  }
-
-  .show-all {
-    margin-left: 0;
-  }
-
-  .mech-pick .field {
-    flex-basis: 100%;
-  }
-
-  .glossary > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-xs);
-  }
-
-  /* Results: each row becomes a block, the margin as its head, then Attack and Tech attack labelled */
-  .results thead {
-    display: none;
-  }
-
-  .results tr,
-  .results th,
-  .results td {
-    display: block;
-  }
-
-  .results tbody th {
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-
-  .results td::before {
-    display: block;
-    content: attr(data-label);
-    color: var(--text-dim);
-    font-size: var(--fs-xs);
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .results td:first-of-type {
-    border-bottom: 0;
-  }
 }
 </style>

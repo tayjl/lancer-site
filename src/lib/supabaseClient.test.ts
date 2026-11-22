@@ -55,4 +55,8 @@ describe('fetchAll', () => {
   it('returns the error and no rows when a later page fails', async () => {
     expect(await fetchAll(fake(2003, 2).page)).toEqual({ rows: [], error: 'boom' })
   })
+  it('never reports an empty error, which would read as success', async () => {
+    const page = async () => ({ data: null, error: { message: '' } })
+    expect(await fetchAll(page)).toEqual({ rows: [], error: OFFLINE })
+  })
 })
