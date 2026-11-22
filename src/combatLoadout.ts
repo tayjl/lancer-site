@@ -24,6 +24,7 @@ export type LoadoutRow = {
   mods: { name: string; html: string; tags: string[]; item: Item }[]
   item?: Item
   mount?: { index: number | null; type: string } // weapons rows only: null index means built in
+  slot?: 'Armor' | 'Weapon' | 'Gear' // gear rows only: the item's type
 }
 
 const BLOCK_OF: Partial<Record<string, LoadoutBlock>> = { frame: 'frame', trait: 'frame', core: 'frame', 'core-power': 'frame', talent: 'talents', 'core-bonus': 'core-bonuses' }
@@ -43,8 +44,11 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
   const itemRow = (block: LoadoutBlock, item: Item, label: string | undefined, kinds: string[]): LoadoutRow => {
     const { stats, tags, text } = itemDetails(item, tagNames)
     const rules = cardRules(item)
-    item.tags.forEach(tag => tagIds.add(tag.id))
-    rules.forEach(rule => needs(rule.activation))
+    // Gear shows only in Pilot mode, where the Tags card is hidden, so it must not drive the tag list.
+    if (block !== 'gear') {
+      item.tags.forEach(tag => tagIds.add(tag.id))
+      rules.forEach(rule => needs(rule.activation))
+    }
     return { block, label, name: item.name, stats: keep(stats, kinds), tags, html: text, rules, mods: [], item }
   }
 
@@ -97,7 +101,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     const item = gear.get(owned.id)
     // "Pilot gear" is the block's own title, so a plain gear item gets no label.
     const slot = item && LOADOUT.find(slot => slot.type === item.type)?.label
-    if (item) rows.push(itemRow('gear', item, slot && slot.toLowerCase() !== 'pilot gear' ? capitalise(slot) : undefined, ['range', 'damage', 'bonus']))
+    if (item) rows.push({ ...itemRow('gear', item, slot && slot.toLowerCase() !== 'pilot gear' ? capitalise(slot) : undefined, ['range', 'damage', 'bonus']), slot: item.type as LoadoutRow['slot'] })
   }
   return { rows, missing, tagIds, sizes, structureRepairs: resources.structureRepairs, frame, overcharge: resources.overcharge, stats: mechStats(frame, sheet.mech_skills, effects.modifiers) }
 }
@@ -108,6 +112,17 @@ const catalogueItem = (own: Map<string, Item>, catalogue: EffectCatalogue, id: s
 const FRAME_GROUPS = [['trait', 'Traits'], ['core', 'Core system'], ['core-power', 'Core power'], ['frame', 'Overcharge']] as const
 export const frameGroups = <T extends { kind?: string }>(rows: T[]) =>
   FRAME_GROUPS.map(([kind, title]) => ({ title, rows: rows.filter(row => row.kind === kind) })).filter(group => group.rows.length)
+
+// The Pilot gear card's rows in labelled groups, in equipped order. Empty groups are left out, an odd slot goes last.
+const GEAR_GROUPS = [['Armor', 'Armour'], ['Weapon', 'Weapons'], ['Gear', 'Gear']] as const
+export function gearGroups(rows: LoadoutRow[]) {
+  const gear = rows.filter(row => row.block === 'gear')
+  const known: string[] = GEAR_GROUPS.map(([slot]) => slot)
+  return [
+    ...GEAR_GROUPS.map(([slot, title]) => ({ title, rows: gear.filter(row => row.slot === slot) })),
+    { title: 'Other', rows: gear.filter(row => !row.slot || !known.includes(row.slot)) },
+  ].filter(group => group.rows.length)
+}
 
 // The Weapons card's rows, one group per mount that holds a weapon, then the built-in ones. A Superheavy weapon's title
 // names the empty mount that braces it.

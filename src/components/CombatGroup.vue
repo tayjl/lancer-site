@@ -462,6 +462,7 @@ button.entry-row {
 .group-empty {
   display: grid;
   flex: 1;
+  max-width: none; /* centred in the whole card, however wide */
   place-items: center;
   margin: 0;
   padding: var(--space-m);

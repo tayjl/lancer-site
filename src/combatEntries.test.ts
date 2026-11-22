@@ -91,11 +91,18 @@ describe('stepActions', () => {
   it('sorts the quick and full cards, and each tech action shows by itself', () => {
     expect(names('2 quick', false, 'Attacks')).toEqual(['Skirmish', 'Ram', 'Grapple'])
     expect(names('2 quick', false, 'Tech')).toEqual(['Invade', 'Lock on', 'Bolster', 'Scan'])
-    expect(names('2 quick', false, 'Your kit')).toEqual(['Jump jets', 'Hack', 'Pilot quick'])
+    expect(names('2 quick', false, 'Your kit')).toEqual(['Jump jets', 'Hack'])
     expect(names('1 full', false, 'Attacks')).toEqual(['Barrage', 'Improvised attack', 'Jockey'])
     expect(names('1 full', false, 'Tech')).toEqual(['Full tech'])
     expect(names('1 full', false, 'Your kit')).toEqual(['Big gun', 'Deep hack'])
     expect(names('1 full', false, 'Other')).not.toContain('Boost')
+  })
+  it('shows gear kit actions in Pilot mode only, and mech ones in Mech mode only', () => {
+    expect(names('2 quick', true, 'Your kit')).toEqual(['Pilot quick'])
+    expect(names('2 quick', false, 'Your kit')).not.toContain('Pilot quick')
+    expect(names('Protocol', true, 'Protocols')).toEqual(['Pilot proto'])
+    expect(names('Protocol', false, 'Protocols')).toEqual(['Wake'])
+    expect(names('2 quick', true, 'Your kit')).not.toContain('Jump jets')
   })
   it('colours the cards', () => {
     expect(stepActions('2 quick', []).map((g) => g.colour)).toEqual(['quick', 'tech', 'quick', 'quick'])
@@ -118,7 +125,7 @@ describe('stepActions', () => {
     expect(stepActions('Overcharge', [], true)).toEqual([])
   })
   it('gives the other steps a how-it-works card and their actions', () => {
-    expect(names('Protocol')).toEqual(['Wake', 'Pilot proto'])
+    expect(names('Protocol')).toEqual(['Wake'])
     expect(names('Free')).toEqual(['Core power rules', 'Perk'])
     expect(names('Reaction')).toEqual(['Brace', 'Overwatch', 'Reaction systems', 'Guard'])
     for (const step of ['Protocol', 'Free', 'Reaction']) expect(stepActions(step, mine)[0].title).toBe('How it works')

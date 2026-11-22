@@ -104,7 +104,7 @@ const DEFAULT_HEAT = OVERCHARGE_HEAT.map(String).join(' → ')
 export function stepActions(stepName: string, kitActions: KitAction[], pilot = false, overcharge: string | null = null): StepGroup[] {
   const general: CombatAction[] = pilot ? PILOT_ACTIONS : [...QUICK_ACTIONS, ...FULL_ACTIONS, IMPROVISED, JOCKEY, OVERCHARGE, ...REACTIONS]
   // A pilot on foot only has the actions on their gear.
-  const kit = (keep: (e: KitAction) => boolean) => kitActions.filter((e) => keep(e) && (!pilot || e.block === 'gear'))
+  const kit = (keep: (e: KitAction) => boolean) => kitActions.filter((e) => keep(e) && (pilot ? e.block === 'gear' : e.block !== 'gear'))
   const keyed = (key: string) => general.filter((a) => actionKey(a.activation) === key && !a.group && a !== OVERCHARGE).map(actionEntry)
   const how = (text: string, colour?: string): StepGroup => ({ title: 'How it works', colour, text, entries: [] })
   const activation = (a: { activation?: string }) => (a.activation ?? '').toLowerCase()

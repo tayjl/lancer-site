@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { coreContent } from './coreContent'
-import { combatLoadout, frameGroups, weaponGroups } from './combatLoadout'
+import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutRow } from './combatLoadout'
 import { actionKey, stepActions, type KitAction } from './combatEntries'
 import { toItem, type Item } from './gameData'
 import type { EffectCatalogue, Frame } from './mechData'
@@ -93,5 +93,28 @@ describe('weaponGroups', () => {
   })
   it('returns nothing without a frame', () => {
     expect(weaponGroups(rows(), null)).toEqual([])
+  })
+})
+
+describe('gear', () => {
+  const gearItem = (id: string, type: string): Item => ({ ...[...weapons.values()][0], id, name: id, type, mount: '', tags: [{ id: 'tg_loading' }], damage: [], range: [] })
+  const row = (name: string, slot?: LoadoutRow['slot'], block: LoadoutRow['block'] = 'gear'): LoadoutRow => ({ block, name, slot, stats: [], tags: [], html: '', rules: [], mods: [] })
+
+  it('gives gear rows their slot and keeps their tags out of the tag list', () => {
+    const gear = [gearItem('a', 'Armor'), gearItem('w', 'Weapon')]
+    const sheet = { owned_gear: [{ key: 'k1', id: 'a' }, { key: 'k2', id: 'w' }], equipped_gear: ['k1', 'k2'] } as never
+    const { rows, tagIds } = combatLoadout({}, sheet, { ...catalogue, gear }, tagNames)
+    expect(rows.map(r => [r.block, r.slot])).toEqual([['gear', 'Armor'], ['gear', 'Weapon']])
+    expect(tagIds.size).toBe(0)
+  })
+  it('groups gear by slot in order and leaves empty groups out', () => {
+    const rows = [row('g1', 'Gear'), row('a1', 'Armor'), row('w1', 'Weapon'), row('g2', 'Gear')]
+    expect(gearGroups(rows).map(g => [g.title, g.rows.map(r => r.name)])).toEqual([['Armour', ['a1']], ['Weapons', ['w1']], ['Gear', ['g1', 'g2']]])
+    expect(gearGroups([row('g1', 'Gear')]).map(g => g.title)).toEqual(['Gear'])
+    expect(gearGroups([])).toEqual([])
+  })
+  it('puts an unknown slot in Other and ignores non-gear rows', () => {
+    const rows = [row('x', 'Odd' as never), row('y'), row('mech', undefined, 'systems'), row('a1', 'Armor')]
+    expect(gearGroups(rows).map(g => [g.title, g.rows.map(r => r.name)])).toEqual([['Armour', ['a1']], ['Other', ['x', 'y']]])
   })
 })
