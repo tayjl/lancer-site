@@ -72,7 +72,7 @@ export const FULL_ACTIONS: CombatAction[] = [
   { name: 'Full tech', activation: 'Full Tech', group: 'tech', text: "Two Quick Tech actions, which may both be Invade at the same or different targets, or a system's own Full Tech option." },
   { name: 'Activate', activation: 'Full', group: 'other', text: "Use a system with the Full tag. Overcharge's extra quick action can't pay for it." },
   { name: 'Mount or dismount', activation: 'Full', group: 'other', text: "Get into or out of a mech you're Engaged with. An empty mech can't act." },
-  { name: 'Core Power', frequency: 'Once a mission', text: 'Use the activation and duration the power gives. It returns at Full Repair. Passive core effects are always on.' },
+  { name: 'Core power rules', frequency: 'Once a mission', text: 'Use the activation and duration the power gives. It returns at Full Repair. Passive core effects are always on.' },
 ]
 
 export const OVERCHARGE: CombatAction = {
@@ -335,7 +335,7 @@ gists(QUICK_ACTIONS, {
   'Self-destruct': 'Your mech explodes at the end of your next turn.', Invade: 'Tech attack for 2 Heat plus a hacking effect.',
   Scan: 'Learn one thing about a target. No check needed.',
 })
-gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core Power': "Use your frame's core power." })
+gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core power rules': "Use your frame's core power." })
 gists([IMPROVISED, JOCKEY, OVERCHARGE, FIGHT], { Fight: 'Attack with a pilot weapon.', 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })
 gists(REACTIONS, { Brace: 'Halve the next damaging attack on you.', Overwatch: 'Get a free attack on a target that moves away.', 'Reaction systems': 'Declare them at the end of your turn too.' })
 gists(STATUS_ROWS, {

@@ -1,7 +1,7 @@
 import { OVERCHARGE_HEAT } from './combatRules'
 import { equippedGear, LOADOUT, type Item } from './gameData'
 import { cardRules, itemDetails, type ItemRule, type ItemStat } from './itemDetails'
-import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame } from './mechData'
+import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type ReminderKind } from './mechData'
 import type { MechPrivate, Sheet } from './myPilot'
 import { selectWeaponProfile } from './equipment'
 import { capitalise } from './text'
@@ -13,6 +13,7 @@ export type LoadoutBlock = 'weapons' | 'systems' | 'frame' | 'talents' | 'core-b
 export type LoadoutRow = {
   block: LoadoutBlock
   label?: string
+  kind?: ReminderKind // reminder rows only: lets the Frame card group by kind
   name: string
   activation?: string
   stats: ItemStat[]
@@ -79,11 +80,11 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     if (!block) continue
     needs(reminder.activation)
     const label = EFFECT_KINDS[reminder.kind].label + (reminder.from && reminder.from !== reminder.name ? `: ${reminder.from}` : '')
-    rows.push({ block, label, name: reminder.name, activation: reminder.activation, stats: [], tags: [], html: reminder.text, rules: [], mods: [] })
+    rows.push({ block, label, kind: reminder.kind, name: reminder.name, activation: reminder.activation, stats: [], tags: [], html: reminder.text, rules: [], mods: [] })
   }
   // A frame or talent can change the steps. The general ones are in the guide already.
   if (frame && resources.overcharge !== OVERCHARGE_HEAT.join(' → ')) {
-    rows.push({ block: 'frame', label: 'Overcharge', name: 'Overcharge Heat', stats: [], tags: [], html: `${resources.overcharge} Heat`, rules: [], mods: [] })
+    rows.push({ block: 'frame', kind: 'frame', label: 'Overcharge', name: 'Overcharge Heat', stats: [], tags: [], html: `${resources.overcharge} Heat`, rules: [], mods: [] })
   }
   const gear = new Map((catalogue.gear ?? []).map(item => [item.id, item]))
   for (const owned of equippedGear(sheet)) {
@@ -96,3 +97,8 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
 }
 
 const catalogueItem = (own: Map<string, Item>, catalogue: EffectCatalogue, id: string) => own.get(id) ?? catalogue.integrated.get(id)
+
+// The Frame card's rows in labelled groups, in this order. A group with no rows is left out.
+const FRAME_GROUPS = [['trait', 'Traits'], ['core', 'Core system'], ['core-power', 'Core power'], ['frame', 'Overcharge']] as const
+export const frameGroups = <T extends { kind?: string }>(rows: T[]) =>
+  FRAME_GROUPS.map(([kind, title]) => ({ title, rows: rows.filter(row => row.kind === kind) })).filter(group => group.rows.length)

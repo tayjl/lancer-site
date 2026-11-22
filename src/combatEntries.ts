@@ -29,6 +29,7 @@ export type CombatEntry = {
   icon?: string
   plain?: boolean
   mod?: boolean
+  group?: string // a sub-label the card's chips sit under (the Frame card)
   open?: boolean
   info?: () => Info
 }

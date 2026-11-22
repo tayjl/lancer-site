@@ -23,6 +23,7 @@ import { flatDamage, flatDamageText } from './damage'
 import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES } from './coreRules'
 import { capitalise, sameName } from './text'
+import { activationOf } from './itemDetails'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
 // which weapons fit which mount, and the mech's stats. Mechs only store ids; everything else comes from here.
@@ -308,7 +309,8 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
           kind: 'core-power',
           name: power,
           from: core.name ? String(core.name) : undefined,
-          activation: action?.activation,
+          // The twin's own chip wins. Otherwise the core system's own activation (a Protocol core power), if it is one we know.
+          activation: action?.activation ?? (activationOf(core.activation) ? String(core.activation) : undefined),
           source: `${power} · active core power`,
           text: action?.text ?? flatDamageText(String(core.active_effect)),
         })

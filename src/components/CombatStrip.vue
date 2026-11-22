@@ -153,7 +153,7 @@ const heat = computed(() => groups.value[1]?.heat)
 
 .seg {
   --l: var(--notch); /* left notch depth, 0 = flat */
-  --r: var(--notch); /* right point depth, 0 = flat */
+  --r: var(--notch); /* right point depth, 0px = flat (keep the unit: a bare 0 breaks the calc below) */
   --fill: var(--panel);
   position: relative;
   isolation: isolate;
@@ -207,11 +207,11 @@ const heat = computed(() => groups.value[1]?.heat)
 
 /* A straight join, "or" on it: choose one. */
 .seg.full {
-  --r: 0;
+  --r: 0px;
 }
 
 .seg.quick {
-  --l: 0;
+  --l: 0px;
 }
 
 .or {
@@ -232,7 +232,7 @@ const heat = computed(() => groups.value[1]?.heat)
 
 /* The bar ends in the site's clipped corner. */
 .seg-reaction .seg {
-  --r: 0;
+  --r: 0px;
 }
 
 .seg-reaction .seg::before {
@@ -271,16 +271,16 @@ const heat = computed(() => groups.value[1]?.heat)
   .seg-overcharge .seg,
   .pilot .seg-movement .seg,
   .pilot .seg-free .seg {
-    --l: 0;
+    --l: 0px;
   }
 
   .seg-movement .seg {
-    --r: 0;
+    --r: 0px;
   }
 
   .seg-choice .seg {
-    --l: 0;
-    --r: 0;
+    --l: 0px;
+    --r: 0px;
   }
 
   .pilot .seg-movement {
@@ -309,7 +309,7 @@ const heat = computed(() => groups.value[1]?.heat)
   }
 
   .bar li:first-child .seg {
-    --l: 0;
+    --l: 0px;
   }
 
   .seg {

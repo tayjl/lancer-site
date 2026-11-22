@@ -28,20 +28,30 @@ const props = defineProps<{
   chips?: boolean
   tagged?: boolean
   gist?: boolean
+  across?: boolean
 }>()
 const id = useId()
 const badges = (entry: CombatEntry) => entry.activations ?? (entry.activation ? [entry.activation] : [])
 // A chip's small tag: its cost ('1 quick'), or on the search card its activation word. Word and symbol, never colour alone.
-const tag = (entry: CombatEntry) => {
-  const word = entry.cost ?? (props.tagged && entry.activation?.toLowerCase() !== entry.name?.toLowerCase() ? entry.activation : undefined)
-  const look = activationOf(entry.cost ? entry.cost.split(' ').slice(1).join(' ') : word)
-  return word && look ? { word, ...look } : null
+const tags = (entry: CombatEntry) => {
+  const words = entry.cost ? [entry.cost] : entry.info ? (entry.activations ?? []) : props.tagged && entry.activation?.toLowerCase() !== entry.name?.toLowerCase() && entry.activation ? [entry.activation] : []
+  return words.flatMap((word) => {
+    const look = activationOf(entry.cost ? entry.cost.split(' ').slice(1).join(' ') : word)
+    return look ? [{ word, ...look }] : []
+  })
 }
+// A chip list's runs: a Frame-card sub-label starts a new run.
+const runs = (list: CombatEntry[]) =>
+  list.reduce<{ title?: string; items: CombatEntry[] }[]>((all, entry) => {
+    if (all.length && all[all.length - 1].title === entry.group) all[all.length - 1].items.push(entry)
+    else all.push({ title: entry.group, items: [entry] })
+    return all
+  }, [])
 const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? entry.text}:${n}`
 </script>
 
 <template>
-  <section class="group" :class="{ neutral: !colour, core: colour === '--type-core' }" :style="colour ? { '--c': `var(${colour})` } : undefined" :aria-labelledby="id">
+  <section class="group" :class="{ neutral: !colour, core: colour === '--type-core', across }" :style="colour ? { '--c': `var(${colour})` } : undefined" :aria-labelledby="id">
     <header class="group-head">
       <Icon :name="icon" />
       <h3 :id="id">{{ title }}</h3>
@@ -52,16 +62,23 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
     <p v-if="empty && !entries?.length && !mine?.length && !$slots.default" class="group-empty">{{ empty }}</p>
     <template v-for="(list, n) in [mine ?? [], entries ?? []]" :key="n">
       <p v-if="n === 0 && list.length" class="label group-sub">Your kit</p>
-      <ul v-if="chips && list.length" class="chip-row">
-        <li v-for="(entry, i) in list" :key="key(entry, i)">
+      <template v-if="chips && list.length">
+      <div class="runs">
+      <div v-for="(run, r) in runs(list)" :key="r" class="run">
+      <p v-if="run.title" class="label group-sub">{{ run.title }}</p>
+      <ul class="chip-row" :class="{ sub: run.title }">
+        <li v-for="(entry, i) in run.items" :key="key(entry, i)">
           <button type="button" class="chip-btn" @click="showInfo(entryInfo(entry, title))">
             <span v-if="entry.mod || (entry.value && entry.name)" class="chip-pre">{{ entry.mod ? 'Mod' : entry.value }}</span>
             <span>{{ entry.name ?? entry.tag ?? entry.value }}</span>
             <span v-if="entry.heat" class="heat-cost"><Icon name="heat" />{{ entry.heat }}</span>
-            <span v-if="tag(entry)" class="cost" :style="{ '--c': `var(--act-${tag(entry)!.colour})` }"><Icon :name="tag(entry)!.icon" />{{ tag(entry)!.word }}</span>
+            <span v-for="t in tags(entry)" :key="t.word" class="cost" :style="{ '--c': `var(--act-${t.colour})` }"><Icon :name="t.icon" />{{ t.word }}</span>
           </button>
         </li>
       </ul>
+      </div>
+      </div>
+      </template>
       <ul v-else-if="list.length" class="entries">
         <li v-for="(entry, i) in list" :key="key(entry, i)" :class="{ 'mod-row': entry.mod }">
           <p v-if="entry.plain" class="entry-plain">
@@ -343,6 +360,22 @@ button.entry-row {
   --indent: calc(1.25rem + var(--space-m));
 }
 
+/* The runs are plain wrappers, except in a card that lays its labelled groups side by side. */
+.runs,
+.run {
+  display: contents;
+}
+
+.across .runs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.across .run {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Chip view: a left-aligned wrapping row of light buttons. The shape is on ::before so the focus ring isn't clipped. */
 .chip-row {
   display: flex;
@@ -353,6 +386,11 @@ button.entry-row {
   margin: 0;
   padding: var(--space-m);
   list-style: none;
+}
+
+/* Under a sub-label the chips sit closer to it. */
+.chip-row.sub {
+  padding-top: var(--space-s);
 }
 
 .chip-btn {
@@ -405,6 +443,7 @@ button.entry-row {
   align-items: center;
   gap: 4px;
   height: 20px;
+  margin-left: 6px;
   padding: 0 8px 0 6px;
   background: var(--c);
   color: #fff;

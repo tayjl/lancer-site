@@ -13,7 +13,7 @@ import PageHeader from '../components/PageHeader.vue'
 import ChoiceField from '../components/editor/ChoiceField.vue'
 import { searchWords } from '../archive'
 import { actionKey, firstSentence, rowEntry, rulesTopics, stepActions, type CombatEntry, type KitAction } from '../combatEntries'
-import { combatLoadout, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
+import { combatLoadout, frameGroups, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
 import { ON_FOOT_ROWS, STATUS_GROUPS, TAGS, TURN_STEPS, WEAPON_SIZES } from '../combatRules'
 import { pilotVitals, tagNames, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
@@ -46,11 +46,12 @@ const loadout = computed(() =>
     : null,
 )
 const frame = computed(() => loadout.value?.frame ?? null)
-// The mech's key numbers for the summary, with the pilot's Grit. None without a frame.
+// The mech's numbers for the summary (a 4 x 3 grid, related ones together), with the pilot's Grit. System points are a
+// build number, left out. None without a frame.
 const vitals = computed(() => {
   const l = loadout.value
   if (!l?.frame) return []
-  const stats = ['hp', 'heat', 'armour', 'evasion', 'speed', 'edef', 'tech_attack'].map((id) => l.stats.find((stat) => stat.id === id)!)
+  const stats = ['structure', 'stress', 'hp', 'heat', 'armour', 'evasion', 'edef', 'tech_attack', 'speed', 'repair', 'size'].map((id) => l.stats.find((stat) => stat.id === id)!)
   return [...stats, { id: 'grit', name: 'Grit', icon: gritIcon, value: Math.ceil(gm.value.level / 2) }]
 })
 // The pilot's own key numbers, for Pilot mode.
@@ -88,7 +89,7 @@ const canTrim = computed(() => !!loadout.value?.frame)
 const trimmed = computed(() => canTrim.value && !showAll.value && !searching.value)
 
 // A card: its rows (a title, an icon, an optional colour and meta, and its entries), and "empty", the line it shows with none.
-type Group = { title: string; icon: string; colour?: string; meta?: string; note?: string; entries?: CombatEntry[]; mine?: CombatEntry[]; empty?: string; chips?: boolean; tagged?: boolean; gist?: boolean }
+type Group = { title: string; icon: string; colour?: string; meta?: string; note?: string; entries?: CombatEntry[]; mine?: CombatEntry[]; empty?: string; chips?: boolean; tagged?: boolean; gist?: boolean; across?: boolean }
 const size = (g: Group) => (g.entries?.length ?? 0) + (g.mine?.length ?? 0)
 
 // Rows that matched only in their hidden text start open, so you see why.
@@ -113,15 +114,22 @@ const kitInfo = (row: LoadoutRow): Info =>
   row.item
     ? itemInfo(row.item)
     : { kind: row.label ?? '', name: row.name, facts: [], stats: [], groups: [{ cards: [{ heading: '', html: row.html, activation: row.activation }] }] }
-const kitEntries = (block: LoadoutBlock): CombatEntry[] =>
-  (loadout.value?.rows ?? []).filter((row) => row.block === block).flatMap((row) => [
-    { label: row.label, name: row.name, activation: row.activation, stats: row.stats, tags: row.tags, gist: firstSentence(row.html) || undefined, info: () => kitInfo(row) },
-    ...row.mods.map((m) => ({ label: 'Mod', name: m.name, tags: m.tags, gist: firstSentence(m.html) || undefined, mod: true, info: () => itemInfo(m.item) })),
-  ])
+const kitEntries = (block: LoadoutBlock): CombatEntry[] => {
+  const rows = (loadout.value?.rows ?? []).filter((row) => row.block === block)
+  const grouped = block === 'frame' ? frameGroups(rows).flatMap((g) => g.rows.map((row) => ({ row, group: g.title }))) : rows.map((row) => ({ row, group: undefined }))
+  return grouped.flatMap(({ row, group }) => {
+    // An item's actions come from its rules; a trait or core power has its own activation.
+    const activations = row.activation ? [row.activation] : [...new Set(row.rules.map((rule) => rule.activation).filter((a): a is string => !!a && !!activationOf(a)))]
+    return [
+      { label: row.label, name: row.name, activation: row.activation, activations, group, stats: row.stats, tags: row.tags, gist: firstSentence(row.html) || undefined, info: () => kitInfo(row) },
+      ...row.mods.map((m) => ({ label: 'Mod', name: m.name, tags: m.tags, gist: firstSentence(m.html) || undefined, mod: true, info: () => itemInfo(m.item) })),
+    ]
+  })
+}
 // Your kit's own actions (a system's, a trait's, a core power's), for the turn strip.
 const kitActions = computed<KitAction[]>(() =>
   (loadout.value?.rows ?? []).flatMap((row) => [
-    ...(activationOf(row.activation) ? [{ label: row.label, name: row.name, activation: row.activation, text: row.html }] : []),
+    ...(activationOf(row.activation) ? [{ label: row.label, name: row.name, activation: row.activation, text: row.html, value: row.kind === 'core-power' ? 'Core power' : undefined }] : []),
     ...row.rules.filter((rule) => activationOf(rule.activation)).map((rule) => ({ label: row.name, name: rule.name, activation: rule.activation, frequency: rule.frequency, stats: rule.stats, text: rule.text })),
   ].map((entry) => ({ ...entry, block: row.block }))).map((entry) => ({ ...entry, key: actionKey(entry.activation), gist: firstSentence(entry.text) || undefined })),
 )
@@ -133,24 +141,30 @@ const repairLine = computed(() => {
 
 // The three sections. "on" applies the search; "trim" cuts the tags to your gear. A block is columns of cards, or with "grid"
 // a fixed grid of equal cards that all keep their place.
-type Block = { columns: Column[]; tags?: boolean; grid?: 'two' | 'three' }
+type Block = { columns: Column[]; grid?: 'one' | 'two' | 'three' | 'status' }
 type Content = { id: string; no: string; title: string; folded?: boolean; blocks: Block[]; count: number }
 function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Content[] {
   const l = loadout.value
   const sizes = trim ? WEAPON_SIZES.filter((row) => l!.sizes.has(row.value)) : WEAPON_SIZES
   const tags = trim ? TAGS.filter((row) => row.tags?.some((id) => l!.tagIds.has(id))) : TAGS
-  const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
+  const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
   const [weapons, systems, frameCard, talents, core, gear] = kitBlocks.map(block)
-  const [cover, conditions, other] = STATUS_GROUPS.map((g): Group => ({ title: g.title, icon: g.icon, entries: g.rows.map((row) => rowEntry(row)) }))
-  const rows = (list: Parameters<typeof rowEntry>[0][], options?: Parameters<typeof rowEntry>[1]) => list.map((row) => rowEntry(row, options))
+  // In Pilot mode "Down and out" is only in On foot.
+  const [cover, conditions, other] = STATUS_GROUPS.map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.filter((row) => !pilot || !ON_FOOT_ROWS.includes(row)).map((row) => rowEntry(row)) }))
+  const rows = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => rowEntry(row))
   const topics = rulesTopics(pilot, repairLine.value).map((card): Group => ({ title: card.title, icon: card.icon, chips: true, entries: card.topics.map((t) => ({ name: t.name, text: t.text, info: t.info })) }))
 
   const content: [string, string, string, boolean, Block[]][] = [
-    ['combat-kit', '01', 'Your kit', false, [pilot ? { grid: 'two', columns: [[gear, talents]] } : { grid: 'three', columns: [[weapons, systems, frameCard, talents, core, gear]] }]],
-    ['combat-tags', '02', 'Tags and statuses', false, [{ tags: true, columns: pilot ? [[cover, conditions], [other, { title: 'On foot', icon: 'pilot', entries: rows(ON_FOOT_ROWS) }]] : [[
-      { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, entries: tags.map((row) => ({ tag: row.value, gist: row.gist ?? firstSentence(row.text), text: row.text })) },
-      { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', entries: rows(sizes) },
-    ], [cover, conditions, other]] }]],
+    ['combat-kit', '01', 'Your kit', false, pilot ? [{ grid: 'two', columns: [[gear, talents]] }] : [{ grid: 'one', columns: [[frameCard]] }, { grid: 'three', columns: [[weapons, systems, gear]] }, { grid: 'two', columns: [[talents, core]] }]],
+    ['combat-tags', '02', 'Tags and statuses', false, pilot
+      ? [{ grid: 'two', columns: [[cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(ON_FOOT_ROWS) }]] }]
+      : [
+          { grid: 'two', columns: [[
+            { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, entries: tags.map((row) => ({ tag: row.value, gist: row.gist ?? firstSentence(row.text), text: row.text })) },
+            { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', chips: true, entries: rows(sizes) },
+          ]] },
+          { grid: 'status', columns: [[cover, conditions, other]] },
+        ]],
     ['combat-rules', '03', 'Rules', true, [{ grid: 'two', columns: [topics] }]],
   ]
   return content.map(([id, no, title, folded, blocks]) => {
@@ -228,7 +242,7 @@ const clear = () => {
           <FileSection v-if="!searching || s.count" :id="s.id" :no="s.no" :title="s.title" :folded="s.folded" :show="searching">
             <label v-if="s.id === 'combat-tags' && canTrim && mode === 'mech' && !searching" class="show-all"><input v-model="showAll" type="checkbox" /> Show all tags</label>
             <div v-for="(b, n) in s.blocks" :key="n" class="block">
-              <div v-if="b.grid" class="card-grid" :class="{ three: b.grid === 'three' }">
+              <div v-if="b.grid" class="card-grid" :class="b.grid">
                 <CombatGroup v-for="g in b.columns.flat()" :key="g.title" v-bind="g" />
               </div>
               <div v-else class="columns">
@@ -255,6 +269,10 @@ const clear = () => {
 
 .show-all + .block {
   margin-top: var(--space-s);
+}
+
+.block + .block {
+  margin-top: var(--space-m);
 }
 
 /* Search and the mode switch */
@@ -322,14 +340,40 @@ const clear = () => {
 }
 
 @media (min-width: 40rem) {
-  .card-grid {
+  .card-grid:not(.one) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Three status cards: the third spans both columns until there is room for three. */
+  .card-grid.status > :last-child {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 48rem) {
+  .card-grid.status {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card-grid.status > :last-child {
+    grid-column: auto;
+  }
+}
+
+/* Three kit cards: the third spans both columns until there is room for three. */
+@media (min-width: 40rem) {
+  .card-grid.three > :last-child {
+    grid-column: span 2;
   }
 }
 
 @media (min-width: 64rem) {
   .card-grid.three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card-grid.three > :last-child {
+    grid-column: auto;
   }
 }
 

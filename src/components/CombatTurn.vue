@@ -2,12 +2,14 @@
 import { computed } from 'vue'
 import { catalogueError } from '../catalogue'
 import { frameInfo } from '../info'
+import { half } from '../itemDetails'
 import type { Frame } from '../mechData'
 import type { PublicMech } from '../pilots'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 
-// The combat guide's summary: your mech with its key numbers (in Pilot mode, your pilot with theirs), full width above the turn strip.
+// The combat guide's summary: your mech with its key numbers (in Pilot mode, your pilot with theirs), full width above the turn strip. The numbers sit four to a row at every width, so a
+// count that is a multiple of 4 (12 in Mech mode) fills the grid evenly.
 type Vital = { id: string; name: string; icon?: string; value: number | null }
 const props = defineProps<{
   loading: boolean
@@ -53,9 +55,9 @@ const shown = computed(() => props.vitals.filter((vital) => vital.value !== null
             <p v-else-if="!catalogueError" class="dim frame">Choose a frame first.</p>
           </template>
         </div>
-        <ul v-if="shown.length" class="vitals" :class="{ five: shown.length === 5 }" :aria-label="`${mode === 'pilot' ? pilotName : mech?.name}'s stats`">
+        <ul v-if="shown.length" class="vitals" :aria-label="`${mode === 'pilot' ? pilotName : mech?.name}'s stats`">
           <li v-for="vital in shown" :key="vital.id" class="vital">
-            <span class="vital-top"><Icon :src="vital.icon" /><span class="num">{{ vital.value }}</span></span>
+            <span class="vital-top"><Icon :src="vital.icon" /><span class="num">{{ half(vital.value) }}</span></span>
             <span class="vital-name">{{ vital.name }}</span>
           </li>
         </ul>
@@ -105,14 +107,18 @@ const shown = computed(() => props.vitals.filter((vital) => vital.value !== null
 .vitals {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr; /* a label that wraps on a narrow phone makes every row the same height */
   gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.vitals.five {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+/* A lone tile on the last row (Pilot mode's Grit) sits centred, one tile wide. */
+.vital:last-child:nth-child(4n + 1) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(25% - 4.5px);
 }
 
 .vital {

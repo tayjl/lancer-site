@@ -11,7 +11,7 @@ describe('PILOT_ACTIONS', () => {
   it('has the on-foot set and nothing mech-only', () => {
     expect(names).toEqual(['Boost', 'Hide', 'Search', 'Activate', 'Reload', 'Skill check', 'Mount or dismount', 'Fight', 'Jockey', 'Improvised attack', 'Overwatch'])
     expect(names).not.toContain('Overcharge')
-    expect(names).not.toContain('Core Power')
+    expect(names).not.toContain('Core power rules')
     expect(PILOT_ACTIONS.some((a) => /tech/i.test(a.name) || /tech/i.test(a.activation ?? ''))).toBe(false)
   })
   it('reuses the existing objects and takes the Quick Activate', () => {
@@ -119,7 +119,7 @@ describe('stepActions', () => {
   })
   it('gives the other steps a how-it-works card and their actions', () => {
     expect(names('Protocol')).toEqual(['Wake', 'Pilot proto'])
-    expect(names('Free')).toEqual(['Core Power', 'Perk'])
+    expect(names('Free')).toEqual(['Core power rules', 'Perk'])
     expect(names('Reaction')).toEqual(['Brace', 'Overwatch', 'Reaction systems', 'Guard'])
     for (const step of ['Protocol', 'Free', 'Reaction']) expect(stepActions(step, mine)[0].title).toBe('How it works')
     expect(stepActions('Nope', mine)).toEqual([])
@@ -162,8 +162,8 @@ describe('stepActions', () => {
     expect(QUICK_ACTIONS.filter((a) => a.name === 'Invade' || a.name === 'Quick tech' || a.name === 'Fragment signal').map((a) => a.name)).toEqual(['Invade'])
   })
   it('gives every grouped action a group, and Core Power and reactions none', () => {
-    for (const a of [...QUICK_ACTIONS, ...FULL_ACTIONS.filter((x) => x.name !== 'Core Power'), IMPROVISED, JOCKEY, FIGHT]) expect(a.group, a.name).toBeTruthy()
-    expect([...REACTIONS, OVERCHARGE, FULL_ACTIONS.find((x) => x.name === 'Core Power')!].some((a) => a.group)).toBe(false)
+    for (const a of [...QUICK_ACTIONS, ...FULL_ACTIONS.filter((x) => x.name !== 'Core power rules'), IMPROVISED, JOCKEY, FIGHT]) expect(a.group, a.name).toBeTruthy()
+    expect([...REACTIONS, OVERCHARGE, FULL_ACTIONS.find((x) => x.name === 'Core power rules')!].some((a) => a.group)).toBe(false)
     expect([...QUICK_ACTIONS, ...FULL_ACTIONS].filter((a) => a.group === 'move').map((a) => a.name)).toEqual(['Boost', 'Disengage'])
   })
   it('has no dice words in the actions', () => {
