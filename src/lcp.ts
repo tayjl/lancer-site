@@ -3,9 +3,11 @@ import type { Json, Tables } from './lib/database.types'
 
 export const LCP_KINDS = {
   frames: 'Frames', weapons: 'Mech weapons', systems: 'Mech systems', mods: 'Weapon mods', pilot_gear: 'Pilot gear',
-  talents: 'Talents', core_bonuses: 'Core bonuses', tags: 'Tags', manufacturers: 'Manufacturers',
+  talents: 'Talents', core_bonuses: 'Core bonuses', tags: 'Tags', manufacturers: 'Manufacturers', actions: 'Actions',
 } as const
 export type LcpKind = keyof typeof LCP_KINDS
+// Base actions are the campaign's own wording, so a pack file's actions.json is ignored on import.
+const IMPORTED_KINDS = (Object.keys(LCP_KINDS) as LcpKind[]).filter(kind => kind !== 'actions')
 export type LcpManifest = { name: string; author: string; version: string; description: string } & Record<string, Json>
 export type LcpItem = { id: string; kind: LcpKind; data: Record<string, Json> }
 export type LcpPack = { manifest: LcpManifest; items: LcpItem[]; ignored: string[]; warnings: string[] }
@@ -22,6 +24,12 @@ export function hasCoreContent(items: InstalledItem[]) {
     ['t_ace', 'talents'], ['cb_auto_stabilizing_hardpoints', 'core_bonuses'], ['tg_burn', 'tags'],
   ]
   return required.every(([id, kind]) => items.some(item => item.id === id && item.kind === kind))
+}
+
+// Core is installed but lacks the seeded base actions (added after the first core import).
+// shortcut: only checks the actions kind, widen if more core kinds are added later.
+export function coreNeedsUpdate(items: InstalledItem[]) {
+  return hasCoreContent(items) && !items.some(item => item.kind === 'actions')
 }
 
 export const MAX_LCP_BYTES = 15 * 1024 * 1024
@@ -55,7 +63,7 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
         if (++count > 2000) throw new LcpError('That pack has too many files.')
         const root = !file.name.includes('/') && !file.name.includes('\\')
         const kind = file.name.replace(/\.json$/, '')
-        const supported = root && (file.name === 'lcp_manifest.json' || (file.name.endsWith('.json') && Object.hasOwn(LCP_KINDS, kind)))
+        const supported = root && (file.name === 'lcp_manifest.json' || (file.name.endsWith('.json') && (IMPORTED_KINDS as string[]).includes(kind)))
         if (!supported) { if (!file.name.endsWith('/')) ignored.push(file.name); return false }
         if (seen.has(file.name)) throw new LcpError(`The pack has two copies of ${file.name}.`)
         seen.add(file.name)
@@ -82,7 +90,7 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
   const manifest = { ...raw, name: String(raw.name).trim(), author: String(raw.author).trim(), version: String(raw.version).trim() } as LcpManifest
   const items: LcpItem[] = []
   const ids = new Set<string>()
-  for (const kind of Object.keys(LCP_KINDS) as LcpKind[]) {
+  for (const kind of IMPORTED_KINDS) {
     const filename = `${kind}.json`
     if (!files[filename]) continue
     const values = read(filename)

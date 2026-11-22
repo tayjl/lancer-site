@@ -1,5 +1,6 @@
 import { computed, shallowRef } from 'vue'
 import { cached, clearCatalogues, loadKind } from './catalogue'
+import { BASE_ACTIONS, toBaseAction, type BaseAction } from './baseActions'
 import { fetchAll, supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
 import hpIcon from './assets/icons/hp.svg'
@@ -112,14 +113,42 @@ let tagsLoading: Promise<void> | undefined
 export const invalidateCatalogues = () => {
   clearCatalogues()
   tagsLoading = undefined
+  actionsLoading = undefined
 }
+// The base actions the Combat page lists (hidden ones left out). The code's own list stands in when the load fails or no action rows exist.
+export const baseActions = shallowRef<BaseAction[]>(BASE_ACTIONS)
+// True once the load has settled (also when it failed), so a page can wait instead of flashing the seed's hidden actions.
+export const baseActionsLoaded = shallowRef(false)
+let actionsLoading: Promise<void> | undefined
+export function loadBaseActions() {
+  actionsLoading ??= (async () => {
+    try {
+      const { rows, error } = await loadKind('actions')
+      if (error) actionsLoading = undefined // not kept, so the next page tries again
+      if (error || !rows?.length) return
+      const order = new Map(BASE_ACTIONS.map((a, i) => [a.id, i]))
+      const at = (id: string) => order.get(id) ?? Infinity // the seed's order first, then the campaign's own
+      // Every row hidden gives an empty list, not the seed.
+      baseActions.value = rows.map(({ id, data }) => toBaseAction(id, data)).filter((a): a is BaseAction => !!a).sort((a, b) => (at(a.id) === at(b.id) ? 0 : at(a.id) < at(b.id) ? -1 : 1))
+    } finally {
+      baseActionsLoaded.value = true
+    }
+  })()
+  return actionsLoading
+}
+// True once the tag names have loaded (also when it failed).
+export const tagNamesLoaded = shallowRef(false)
 export function loadTagNames() {
   tagsLoading ??= (async () => {
-    const { rows: data, error } = await loadKind('tags')
-    if (error) tagsLoading = undefined // not kept, so the next page tries again
-    tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
-    tagDescriptions.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { description?: unknown } | null)?.description ?? '')]))
-    hiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hidden?: unknown } | null)?.hidden === true).map(({ id }) => id))
+    try {
+      const { rows: data, error } = await loadKind('tags')
+      if (error) tagsLoading = undefined // not kept, so the next page tries again
+      tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
+      tagDescriptions.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { description?: unknown } | null)?.description ?? '')]))
+      hiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hidden?: unknown } | null)?.hidden === true).map(({ id }) => id))
+    } finally {
+      tagNamesLoaded.value = true
+    }
   })()
   return tagsLoading
 }

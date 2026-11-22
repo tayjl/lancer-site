@@ -7,9 +7,9 @@
 // Core Power and reactions have none.
 export type ActionGroup = 'attack' | 'tech' | 'other' | 'move'
 export type CombatAction = { name: string; activation?: string; frequency?: string; gist?: string; group?: ActionGroup; text: string }
-// tags: the tag ids a TAGS row explains, so the guide can show only the ones on your gear. short: a narrower value for the
+// short: a narrower value for the
 // value column of a row list, where "7 or less" wouldn't fit.
-export type CombatRow = { value: string; short?: string; name?: string; gist?: string; text: string; icon?: string; tags?: string[] } // tables and lists
+export type CombatRow = { value: string; short?: string; name?: string; gist?: string; text: string; icon?: string } // tables and lists
 export type CombatFormula = { formula: string; note?: string; example: string }
 
 // Rules text that was written in the page's template, here so the search can reach it.
@@ -287,29 +287,8 @@ export const WEAPON_SIZES: CombatRow[] = [
   { value: 'Heavy', text: "High-impact weapons. They can't be fired with Overwatch unless a talent says so." },
   { value: 'Superheavy', text: "Takes up two mounts and needs a full action (Barrage) to fire. It can't be used with Skirmish or Overwatch." },
 ]
-export const TAGS: CombatRow[] = [
-  { value: 'Accurate / Inaccurate', tags: ['tg_accurate', 'tg_inaccurate'], text: '+2 (1 Accuracy) or −2 (1 Difficulty) on attacks with this weapon.' },
-  { value: 'AI', tags: ['tg_ai'], text: 'Holds an NHP or COMP/CON unit. The mech can act on its own while the pilot is outside.' },
-  { value: 'Armour piercing (AP)', tags: ['tg_ap'], text: "Ignores the target's armour." },
-  { value: 'Arcing', tags: ['tg_arcing'], text: 'Lobs shots over obstacles. Ignores cover, Screened and Barrier-protected.' },
-  { value: 'Danger zone', tags: ['tg_danger_zone'], text: 'Only works (or gains its bonus) while your Heat is at least half your Heat cap, rounded up.' },
-  { value: 'Heat X (self)', tags: ['tg_heat_self'], text: 'Firing it adds X Heat to your own mech straight away.' },
-  { value: 'Knockback X', tags: ['tg_knockback'], text: 'Pushes the target back on a full hit or crit. See Knockback above.' },
-  { value: 'Limited X', tags: ['tg_limited'], text: 'Usable X times a mission, plus bonus uses from your Engineering, until a Full Repair.' },
-  { value: 'Loading', tags: ['tg_loading'], text: 'Fires once, then needs a Reload (quick action) or Stabilize (full action) before it fires again.' },
-  { value: 'Mod', tags: ['tg_mod'], text: 'Fits on a weapon mount to add tags or damage.' },
-  { value: 'Ordnance', tags: ['tg_ordnance'], text: 'Can only be fired before you move on your turn, and not while Engaged (Range 1).' },
-  { value: 'Overkill', tags: ['tg_overkill'], text: 'Before an attack you can take 1 Heat to add +2 damage, once per attack.' },
-  { value: 'Overshield X', tags: ['tg_overshield'], text: "X temporary HP that takes damage before your real HP. It doesn't stack. Keep the highest." },
-  { value: 'Protocol', tags: ['tg_protocol'], text: 'Only at the start of your turn, before you move or act.' },
-  { value: 'Reaction', tags: ['tg_reaction'], text: 'Declared at the end of your turn. It counts toward your 1 reaction a round.' },
-  { value: 'Reliable X', tags: ['tg_reliable'], text: 'Deals X damage even on a miss, or on a grazing hit when X is more than half damage.' },
-  { value: 'Seeking', tags: ['tg_seeking'], text: "Guided. Ignores cover, Screened and Barrier-protected, but can't hit Obscured targets." },
-  { value: 'Shield', tags: ['tg_shield'], text: 'Gives Barrier-protected (−2, 1 Difficulty, on incoming ranged attacks) or puts up cover facing one way.' },
-  { value: 'Smart', tags: ['tg_smart'], text: 'Targets E-defence instead of Evasion, and ignores all cover and statuses like Obscured.' },
-  { value: 'Thrown', tags: ['tg_thrown'], text: "Leaves your hand on attack. You can't use it again until you pick it up with a quick action." },
-  { value: 'Unique', tags: ['tg_unique'], text: 'Only one copy on your mech.' },
-]
+// The tags the guide lists. Their names and wording come from the content editor.
+export const TAG_IDS = ['tg_accurate', 'tg_inaccurate', 'tg_ai', 'tg_ap', 'tg_arcing', 'tg_danger_zone', 'tg_heat_self', 'tg_knockback', 'tg_limited', 'tg_loading', 'tg_mod', 'tg_ordnance', 'tg_overkill', 'tg_overshield', 'tg_protocol', 'tg_reaction', 'tg_reliable', 'tg_seeking', 'tg_shield', 'tg_smart', 'tg_thrown', 'tg_unique']
 
 export const DICE: CombatRow[] = [
   { value: '1d3', text: '2 damage' },
@@ -350,5 +329,4 @@ gists(SPEED_GATEWAYS, { 'Standard repositioning': 'Move around your local area.'
 gists(TERRAIN, { 'Difficult terrain': 'Crossing it takes 2 off your Speed.', 'Dangerous terrain': 'Entering it or ending your turn in it costs a penalty.' })
 gists(AREAS, { Burst: 'Everyone around you.', Blast: 'The target plus 1 or 2 nearby targets.', Cone: 'Up to 2 or 3 targets in a forward arc.', Line: 'The target plus 1 or 2 targets behind them.' })
 gists(REPAIRS, { Rest: 'A short break between scenes.', 'Full Repair': 'Downtime between missions. Everything returns.' })
-gists(TAGS, { Loading: 'Fires once, then needs a Reload or Stabilize.', 'Reliable X': 'Deals X damage even on a miss.', Seeking: "Ignores cover, but can't hit Obscured targets." })
 gists(WEAPON_SIZES, { Auxiliary: 'Light weapons. Two on a mount fire together.' })

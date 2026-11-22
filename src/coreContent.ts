@@ -11,6 +11,7 @@ import tags from '@massif/lancer-data/lib/tags.json'
 import manufacturers from '@massif/lancer-data/lib/manufacturers.json'
 import { version } from '@massif/lancer-data/package.json'
 import type { Json } from './lib/database.types'
+import { actionData, BASE_ACTIONS } from './baseActions'
 import { withoutActiveEffects, type LcpKind, type LcpPack } from './lcp'
 
 export const coreContent: LcpPack = {
@@ -19,12 +20,15 @@ export const coreContent: LcpPack = {
     description: 'Official LANCER core pilot and mech content.',
     source: '@massif/lancer-data', core: true,
   },
-  items: Object.entries({ frames, weapons, systems, mods, pilot_gear, talents, core_bonuses, tags, manufacturers }).flatMap(([kind, rows]) =>
+  items: [...Object.entries({ frames, weapons, systems, mods, pilot_gear, talents, core_bonuses, tags, manufacturers }).flatMap(([kind, rows]) =>
     (rows as unknown as Record<string, Json>[])
       // COMP/CON's missing-data placeholders are not playable equipment.
       .filter(row => typeof row.id === 'string' && !row.id.startsWith('missing_'))
       .map(data => ({ id: String(data.id), kind: kind as LcpKind, data: withoutActiveEffects(data) })),
   ),
+  // The Combat page's base actions, so the owner can reword them in the editor.
+  ...BASE_ACTIONS.map(a => ({ id: a.id, kind: 'actions' as LcpKind, data: actionData(a) as Record<string, Json> })),
+  ],
   ignored: [],
   warnings: [],
 }

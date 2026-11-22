@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
 import { coreContent } from './coreContent'
-import { hasCoreContent, LCP_KINDS, readLcp } from './lcp'
+import { coreNeedsUpdate, hasCoreContent, LCP_KINDS, readLcp } from './lcp'
 
 const installed = coreContent.items.map(item => ({ id: item.id, kind: item.kind, pack_id: 1 }))
 
@@ -13,6 +13,14 @@ describe('official core content', () => {
     expect(hasCoreContent(installed.filter(item => item.kind !== 'pilot_gear'))).toBe(false)
   })
 
+  it('offers a core update only when core exists without actions', () => {
+    const withoutActions = installed.filter(item => item.kind !== 'actions')
+    expect(coreNeedsUpdate([])).toBe(false)
+    expect(coreNeedsUpdate(withoutActions)).toBe(true)
+    expect(coreNeedsUpdate(installed)).toBe(coreContent.items.every(item => item.kind !== 'actions'))
+    expect(coreNeedsUpdate([...withoutActions, { id: 'x', kind: 'actions', pack_id: 1 }])).toBe(false)
+  })
+
   it('does not include missing-data placeholders', () => {
     expect(coreContent.items.length).toBeGreaterThan(200)
     expect(coreContent.items.some(item => item.id.startsWith('missing_'))).toBe(false)
@@ -21,10 +29,10 @@ describe('official core content', () => {
   it('passes the same validation as an uploaded LCP', async () => {
     const files = {
       'lcp_manifest.json': strToU8(JSON.stringify(coreContent.manifest)),
-      ...Object.fromEntries(Object.keys(LCP_KINDS).map(kind => [`${kind}.json`, strToU8(JSON.stringify(coreContent.items.filter(item => item.kind === kind).map(item => item.data)))])),
+      ...Object.fromEntries(Object.keys(LCP_KINDS).filter(kind => kind !== 'actions').map(kind => [`${kind}.json`, strToU8(JSON.stringify(coreContent.items.filter(item => item.kind === kind).map(item => item.data)))])),
     }
     const parsed = await readLcp(zipSync(files))
-    expect(parsed.items).toEqual(coreContent.items)
+    expect(parsed.items).toEqual(coreContent.items.filter(item => item.kind !== 'actions'))
     expect(parsed.manifest.version).toBe('3.1.7')
   })
 })

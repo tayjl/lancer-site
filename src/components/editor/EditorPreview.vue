@@ -5,6 +5,7 @@ import type { Data, EditorKind } from '../../contentEditor'
 import { toCoreBonus, toItem, toMod, toTalent, type Bionic } from '../../gameData'
 import { bionicInfo, coreBonusInfo, frameInfo, itemInfo, manufacturerInfo, talentInfo, type Info } from '../../info'
 import { toFrame, useMechData } from '../../mechData'
+import ActionChip from '../ActionChip.vue'
 import Icon from '../Icon.vue'
 import InfoBody from '../InfoBody.vue'
 import ItemCard from '../ItemCard.vue'
@@ -31,6 +32,7 @@ function build(data: Data): Built {
     if (kind === 'core_bonuses') { const bonus = toCoreBonus(id, data); return { info: coreBonusInfo(bonus), bonus } }
     if (kind === 'manufacturers') return { info: manufacturerInfo(toManufacturer(id, data), frames.value) }
     if (kind === 'tags') return { info: { kind: 'Tag', name: String(data.name ?? id), facts: [], stats: [], groups: [{ title: 'Meaning', cards: [{ heading: 'Meaning', html: String(data.description ?? '') }] }] } }
+    if (kind === 'actions') return { info: { kind: 'Action', name: String(data.name ?? id), facts: data.frequency ? [{ text: String(data.frequency) }] : [], stats: [], groups: data.detail ? [{ title: 'Rules', cards: [{ heading: 'Rules text', html: String(data.detail) }] }] : [] } }
     if (kind === 'bionics') {
       const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), source: String(data.source ?? '') || null, effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
       return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name]))) }
@@ -81,6 +83,7 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
         <div>
           <p class="label">{{ now.info.kind }}</p>
           <h3>{{ now.info.name || 'Unnamed' }}</h3>
+          <ActionChip v-if="kind === 'actions'" :activation="String(data.activation ?? '')" />
         </div>
       </header>
       <InfoBody :info="now.info" />

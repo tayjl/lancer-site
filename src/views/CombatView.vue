@@ -14,8 +14,8 @@ import ChoiceField from '../components/editor/ChoiceField.vue'
 import { searchWords } from '../archive'
 import { actionKey, firstSentence, rowEntry, rulesTopics, stepActions, type CombatEntry, type KitAction } from '../combatEntries'
 import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
-import { ON_FOOT_ROWS, STATUS_GROUPS, TAGS, TURN_STEPS, WEAPON_SIZES } from '../combatRules'
-import { pilotVitals, tagNames, useGameData } from '../gameData'
+import { ON_FOOT_ROWS, STATUS_GROUPS, TAG_IDS, TURN_STEPS, WEAPON_SIZES } from '../combatRules'
+import { baseActionsLoaded, hiddenTags, loadBaseActions, loadTagNames, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
@@ -32,6 +32,10 @@ import { plainText } from '../rulesText'
 // looks through the current mode's rows: the bar gives way to the matching actions and every section with a match opens.
 const route = useRoute()
 const router = useRouter()
+loadBaseActions()
+// The action and tag wording is editable content: show nothing of it until both have loaded, not the seed.
+const contentReady = computed(() => baseActionsLoaded.value && tagNamesLoaded.value)
+loadTagNames()
 // Your living pilot as a GM approved it: what's in play, not a change still in draft.
 const { character, sheet, approved, loading, loadError, load, gm } = useMyPilot()
 const catalogue = useCatalogue()
@@ -149,7 +153,10 @@ type Content = { id: string; no: string; title: string; folded?: boolean; blocks
 function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Content[] {
   const l = loadout.value
   const sizes = trim ? WEAPON_SIZES.filter((row) => l!.sizes.has(row.value)) : WEAPON_SIZES
-  const tags = trim ? TAGS.filter((row) => row.tags?.some((id) => l!.tagIds.has(id))) : TAGS
+  // Tag wording comes from the content editor. Trimmed: every visible tag on your gear, homebrew too.
+  const tagRows = (trim ? [...l!.tagIds].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b)) : TAG_IDS)
+    .filter((id) => tagNames.value.has(id) && !hiddenTags.value.has(id))
+    .map((id) => ({ tag: tagNames.value.get(id)!.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(id) ?? '').replaceAll('{VAL}', 'X') }))
   const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame' || b.key === 'weapons' || b.key === 'gear', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
   const [weapons, systems, frameCard, talents, core, gear] = kitBlocks.map(block)
   // In Pilot mode "Down and out" is only in On foot.
@@ -163,7 +170,7 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
       ? [{ grid: 'two', columns: [[cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(ON_FOOT_ROWS) }]] }]
       : [
           { grid: 'two', columns: [[
-            { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, entries: tags.map((row) => ({ tag: row.value, gist: row.gist ?? firstSentence(row.text), text: row.text })) },
+            { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, empty: 'None.', entries: tagRows.map((row) => ({ ...row, gist: firstSentence(row.text) })) },
             { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', chips: true, entries: rows(sizes) },
           ]] },
           { grid: 'status', columns: [[cover, conditions, other]] },
@@ -235,7 +242,8 @@ const clear = () => {
         @retry="load()"
       />
 
-      <p v-if="searching && !matches" class="empty">Nothing matches that search.</p>
+      <p v-if="!contentReady" class="dim" role="status">Loading…</p>
+      <p v-else-if="searching && !matches" class="empty">Nothing matches that search.</p>
       <template v-else>
         <CombatStrip v-if="!searching" :kit-actions="kitActions" :pilot="mode === 'pilot'" :overcharge="overcharge" :speed="speed" />
         <div v-else-if="actions" class="columns">

@@ -22,6 +22,7 @@ import ModForm from './ModForm.vue'
 import RawDataField from './RawDataField.vue'
 import SystemForm from './SystemForm.vue'
 import TagForm from './TagForm.vue'
+import ActionForm from './ActionForm.vue'
 import TalentForm from './TalentForm.vue'
 import WeaponForm from './WeaponForm.vue'
 import { provideProblems } from './useFields'
@@ -262,6 +263,7 @@ defineExpose({ dirty })
         <FrameForm v-else-if="kind === 'frames'" v-model="working" :bonus-types="bonusTypes" :locked="!isNew" :manufacturers="manufacturers" />
         <ManufacturerForm v-else-if="kind === 'manufacturers'" v-model="working" :locked="!isNew" />
         <TagForm v-else-if="kind === 'tags'" v-model="working" :locked="!isNew" />
+        <ActionForm v-else-if="kind === 'actions'" v-model="working" :locked="!isNew" />
         <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
         <p v-else class="notice" role="note">
           <span>No form for {{ info.label.toLowerCase() }} yet. Edit the raw data.</span>

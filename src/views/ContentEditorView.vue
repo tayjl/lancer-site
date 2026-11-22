@@ -234,6 +234,7 @@ async function exportLcp() {
                       <span class="row-name">{{ row.name }}</span>
                       <span v-if="row.draft" class="badge draft">Draft</span>
                       <span v-else-if="row.edited" class="badge">Edited</span>
+                      <span v-if="row.hidden" class="badge">Hidden</span>
                     </span>
                     <span v-if="row.facts" class="row-facts">{{ row.facts }}</span>
                   </button>

@@ -6,7 +6,7 @@ import { fetchAll, supabase } from '../lib/supabaseClient'
 import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
 import { confirmAction } from '../confirm'
-import { LCP_KINDS, MAX_LCP_BYTES, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
+import { LCP_KINDS, MAX_LCP_BYTES, coreNeedsUpdate, hasCoreContent, plainPackText, planLcp, readLcp, type InstalledItem, type InstalledPack, type LcpPack } from '../lcp'
 import { message } from '../editorStore'
 import { plural } from '../text'
 import { formatDate } from '../time'
@@ -28,6 +28,7 @@ const reading = ref(false)
 const saving = ref(false)
 const loadingCore = ref(false)
 const coreInstalled = computed(() => hasCoreContent(items.value))
+const coreUpdatable = computed(() => coreNeedsUpdate(items.value))
 const fileError = ref('')
 const saveError = ref('')
 const result = shallowRef<{ name: string; version: string; added: number; updated: number; retained: number } | null>(null)
@@ -123,7 +124,7 @@ function cancel() {
   saveError.value = ''
 }
 async function loadCoreContent() {
-  if (coreInstalled.value || loading.value || loadError.value || reading.value || saving.value) return
+  if ((coreInstalled.value && !coreUpdatable.value) || loading.value || loadError.value || reading.value || saving.value) return
   loadingCore.value = true
   reset('Official core content')
   try {
@@ -188,7 +189,7 @@ async function removePack(pack: InstalledPack) {
   <main class="page">
     <PageHeader title="GM content" summary="Game content packs.">
       <div v-if="isOwner" class="actions">
-        <button v-if="!loading && !loadError && !coreInstalled" type="button" :class="{ primary: !candidate }" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'Loading…' : 'Load core content' }}</button>
+        <button v-if="!loading && !loadError && (!coreInstalled || coreUpdatable)" type="button" :class="{ primary: !candidate }" :disabled="reading || saving || loadingCore" @click="loadCoreContent">{{ loadingCore ? 'Loading…' : coreUpdatable ? 'Update core content' : 'Load core content' }}</button>
         <button type="button" :class="{ primary: coreInstalled && !candidate }" :disabled="loading || !!loadError || reading || saving" @click="chooseFile()">Import pack</button>
         <RouterLink :to="{ name: 'gm-content-editor' }" class="link-button">Open editor</RouterLink>
       </div>

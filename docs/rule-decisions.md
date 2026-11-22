@@ -12,7 +12,7 @@ Rules will keep changing. To change one:
 
 | Rule | Where it lives |
 |---|---|
-| Combat guide text (actions, statuses, tags, ranges, rest) | [combat-handbook.md](combat-handbook.md), then `src/combatRules.ts` |
+| Combat guide text (actions, statuses, tags, ranges, rest) | [combat-handbook.md](combat-handbook.md), then `src/combatRules.ts`. Base action and tag wording lives in the content editor (kinds Actions and Tags); `src/baseActions.ts` is the seed and fallback |
 | Overcharge steps, Repairs per Structure or Stress | `OVERCHARGE_HEAT`, `REPAIR_COST` in `src/combatRules.ts` (the combat guide and the mech page both read them) |
 | Dice to flat damage (rounding) | `flatDamage()` in `src/damage.ts` |
 | Pilot HP, armour, Speed, E-defence | `pilotVitals()` in `src/gameData.ts` |

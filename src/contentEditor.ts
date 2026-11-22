@@ -27,6 +27,7 @@ export const KINDS: KindInfo[] = [
   kind('talents', 'Talents', 'talent', 'talent', 'hb_t_'),
   kind('core_bonuses', 'Core bonuses', 'core bonus', 'corebonus', 'hb_cb_'),
   kind('tags', 'Tags', 'tag', 'flag', 'hb_tg_'),
+  kind('actions', 'Actions', 'action', 'flag', 'hb_act_'),
   kind('manufacturers', 'Manufacturers', 'manufacturer', 'manufacturer', 'hb_mfr_'),
   kind('bionics', 'Biomods', 'biomod', 'mod', '', true),
   kind('factions', 'Factions', 'faction', 'manufacturer', '', true),
@@ -64,6 +65,7 @@ export function blankItem(kind: EditorKind, id: string): Data {
   if (kind === 'pilot_gear') return { id, name: '', type: 'Gear', effect: '', description: '' }
   if (kind === 'core_bonuses') return { id, name: '', source: '', effect: '', description: '' }
   if (kind === 'tags') return { id, name: '', description: '' }
+  if (kind === 'actions') return { id, name: '', activation: 'Quick', terse: '', detail: '', mech: true }
   const gms = { source: 'GMS', license: 'GMS', license_id: '', license_level: 0 }
   if (kind === 'frames') return blankFrame(id)
   if (kind === 'weapons') return { id, name: '', mount: 'Main', type: 'Rifle', ...gms, sp: 1, range: [], damage: [], tags: [], effect: '', description: '' }
