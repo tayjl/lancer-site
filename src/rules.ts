@@ -5,6 +5,7 @@ import { DAMAGE_CHOICES, modBlockedBy, variableDamage } from './equipment'
 import { bonusValue, resolveBonuses } from './bonuses'
 import type { MechPrivate, OwnedGear, Sheet } from './myPilot'
 import { capitalise } from './text'
+import { rule } from './rulesData'
 
 // LANCER's character rules with this campaign's homebrew, as plain functions the pages use to block choices
 // and to list what's wrong. docs/lancer-rules.md lists every rule, what's enforced and what's left to GMs.
@@ -14,24 +15,25 @@ import { capitalise } from './text'
 // just the number of licence ranks bought. Gear is free to print once licensed (GMS gear always is), and
 // every 3 licence ranks bought give one core bonus for free.
 
-export const MAX_LICENCE_RANK = 3
-export const MAX_TALENT_RANK = 3
+// Balance numbers owners can edit (rulesData.ts NUMBER_KEYS), so these are functions: read them where they are used.
+export const maxLicenceRank = () => rule('max_licence_rank')
+export const maxTalentRank = () => rule('max_talent_rank')
 export const MAX_SKILL = 6
-export const PERSONAL_STAT_MIN = 2
-export const PERSONAL_STAT_MAX = 4
-export const PERSONAL_STAT_POINTS = 4
+export const personalStatMin = () => rule('personal_stat_min')
+export const personalStatMax = () => rule('personal_stat_max')
+export const personalStatPoints = () => rule('personal_stat_points')
 
 // Only increases above the base cost points; biomods are applied separately.
 export const personalPoints = (values: Record<string, number> = {}) =>
-  Object.values(values).reduce((total, value) => total + (Number.isFinite(value) ? Math.max(0, value - PERSONAL_STAT_MIN) : 0), 0)
+  Object.values(values).reduce((total, value) => total + (Number.isFinite(value) ? Math.max(0, value - personalStatMin()) : 0), 0)
 
 export function personalStatProblems(values: Record<string, number> = {}): string[] {
   const problems: string[] = []
   for (const [id, value] of Object.entries(values))
-    if (!Number.isInteger(value) || value < PERSONAL_STAT_MIN || value > PERSONAL_STAT_MAX)
-      problems.push(`${capitalise(id.replaceAll('_', '-'))} must be a whole number from ${PERSONAL_STAT_MIN} to ${PERSONAL_STAT_MAX}.`)
+    if (!Number.isInteger(value) || value < personalStatMin() || value > personalStatMax())
+      problems.push(`${capitalise(id.replaceAll('_', '-'))} must be a whole number from ${personalStatMin()} to ${personalStatMax()}.`)
   const used = personalPoints(values)
-  if (used > PERSONAL_STAT_POINTS) problems.push(`Personal stats use ${used} points, but only ${PERSONAL_STAT_POINTS} are available.`)
+  if (used > personalStatPoints()) problems.push(`Personal stats use ${used} points, but only ${personalStatPoints()} are available.`)
   return problems
 }
 
@@ -39,11 +41,14 @@ export function personalStatProblems(values: Record<string, number> = {}): strin
 export const formatAmount = (n: number) => n.toLocaleString('en-GB')
 
 // Manna prices. A pilot's first mech is free; each one after it costs "extraMech".
-// The database refuses a player's submit that overspends, with its own copy of these three prices in
-// supabase/migrations/20261121140000_homebrew_rules.sql (private.guard_submit_rules); rules.test.ts checks they match.
-export const PRICES = { licenceRank: 600, talentRank: 300, extraMech: 500 }
-// New pilots start with this much manna received (the column's default, migration 20261121090000_starting_manna_2000.sql).
-export const STARTING_MANNA = 2000
+// The database reads the same editable numbers (public.rule_number, migration 20261122120000) when it refuses an overspend.
+export const PRICES = {
+  get licenceRank() { return rule('licence_rank_price') },
+  get talentRank() { return rule('talent_rank_price') },
+  get extraMech() { return rule('extra_mech_price') },
+}
+// New pilots start with this much manna received (the column's default).
+export const startingManna = () => rule('starting_manna')
 // What the next mech costs, given how many the pilot has.
 export const nextMechPrice = (mechs: number) => (mechs > 0 ? PRICES.extraMech : 0)
 
@@ -83,9 +88,9 @@ export const restrictionReason = (r: Partial<Restriction>, viewer: { gm: boolean
 
 export const sum = (values: Record<string, number> | undefined) => Object.values(values ?? {}).reduce((a, b) => a + (Number.isFinite(b) ? Math.max(0, b) : 0), 0)
 
-// From level: HASE points (2 at level 0, one more per level) and the mod limit (6, one more per level).
-export const skillPoints = (level: number) => 2 + level
-export const modLimit = (level: number) => 6 + level
+// From level: HASE points and the mod limit (a base number, one more per level).
+export const skillPoints = (level: number) => rule('skill_points_base') + level
+export const modLimit = (level: number) => rule('mod_points_base') + level
 // The mod limit with every "mod_points" bonus the pilot's talents, core bonuses and equipped gear give.
 export const modPointLimit = (level: number, sheet: Sheet, gear: Item[], talents: Talent[], coreBonuses: CoreBonus[], bionics: Bionic[] = []) =>
   Math.max(0, modLimit(level) + pilotBonuses(sheet, gear, talents, coreBonuses, bionics).reduce((sum, { bonus }) => sum + (bonus.id === 'mod_points' && !bonus.condition ? bonusValue(bonus.val) ?? 0 : 0), 0))
@@ -134,19 +139,18 @@ export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBo
     const ranks = Object.entries(sheet.licences ?? {}).reduce((total, [id, rank]) => {
       const frame = frames.find((frame) => frame.id === id)
       return frame && frame.licenceLevel > 0 && frame.source.trim().toUpperCase() === source
-        && Number.isInteger(rank) && rank > 0 && rank <= MAX_LICENCE_RANK ? total + rank : total
+        && Number.isInteger(rank) && rank > 0 && rank <= maxLicenceRank() ? total + rank : total
     }, 0)
     if (ranks < count * 3) problems.push(`${source} core bonuses need ${count * 3} ${source} licence ranks, but the pilot has ${ranks}.`)
   }
   return problems
 }
 
-// A pilot gear item's price when its manna_cost isn't set (or isn't a whole number, 0 or more). Keep in step with
-// default_gear_price in supabase/migrations/20261121140000_homebrew_rules.sql (rules.test.ts reads it to check).
-export const GEAR_PRICE_DEFAULT = 100
+// A pilot gear item's price when its manna_cost isn't set (or isn't a whole number, 0 or more).
+export const gearPriceDefault = () => rule('default_gear_price')
 export const gearPrice = (item: Item) => {
   const cost = item.raw?.manna_cost
-  return typeof cost === 'number' && Number.isInteger(cost) && cost >= 0 ? cost : GEAR_PRICE_DEFAULT
+  return typeof cost === 'number' && Number.isInteger(cost) && cost >= 0 ? cost : gearPriceDefault()
 }
 
 // Which owned items cost nothing (one boolean per entry), worked out like the database's settle_pilot_gear (the sheet's own
@@ -225,7 +229,7 @@ export const mannaSpent = (sheet: Sheet, bionicPrices: Map<number, number>, mech
 // How many mechs a card's mechs column holds.
 export const mechCount = (mechs: unknown) => (Array.isArray(mechs) ? mechs.length : 0)
 
-export const rankName = (rank: number) => ['0', 'I', 'II', 'III'][rank] ?? String(rank)
+export const rankName = (rank: number) => ['0', 'I', 'II', 'III', 'IV', 'V', 'VI'][rank] ?? String(rank)
 
 // Whether the pilot's licences cover something: free (licence level 0, e.g. GMS), or a high enough rank
 // in the licence it belongs to.
@@ -451,7 +455,7 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
   if (mods > limit) problems.push(limit === modLimit(gm.level) ? `Biomods use ${mods} mod points, but level ${gm.level} only gives ${limit}.` : `Biomods use ${mods} mod points, but only ${limit} are available.`)
 
   for (const [id, rank] of Object.entries(sheet.licences ?? {}))
-    if (!Number.isInteger(rank) || rank < 0 || rank > MAX_LICENCE_RANK) problems.push(`${licenceName(catalogue.frames, id)} licence must be a whole rank from 0 to III.`)
+    if (!Number.isInteger(rank) || rank < 0 || rank > maxLicenceRank()) problems.push(`${licenceName(catalogue.frames, id)} licence must be a whole rank from 0 to ${rankName(maxLicenceRank())}.`)
     else if (rank > 0) {
       const frame = catalogue.frames.find(frame => frame.id === id && frame.licenceLevel > 0)
       const original = frame && alternateOf(frame, catalogue.frames)
@@ -459,7 +463,7 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
       else if (original) problems.push(`${frame.name} is part of the ${original.name} licence. A GM should move its ranks there.`)
     }
   for (const [id, rank] of Object.entries(sheet.talents ?? {}))
-    if (!Number.isInteger(rank) || rank < 0 || rank > MAX_TALENT_RANK) problems.push(`Talent ${id} must be a whole rank from 0 to III.`)
+    if (!Number.isInteger(rank) || rank < 0 || rank > maxTalentRank()) problems.push(`Talent ${id} must be a whole rank from 0 to ${rankName(maxTalentRank())}.`)
     else if (rank > 0) {
       const talent = catalogue.talents?.find(talent => talent.id === id)
       if (!talent) problems.push(`Talent ${id} isn't in any loaded pack.`)

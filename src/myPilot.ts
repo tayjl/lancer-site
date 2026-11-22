@@ -7,7 +7,7 @@ import { CHANGED_ELSEWHERE, checkWrite, readError, supabase } from './lib/supaba
 import { PUBLIC_COLUMNS } from './changeDiff'
 import { NOT_SUBMITTED } from './saveStatus'
 import type { PublicMech } from './pilots'
-import { adjustGrants, STARTING_MANNA, type GmFields, type Grants } from './rules'
+import { adjustGrants, startingManna, type GmFields, type Grants } from './rules'
 
 // A pilot for pilot_management and the mech pages: the public card (characters table) and the private sheet
 // (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
@@ -89,7 +89,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const sheet = shallowRef<Sheet>({})
   // Level (gained narratively) and manna received. They live beside the sheet, not in it, and only GMs can
   // change them (the database enforces it). See src/rules.ts for what they give.
-  const gm = ref<GmFields>({ level: 0, manna: STARTING_MANNA })
+  const gm = ref<GmFields>({ level: 0, manna: startingManna() })
   // What a GM gave this pilot free (rules.ts Grants). Recorded by GM edit mode, saved with the sheet; never in the sheet itself.
   const grants = ref<Grants>({})
   // A GM's note when they send a pilot back (it's a draft again). Cleared when it's submitted again.
@@ -165,7 +165,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     playerName.value = player?.display_name ?? ''
     if (data) {
       sheet.value = (privateRow?.sheet ?? {}) as unknown as Sheet
-      gm.value = { level: privateRow?.level ?? 0, manna: privateRow?.manna ?? 0 }
+      gm.value = { level: privateRow?.level ?? 0, manna: privateRow ? privateRow.manna ?? 0 : startingManna() }
       grants.value = (privateRow?.gm_grants ?? {}) as Grants
       reviewNote.value = privateRow?.review_note ?? ''
       sheetUpdatedAt.value = privateRow?.updated_at ?? ''

@@ -49,7 +49,7 @@ import { GM_EDIT } from '../restriction'
 import { useSaveStatus } from '../saveStatus'
 import type { PublicMech } from '../pilots'
 import { pilotList } from '../router'
-import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, PERSONAL_STAT_MIN, PERSONAL_STAT_MAX, PERSONAL_STAT_POINTS, PRICES, skillPoints, formatAmount, requirementReason, unmetRequirements, useCatalogue } from '../rules'
+import { coreBonusPicks, restrictionOf, licenceLevel, licenceName, mannaSpent, modLimit, pilotProblems, personalStatProblems, personalStatMin, personalStatMax, personalStatPoints, PRICES, skillPoints, formatAmount, requirementReason, unmetRequirements, useCatalogue } from '../rules'
 import { capitalise } from '../text'
 
 // my pilot: your pilot as one scrolling file. A cover (portrait, callsign, name, player, status, medals, then the key
@@ -615,9 +615,9 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               title="Personal stats"
               :stats="stats.personal"
               :editable="editable"
-              :min="PERSONAL_STAT_MIN"
-              :max="PERSONAL_STAT_MAX"
-              :budget="PERSONAL_STAT_POINTS"
+              :min="personalStatMin()"
+              :max="personalStatMax()"
+              :budget="personalStatPoints()"
               @set="(id, value) => setStat('pilot_stats', stats.personal, id, value)"
             />
             <StatRow

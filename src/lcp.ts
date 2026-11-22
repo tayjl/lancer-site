@@ -3,11 +3,11 @@ import type { Json, Tables } from './lib/database.types'
 
 export const LCP_KINDS = {
   frames: 'Frames', weapons: 'Mech weapons', systems: 'Mech systems', mods: 'Weapon mods', pilot_gear: 'Pilot gear',
-  talents: 'Talents', core_bonuses: 'Core bonuses', tags: 'Tags', manufacturers: 'Manufacturers', actions: 'Actions',
+  talents: 'Talents', core_bonuses: 'Core bonuses', tags: 'Tags', manufacturers: 'Manufacturers', actions: 'Actions', rules: 'Rules',
 } as const
 export type LcpKind = keyof typeof LCP_KINDS
-// Base actions are the campaign's own wording, so a pack file's actions.json is ignored on import.
-const IMPORTED_KINDS = (Object.keys(LCP_KINDS) as LcpKind[]).filter(kind => kind !== 'actions')
+// Base actions and rules are the campaign's own wording, so a pack file's actions.json and rules.json are ignored on import.
+const IMPORTED_KINDS = (Object.keys(LCP_KINDS) as LcpKind[]).filter(kind => kind !== 'actions' && kind !== 'rules')
 export type LcpManifest = { name: string; author: string; version: string; description: string } & Record<string, Json>
 export type LcpItem = { id: string; kind: LcpKind; data: Record<string, Json> }
 export type LcpPack = { manifest: LcpManifest; items: LcpItem[]; ignored: string[]; warnings: string[] }

@@ -1,4 +1,4 @@
-import { OVERCHARGE_HEAT } from './combatRules'
+import { ruleNumbers } from './rulesData'
 import { equippedGear, LOADOUT, type Item } from './gameData'
 import { cardRules, itemDetails, type ItemRule, type ItemStat } from './itemDetails'
 import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type ReminderKind } from './mechData'
@@ -96,7 +96,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     rows.push({ block, label, kind: reminder.kind, name: reminder.name, activation: reminder.activation, stats: [], tags: [], html: reminder.text, rules: [], mods: [] })
   }
   // A frame or talent can change the steps. The general ones are in the guide already.
-  if (frame && resources.overcharge !== OVERCHARGE_HEAT.join(' → ')) {
+  if (frame && resources.overcharge !== ruleNumbers('overcharge_heat').join(' → ')) {
     rows.push({ block: 'frame', kind: 'frame', label: 'Overcharge', name: 'Overcharge Heat', stats: [], tags: [], html: `${resources.overcharge} Heat`, rules: [], mods: [] })
   }
   const gear = new Map((catalogue.gear ?? []).map(item => [item.id, item]))

@@ -1,4 +1,5 @@
-// The combat guide's text (CombatView.vue), from the campaign's handbook (docs/combat-handbook.md).
+// The combat guide's seed text, from the campaign's handbook (docs/combat-handbook.md). The page reads it through src/rulesData.ts
+// (content kind 'rules', editable), so only rulesData.ts and baseActions.ts import this file.
 // An action's "text" is rules text: plain words, or the small HTML RulesText.vue allows (<b>, <i>, lists). Table and
 // glossary strings are plain text. "activation" is an ActionChip word (Quick, Full, Reaction, Free, Overcharge,
 // Protocol, Quick Tech, Full Tech, Invade); leave it out for no chip.
@@ -86,7 +87,8 @@ export const OVERCHARGE: CombatAction = {
 // Balance numbers the mech page shares (mechResources). Change them here, and log the change in docs/rule-decisions.md.
 export const OVERCHARGE_HEAT = [1, 2, 4, 6]
 export const REPAIR_COST = 2 // Repairs to restore 1 Structure or 1 Stress at a Rest. Frames like the Everest lower it.
-export const OVERCHARGE_LATER = `After the 4th use, the cost stays at ${OVERCHARGE_HEAT.at(-1)} Heat until your next Full Repair.`
+// {HEAT} and {REPAIR} in rules text are filled from the numbers section (rulesData.ts).
+export const OVERCHARGE_LATER = 'After the 4th use, the cost stays at {HEAT} Heat until your next Full Repair.'
 
 export const REACTIONS: CombatAction[] = [
   { name: 'Brace', activation: 'Reaction', text: "The first damaging attack on you before your next turn deals half damage and half Heat. On your next turn you can't take reactions or move, and you can take only 1 quick action (no full actions or Overcharge)." },
@@ -160,7 +162,7 @@ export const STRUCTURE_STRESS: { n: number; structure: string; stress: string }[
 export const STRUCTURE_NOTE = "On Structure 2 with nothing left to destroy, you're Stunned until the end of your next turn instead. The defender chooses which weapon or system is destroyed."
 
 export const REPAIRS: CombatRow[] = [
-  { value: 'Rest', text: `A short break between scenes. Clear all Heat and statuses. Spend Repairs: 1 restores all HP, 1 fixes one destroyed weapon or system, and ${REPAIR_COST} restore 1 Structure or 1 Stress. Some frames cost less, as shown on your mech page.` },
+  { value: 'Rest', text: `A short break between scenes. Clear all Heat and statuses. Spend Repairs: 1 restores all HP, 1 fixes one destroyed weapon or system, and {REPAIR} restore 1 Structure or 1 Stress. Some frames cost less, as shown on your mech page.` },
   { value: 'Full Repair', text: 'Downtime between missions, when the GM calls it. Everything returns: HP, Structure, Stress, Repairs, Limited uses, destroyed parts and your Core Power. Overcharge goes back to 1 Heat.' },
 ]
 

@@ -5,6 +5,7 @@ import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
 import { REQUIREMENT_KINDS } from './gameData'
 import { EXOTIC, EXOTIC_TAG } from './rules'
+import { numberKeyOf, SECTIONS } from './rulesData'
 
 // The content editor's rules (ContentEditorView.vue): the kinds it edits, new ids, and what makes an item's data
 // acceptable to save. Pure, so it's tested without a database (src/contentEditor.test.ts).
@@ -28,6 +29,7 @@ export const KINDS: KindInfo[] = [
   kind('core_bonuses', 'Core bonuses', 'core bonus', 'corebonus', 'hb_cb_'),
   kind('tags', 'Tags', 'tag', 'flag', 'hb_tg_'),
   kind('actions', 'Actions', 'action', 'flag', 'hb_act_'),
+  kind('rules', 'Rules', 'rule', 'book-open', 'hb_rule_'),
   kind('manufacturers', 'Manufacturers', 'manufacturer', 'manufacturer', 'hb_mfr_'),
   kind('bionics', 'Biomods', 'biomod', 'mod', '', true),
   kind('factions', 'Factions', 'faction', 'manufacturer', '', true),
@@ -65,6 +67,7 @@ export function blankItem(kind: EditorKind, id: string): Data {
   if (kind === 'pilot_gear') return { id, name: '', type: 'Gear', effect: '', description: '' }
   if (kind === 'core_bonuses') return { id, name: '', source: '', effect: '', description: '' }
   if (kind === 'tags') return { id, name: '', description: '' }
+  if (kind === 'rules') return { id, name: '', section: 'notes', text: '', order: 1000 }
   if (kind === 'actions') return { id, name: '', activation: 'Quick', terse: '', detail: '', mech: true }
   const gms = { source: 'GMS', license: 'GMS', license_id: '', license_level: 0 }
   if (kind === 'frames') return blankFrame(id)
@@ -450,6 +453,29 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
   checkDeployables(core.deployables, ctx, out, 'core_system.deployables')
 }
 
+// A rule's section is from the fixed list, its group from that section's groups, and only the numbers section has numbers.
+function checkRule(data: Data, out: Problem[]) {
+  const section = SECTIONS.find((s) => s.id === data.section)
+  if (!section) out.push(error('Choose a section.', 'section'))
+  else {
+    if (section.groups && !section.groups.some((g) => g.id === data.group)) out.push(error('Choose a group.', 'group'))
+    const numbers = data.numbers
+    if (section.shape !== 'numbers' && numbers !== undefined) out.push(error('Only the numbers section has numbers.', 'numbers'))
+    if (section.shape === 'numbers') {
+      const balance = typeof data.id === 'string' ? numberKeyOf(data.id) : undefined
+      const track = data.id === 'rule_numbers_repair_cost' ? { max: 20, count: 1, what: 'Repair cost' } : { max: 99, count: 8, what: 'Overcharge heat' }
+      const whole = (n: unknown, max: number) => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= max
+      if (!Array.isArray(numbers) || !numbers.length) out.push(error('Add at least one number.', 'numbers'))
+      else if (numbers.some((n) => typeof n !== 'number' || !Number.isFinite(n))) out.push(error('Every number needs a value.', 'numbers'))
+      // A balance number is one whole number inside its range (the database ignores anything else).
+      else if (balance) { if (!(numbers.length === 1 && Number.isInteger(numbers[0]) && numbers[0] >= balance.lo && numbers[0] <= balance.hi)) out.push(error(`${balance.label} must be a whole number from ${balance.lo} to ${balance.hi}.`, 'numbers')) }
+      else if (numbers.length > track.count) out.push(error(track.count === 1 ? `${track.what} must be a single number.` : `${track.what} can have at most ${track.count} numbers.`, 'numbers'))
+      else if (!numbers.every((n) => whole(n, track.max))) out.push(error(`Numbers must be whole numbers from 0 to ${track.max}.`, 'numbers'))
+    }
+  }
+  if (data.order !== undefined && !(typeof data.order === 'number' && Number.isFinite(data.order))) out.push(error('Order must be a number.', 'order'))
+}
+
 function checkManufacturer(data: Data, out: Problem[]) {
   if (typeof data.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(data.id)) out.push(error('Use letters, numbers, - and _, like IPS-N.', 'id'))
   if (!HEX.test(String(data.dark ?? ''))) out.push(error('Main colour needs a hex value like #1c9ae8.', 'dark'))
@@ -463,7 +489,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   if (data.id !== ctx.id) problems.push(error(`The ID must stay "${ctx.id}".`, 'id'))
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
   if (kind === 'pilot_gear' && !GEAR_TYPES.includes(String(data.type))) problems.push(error('Choose a gear type.', 'type'))
-  // Unset means the default price (rules.ts GEAR_PRICE_DEFAULT).
+  // Unset means the default price (rules.ts gearPriceDefault).
   if (kind === 'pilot_gear' && data.manna_cost != null && (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0)) problems.push(error('Manna cost must be a whole number, 0 or more.', 'manna_cost'))
   if (kind === 'core_bonuses' && typeof data.source !== 'string') problems.push(error('Choose a manufacturer.', 'source'))
 
@@ -473,6 +499,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   else if (kind === 'talents') checkTalent(data, ctx, problems)
   else if (kind === 'frames') checkFrame(data, ctx, problems)
   else if (kind === 'manufacturers') checkManufacturer(data, problems)
+  else if (kind === 'rules') checkRule(data, problems)
   else checkParts(data, '', '', ctx, problems)
   if (kind === 'core_bonuses') checkGrants(data, ctx, problems)
   if (['weapons', 'systems', 'mods', 'pilot_gear', 'core_bonuses', 'talents', 'frames'].includes(kind)) checkRequires(data, ctx, problems)

@@ -251,7 +251,7 @@ describe('rulesTopics', () => {
     const mech = text(false)
     const pilot = text(true)
     const lists: CombatRow[][] = [CHECK_RESULTS, ATTACK_EXTRAS, SPEED_GATEWAYS, TERRAIN, KNOCKBACK, AREAS, RANGE_TIERS, SENSORS, AURAS, RANGE_BONUSES, RANGE_TALENTS, REPAIRS, FOOT_RULES]
-    for (const r of lists.flat()) expect(mech, r.value).toContain(r.text)
+    for (const r of lists.flat()) expect(mech, r.value).toContain(r.text.replace('{REPAIR}', '2'))
     for (const r of [...DICE, ...RECHARGE]) expect(mech, r.value).toContain(r.value)
     for (const r of [...PILOT_DCS, ...ATTACK_EXTRAS, FOOT_RULES[1], FOOT_RULES[2]]) expect(pilot, r.value).toContain(r.text)
     for (const f of [...CHECK_FORMULAS, ...ATTACK_FORMULAS, ...DAMAGE_FORMULAS]) expect(mech).toContain(f.example)

@@ -12,6 +12,7 @@ import manufacturers from '@massif/lancer-data/lib/manufacturers.json'
 import { version } from '@massif/lancer-data/package.json'
 import type { Json } from './lib/database.types'
 import { actionData, BASE_ACTIONS } from './baseActions'
+import { RULES_SEED, ruleData } from './rulesData'
 import { withoutActiveEffects, type LcpKind, type LcpPack } from './lcp'
 
 // The campaign's wording, for tags the official text writes for dice. Only the seed, so the owner's edits still win.
@@ -34,6 +35,8 @@ export const coreContent: LcpPack = {
   ),
   // The Combat page's base actions, so the owner can reword them in the editor.
   ...BASE_ACTIONS.map(a => ({ id: a.id, kind: 'actions' as LcpKind, data: actionData(a) as Record<string, Json> })),
+  // The Combat page's rules (wording and numbers), editable the same way.
+  ...RULES_SEED.map(r => ({ id: r.id, kind: 'rules' as LcpKind, data: ruleData(r) as Record<string, Json> })),
   ],
   ignored: [],
   warnings: [],

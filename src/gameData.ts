@@ -1,6 +1,7 @@
 import { computed, shallowRef } from 'vue'
 import { cached, clearCatalogues, loadKind } from './catalogue'
 import { BASE_ACTIONS, toBaseAction, type BaseAction } from './baseActions'
+import { rule, ruleItems, toRuleItem } from './rulesData'
 import { fetchAll, supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
 import hpIcon from './assets/icons/hp.svg'
@@ -114,6 +115,7 @@ export const invalidateCatalogues = () => {
   clearCatalogues()
   tagsLoading = undefined
   actionsLoading = undefined
+  rulesLoading = undefined
 }
 // The base actions the Combat page lists (hidden ones left out). The code's own list stands in when the load fails or no action rows exist.
 export const baseActions = shallowRef<BaseAction[]>(BASE_ACTIONS)
@@ -135,6 +137,23 @@ export function loadBaseActions() {
     }
   })()
   return actionsLoading
+}
+// The combat rules (kind 'rules'). The seed in rulesData.ts stands in when the load fails or no rule rows exist.
+export const rulesLoaded = shallowRef(false)
+let rulesLoading: Promise<void> | undefined
+export function loadRules() {
+  rulesLoading ??= (async () => {
+    try {
+      const { rows, error } = await loadKind('rules')
+      if (error) rulesLoading = undefined // not kept, so the next page tries again
+      if (error || !rows?.length) return
+      // Every row hidden gives no rules, not the seed.
+      ruleItems.value = rows.map(({ id, data }) => toRuleItem(id, data)).filter((r): r is NonNullable<typeof r> => !!r)
+    } finally {
+      rulesLoaded.value = true
+    }
+  })()
+  return rulesLoading
 }
 // True once the tag names have loaded (also when it failed).
 export const tagNamesLoaded = shallowRef(false)
@@ -182,12 +201,12 @@ export type Talent = { id: string; name: string; terse: string; ranks: TalentRan
 // integrated / special_equipment: items it builds in or unlocks. replace_integrated: its integrated weapons replace the frame's own.
 export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; replace_integrated?: boolean; [key: string]: unknown }
 
-// A pilot's loadout slots: one armour, two weapons, three gear.
+// A pilot's loadout slots: one armour, two weapons, three gear unless an owner changed the numbers (rulesData.ts NUMBER_KEYS).
 export const LOADOUT = [
-  { type: 'Armor', label: 'pilot armour', count: 1 },
-  { type: 'Weapon', label: 'pilot weapon', count: 2 },
-  { type: 'Gear', label: 'pilot gear', count: 3 },
-] as const
+  { type: 'Armor', label: 'pilot armour', get count() { return rule('loadout_armour') } },
+  { type: 'Weapon', label: 'pilot weapon', get count() { return rule('loadout_weapons') } },
+  { type: 'Gear', label: 'pilot gear', get count() { return rule('loadout_gear') } },
+]
 export type Slot = { type: string; label: string; index: number; id: string | null }
 
 // The owned items that are equipped, in equipped order (a key that isn't owned is skipped).
@@ -334,6 +353,7 @@ export function useGameData() {
   async function load() {
     loadTagNames()
     loadSources()
+    loadRules()
     const [gearRows, talentRows, coreRows, bionicRows, statRows] = await Promise.all([
       loadKind('pilot_gear'),
       loadKind('talents'),

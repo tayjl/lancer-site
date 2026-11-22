@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { sourceOf } from '../gameData'
-import { MAX_LICENCE_RANK, rankName } from '../rules'
+import { maxLicenceRank, rankName } from '../rules'
 import { useGmOverride, useRestriction } from '../restriction'
 import { framePick } from '../pickerRows'
 import { frameRanges } from '../mechData'
@@ -56,7 +56,7 @@ const nameOf = (id: string) => optionOf(id)?.name ?? id
 const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
 const gmOverride = useGmOverride()
 const grantedOf = (id: string) => Math.min(props.granted?.[id] ?? 0, props.held[id] ?? 0)
-const rankLabel = (id: string, rank: number) => `Rank ${rankName(rank)} of ${rankName(MAX_LICENCE_RANK)}${grantedOf(id) ? `, ${plural(grantedOf(id), 'rank')} a GM grant` : ''}`
+const rankLabel = (id: string, rank: number) => `Rank ${rankName(rank)} of ${rankName(maxLicenceRank())}${grantedOf(id) ? `, ${plural(grantedOf(id), 'rank')} a GM grant` : ''}`
 const affordable = computed(() => gmOverride.value || props.balance >= props.price)
 const reasonFor = useRestriction()
 const restricted = (id: string) => reasonFor(optionOf(id) ?? {})
@@ -139,7 +139,7 @@ const offered = computed(() =>
       const blocked = restricted(option.id) || (gmOverride.value ? '' : option.needs) || (affordable.value ? '' : 'Not enough manna')
       return frame
         ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, frames.value), meta: undefined, blocked }
-        : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${MAX_LICENCE_RANK} ranks` }], blocked }
+        : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${maxLicenceRank()} ranks` }], blocked }
     })
     .sort((a, b) => Number(!!optionOf(a.id)?.exotic) - Number(!!optionOf(b.id)?.exotic) || Number(!!restricted(a.id)) - Number(!!restricted(b.id))),
 )
@@ -192,11 +192,11 @@ async function buy(id: string) {
           </p>
         </div>
         <span class="rankpips" role="img" :aria-label="rankLabel(id, rank)">
-          <span v-for="n in MAX_LICENCE_RANK" :key="n" class="rp" :class="{ held: n <= rank, granted: n <= rank && n > rank - grantedOf(id) }">{{ rankName(n) }}</span>
+          <span v-for="n in maxLicenceRank()" :key="n" class="rp" :class="{ held: n <= rank, granted: n <= rank && n > rank - grantedOf(id) }">{{ rankName(n) }}</span>
         </span>
         <div v-if="editable" class="row-actions">
           <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
-          <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
+          <span v-if="rank < maxLicenceRank()" class="blocked">
             <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
               Raise rank<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
             </button>
@@ -211,7 +211,7 @@ async function buy(id: string) {
         <div class="rank-wrap" :class="{ 'with-art': columns }">
           <MechImage v-if="columns" size="licence" :art="licenceArt(id)" :logo="licenceLogo(id)" :art-alt="`${nameOf(id)} frame`" />
           <ol :class="columns ? 'ladder' : 'tiers'">
-            <li v-for="(step, i) in details(id).slice(0, MAX_LICENCE_RANK)" :key="i" class="rank" :class="{ locked: i >= rank }">
+            <li v-for="(step, i) in details(id).slice(0, maxLicenceRank())" :key="i" class="rank" :class="{ locked: i >= rank }">
               <span class="numeral">{{ rankName(i + 1) }}</span>
               <div class="rank-body">
                 <p v-if="step.name || status(i, rank)" class="rank-head">
@@ -240,7 +240,7 @@ async function buy(id: string) {
         </div>
         <template v-if="editable" #foot>
           <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
-          <span v-if="rank < MAX_LICENCE_RANK" class="blocked">
+          <span v-if="rank < maxLicenceRank()" class="blocked">
             <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
               Raise rank<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
             </button>

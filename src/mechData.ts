@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import { OVERCHARGE_HEAT, REPAIR_COST } from './combatRules'
+import { ruleNumbers } from './rulesData'
 import armourIcon from './assets/icons/armour.svg'
 import evasionIcon from './assets/icons/evasion.svg'
 import eDefIcon from './assets/icons/e_def.svg'
@@ -403,10 +403,10 @@ export function mechResources(sheet: Sheet, effects: Pick<ReturnType<typeof mech
   return {
     aiCap: Math.max(0, count('ai_cap', 1)),
     limited: Math.floor((sheet.mech_skills?.engineering ?? 0) / 2) + count('limited_bonus'),
-    // The handbook's default steps (combatRules.ts). A frame or talent's own steps replace them.
-    overcharge: (overcharge ? (overcharge.bonus.val as unknown as string[]) : OVERCHARGE_HEAT.map(String)).map(step => flatDamage(step)).join(' → '),
+    // The default steps (the numbers section of the rules). A frame or talent's own steps replace them.
+    overcharge: (overcharge ? (overcharge.bonus.val as unknown as string[]) : ruleNumbers('overcharge_heat').map(String)).map(step => flatDamage(step)).join(' → '),
     // cheap_struct's value is the cost; the cheapest whole number, 0 or more, wins.
-    structureRepairs: repairCosts.length ? Math.min(...repairCosts) : REPAIR_COST,
+    structureRepairs: repairCosts.length ? Math.min(...repairCosts) : ruleNumbers('repair_cost')[0],
     checks,
   }
 }

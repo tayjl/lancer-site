@@ -11,6 +11,7 @@ import SheetTabs from '../components/SheetTabs.vue'
 import { EXOTIC_MAKER, archiveGroups, makerId, useManufacturers, type ArchiveEntry } from '../archive'
 import { confirmAction } from '../confirm'
 import { HOMEBREW_PACK, KINDS, blankItem, kindInfo, newId, type EditorKind } from '../contentEditor'
+import { RULES_GROUP, RULE_CATEGORIES, newKind, newRule, noun, oldLink, ruleBoxes, ruleCounts, tabOf } from '../ruleList'
 import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, type ListRow, type Loaded, type Pack } from '../editorStore'
 import { hiddenTags, loadTagNames, tagNames } from '../gameData'
 import { useListPane } from '../listPane'
@@ -23,8 +24,13 @@ const route = useRoute()
 const router = useRouter()
 const setQuery = (changes: Record<string, string | undefined>) => router.replace({ query: { ...route.query, ...changes } })
 
-const kind = computed<EditorKind>(() => KINDS.find((k) => k.key === route.query.cat)?.key ?? 'pilot_gear')
-const info = computed(() => kindInfo(kind.value))
+// What the tab row and the list show (Tags and Actions are listed under Rules), and what the pane edits (below).
+const tab = computed<EditorKind>(() => KINDS.find((k) => k.key === tabOf(route.query.cat))?.key ?? 'pilot_gear')
+const info = computed(() => kindInfo(tab.value))
+const inRules = computed(() => tab.value === 'rules')
+const sec = computed(() => (typeof route.query.sec === 'string' && route.query.sec ? route.query.sec : undefined))
+// Old ?cat=tags and ?cat=actions links land in Rules, once.
+watch(() => route.query, (query) => { const to = oldLink(query); if (to) router.replace({ query: { ...query, ...to } }) }, { immediate: true })
 const itemKey = computed(() => (typeof route.query.item === 'string' && route.query.item ? route.query.item : undefined))
 const isNewItem = computed(() => itemKey.value === 'new')
 
@@ -44,13 +50,17 @@ const packName = (id: number | null) => packs.value.find((pack) => pack.id === i
 const tagChoices = computed(() => [...tagNames.value].filter(([id]) => !hiddenTags.value.has(id)).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)))
 // The Exotic pseudo-manufacturer (a constant, not a row) is always offered, last.
 const makerChoices = computed(() => [...manufacturers.value.map((maker) => ({ id: maker.id, name: maker.name })), { id: EXOTIC_MAKER.id, name: EXOTIC_MAKER.name }])
-const tabLabels = KINDS.map((k) => k.label)
-const tabCounts = computed(() => Object.fromEntries(KINDS.map((k) => [k.label, counts.value[k.key] ?? 0])))
+const TABS = KINDS.filter((k) => k.key === 'rules' || !RULES_GROUP.includes(k.key))
+const tabLabels = TABS.map((k) => k.label)
+const tabCounts = computed(() => Object.fromEntries(TABS.map((k) => [k.label, k.key === 'rules' ? RULES_GROUP.reduce((n, key) => n + (counts.value[key] ?? 0), 0) : counts.value[k.key] ?? 0])))
 
 async function refreshList() {
-  const result = await loadList(kind.value)
-  if (result.rows.length || !result.error) rows.value = result.rows
-  listError.value = result.error ?? ''
+  // The Rules tab lists rules, actions and tags together. One failing still lists what loaded.
+  const results = await Promise.all((inRules.value ? RULES_GROUP : [tab.value]).map(loadList))
+  const merged = results.flatMap((result) => result.rows)
+  const error = results.find((result) => result.error)?.error ?? null
+  if (merged.length || !error) rows.value = merged
+  listError.value = error ?? ''
   loadingList.value = false
   counts.value = await loadCounts()
 }
@@ -64,14 +74,14 @@ async function refreshAll() {
   await refreshList()
 }
 watch(isOwner, (owner) => owner && refreshAll(), { immediate: true })
-watch(kind, () => { loadingList.value = true; rows.value = []; query.value = ''; refreshList() })
+watch(tab, () => { loadingList.value = true; rows.value = []; query.value = ''; refreshList() })
 
 // The chosen item, read in full (the list holds only enough to show it).
 const loaded = shallowRef<Loaded | null>(null)
 const loadingItem = ref(false)
 const itemError = ref('')
 let loadToken = 0
-watch([kind, itemKey], async ([k, key]) => {
+watch([tab, itemKey], async ([k, key]) => {
   const token = ++loadToken
   loaded.value = null
   itemError.value = ''
@@ -86,7 +96,11 @@ watch([kind, itemKey], async ([k, key]) => {
 
 // A new item starts blank; its id is made from its name (src/contentEditor.ts).
 const taken = computed(() => takenIds.value ?? new Set<string>())
-const blank = computed(() => blankItem(kind.value, newId(kind.value, '', taken.value)))
+const kind = computed<EditorKind>(() => (!inRules.value ? tab.value : isNewItem.value ? newKind(sec.value) : (loaded.value?.kind ?? 'rules')))
+const blank = computed(() => {
+  const id = newId(kind.value, '', taken.value)
+  return kind.value === 'rules' ? newRule(id, sec.value ?? '', rows.value) : blankItem(kind.value, id)
+})
 
 // Leaving or switching with unsaved changes asks first.
 const pane = useTemplateRef<InstanceType<typeof EditorPane>>('editor')
@@ -99,8 +113,9 @@ onBeforeRouteLeave(leave)
 async function choose(key: string | undefined) { if (key !== itemKey.value && (await leave())) setQuery({ item: key }) }
 async function chooseKind(label: string) {
   const next = KINDS.find((k) => k.label === label)
-  if (next && next.key !== kind.value && (await leave())) setQuery({ cat: next.key, item: undefined })
+  if (next && next.key !== tab.value && (await leave())) setQuery({ cat: next.key, item: undefined, sec: undefined })
 }
+async function newIn(key: string) { if (await leave()) setQuery({ sec: key, item: 'new' }) }
 
 // The list: a box per manufacturer for what has one (New sits above the boxes), otherwise a box per pack (Campaign homebrew
 // first, always, so New is at hand).
@@ -138,7 +153,12 @@ const groups = computed<{ key: string; id: number; name: string; rows: ListRow[]
   })
 })
 const byMaker = computed(() => BY_MAKER.includes(kind.value))
-const listed = computed(() => groups.value.flatMap((group) => group.rows))
+// Rules: a box per category. A tag's row is named by its tag.
+// {VAL} (where a tag's number goes) shows as X.
+const ruleRows = computed(() => rows.value.map((row) => ({ ...row, name: (row.section === 'tag_list' ? (tagNames.value.get(row.name) ?? row.name) : row.name).replaceAll('{VAL}', 'X') })))
+const boxes = computed(() => ruleBoxes(ruleRows.value, { sec: sec.value, query: query.value, expanded: expanded.value }))
+const ruleCount = computed(() => ruleCounts(rows.value))
+const listed = computed(() => (inRules.value ? boxes.value.flatMap((box) => box.parts.flatMap((part) => part.rows)) : groups.value.flatMap((group) => group.rows)))
 const showMore = (id: string) => (expanded.value = new Set([...expanded.value, id]))
 
 const { wide, step } = useListPane({ selected: itemKey, listed, pane: paneBox, listBox, active: () => wide.value })
@@ -211,12 +231,47 @@ async function exportLcp() {
 
       <div class="browser">
         <nav v-show="showList" ref="listBox" class="list" :aria-label="info.label" @keydown="step">
+          <label v-if="inRules" class="field category">
+            <span>Category</span>
+            <select :value="sec ?? ''" @change="setQuery({ sec: ($event.target as HTMLSelectElement).value || undefined })">
+              <option value="">All rules ({{ rows.length }})</option>
+              <option v-for="c in RULE_CATEGORIES" :key="c.key" :value="c.key">{{ c.label }} ({{ ruleCount[c.key] ?? 0 }})</option>
+            </select>
+          </label>
           <label class="field search">
             <span class="sr-only">Search</span>
             <input v-model="query" type="search" :placeholder="`Search ${info.label.toLowerCase()}`" @keydown.esc="query = ''" />
           </label>
           <p v-if="listError" class="notice warn" role="alert">The list didn't load: {{ listError }}</p>
           <p v-else-if="loadingList" class="dim" role="status">Loading…</p>
+          <template v-else-if="inRules">
+            <section v-for="box in boxes" :key="box.key" class="group">
+              <header class="group-head">
+                <h3>{{ box.label }}</h3>
+                <span class="num dim count">{{ box.total }}</span>
+                <button v-if="box.add" type="button" class="small add" :aria-label="`New ${noun(box.key)} in ${box.label}`" @click="newIn(box.key)"><Icon name="plus" />New {{ noun(box.key) }}</button>
+              </header>
+              <template v-for="part in box.parts" :key="part.label ?? ''">
+                <h4 v-if="part.label" class="label sub">{{ part.label }}</h4>
+                <ul class="rows">
+                  <li v-for="row in part.rows" :key="row.key">
+                    <button type="button" class="row" :aria-current="wide && row.key === itemKey ? 'true' : undefined" @click="choose(row.key)">
+                      <span class="row-top">
+                        <span class="row-name">{{ row.name }}</span>
+                        <span v-if="row.draft" class="badge draft">Draft</span>
+                        <span v-else-if="row.edited" class="badge">Edited</span>
+                        <span v-if="row.hidden" class="badge">Hidden</span>
+                      </span>
+                      <span v-if="row.facts" class="row-facts">{{ row.facts }}</span>
+                    </button>
+                  </li>
+                </ul>
+              </template>
+              <p v-if="!box.total" class="none dim">No items yet.</p>
+              <div v-if="box.more" class="more"><button type="button" class="quiet small" @click="showMore(box.key)">Show {{ box.more }} more</button></div>
+            </section>
+            <p v-if="query.trim() && !boxes.length" class="none dim">Nothing matches that search.</p>
+          </template>
           <template v-else>
             <button v-if="byMaker" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
             <p v-if="byMaker && !groups.length" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
@@ -272,9 +327,9 @@ async function exportLcp() {
           />
           <EditorPane
             v-else-if="loaded"
-            :key="`${kind}:${loaded.key}`"
+            :key="`${loaded.kind}:${loaded.key}`"
             ref="editor"
-            :kind="kind"
+            :kind="loaded.kind"
             :item="loaded"
             :packs="packs"
             :pack-name="packName(loaded.packId)"
@@ -290,7 +345,7 @@ async function exportLcp() {
           />
           <EditorPane
             v-else-if="isNewItem"
-            :key="`${kind}:new`"
+            :key="`${kind}:new:${sec}`"
             ref="editor"
             :kind="kind"
             :item="null"
@@ -362,8 +417,19 @@ async function exportLcp() {
 }
 
 .list .search .field,
-.search {
+.search,
+.category {
   display: block;
+}
+
+.sub {
+  margin: 0;
+  padding: var(--space-s) var(--space-m) 4px;
+  border-top: 1px solid var(--rule);
+}
+
+.group-head + .sub {
+  border-top: 0;
 }
 
 .group-head h3 {

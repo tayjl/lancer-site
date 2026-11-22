@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { stepActions, type KitAction } from '../combatEntries'
-import { OVERCHARGE_HEAT } from '../combatRules'
+import { ruleNumbers } from '../rulesData'
 import CombatGroup from './CombatGroup.vue'
 import Icon from './Icon.vue'
 import RulesText from './RulesText.vue'
@@ -13,6 +13,7 @@ import RulesText from './RulesText.vue'
 const props = defineProps<{ kitActions: KitAction[]; pilot: boolean; overcharge: string | null; speed: number | null; sidearm?: boolean }>()
 
 const open = ref('2 quick')
+const baseHeat = computed(() => ruleNumbers('overcharge_heat'))
 
 // c is the step's --act-* colour key; Movement has no activation, so no colour.
 const STEPS = [
@@ -109,7 +110,7 @@ const heat = computed(() => groups.value[1]?.heat)
               <Icon v-if="i" name="chevron-right" class="heat-arrow" aria-hidden="true" />
               <span class="label">{{ ['Use 1', 'Use 2', 'Use 3', 'Use 4+'][i] }}</span>
               <span class="heat-n"><Icon name="heat" /><span class="num">{{ n }}</span><span class="sr-only"> Heat</span></span>
-              <span v-if="Number(n) !== OVERCHARGE_HEAT[i]" class="heat-base">Base: {{ OVERCHARGE_HEAT[i] }}</span>
+              <span v-if="Number(n) !== baseHeat[i]" class="heat-base">Base: {{ baseHeat[i] }}</span>
             </li>
           </ol>
           </template>

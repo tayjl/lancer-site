@@ -11,7 +11,7 @@ import { plural } from './text'
 
 export type Pack = { id: number; name: string; manifest: Json }
 // One row of the list: just enough to show and find it.
-export type ListRow = { key: string; kind: EditorKind; name: string; facts: string; packId: number | null; draft: boolean; edited: boolean; hidden?: boolean; source?: string }
+export type ListRow = { key: string; kind: EditorKind; name: string; facts: string; packId: number | null; draft: boolean; edited: boolean; hidden?: boolean; source?: string; section?: string; group?: string; order?: number }
 // One item in full. "data" is the pack's own version (a bionic's or a personal stat's row as an object); "edited" the
 // campaign's edited version when there is one. "updatedAt" is the raw string the page last loaded or saved.
 export type Loaded = { key: string; kind: EditorKind; packId: number | null; draft: boolean; data: Data; edited: Data | null; updatedAt: string }
@@ -47,6 +47,17 @@ export async function loadCounts(): Promise<Record<string, number>> {
   return Object.fromEntries(counts)
 }
 
+// What a Rules row needs besides the name: where it sits and how it sorts. Edited wins, as for the name.
+const RULE_FIELDS = ', section:data->>section, edited_section:edited->>section, group:data->>group, edited_group:edited->>group, order:data->>order, edited_order:edited->>order, value:data->>value, edited_value:edited->>value, numbers:data->numbers, edited_numbers:edited->numbers'
+export function ruleFields(r: Record<string, string | number[] | null>) {
+  const pick = (key: string) => (r[`edited_${key}`] ?? r[key]) as string | null
+  const section = pick('section') ?? ''
+  const numbers = (r.edited_numbers ?? r.numbers) as number[] | null
+  const order = Number(pick('order') ?? NaN)
+  const facts = section === 'numbers' ? (numbers ?? []).join(', ') : section === 'tag_list' ? '' : pick('value') ?? ''
+  return { facts, fields: { section, group: pick('group') ?? '', order: Number.isNaN(order) ? Infinity : order } }
+}
+
 // Kinds the list boxes by manufacturer (the box says it, so the row doesn't).
 const MAKER_KINDS: EditorKind[] = ['frames', 'weapons', 'systems', 'mods', 'core_bonuses']
 // What each kind's list shows. Pack items read just a few fields (the rows are big); bionics are a small table.
@@ -65,12 +76,13 @@ export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; err
   }
   const { rows, error } = await fetchAll((from, to) =>
     supabase.from('content_items')
-      .select('id, pack_id, draft, name:data->>name, edited_name:edited->>name, type:data->>type, mount:data->>mount, source:data->>source, edited_source:edited->>source, edited_id:edited->>id, hidden:data->>hidden, edited_hidden:edited->>hidden, activation:data->>activation, edited_activation:edited->>activation')
+      .select('id, pack_id, draft, name:data->>name, edited_name:edited->>name, type:data->>type, mount:data->>mount, source:data->>source, edited_source:edited->>source, edited_id:edited->>id, hidden:data->>hidden, edited_hidden:edited->>hidden, activation:data->>activation, edited_activation:edited->>activation' + (kind === 'rules' ? RULE_FIELDS : ''))
       .eq('kind', kind).order('id').range(from, to))
   return {
     rows: rows.map((row) => {
-      const r = row as unknown as { id: string; pack_id: number; draft: boolean; name: string | null; edited_name: string | null; type: string | null; mount: string | null; source: string | null; edited_source: string | null; edited_id: string | null; hidden: string | null; edited_hidden: string | null; activation: string | null; edited_activation: string | null }
-      return { key: r.id, kind, name: r.edited_name ?? r.name ?? r.id, facts: [r.mount, r.type, ...(kind === 'actions' ? [r.edited_activation ?? r.activation] : []), ...(MAKER_KINDS.includes(kind) ? [] : [r.source])].filter(Boolean).join(' · '), packId: r.pack_id, draft: r.draft, edited: r.edited_id !== null, hidden: (r.edited_hidden ?? r.hidden) === 'true', source: r.edited_source ?? r.source ?? '' }
+      const r = row as unknown as { id: string; pack_id: number; draft: boolean; name: string | null; edited_name: string | null; type: string | null; mount: string | null; source: string | null; edited_source: string | null; edited_id: string | null; hidden: string | null; edited_hidden: string | null; activation: string | null; edited_activation: string | null } & Record<string, string | number[] | null>
+      const rule = kind === 'rules' ? ruleFields(r) : null
+      return { key: r.id, kind, name: r.edited_name ?? r.name ?? r.id, facts: rule ? rule.facts : [r.mount, r.type, ...(kind === 'actions' ? [r.edited_activation ?? r.activation] : []), ...(MAKER_KINDS.includes(kind) ? [] : [r.source])].filter(Boolean).join(' · '), packId: r.pack_id, draft: r.draft, edited: r.edited_id !== null, hidden: (r.edited_hidden ?? r.hidden) === 'true', source: r.edited_source ?? r.source ?? '', ...rule?.fields }
     }),
     error,
   }
@@ -94,10 +106,11 @@ export async function loadItem(kind: EditorKind, key: string): Promise<{ item: L
     if (error || !data) return { item: null, error: error?.message ?? null }
     return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: data.id, name: data.name, description: data.description, icon: data.icon } }, error: null }
   }
-  const { data, error } = await supabase.from('content_items').select('id, pack_id, draft, data, edited, updated_at').eq('id', key).maybeSingle()
+  // The Rules list opens three kinds, so the row says which it is.
+  const { data, error } = await supabase.from('content_items').select('id, kind, pack_id, draft, data, edited, updated_at').eq('id', key).maybeSingle()
   if (error || !data) return { item: null, error: error?.message ?? null }
   return {
-    item: { key, kind, packId: data.pack_id, draft: data.draft, data: isObject(data.data) ? data.data : {}, edited: isObject(data.edited) ? data.edited : null, updatedAt: data.updated_at },
+    item: { key, kind: data.kind as EditorKind, packId: data.pack_id, draft: data.draft, data: isObject(data.data) ? data.data : {}, edited: isObject(data.edited) ? data.edited : null, updatedAt: data.updated_at },
     error: null,
   }
 }

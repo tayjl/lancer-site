@@ -38,10 +38,10 @@ describe('official core content', () => {
   it('passes the same validation as an uploaded LCP', async () => {
     const files = {
       'lcp_manifest.json': strToU8(JSON.stringify(coreContent.manifest)),
-      ...Object.fromEntries(Object.keys(LCP_KINDS).filter(kind => kind !== 'actions').map(kind => [`${kind}.json`, strToU8(JSON.stringify(coreContent.items.filter(item => item.kind === kind).map(item => item.data)))])),
+      ...Object.fromEntries(Object.keys(LCP_KINDS).filter(kind => kind !== 'actions' && kind !== 'rules').map(kind => [`${kind}.json`, strToU8(JSON.stringify(coreContent.items.filter(item => item.kind === kind).map(item => item.data)))])),
     }
     const parsed = await readLcp(zipSync(files))
-    expect(parsed.items).toEqual(coreContent.items.filter(item => item.kind !== 'actions'))
+    expect(parsed.items).toEqual(coreContent.items.filter(item => item.kind !== 'actions' && item.kind !== 'rules'))
     expect(parsed.manifest.version).toBe('3.1.7')
   })
 })

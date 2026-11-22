@@ -3,6 +3,7 @@ import { changeDiff, listDiff, reviewSections, writingSummary, type Names } from
 import { wordCount } from './richTextSafe'
 import type { MechPrivate, Sheet } from './myPilot'
 import { mannaSpent } from './rules'
+import { ruleItems, RULES_SEED } from './rulesData'
 
 const names: Names = {
   stat: (id) => id,
@@ -16,6 +17,16 @@ const names: Names = {
   system: (id) => `S:${id}`,
   mod: (id) => `M:${id}`,
 }
+
+describe('edited prices', () => {
+  it('change the manna a licence rank costs in the diff', () => {
+    const diff = () => changeDiff({ card: {}, sheet: {} }, { card: {}, sheet: { licences: { frame: 1 } } }, names)[0] as { manna?: number }
+    expect(diff().manna).toBe(600)
+    ruleItems.value = [{ id: 'rule_num_licence_rank_price', name: 'x', section: 'numbers', text: '', order: 1, numbers: [750] }]
+    expect(diff().manna).toBe(750)
+    ruleItems.value = RULES_SEED
+  })
+})
 
 describe('listDiff', () => {
   it('counts repeats', () => {

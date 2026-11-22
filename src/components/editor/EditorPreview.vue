@@ -10,6 +10,7 @@ import Icon from '../Icon.vue'
 import InfoBody from '../InfoBody.vue'
 import ItemCard from '../ItemCard.vue'
 import ItemDetails from '../ItemDetails.vue'
+import RulePreview from './RulePreview.vue'
 import RulesText from '../RulesText.vue'
 import SheetTabs from '../SheetTabs.vue'
 
@@ -54,7 +55,9 @@ const accent = computed(() => {
 })
 const logo = computed(() => makerLogo(props.kind === 'manufacturers' ? toManufacturer(props.id, props.data) : maker.value))
 const hasCard = computed(() => 'item' in now.value && !!now.value.item || 'bonus' in now.value && !!now.value.bonus)
-const tabs = computed(() => [...(hasCard.value ? ['Item card'] : []), 'Full information', ...(was.value ? ['Original'] : [])])
+// A rule is drawn as the combat page draws it (RulePreview.vue), not as information.
+const isRule = computed(() => props.kind === 'rules')
+const tabs = computed(() => isRule.value ? ['Combat page', ...(props.original ? ['Original'] : [])] : [...(hasCard.value ? ['Item card'] : []), 'Full information', ...(was.value ? ['Original'] : [])])
 const chosen = ref('')
 const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.value : tabs.value[0]), set: (tab) => (chosen.value = tab) })
 </script>
@@ -64,7 +67,14 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
     <SheetTabs v-if="tabs.length > 1" v-model="view" :tabs="tabs" label="Preview" />
     <p v-else class="label">Preview</p>
 
-    <p v-if="'error' in now" class="notice warn" role="alert">Preview failed: {{ now.error }}</p>
+    <template v-if="isRule">
+      <template v-if="view === 'Original'">
+        <p class="dim note">The pack's version.</p>
+        <RulePreview :data="original!" />
+      </template>
+      <RulePreview v-else :data="data" />
+    </template>
+    <p v-else-if="'error' in now" class="notice warn" role="alert">Preview failed: {{ now.error }}</p>
     <template v-else-if="view === 'Item card'">
       <ItemDetails v-if="now.item" :item="now.item" />
       <ItemCard v-else-if="now.bonus" type="core" icon="corebonus" :name="now.bonus.name" :meta="now.bonus.source">

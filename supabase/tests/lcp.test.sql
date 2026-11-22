@@ -77,11 +77,20 @@ select lives_ok($$select public.import_lcp(
   '{"name":"__LCP_TEST_ACTIONS","author":"Test","version":"1.0.0","description":"Actions"}',
   '[{"id":"__lcp_test_action","kind":"actions","data":{"id":"__lcp_test_action","name":"Test action"}}]')$$, 'base actions can be imported');
 select is((select kind from public.content_items where id='__lcp_test_action'), 'actions', 'the action is saved as an action');
+select lives_ok($$select public.import_lcp(
+  '{"name":"__LCP_TEST_RULES","author":"Test","version":"1.0.0","description":"Rules"}',
+  '[{"id":"__lcp_test_rule","kind":"rules","data":{"id":"__lcp_test_rule","name":"Test rule","section":"notes","order":10}}]')$$, 'combat rules can be imported');
+select is((select kind from public.content_items where id='__lcp_test_rule'), 'rules', 'the rule is saved as a rule');
 set local request.jwt.claim.sub='88888888-8888-4888-8888-888888888883';
 select throws_ok($$select public.import_lcp(
   '{"name":"__LCP_TEST_ACTIONS2","author":"Test","version":"1.0.0","description":"Actions"}',
   '[{"id":"__lcp_test_action2","kind":"actions","data":{"id":"__lcp_test_action2","name":"Nope"}}]')$$,
   'P0001', 'Only owners can import content packs.', 'players cannot import actions');
+
+select throws_ok($$select public.import_lcp(
+  '{"name":"__LCP_TEST_RULES2","author":"Test","version":"1.0.0","description":"Rules"}',
+  '[{"id":"__lcp_test_rule2","kind":"rules","data":{"id":"__lcp_test_rule2","name":"Nope"}}]')$$,
+  'P0001', 'Only owners can import content packs.', 'players cannot import rules');
 
 reset role;
 select * from finish();

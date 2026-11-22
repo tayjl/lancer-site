@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
-import submitRulesSql from '../supabase/migrations/20261121140000_homebrew_rules.sql?raw'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import rulesSql from '../supabase/migrations/20261122120000_editable_rule_numbers.sql?raw'
 import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
+import { NUMBER_KEYS, rule, ruleItems, RULES_SEED, type NumberKey } from './rulesData'
 import type { Frame } from './mechData'
-import { adjustGrants, bracingMount, freeGear, GEAR_PRICE_DEFAULT, gearPrice, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, PRICES, STARTING_MANNA, superheavyMount, type Catalogue } from './rules'
+import { adjustGrants, bracingMount, freeGear, gearPrice, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, maxLicenceRank, maxTalentRank, personalStatMax, personalStatMin, rankName, skillPoints, modLimit, startingManna, superheavyMount, type Catalogue } from './rules'
 
 // gameData and mechData also load the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -382,12 +383,65 @@ describe('free gear', () => {
   })
 })
 
-describe('manna prices', () => {
-  it('match the ones the submit check in the database uses', () => {
-    const price = (name: string) => Number(new RegExp(`${name} constant integer := (\\d+);`).exec(submitRulesSql)?.[1])
-    expect({ licenceRank: price('licence_rank_price'), talentRank: price('talent_rank_price'), extraMech: price('extra_mech_price') }).toEqual(PRICES)
-    expect(price('starting_manna')).toBe(STARTING_MANNA)
-    expect(price('default_gear_price')).toBe(GEAR_PRICE_DEFAULT)
+describe('editable game numbers', () => {
+  const setNumbers = (values: Partial<Record<NumberKey, unknown>>) => {
+    ruleItems.value = Object.entries(values).map(([key, v], order) => ({ id: `rule_num_${key}`, name: key, section: 'numbers', text: '', order, numbers: [v as number] }))
+  }
+  afterEach(() => { ruleItems.value = RULES_SEED })
+
+  it('use the same fallbacks and ranges as the database', () => {
+    const calls = [...rulesSql.matchAll(/rule_number\('(\w+)', (\d+), (\d+), (\d+)\)/g)]
+    expect(calls.length).toBeGreaterThan(8)
+    for (const [, key, def, lo, hi] of calls) {
+      const n = NUMBER_KEYS.find((k) => k.key === key)
+      expect(n, key).toBeTruthy()
+      expect([n!.def, n!.lo, n!.hi], key).toEqual([Number(def), Number(lo), Number(hi)])
+    }
+    expect(new Set(calls.map((c) => c[1]))).toEqual(new Set(NUMBER_KEYS.filter((k) => k.db).map((k) => k.key)))
+  })
+
+  it('give the default for a missing, non-whole, out-of-range or non-number value', () => {
+    for (const n of NUMBER_KEYS) {
+      ruleItems.value = RULES_SEED
+      expect(rule(n.key), n.key).toBe(n.def)
+      for (const bad of [n.lo - 1, n.hi + 1, n.def + 0.5, NaN, '5', null, undefined]) {
+        setNumbers({ [n.key]: bad })
+        expect(rule(n.key), `${n.key} ${String(bad)}`).toBe(n.def)
+      }
+      // The personal stat pair is checked together (below), so its other half is kept apart from the edge value.
+      const pair = n.key === 'personal_stat_min' ? { personal_stat_max: 20 } : n.key === 'personal_stat_max' ? { personal_stat_min: 0 } : {}
+      for (const edge of [n.hi, n.lo]) {
+        setNumbers({ ...pair, [n.key]: edge })
+        expect(rule(n.key), n.key).toBe(n.key === 'personal_stat_min' && edge === 10 ? 10 : edge)
+      }
+    }
+    ruleItems.value = [{ id: 'rule_num_extra_mech_price', name: 'x', section: 'numbers', text: '', order: 1 }]
+    expect(rule('extra_mech_price')).toBe(500)
+  })
+
+  it('go back to both defaults when the highest personal stat is below the lowest', () => {
+    setNumbers({ personal_stat_min: 6, personal_stat_max: 5 })
+    expect([personalStatMin(), personalStatMax()]).toEqual([2, 4])
+    setNumbers({ personal_stat_min: 3, personal_stat_max: 5 })
+    expect([personalStatMin(), personalStatMax()]).toEqual([3, 5])
+  })
+
+  it('change what is charged and given', () => {
+    const sheet = { licences: { drake: 2 }, talents: { ace: 1 } }
+    expect(mannaSpent(sheet, new Map(), 2, [], null)).toBe(2 * 600 + 300 + 500)
+    setNumbers({ licence_rank_price: 1000, talent_rank_price: 10, extra_mech_price: 7, skill_points_base: 5, mod_points_base: 9 })
+    expect(mannaSpent(sheet, new Map(), 2, [], null)).toBe(2000 + 10 + 7)
+    expect([skillPoints(1), modLimit(1), startingManna()]).toEqual([6, 10, 2000])
+    setNumbers({ starting_manna: 3000 })
+    expect(startingManna()).toBe(3000)
+  })
+
+  it('allow ranks above III', () => {
+    setNumbers({ max_licence_rank: 5, max_talent_rank: 6 })
+    expect([maxLicenceRank(), maxTalentRank(), rankName(5), rankName(6)]).toEqual([5, 6, 'V', 'VI'])
+    const problems = (rank: number) => pilotProblems({ licences: { blackbeard: rank }, talents: { ace: rank } }, { level: 0, manna: 99999 }, catalogue, {}, null)
+    expect(problems(5).filter((p) => /whole rank/.test(p))).toEqual([])
+    expect(problems(7)).toEqual(expect.arrayContaining(['IPS-N blackbeard licence must be a whole rank from 0 to V.', 'Talent ace must be a whole rank from 0 to VI.']))
   })
 })
 

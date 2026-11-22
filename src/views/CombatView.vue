@@ -14,8 +14,8 @@ import ChoiceField from '../components/editor/ChoiceField.vue'
 import { searchWords } from '../archive'
 import { actionKey, firstSentence, rowEntry, rulesTopics, stepActions, type CombatEntry, type KitAction } from '../combatEntries'
 import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
-import { ON_FOOT_ROWS, STATUS_GROUPS, TAG_IDS, TURN_STEPS, WEAPON_SIZES } from '../combatRules'
-import { baseActionsLoaded, hiddenTags, loadBaseActions, loadTagNames, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
+import { onFootRows, ruleRows, ruleTagIds, statusGroups, turnSteps } from '../rulesData'
+import { baseActionsLoaded, hiddenTags, loadBaseActions, loadRules, loadTagNames, rulesLoaded, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
@@ -23,7 +23,7 @@ import type { PublicMech } from '../pilots'
 import { useCatalogue } from '../rules'
 import { plainText } from '../rulesText'
 
-// The combat guide: what you can do on your turn, read-only. The text is in src/combatRules.ts. A summary of your mech
+// The combat guide: what you can do on your turn, read-only. The text is editable content (src/rulesData.ts). A summary of your mech
 // (CombatTurn.vue), then the turn bar (CombatStrip.vue: one step open, its actions as light chips that open the full text),
 // then three folding sections of cards (CombatGroup.vue): your kit (a fixed grid of cards in the item colours), tags and
 // statuses, and the rules (four neutral cards of topic chips, each opening its text in the information popup, from
@@ -33,8 +33,9 @@ import { plainText } from '../rulesText'
 const route = useRoute()
 const router = useRouter()
 loadBaseActions()
-// The action and tag wording is editable content: show nothing of it until both have loaded, not the seed.
-const contentReady = computed(() => baseActionsLoaded.value && tagNamesLoaded.value)
+loadRules()
+// The action, rule and tag wording is editable content: show nothing of it until all have loaded, not the seed.
+const contentReady = computed(() => baseActionsLoaded.value && rulesLoaded.value && tagNamesLoaded.value)
 loadTagNames()
 // Your living pilot as a GM approved it: what's in play, not a change still in draft.
 const { character, sheet, approved, loading, loadError, load, gm } = useMyPilot()
@@ -156,15 +157,15 @@ type Block = { columns: Column[]; grid?: 'one' | 'two' | 'three' | 'status' }
 type Content = { id: string; no: string; title: string; folded?: boolean; blocks: Block[]; count: number }
 function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Content[] {
   const l = loadout.value
-  const sizes = trim ? WEAPON_SIZES.filter((row) => l!.sizes.has(row.value)) : WEAPON_SIZES
+  const sizes = trim ? ruleRows('sizes').filter((row) => l!.sizes.has(row.value)) : ruleRows('sizes')
   // Tag wording comes from the content editor. Trimmed (always in Pilot mode): every visible tag on your gear, homebrew too.
-  const tagRows = (pilot || trim ? [...(pilot ? l?.gearTagIds ?? [] : l!.tagIds)].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b)) : TAG_IDS)
+  const tagRows = (pilot || trim ? [...(pilot ? l?.gearTagIds ?? [] : l!.tagIds)].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b)) : ruleTagIds())
     .filter((id) => tagNames.value.has(id) && !hiddenTags.value.has(id))
     .map((id) => ({ tag: tagNames.value.get(id)!.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(id) ?? '').replaceAll('{VAL}', 'X') }))
   const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame' || b.key === 'weapons' || b.key === 'gear', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
   const [weapons, systems, frameCard, talents, core, gear] = kitBlocks.map(block)
   // In Pilot mode "Down and out" is only in On foot.
-  const [cover, conditions, other] = STATUS_GROUPS.map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.filter((row) => !pilot || !ON_FOOT_ROWS.includes(row)).map((row) => rowEntry(row)) }))
+  const [cover, conditions, other] = statusGroups().map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.filter((row) => !pilot || row.group !== 'pilot').map((row) => rowEntry(row)) }))
   const rows = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => rowEntry(row))
   const tags: Group = { title: trim || pilot ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, empty: 'None.', entries: tagRows.map((row) => ({ ...row, gist: firstSentence(row.text) })) }
   const topics = rulesTopics(pilot, repairLine.value).map((card): Group => ({ title: card.title, icon: card.icon, chips: true, entries: card.topics.map((t) => ({ name: t.name, text: t.text, info: t.info })) }))
@@ -172,7 +173,7 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
   const content: [string, string, string, boolean, Block[]][] = [
     ['combat-kit', '01', 'Your kit', false, pilot ? [{ grid: 'one', columns: [[gear]] }, { grid: 'one', columns: [[talents]] }] : [{ grid: 'one', columns: [[frameCard]] }, { grid: 'one', columns: [[weapons]] }, { grid: 'three', columns: [[systems, talents, core]] }]],
     ['combat-tags', '02', 'Tags and statuses', false, pilot
-      ? [{ grid: 'two', columns: [[tags, cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(ON_FOOT_ROWS) }]] }]
+      ? [{ grid: 'two', columns: [[tags, cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(onFootRows()) }]] }]
       : [
           { grid: 'two', columns: [[
             tags,
@@ -192,7 +193,7 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
 // The turn's actions as one card, for search (the strip hides then). Each action once, however many steps it is in.
 const actionsCard = (on: boolean) => {
   const seen = new Set<string>()
-  const entries = TURN_STEPS.flatMap((s) => stepActions(s.name, kitActions.value, mode.value === 'pilot', overcharge.value, sidearm.value))
+  const entries = turnSteps().flatMap((s) => stepActions(s.key, kitActions.value, mode.value === 'pilot', overcharge.value, sidearm.value))
     .flatMap((g) => g.entries)
     .filter((e) => !seen.has(`${e.name}|${e.activation}`) && seen.add(`${e.name}|${e.activation}`))
   return find({ title: 'Actions', icon: 'list', chips: true, tagged: true, entries }, false, on)

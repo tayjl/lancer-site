@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { GEAR_PRICE_DEFAULT } from '../../rules'
+import { gearPriceDefault } from '../../rules'
 import { plural } from '../../text'
 import { GEAR_TYPES, type BonusType, type Data } from '../../contentEditor'
 import ActionListField from './ActionListField.vue'
@@ -29,7 +29,7 @@ const bonuses = f.list<Data>('bonuses')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const tagList = f.list<{ id: string; val?: string | number }>('tags')
 const actions = f.list<Data>('actions')
-// Its price in manna. Emptying the box takes the key off, so the item costs the default (rules.ts GEAR_PRICE_DEFAULT).
+// Its price in manna. Emptying the box takes the key off, so the item costs the default (rules.ts gearPriceDefault).
 const price = computed({
   get: () => String(model.value.manna_cost ?? ''),
   set: (value: string | number) =>
@@ -51,7 +51,7 @@ const price = computed({
         </select>
       </Field>
       <Field class="span2" label="Manna cost" path="manna_cost">
-        <input v-model="price" type="number" min="0" step="1" :placeholder="String(GEAR_PRICE_DEFAULT)" />
+        <input v-model="price" type="number" min="0" step="1" :placeholder="String(gearPriceDefault())" />
       </Field>
     </div>
   </FoldPanel>

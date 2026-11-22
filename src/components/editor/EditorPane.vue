@@ -23,6 +23,7 @@ import RawDataField from './RawDataField.vue'
 import SystemForm from './SystemForm.vue'
 import TagForm from './TagForm.vue'
 import ActionForm from './ActionForm.vue'
+import RuleForm from './RuleForm.vue'
 import TalentForm from './TalentForm.vue'
 import WeaponForm from './WeaponForm.vue'
 import { provideProblems } from './useFields'
@@ -106,7 +107,9 @@ const problems = computed<Problem[]>(() => {
   return found
 })
 const errorCount = computed(() => errorsOf(problems.value).length)
-provideProblems(problems)
+// A new item shows no problems until something is typed (Save stays blocked meanwhile).
+const shown = computed(() => (isNew && !dirty.value ? [] : problems.value))
+provideProblems(shown)
 // The form's folds remember being open or closed per kind (FoldPanel.vue).
 provide('editor-kind', props.kind)
 const bonusTypes = computed(() => bonusTypesFor(props.kind, props.stats))
@@ -127,7 +130,9 @@ watch(working, () => { if (dirty.value) status.saved.value = false })
 // An Exotic manufacturer puts the Exotic Gear tag on the item (and the save adds it too, editorStore.ts).
 watch(working, (data) => { const next = withExoticTag(props.kind, data); if (next !== data) working.value = next })
 const busy = computed(() => status.saving.value)
-const title = computed(() => String(working.value.name ?? '').trim() || (isNew ? `New ${info.singular}` : props.item!.key))
+// A Tags card entry is named by its tag.
+const named = computed(() => { const name = String(working.value.name ?? '').trim(); return props.kind === 'rules' && working.value.section === 'tag_list' ? (props.tags.find((t) => t.id === name)?.name ?? name) : name })
+const title = computed(() => named.value || (isNew ? `New ${info.singular}` : props.item!.key))
 const current = () => ({ ...props.item!, updatedAt: updatedAt.value })
 
 // Runs one write and shows it as the page's save status. A write that finds the item saved somewhere else stops all saves.
@@ -247,10 +252,10 @@ defineExpose({ dirty })
         </div>
         <p v-if="pilots.length" class="notice" role="status">{{ usedBy(pilots) }}. Saving changes their sheets.</p>
         <p v-else-if="usageError" class="dim hint">Couldn't check who uses this.</p>
-        <div v-if="problems.length" class="notice" :class="{ warn: errorCount }" :role="errorCount ? 'alert' : 'status'">
-          <p class="notice-title">{{ errorCount ? `Fix ${plural(errorCount, 'problem')} before saving` : plural(problems.length, 'warning') }}</p>
+        <div v-if="shown.length" class="notice" :class="{ warn: errorCount }" :role="errorCount ? 'alert' : 'status'">
+          <p class="notice-title">{{ errorCount ? `Fix ${plural(errorCount, 'problem')} before saving` : plural(shown.length, 'warning') }}</p>
           <ul class="problems">
-            <li v-for="(problem, index) in problems" :key="index"><b>{{ problem.level === 'error' ? 'Error' : 'Warning' }}:</b> {{ problem.text }}</li>
+            <li v-for="(problem, index) in shown" :key="index"><b>{{ problem.level === 'error' ? 'Error' : 'Warning' }}:</b> {{ problem.text }}</li>
           </ul>
         </div>
 
@@ -264,6 +269,7 @@ defineExpose({ dirty })
         <ManufacturerForm v-else-if="kind === 'manufacturers'" v-model="working" :locked="!isNew" />
         <TagForm v-else-if="kind === 'tags'" v-model="working" :locked="!isNew" />
         <ActionForm v-else-if="kind === 'actions'" v-model="working" :locked="!isNew" />
+        <RuleForm v-else-if="kind === 'rules'" v-model="working" :locked="!isNew" :tags="tags" />
         <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
         <p v-else class="notice" role="note">
           <span>No form for {{ info.label.toLowerCase() }} yet. Edit the raw data.</span>
