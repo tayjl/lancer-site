@@ -104,6 +104,6 @@ Open a file only when the task touches its area.
 - [docs/claude/ui-principles.md](docs/claude/ui-principles.md): look and feel, colour jobs, alignment. [colours-and-type](docs/claude/colours-and-type.md). [buttons-and-dialogs](docs/claude/buttons-and-dialogs.md). [layout-and-nav](docs/claude/layout-and-nav.md): top bar, routes.
 - [docs/claude/pages-home-lore.md](docs/claude/pages-home-lore.md): home, lore, page list. [registry](docs/claude/registry.md). [gm-pages](docs/claude/gm-pages.md). [login-boot](docs/claude/login-boot.md).
 - [docs/claude/history.md](docs/claude/history.md): hosting setup, full gotchas, completed-work log, hosted migrations, local test accounts.
-- [docs/lancer-rules.md](docs/lancer-rules.md): the LANCER rules the site follows. [docs/database-sketch.md](docs/database-sketch.md): the database design.
+- [docs/rule-decisions.md](docs/rule-decisions.md): **every game-rule decision the developer has made, dated. Check it before touching rules; add new decisions to it.** [docs/combat-handbook.md](docs/combat-handbook.md): the homebrew combat rules. [docs/lancer-rules.md](docs/lancer-rules.md): the LANCER rules the site follows. [docs/database-sketch.md](docs/database-sketch.md): the database design.
 - `docs/redesign/prototype/`: the approved UI reference (open via the dev server at `/docs/redesign/prototype/index.html`).
 - [STATUS.md](STATUS.md): current state, unpushed work, pending hosted migrations, next steps, and a link to every doc file.

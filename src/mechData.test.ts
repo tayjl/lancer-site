@@ -161,7 +161,7 @@ describe('mechStats', () => {
 describe('mechResources', () => {
   const none = { modifiers: [], bonuses: [], reminders: [] }
   it('shows overcharge heat as flat numbers, with no dice', () => {
-    expect(mechResources({}, none).overcharge).toBe('1 → 2 → 4 → 8')
+    expect(mechResources({}, none).overcharge).toBe('1 → 2 → 4 → 6')
     const own = { ...none, bonuses: [{ source: 'Frame', bonus: { id: 'overcharge', val: ['1', '1d3', '1d6+2', 'odd'] as unknown as string } }] }
     expect(mechResources({}, own).overcharge).toBe('1 → 2 → 6 → odd')
   })

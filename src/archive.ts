@@ -178,9 +178,11 @@ export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufactur
 
 // Every word must appear somewhere in the entry (name, facts or rules), in any order. Best matches first: the
 // exact name, then names starting with the search, then names containing it (or every word), then the rest.
+// The words of a search: an entry matches when every one appears somewhere, in any order.
+export const searchWords = (query: string) => query.trim().toLowerCase().split(/\s+/).filter(Boolean)
 export function searchArchive(entries: ArchiveEntry[], query: string): ArchiveEntry[] {
   const search = query.trim().toLowerCase()
-  const words = search.split(/\s+/).filter(Boolean)
+  const words = searchWords(query)
   const score = (name: string) =>
     name === search ? 0 : name.startsWith(search) ? 1 : name.includes(search) || words.every((word) => name.includes(word)) ? 2 : 3
   return words.length

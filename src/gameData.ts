@@ -154,7 +154,7 @@ export type Talent = { id: string; name: string; terse: string; ranks: TalentRan
 export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; replace_integrated?: boolean; [key: string]: unknown }
 
 // A pilot's loadout slots: one armour, two weapons, three gear.
-const LOADOUT = [
+export const LOADOUT = [
   { type: 'Armor', label: 'pilot armour', count: 1 },
   { type: 'Weapon', label: 'pilot weapon', count: 2 },
   { type: 'Gear', label: 'pilot gear', count: 3 },

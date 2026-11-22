@@ -30,7 +30,7 @@ import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { useGameData } from '../gameData'
-import { fittedMods, grantingSources, frameRanges, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder, type ReminderKind } from '../mechData'
+import { EFFECT_KINDS, fittedMods, grantingSources, frameRanges, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
 import { useSaveStatus } from '../saveStatus'
@@ -125,17 +125,6 @@ const spUsed = computed(() => {
 })
 // The rule check speaks to whoever can fix it: you, on your own editable mech.
 const ruleFix = computed(() => (own && editable.value ? (draft.value ? 'draft' : 'own') : undefined))
-// Each kind of "other effect": its symbol and its uppercase label.
-const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }> = {
-  frame: { icon: 'frame', label: 'Frame' },
-  trait: { icon: 'trait', label: 'Frame trait' },
-  core: { icon: 'corebonus', label: 'Core system' },
-  'core-power': { icon: 'corebonus', label: 'Core power' },
-  'core-bonus': { icon: 'corebonus', label: 'Core bonus' },
-  talent: { icon: 'talent', label: 'Talent' },
-  item: { icon: 'system', label: 'Equipment' },
-  missing: { icon: 'warning', label: 'Missing' },
-}
 
 // "Other effects and conditions": the frame's traits as a card each (their actions and uncounted bonuses inside), the
 // core system as one card (its lore, passive and power), then everything else as a plain list.

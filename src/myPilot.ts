@@ -3,7 +3,7 @@ import { isGm, session } from './auth'
 import type { Entry } from './entries'
 import type { Json, Tables, TablesUpdate } from './lib/database.types'
 import { cardImages, deleteImage } from './images'
-import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
+import { CHANGED_ELSEWHERE, checkWrite, readError, supabase } from './lib/supabaseClient'
 import { PUBLIC_COLUMNS } from './changeDiff'
 import { NOT_SUBMITTED } from './saveStatus'
 import type { PublicMech } from './pilots'
@@ -156,7 +156,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
       ? query.eq('id', pilotId)
       : query.eq('player_id', session.value!.user.id).in('status', ['pending', 'approved']).order('created_at').limit(1)
     ).maybeSingle()
-    loadError.value = error?.message ?? ''
+    loadError.value = error ? readError(error.message) : ''
     const { player, sheet: fullRow, ...row } = data ?? { player: null, sheet: null }
     // Someone else's pilot: the sheet without the backstory, manna and notes (pilot_sheet, public to every logged-in user).
     let privateRow: { sheet: Json; level: number; manna?: number; gm_grants?: Json; review_note?: string | null; updated_at?: string } | null = fullRow

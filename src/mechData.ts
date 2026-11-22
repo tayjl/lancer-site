@@ -1,4 +1,5 @@
 import { shallowRef } from 'vue'
+import { OVERCHARGE_HEAT, REPAIR_COST } from './combatRules'
 import armourIcon from './assets/icons/armour.svg'
 import evasionIcon from './assets/icons/evasion.svg'
 import eDefIcon from './assets/icons/e_def.svg'
@@ -204,6 +205,17 @@ export const buildVariables = (sheet: Sheet, frame?: Frame | null) => ({
 // What a reminder is about, for the mech page's "other effects and conditions" list: its kind (a symbol and an
 // uppercase label there), its own name, and where it comes from (the talent and rank, the core system).
 export type ReminderKind = 'frame' | 'trait' | 'core' | 'core-power' | 'core-bonus' | 'talent' | 'item' | 'missing'
+// Each kind of "other effect": its symbol and its uppercase label (the mech page and the combat guide).
+export const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }> = {
+  frame: { icon: 'frame', label: 'Frame' },
+  trait: { icon: 'trait', label: 'Frame trait' },
+  core: { icon: 'corebonus', label: 'Core system' },
+  'core-power': { icon: 'corebonus', label: 'Core power' },
+  'core-bonus': { icon: 'corebonus', label: 'Core bonus' },
+  talent: { icon: 'talent', label: 'Talent' },
+  item: { icon: 'system', label: 'Equipment' },
+  missing: { icon: 'warning', label: 'Missing' },
+}
 type Origin = { kind: ReminderKind; name: string; from?: string }
 // "source" names it in one line, as the stat sources do. "uncounted": a bonus the stats leave out (a condition, an
 // expression, an unsupported stat), which the page says isn't counted.
@@ -389,9 +401,10 @@ export function mechResources(sheet: Sheet, effects: Pick<ReturnType<typeof mech
   return {
     aiCap: Math.max(0, count('ai_cap', 1)),
     limited: Math.floor((sheet.mech_skills?.engineering ?? 0) / 2) + count('limited_bonus'),
-    overcharge: (overcharge ? (overcharge.bonus.val as unknown as string[]) : ['1', '1d3', '1d6', '1d6+4']).map(step => flatDamage(step)).join(' → '),
+    // The handbook's default steps (combatRules.ts). A frame or talent's own steps replace them.
+    overcharge: (overcharge ? (overcharge.bonus.val as unknown as string[]) : OVERCHARGE_HEAT.map(String)).map(step => flatDamage(step)).join(' → '),
     // cheap_struct's value is the cost; the cheapest whole number, 0 or more, wins.
-    structureRepairs: repairCosts.length ? Math.min(...repairCosts) : 2,
+    structureRepairs: repairCosts.length ? Math.min(...repairCosts) : REPAIR_COST,
     checks,
   }
 }

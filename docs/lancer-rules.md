@@ -1,7 +1,7 @@
 # LANCER rules the site follows
 
 The character rules from the LANCER core book that the site needs, how each one is handled, and where in the code.
-House rules from CLAUDE.md win where they differ (no grit, custom pilot stats, bionics, no skill triggers and so on).
+House rules from CLAUDE.md win where they differ (no grit in mech stats, custom pilot stats, bionics, no skill triggers and so on). Every developer rule decision, dated: [rule-decisions.md](rule-decisions.md).
 
 **Status key:**
 - **Enforced:** the page won't let you break it. The pickers and buttons block it, and the rule check flags it if it breaks anyway (for example, a GM lowers your licence level).

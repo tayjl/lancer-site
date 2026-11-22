@@ -12,6 +12,8 @@ export const OFFLINE = "Can't reach the server. Check your connection."
 
 // Browsers word a failed request differently (Chrome "Failed to fetch", Firefox "NetworkError…", Safari "Load failed").
 const OFFLINE_MESSAGES = /failed to fetch|networkerror|load failed/i
+// A read's error in plain words: a network failure becomes OFFLINE, anything else is passed on.
+export const readError = (message: string) => (OFFLINE_MESSAGES.test(message) ? OFFLINE : message)
 
 // Judges an update, upsert or delete that ends in .select(). A write RLS filters out returns no error and no rows, so
 // zero rows is a failure too. Pass "recheck" (a read of the row's updated_at) and "seen" (the updated_at the write was
@@ -21,7 +23,7 @@ export async function checkWrite<T>(
   result: { data: T[] | null; error: { message: string } | null },
   guard?: { seen: string; recheck: () => PromiseLike<{ data: { updated_at: string } | null }> },
 ): Promise<{ row: T; error: null } | { row: null; error: string }> {
-  if (result.error) return { row: null, error: OFFLINE_MESSAGES.test(result.error.message) ? OFFLINE : result.error.message }
+  if (result.error) return { row: null, error: readError(result.error.message) }
   if (result.data?.length) return { row: result.data[0], error: null }
   const now = guard && (await guard.recheck()).data
   return { row: null, error: now && now.updated_at !== guard.seen ? CHANGED_ELSEWHERE : NOT_ALLOWED }
