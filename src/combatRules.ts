@@ -10,14 +10,15 @@ export type CombatRow = { value: string; short?: string; name?: string; gist?: s
 export type CombatFormula = { formula: string; note?: string; example: string }
 
 // The guide's tabs, in order. The id is the url's ?tab=.
-export const COMBAT_TABS: { id: string; label: string }[] = [
+// "on": the tab shows in that mode only (Mech or Pilot in the guide); leave it out to show in both.
+export const COMBAT_TABS: { id: string; label: string; on?: 'mech' | 'pilot' }[] = [
   { id: 'kit', label: 'Your kit' },
   { id: 'actions', label: 'Actions' },
   { id: 'attacks', label: 'Attacks' },
   { id: 'checks', label: 'Checks' },
   { id: 'statuses', label: 'Statuses' },
   { id: 'movement', label: 'Movement and range' },
-  { id: 'structure', label: 'Structure' },
+  { id: 'structure', label: 'Structure', on: 'mech' },
   { id: 'posting', label: 'Posting' },
 ]
 
@@ -271,11 +272,34 @@ export const FOOT_RULES: CombatRow[] = [
   { value: 'Mech destroyed', text: 'When your mech blows up, the pilot survives. They are thrown clear to Close range, Prone and Stunned until the end of their next turn.' },
   { value: 'Melt down', text: 'The reactor explodes at the end of your next turn, like Self-destruct. The pilot must Eject before then or dies.' },
 ]
+// The Statuses tab's "On foot" card (Pilot mode).
+export const ON_FOOT_ROWS: CombatRow[] = [...statuses('Down and out'), ...FOOT_RULES.filter((row) => ['Mech destroyed', 'Melt down'].includes(row.value))]
 export const JOCKEY: CombatAction = {
   name: 'Jockey',
   activation: 'Full',
   text: "Climb onto a mech you're Engaged with. Compare 10 + Grit with the mech's 10 + Hull. On a success, choose one each turn you stay on:<ul><li><b>Distract:</b> Impaired and Slowed until the end of its next turn.</li><li><b>Shred:</b> 2 Heat.</li><li><b>Damage:</b> 4 kinetic, ignoring armour.</li></ul>The mech can shake you off with a successful Hull check on its turn.",
 }
+export const FIGHT: CombatAction = {
+  name: 'Fight',
+  activation: 'Full',
+  text: "Attack with a pilot weapon. Compare 10 + Grit with the target's Evasion. Use the flat damage on the weapon.",
+}
+// What a pilot on foot can do, reusing the mech action objects. It throws if a name goes missing.
+const pick = (list: CombatAction[], name: string, activation?: string) => {
+  const found = list.find((a) => a.name === name && (!activation || a.activation === activation))
+  if (!found) throw new Error(`Pilot action not found: ${name}`)
+  return found
+}
+export const PILOT_ACTIONS: CombatAction[] = [
+  ...['Boost', 'Hide', 'Search'].map((n) => pick(QUICK_ACTIONS, n)),
+  pick(QUICK_ACTIONS, 'Activate', 'Quick'),
+  ...['Reload', 'Skill check'].map((n) => pick(QUICK_ACTIONS, n)),
+  pick(FULL_ACTIONS, 'Mount or dismount'),
+  FIGHT,
+  JOCKEY,
+  IMPROVISED,
+  pick(REACTIONS, 'Overwatch'),
+]
 export const DRONES_NOTE = 'Unless the system says otherwise: Size ½, HP 5, Evasion 10, E-defence 10 and armour 0.'
 export const SIZE_NOTE = 'Every frame has a Size on its sheet (½, 1, 2 or 3). Grapple compares Sizes.'
 
@@ -334,7 +358,7 @@ gists(QUICK_ACTIONS, {
   'Fragment signal': 'The basic Invade option.', Scan: 'Learn one thing about a target. No check needed.',
 })
 gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core Power': "Use your frame's core power." })
-gists([IMPROVISED, JOCKEY, OVERCHARGE], { 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })
+gists([IMPROVISED, JOCKEY, OVERCHARGE, FIGHT], { Fight: 'Attack with a pilot weapon.', 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })
 gists(REACTIONS, { Brace: 'Halve the next damaging attack on you.', Overwatch: 'Get a free attack on a target that moves away.', 'Reaction systems': 'Declare them at the end of your turn too.' })
 gists(STATUS_ROWS, {
   'Barrier-protected': 'Ranged attacks against you get −2.', Screened: 'Ranged attacks against you get −2.', Obscured: 'Attacks from beyond Close get −2. You can Hide.',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useId } from 'vue'
-import type { CombatEntry } from '../combatEntries'
+import { entryInfo, type CombatEntry } from '../combatEntries'
 import { showInfo } from '../info'
 import { activationOf } from '../itemDetails'
 import ActionChip from './ActionChip.vue'
@@ -12,7 +12,8 @@ import RulesText from './RulesText.vue'
 // neutral), then compact rows. A row with "info" is a button that opens the full information (your kit), a "plain" one is
 // short text, and any other opens in place (rules). The default slot holds a card's own body (tables, formulas) above
 // the rows. "mine" is your kit's own actions under a "Your kit" label; "groupActivation" (an --act-* name) leaves the
-// chip off rows that the card's colour already says.
+// chip off rows that the card's colour already says. With "chips" the rows are a wrapping row of buttons, name only, each
+// opening its full text in the information popup; "gist" draws each row's first sentence under its name (the turn's rows).
 const props = defineProps<{
   title: string
   icon: string
@@ -22,9 +23,11 @@ const props = defineProps<{
   entries?: CombatEntry[]
   mine?: CombatEntry[]
   groupActivation?: string
+  chips?: boolean
+  gist?: boolean
 }>()
 const id = useId()
-const chips = (entry: CombatEntry) => (entry.activations ?? (entry.activation ? [entry.activation] : [])).filter((word) => activationOf(word)?.colour !== props.groupActivation)
+const badges = (entry: CombatEntry) => (entry.activations ?? (entry.activation ? [entry.activation] : [])).filter((word) => activationOf(word)?.colour !== props.groupActivation)
 const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? entry.text}:${n}`
 </script>
 
@@ -39,7 +42,16 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
     <slot />
     <template v-for="(list, n) in [mine ?? [], entries ?? []]" :key="n">
       <p v-if="n === 0 && list.length" class="label group-sub">Your kit</p>
-      <ul v-if="list.length" class="entries">
+      <ul v-if="chips && list.length" class="chip-row">
+        <li v-for="(entry, i) in list" :key="key(entry, i)">
+          <button type="button" class="chip chip-btn" @click="showInfo(entryInfo(entry, title))">
+            <ActionChip v-for="word in badges(entry)" :key="word" :activation="word" />
+            {{ entry.mod ? 'Mod: ' : '' }}{{ entry.name ?? entry.tag ?? entry.value }}
+            <span v-if="entry.heat" class="heat-cost"><Icon name="heat" />{{ entry.heat }}</span>
+          </button>
+        </li>
+      </ul>
+      <ul v-else-if="list.length" class="entries">
         <li v-for="(entry, i) in list" :key="key(entry, i)" :class="{ 'mod-row': entry.mod }">
           <p v-if="entry.plain" class="entry-plain">
             <span v-if="entry.value && entry.value.length <= 4" class="entry-value">{{ entry.value }}</span>
@@ -58,7 +70,7 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
               <span class="entry-main">
                 <span v-if="entry.label" class="label entry-label">{{ entry.label }}</span>
                 <span class="entry-title">
-                  <ActionChip v-for="word in chips(entry)" :key="word" :activation="word" />
+                  <ActionChip v-for="word in badges(entry)" :key="word" :activation="word" />
                   <Icon v-if="entry.icon" :name="entry.icon" class="area-icon" />
                   <span v-if="entry.tag" class="chip">{{ entry.tag }}</span>
                   <span v-if="entry.name" class="name">{{ entry.name }}</span>
@@ -66,7 +78,7 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
                   <span v-if="entry.frequency" class="freq">{{ entry.frequency }}</span>
                 </span>
                 <ItemStats v-if="entry.stats?.length" :stats="entry.stats" />
-                <span v-if="entry.gist" class="entry-gist">{{ entry.gist }}</span>
+                <span v-if="gist && entry.gist" class="entry-gist">{{ entry.gist }}</span>
                 <ul v-if="entry.tags?.length" class="chips">
                   <li v-for="tag in entry.tags" :key="tag" class="chip">{{ tag }}</li>
                 </ul>
@@ -310,6 +322,40 @@ button.entry-row {
 
 .has-step {
   --indent: calc(1.25rem + var(--space-m));
+}
+
+/* Chip view: a left-aligned wrapping row of buttons, outlined in lilac because they open something. */
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+  margin: 0;
+  padding: var(--space-s) var(--space-m) var(--space-m);
+  list-style: none;
+}
+
+.chip-btn {
+  gap: var(--space-xs);
+  height: auto;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-color: var(--lilac);
+  cursor: pointer;
+}
+
+.chip-btn:hover {
+  background: color-mix(in srgb, var(--lilac) 14%, transparent);
+}
+
+.chip-btn:focus-visible {
+  outline: 2px solid var(--lilac);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .chip-btn {
+    min-height: 44px;
+  }
 }
 
 /* A weapon's mod sits under it, indented. */

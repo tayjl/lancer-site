@@ -8,18 +8,19 @@ import CombatGroup from '../components/CombatGroup.vue'
 import CombatTurn from '../components/CombatTurn.vue'
 import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
+import ChoiceField from '../components/editor/ChoiceField.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import { searchWords } from '../archive'
 import { actionEntry, firstSentence, plainEntry, rowEntry, turnEntries, type CombatEntry } from '../combatEntries'
 import { combatLoadout, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
 import {
-  ATTACK_EXTRAS, AREAS, ATTACK_FORMULAS, ATTACK_RESULTS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, COMBAT_TABS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DAMAGE_TYPES,
+  ATTACK_EXTRAS, ON_FOOT_ROWS, PILOT_ACTIONS, AREAS, ATTACK_FORMULAS, ATTACK_RESULTS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, COMBAT_TABS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DAMAGE_TYPES,
   DEFENCES, DICE, DICE_NOTE, DRONES_NOTE, FOOT_RULES, FULL_ACTIONS, IMPROVISED, JOCKEY, KNOCKBACK, KNOCKBACK_NOTE, MOVEMENT_NOTE, OVERCHARGE, OVERCHARGE_HEAT, OVERCHARGE_LATER,
   PILOT_CHECKS_NOTE, PILOT_DCS, POST_FOOTER, POST_NOTES, PUSHING_THROUGH, QUICK_ACTIONS, RANGE_BONUSES, RANGE_TALENTS, RANGE_TIERS, REACTIONS, REACTIONS_NOTE, RECHARGE, REPAIRS,
   RESULTS_NOTE, SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STATUS_GROUPS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TAGS, TERRAIN, TURN_ORDER, WEAPON_SIZES,
   type CombatAction,
 } from '../combatRules'
-import { tagNames } from '../gameData'
+import { pilotVitals, tagNames, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
@@ -30,7 +31,8 @@ import { plainText } from '../rulesText'
 // The combat guide: what you can do on your turn, read-only. The text is in src/combatRules.ts. A summary of your turn
 // (CombatTurn.vue) sits beside the tabs on a desktop and on the first two tabs on a phone. Each tab is cards of rows
 // (CombatGroup.vue): rules open in place, your own kit opens its full information (src/combatLoadout.ts, the same
-// as the mech page). One search box looks through every row of every tab.
+// as the mech page). A Mech / Pilot switch (?mode=pilot) trims every tab to what you can do in your mech or on foot, and the turn tabs
+// (Your kit, Actions) show their rows as chips that open the full text. One search box looks through the current mode's rows.
 const route = useRoute()
 const router = useRouter()
 // The last track step is "Blow up. The mech is wrecked.": its first sentence is shown bold.
@@ -58,10 +60,24 @@ const vitals = computed(() => {
   const stats = ['hp', 'heat', 'armour', 'evasion', 'speed', 'edef', 'tech_attack'].map((id) => l.stats.find((stat) => stat.id === id)!)
   return [...stats, { id: 'grit', name: 'Grit', icon: gritIcon, value: Math.ceil(gm.value.level / 2) }]
 })
+// The pilot's own key numbers, for Pilot mode.
+const { gear, talents, coreBonuses, bionics } = useGameData()
+const pilotStats = computed(() => [
+  ...pilotVitals(live.value.sheet, gear.value, talents.value, coreBonuses.value, bionics.value),
+  { id: 'grit', name: 'Grit', icon: gritIcon, value: Math.ceil(gm.value.level / 2) },
+])
 const overcharge = computed(() => (loadout.value?.frame ? loadout.value.overcharge : null))
 
-// The tabs. The url holds the tab (?tab=actions, left out for the first) beside ?mech=.
-const urlTab = computed(() => COMBAT_TABS.find((tab) => tab.id === route.query.tab) ?? COMBAT_TABS[0])
+// Mech or Pilot: ?mode=pilot, left out for Mech. A tab that belongs to the other mode isn't listed.
+const mode = computed<'mech' | 'pilot'>(() => (route.query.mode === 'pilot' ? 'pilot' : 'mech'))
+const modeChoice = computed<'mech' | 'pilot'>({
+  get: () => mode.value,
+  set: (value) => router.replace({ query: { ...route.query, mode: value === 'pilot' ? 'pilot' : undefined }, hash: route.hash }),
+})
+const modeTabs = computed(() => COMBAT_TABS.filter((tab) => !tab.on || tab.on === mode.value))
+// The tabs. The url holds the tab (?tab=actions, left out for the first) beside ?mech= and ?mode=. A tab missing from
+// this mode falls back to the first.
+const urlTab = computed(() => modeTabs.value.find((tab) => tab.id === route.query.tab) ?? modeTabs.value[0])
 const tabBar = useTemplateRef<HTMLElement>('tabBar')
 const panel = useTemplateRef<HTMLElement>('panel')
 // Searching shows "All" until a tab is picked.
@@ -70,8 +86,8 @@ const view = computed<string>({
   get: () => (searching.value && !picked.value ? 'All' : urlTab.value.label),
   set: (label) => {
     picked.value = label !== 'All'
-    const id = COMBAT_TABS.find((tab) => tab.label === label)?.id
-    if (id) router.replace({ query: { ...route.query, tab: id === COMBAT_TABS[0].id ? undefined : id }, hash: route.hash })
+    const id = modeTabs.value.find((tab) => tab.label === label)?.id
+    if (id) router.replace({ query: { ...route.query, tab: id === modeTabs.value[0].id ? undefined : id }, hash: route.hash })
     // A new tab starts at its top, not wherever the last one was scrolled to.
     nextTick(() => {
       const gap = (panel.value?.getBoundingClientRect().top ?? 0) - (tabBar.value?.getBoundingClientRect().bottom ?? 0)
@@ -102,7 +118,7 @@ const trimmed = computed(() => canTrim.value && !showAll.value && !searching.val
 
 // A card: its rows, and "data" for the body the template draws (formulas, tables), each datum tagged with its kind "k".
 type Datum = { k: string } & Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
-type Group = { title: string; icon: string; colour?: string; meta?: string; note?: string; entries?: CombatEntry[]; mine?: CombatEntry[]; data?: Datum[]; groupActivation?: string }
+type Group = { title: string; icon: string; colour?: string; meta?: string; note?: string; entries?: CombatEntry[]; mine?: CombatEntry[]; data?: Datum[]; groupActivation?: string; chips?: boolean; gist?: boolean }
 const data = (k: string, rows: object[]): Datum[] => rows.map((row) => ({ k, ...row }))
 const size = (g: Group) => (g.entries?.length ?? 0) + (g.mine?.length ?? 0) + (g.data?.length ?? 0)
 const ofKind = (g: Group, k: string) => g.data?.filter((d) => d.k === k) ?? []
@@ -149,11 +165,11 @@ const kitEntries = (block: LoadoutBlock): CombatEntry[] =>
     ...row.mods.map((m) => ({ label: 'Mod', name: m.name, tags: m.tags, gist: firstSentence(m.html) || undefined, mod: true, info: () => itemInfo(m.item) })),
   ])
 // Your kit's own actions (a system's, a trait's, a core power's), for the Actions cards.
-const kitActions = computed<(CombatEntry & { key: string })[]>(() =>
+const kitActions = computed<(CombatEntry & { key: string; block: LoadoutBlock })[]>(() =>
   (loadout.value?.rows ?? []).flatMap((row) => [
     ...(activationOf(row.activation) ? [{ label: row.label, name: row.name, activation: row.activation, text: row.html }] : []),
     ...row.rules.filter((rule) => activationOf(rule.activation)).map((rule) => ({ label: row.name, name: rule.name, activation: rule.activation, frequency: rule.frequency, stats: rule.stats, text: rule.text })),
-  ]).map((entry) => ({ ...entry, key: actionKey(entry.activation), gist: firstSentence(entry.text) || undefined })),
+  ].map((entry) => ({ ...entry, block: row.block }))).map((entry) => ({ ...entry, key: actionKey(entry.activation), gist: firstSentence(entry.text) || undefined })),
 )
 // Everest: "Lodestar: 1 Repair restores 1 Structure."
 const repairLine = computed(() => {
@@ -163,14 +179,14 @@ const repairLine = computed(() => {
 
 // Every tab's cards. "on" applies the search; "trim" cuts the tags to your gear; "turnCards" adds your turn's cards to
 // Actions (the summary hides them while searching).
-function build(on: boolean, trim: boolean, turnCards = on): TabContent[] {
+function build(on: boolean, trim: boolean, turnCards = on, pilot = mode.value === 'pilot'): TabContent[] {
   const l = loadout.value
   const heat = l?.frame ? l.overcharge : OVERCHARGE_HEAT.join(' → ')
   const speed = l?.frame ? (l.stats.find((stat) => stat.id === 'speed')?.value ?? null) : null
   const sizes = trim ? WEAPON_SIZES.filter((row) => l!.sizes.has(row.value)) : WEAPON_SIZES
   const tags = trim ? TAGS.filter((row) => row.tags?.some((id) => l!.tagIds.has(id))) : TAGS
-  const turn = turnEntries(speed, l?.frame ? l.overcharge : null)
-  const general: CombatAction[] = [...QUICK_ACTIONS, OVERCHARGE, ...FULL_ACTIONS, IMPROVISED, JOCKEY, ...REACTIONS]
+  const turn = turnEntries(speed, l?.frame ? l.overcharge : null, pilot)
+  const general: CombatAction[] = pilot ? PILOT_ACTIONS : [...QUICK_ACTIONS, OVERCHARGE, ...FULL_ACTIONS, IMPROVISED, JOCKEY, ...REACTIONS]
   const actions = Object.fromEntries(ACTIONS.map((a) => [a.key, [] as CombatEntry[]]))
   for (const action of general) {
     const entry = actionEntry(action)
@@ -179,37 +195,39 @@ function build(on: boolean, trim: boolean, turnCards = on): TabContent[] {
   }
   const action = (key: string): Group => {
     const a = ACTIONS.find((x) => x.key === key)!
-    return { title: a.title, icon: a.icon, colour: `--act-${key}`, groupActivation: key === 'tech' ? undefined : key, entries: actions[key], mine: kitActions.value.filter((entry) => entry.key === key), note: key === 'reaction' ? REACTIONS_NOTE : undefined }
+    return { title: a.title, icon: a.icon, colour: `--act-${key}`, groupActivation: key === 'tech' ? undefined : key, entries: actions[key], mine: kitActions.value.filter((entry) => entry.key === key && (!pilot || entry.block === 'gear')), chips: true, note: key === 'reaction' ? REACTIONS_NOTE : undefined }
   }
-  const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, entries: kitEntries(b.key), meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
+  const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, entries: kitEntries(b.key), meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
   const [weapons, systems, gear, frameCard, talents, core] = kitBlocks.map(block)
   const [cover, conditions, other] = STATUS_GROUPS.map((g): Group => ({ title: g.title, icon: g.icon, entries: g.rows.map((row) => rowEntry(row)) }))
   const rows = (list: Parameters<typeof rowEntry>[0][], options?: Parameters<typeof rowEntry>[1]) => list.map((row) => rowEntry(row, options))
   const plain = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => plainEntry(row.text, row.value))
 
   const content: [string, Column[], Column[]?][] = [
-    ['kit', [[weapons, systems, gear], [frameCard, talents, core]], [[
-      { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', entries: tags.map((row) => ({ tag: row.value, gist: row.gist ?? firstSentence(row.text), text: row.text })) },
+    ['kit', pilot ? [[gear], [talents]] : [[weapons, systems, gear], [frameCard, talents, core]], pilot ? [] : [[
+      { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, entries: tags.map((row) => ({ tag: row.value, gist: row.gist ?? firstSentence(row.text), text: row.text })) },
     ], [
       { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', entries: rows(sizes) },
     ]]],
-    ['actions', [[...(turnCards ? [{ title: 'Your turn', icon: 'list', entries: turn.steps }, { title: 'Scene resources', icon: 'star', note: 'They reset every combat or scene.', entries: turn.resources }] : []), action('quick')], ['protocol', 'full', 'tech', 'free', 'reaction'].map(action)]],
+    ['actions', [[...(turnCards ? [{ title: 'Your turn', icon: 'list', gist: true, entries: turn.steps }, { title: 'Scene resources', icon: 'star', gist: true, note: 'They reset every combat or scene.', entries: turn.resources }] : []), action('quick')], (pilot ? ['full', 'reaction'] : ['protocol', 'full', 'tech', 'free', 'reaction']).map(action)]],
     ['attacks', [[
       { title: 'Attack totals', icon: 'crosshair', data: data('f', ATTACK_FORMULAS) },
       { title: 'Results', icon: 'approved', note: RESULTS_NOTE, data: data('m', ATTACK_RESULTS) },
     ], [
       { title: 'Damage', icon: 'explosive', data: [...data('type', DAMAGE_TYPES), ...data('f', DAMAGE_FORMULAS)] },
-      { title: 'Dice conversions', icon: 'list', note: `${CONVERSIONS_NOTE} ${DICE_NOTE}`, data: [...data('dice', DICE), ...data('recharge', RECHARGE)] },
-      { title: 'Defence baselines', icon: 'evasion', data: data('def', DEFENCES) },
-      { title: 'Attack terms', icon: 'book-open', entries: rows(ATTACK_EXTRAS) },
+      ...(pilot ? [] : [
+        { title: 'Dice conversions', icon: 'list', note: `${CONVERSIONS_NOTE} ${DICE_NOTE}`, data: [...data('dice', DICE), ...data('recharge', RECHARGE)] },
+        { title: 'Defence baselines', icon: 'evasion', data: data('def', DEFENCES) },
+      ]),
+      { title: 'Attack terms', icon: 'book-open', entries: rows(pilot ? [...ATTACK_EXTRAS, ...FOOT_RULES.filter((row) => ['Pilot attacks', 'Attacks on a pilot'].includes(row.value))] : ATTACK_EXTRAS) },
     ]]],
     ['checks', [[
       { title: 'Checks and saves', icon: 'systems', data: [...data('f', CHECK_FORMULAS), ...data('chk', CHECK_RESULTS)] },
     ], [
-      { title: 'Pilot checks', icon: 'pilot', note: PILOT_CHECKS_NOTE, data: data('dc', PILOT_DCS) },
+      ...(pilot ? [{ title: 'Pilot checks', icon: 'pilot', note: PILOT_CHECKS_NOTE, data: data('dc', PILOT_DCS) }] : []),
       { title: 'Pushing through', icon: 'star', entries: [plainEntry(PUSHING_THROUGH)] },
     ]]],
-    ['statuses', [[cover, conditions], [other]]],
+    ['statuses', [[cover, conditions], [other, ...(pilot ? [{ title: 'On foot', icon: 'pilot', entries: rows(ON_FOOT_ROWS) }] : [])]]],
     ['movement', [[
       { title: 'Speed', icon: 'speed', note: MOVEMENT_NOTE, entries: rows(SPEED_GATEWAYS, { column: true }) },
       { title: 'Terrain', icon: 'map-pin', entries: rows(TERRAIN) },
@@ -235,7 +253,7 @@ function build(on: boolean, trim: boolean, turnCards = on): TabContent[] {
       { title: 'Your post', icon: 'book-open', data: [...data('note', POST_NOTES.map((text) => ({ text }))), { k: 'footer', text: POST_FOOTER }] },
     ]]],
   ]
-  return content.map(([id, columns, tagColumns = []]) => {
+  return content.filter(([id]) => modeTabs.value.some((tab) => tab.id === id)).map(([id, columns, tagColumns = []]) => {
     const label = COMBAT_TABS.find((tab) => tab.id === id)!.label
     const whole = on && hit(label)
     const sift = (cols: Column[]) => cols.map((col) => col.map((g) => find(g, whole, on)).filter((g): g is Group => !!g)).filter((col) => col.length)
@@ -248,8 +266,8 @@ const tabs = computed(() => build(searching.value, trimmed.value))
 const total = computed(() => count(build(false, false, true)).reduce((a, b) => a + b, 0))
 const counts = computed(() => count(tabs.value))
 const matches = computed(() => counts.value.reduce((a, b) => a + b, 0))
-const tabNames = computed(() => (searching.value ? ['All', ...COMBAT_TABS.map((tab) => tab.label)] : COMBAT_TABS.map((tab) => tab.label)))
-const tabCounts = computed(() => ({ All: matches.value, ...Object.fromEntries(COMBAT_TABS.map((tab, i) => [tab.label, counts.value[i]])) }))
+const tabNames = computed(() => (searching.value ? ['All', ...modeTabs.value.map((tab) => tab.label)] : modeTabs.value.map((tab) => tab.label)))
+const tabCounts = computed(() => ({ All: matches.value, ...Object.fromEntries(modeTabs.value.map((tab, i) => [tab.label, counts.value[i]])) }))
 // The tabs on show: the one picked, or every tab with matches under its own heading.
 const showing = computed(() => (view.value === 'All' ? tabs.value.filter((_, i) => counts.value[i]) : tabs.value.filter((tab) => tab.label === view.value)))
 
@@ -265,6 +283,10 @@ const clear = () => {
     <CatalogueNotice />
     <div class="combat">
       <div class="tools">
+        <div class="mode">
+          <span class="label">Viewing as</span>
+          <ChoiceField v-model="modeChoice" label="Viewing as" :options="[{ value: 'mech', label: 'Mech' }, { value: 'pilot', label: 'Pilot' }]" />
+        </div>
         <div class="search">
           <label class="field">
             <span>Search</span>
@@ -281,6 +303,8 @@ const clear = () => {
 
       <CombatTurn
         :loading="loading"
+        :mode="mode"
+        :pilot-name="live.character?.pilot_name"
         :load-error="loadError"
         :has-pilot="!!live.character"
         :mech-list="mechList"
@@ -288,7 +312,7 @@ const clear = () => {
         :ready="!!loadout || !!catalogueError"
         :frame="frame"
         :frames="catalogue.frames"
-        :vitals="vitals"
+        :vitals="mode === 'pilot' ? pilotStats : vitals"
         :overcharge="overcharge"
         :tab="urlTab.id"
         :searching="searching"
@@ -299,6 +323,7 @@ const clear = () => {
       <p v-if="searching && !matches" class="empty">Nothing matches that search.</p>
       <div v-else ref="panel" class="tab-panel">
         <p v-if="!showing.length" class="empty">Nothing matches that search.</p>
+        <p v-else-if="!searching && mode === 'pilot' && showing[0].id === 'kit' && !showing[0].columns.length" class="empty">No pilot gear or talents yet.</p>
         <template v-for="t in showing" :key="t.id">
           <h2 :class="view === 'All' ? 'result-tab' : 'sr-only'">{{ t.label }}</h2>
           <template v-for="(columns, part) in [t.columns, t.tags]" :key="part">
@@ -319,6 +344,8 @@ const clear = () => {
                   :entries="g.entries"
                   :mine="g.mine"
                   :group-activation="g.groupActivation"
+                  :chips="g.chips"
+                  :gist="g.gist"
                 >
                   <ul v-if="ofKind(g, 'type').length" class="damage-types">
                     <li v-for="d in ofKind(g, 'type')" :key="d.name" class="damage-type" :style="{ '--c': `var(--dmg-${d.icon})` }"><Icon :name="d.icon" />{{ d.name }}</li>
@@ -463,7 +490,12 @@ const clear = () => {
   }
 }
 
-/* Search */
+/* Search and the mode switch */
+.mode {
+  display: grid;
+  gap: var(--space-xs);
+}
+
 .tools {
   display: flex;
   flex-wrap: wrap;

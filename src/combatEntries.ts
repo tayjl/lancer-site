@@ -43,15 +43,27 @@ export const rowEntry = (row: CombatRow, options: { column?: boolean; gist?: boo
 export const plainEntry = (text: string, value?: string): CombatEntry => ({ plain: true, value, text })
 
 // "Your turn" and "Scene resources". The overcharge cost and the Speed come from your mech when it has a frame.
-export function turnEntries(speed: number | null, overcharge: string | null) {
-  const steps = TURN_STEPS.map((step, i): CombatEntry => ({
+// A pilot on foot has no protocol or overcharge, so those two steps are left out.
+export function turnEntries(speed: number | null, overcharge: string | null, pilot = false) {
+  const onFoot = (step: (typeof TURN_STEPS)[number], text?: string) => (pilot && step.name === 'Movement' ? 'Move using your Speed.' : text)
+  const steps = TURN_STEPS.filter((step) => !pilot || (step.name !== 'Protocol' && step.name !== 'Overcharge')).map((step, i): CombatEntry => ({
     step: i + 1,
     activations: step.activations,
     name: step.activations.length ? undefined : step.name,
-    frequency: i === 1 && speed !== null ? `Speed ${speed}` : step.frequency,
+    frequency: step.name === 'Movement' && speed !== null ? `Speed ${speed}` : step.frequency,
     heat: step.name === 'Overcharge' ? (overcharge ?? OVERCHARGE_HEAT.join(' → ')) : undefined,
-    gist: step.gist,
-    text: i === 2 ? `<b>${step.name}.</b> ${step.text}` : step.text,
+    gist: onFoot(step, step.gist),
+    text: step.activations.includes('Full') ? `<b>${step.name}.</b> ${step.text}` : (onFoot(step, step.text) as string),
   }))
   return { steps, resources: SCENE_RESOURCES.map(actionEntry) }
 }
+
+// What a chip opens: the entry's own info (kit items), or its rules text built the way a kit trait's is.
+export const entryInfo = (entry: CombatEntry, kind: string): Info =>
+  entry.info?.() ?? {
+    kind,
+    name: entry.name ?? entry.value ?? entry.tag ?? '',
+    facts: [],
+    stats: [],
+    groups: [{ cards: [{ heading: '', html: entry.text ?? '', activation: entry.activation }] }],
+  }
