@@ -118,3 +118,28 @@ describe('gear', () => {
     expect(gearGroups(rows).map(g => [g.title, g.rows.map(r => r.name)])).toEqual([['Armour', ['a1']], ['Other', ['x', 'y']]])
   })
 })
+
+describe('chosen damage type', () => {
+  const variable: Item = { ...weapons.get('mw_assault_rifle')!, id: 'mw_variable_test', damage: [{ type: 'Variable', val: 2 }] }
+  const withVariable = { ...catalogue, weapons: new Map([...weapons, [variable.id, variable]]) }
+  const mounts = everest.mounts.map(mount => (mount === 'Main' ? [variable.id] : []))
+  const damageOf = (weapon_options?: Record<string, { damageType: string }>) => {
+    const row = combatLoadout({ frame: everest.id, mounts, weapon_options }, {}, withVariable, tagNames).rows.find(r => r.item?.id === variable.id)!
+    return row.item!.damage.map(d => d.type)
+  }
+  const key = `${mounts.findIndex(m => m.length)}:0`
+
+  it('shows the chosen type on a Variable mech weapon', () => {
+    expect(damageOf({ [key]: { damageType: 'Energy' } })).toEqual(['Energy'])
+  })
+  it('still says Variable when no type is chosen', () => {
+    expect(damageOf()).toEqual(['Variable'])
+  })
+  it('shows the chosen type on a gear weapon', () => {
+    const gear: Item = { ...variable, id: 'gear_variable_test', type: 'Weapon', mount: '' }
+    const sheet = (damageType?: string) => ({ owned_gear: [{ key: 'k', id: gear.id, damageType }], equipped_gear: ['k'] }) as never
+    const typesFor = (damageType?: string) => combatLoadout({}, sheet(damageType), { ...catalogue, gear: [gear] }, tagNames).rows[0].item!.damage.map(d => d.type)
+    expect(typesFor('Explosive')).toEqual(['Explosive'])
+    expect(typesFor()).toEqual(['Variable'])
+  })
+})

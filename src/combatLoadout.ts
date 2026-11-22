@@ -3,7 +3,7 @@ import { equippedGear, LOADOUT, type Item } from './gameData'
 import { cardRules, itemDetails, type ItemRule, type ItemStat } from './itemDetails'
 import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type ReminderKind } from './mechData'
 import type { MechPrivate, Sheet } from './myPilot'
-import { selectWeaponProfile } from './equipment'
+import { equipmentDetails } from './equipment'
 import { bracingMount } from './rules'
 import { capitalise } from './text'
 
@@ -58,7 +58,8 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
       const m = builtIn ? null : Number(key.split(':')[0])
       const base = catalogueItem(catalogue.weapons, catalogue, id)
       if (!base) return
-      const item = selectWeaponProfile(base, details.weapon_options?.[key]?.profile ?? 0)
+      // Applies the chosen profile, Variable damage type and Prototype choices. No bonuses: this page shows base values.
+      const item: Item = equipmentDetails(base, sheet, [], details.weapon_options?.[key] ?? { profile: 0 })
       // A built-in item can be a system too (no mount size).
       const row = item.mount ? itemRow('weapons', item, `${builtIn ? 'Integrated · ' : ''}${item.mount} ${item.type}`, ['range', 'damage']) : itemRow('systems', item, builtIn ? 'Integrated' : undefined, ['range', 'damage'])
       const mod = mods.get(key) && catalogue.mods?.get(mods.get(key)!)
@@ -101,7 +102,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     const item = gear.get(owned.id)
     // "Pilot gear" is the block's own title, so a plain gear item gets no label.
     const slot = item && LOADOUT.find(slot => slot.type === item.type)?.label
-    if (item) rows.push({ ...itemRow('gear', item, slot && slot.toLowerCase() !== 'pilot gear' ? capitalise(slot) : undefined, ['range', 'damage', 'bonus']), slot: item.type as LoadoutRow['slot'] })
+    if (item) rows.push({ ...itemRow('gear', owned.damageType ? equipmentDetails(item, sheet, [], { damageType: owned.damageType }) : item, slot && slot.toLowerCase() !== 'pilot gear' ? capitalise(slot) : undefined, ['range', 'damage', 'bonus']), slot: item.type as LoadoutRow['slot'] })
   }
   return { rows, missing, tagIds, sizes, structureRepairs: resources.structureRepairs, frame, overcharge: resources.overcharge, stats: mechStats(frame, sheet.mech_skills, effects.modifiers) }
 }
