@@ -18,6 +18,7 @@ None. Everything through `20261121180000_delete_my_account` is on the hosted pro
 ## Next steps
 - Combat guide (2026-11-22, unpushed): a Mech / Pilot switch (`?mode=pilot`) and chips on Your kit and Actions that open the full text in the info popup. Lookup tabs lost their gist line (the turn summary keeps it). Needs a phone check, and the developer's say on the pilot action set.
 - Combat page rebuild (2026-11-22, unpushed, no DB change so no hosted migration): now one page with a turn strip and folding sections. The Posting tab and the tabs are gone. Next: the owner checks it live on phone and desktop.
+- Combat page round 2 (2026-11-22, unpushed, no DB change so no hosted migration): connected turn bar, badge-free light chips with the action word in the card header, Overcharge as heat numbers, Rules as four cards of topic chips that open popups. Next: the owner checks it live on phone and desktop.
 - Untested: the mech page, pilots with long names, Firefox (no `field-sizing` for the centred callsign field), the phone dialogs on a real phone.
 - After the first deploy with the Worker: paste an approved pilot's link in Discord to check the preview (a card picture appears once the owner or a GM has opened that pilot's page).
 - Local test data: `testy` (1021) has a Medium Signature in its draft change (swapped in by hand for testing).

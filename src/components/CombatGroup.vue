@@ -11,9 +11,11 @@ import RulesText from './RulesText.vue'
 // A card of the combat guide: a header in the colour of what it holds (a --act-* or --type-* variable; none is
 // neutral), then compact rows. A row with "info" is a button that opens the full information (your kit), a "plain" one is
 // short text, and any other opens in place (rules). The default slot holds a card's own body (tables, formulas) above
-// the rows. "mine" is your kit's own actions under a "Your kit" label; "groupActivation" (an --act-* name) leaves the
-// chip off rows that the card's colour already says. With "chips" the rows are a wrapping row of buttons, name only, each
-// opening its full text in the information popup; "gist" draws each row's first sentence under its name (the turn's rows).
+// the rows. "mine" is your kit's own actions under a "Your kit" label. With "chips" the rows are a wrapping row of light
+// buttons, name only (a "Mod" or gateway prefix, a Heat cost, and a "cost" tag where an action's cost matters), each
+// opening its full text in the information popup; "tagged" ends each chip with its activation word (the search card, which
+// mixes them all). "empty" is the line a card with nothing in it shows, so it keeps its place in a row of cards. "gist"
+// draws each row's first sentence under its name (the turn's rows).
 const props = defineProps<{
   title: string
   icon: string
@@ -22,12 +24,19 @@ const props = defineProps<{
   note?: string
   entries?: CombatEntry[]
   mine?: CombatEntry[]
-  groupActivation?: string
+  empty?: string
   chips?: boolean
+  tagged?: boolean
   gist?: boolean
 }>()
 const id = useId()
-const badges = (entry: CombatEntry) => (entry.activations ?? (entry.activation ? [entry.activation] : [])).filter((word) => activationOf(word)?.colour !== props.groupActivation)
+const badges = (entry: CombatEntry) => entry.activations ?? (entry.activation ? [entry.activation] : [])
+// A chip's small tag: its cost ('1 quick'), or on the search card its activation word. Word and symbol, never colour alone.
+const tag = (entry: CombatEntry) => {
+  const word = entry.cost ?? (props.tagged && entry.activation?.toLowerCase() !== entry.name?.toLowerCase() ? entry.activation : undefined)
+  const look = activationOf(entry.cost ? entry.cost.split(' ').slice(1).join(' ') : word)
+  return word && look ? { word, ...look } : null
+}
 const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? entry.text}:${n}`
 </script>
 
@@ -40,14 +49,16 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
     </header>
     <p v-if="note" class="group-note">{{ note }}</p>
     <slot />
+    <p v-if="empty && !entries?.length && !mine?.length && !$slots.default" class="group-empty">{{ empty }}</p>
     <template v-for="(list, n) in [mine ?? [], entries ?? []]" :key="n">
       <p v-if="n === 0 && list.length" class="label group-sub">Your kit</p>
       <ul v-if="chips && list.length" class="chip-row">
         <li v-for="(entry, i) in list" :key="key(entry, i)">
-          <button type="button" class="chip chip-btn" @click="showInfo(entryInfo(entry, title))">
-            <ActionChip v-for="word in badges(entry)" :key="word" :activation="word" />
-            {{ entry.mod ? 'Mod: ' : '' }}{{ entry.name ?? entry.tag ?? entry.value }}
+          <button type="button" class="chip-btn" @click="showInfo(entryInfo(entry, title))">
+            <span v-if="entry.mod || (entry.value && entry.name)" class="chip-pre">{{ entry.mod ? 'Mod' : entry.value }}</span>
+            <span>{{ entry.name ?? entry.tag ?? entry.value }}</span>
             <span v-if="entry.heat" class="heat-cost"><Icon name="heat" />{{ entry.heat }}</span>
+            <span v-if="tag(entry)" class="cost" :style="{ '--c': `var(--act-${tag(entry)!.colour})` }"><Icon :name="tag(entry)!.icon" />{{ tag(entry)!.word }}</span>
           </button>
         </li>
       </ul>
@@ -96,10 +107,18 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
 <style scoped>
 .group {
   --c: var(--raised);
+  --tint: var(--c);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--panel);
+}
+
+/* A neutral card's --c is --raised, too close to --panel to tint a chip. */
+.neutral {
+  --tint: var(--edge);
 }
 
 .group-head {
@@ -324,38 +343,91 @@ button.entry-row {
   --indent: calc(1.25rem + var(--space-m));
 }
 
-/* Chip view: a left-aligned wrapping row of buttons, outlined in lilac because they open something. */
+/* Chip view: a left-aligned wrapping row of light buttons. The shape is on ::before so the focus ring isn't clipped. */
 .chip-row {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: var(--space-s);
   margin: 0;
-  padding: var(--space-s) var(--space-m) var(--space-m);
+  padding: var(--space-m);
   list-style: none;
 }
 
 .chip-btn {
-  gap: var(--space-xs);
-  height: auto;
+  position: relative;
+  isolation: isolate;
   min-height: 32px;
-  padding: 4px 10px;
-  border-color: var(--lilac);
-  cursor: pointer;
+  max-width: 100%;
+  padding: 6px 14px 6px 10px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font: 700 var(--fs-xs) / 1.2 var(--sans);
+  letter-spacing: 0.04em;
+  text-align: left;
+  white-space: normal;
 }
 
-.chip-btn:hover {
-  background: color-mix(in srgb, var(--lilac) 14%, transparent);
+.chip-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: color-mix(in srgb, var(--tint) 22%, var(--panel));
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
 }
 
-.chip-btn:focus-visible {
-  outline: 2px solid var(--lilac);
-  outline-offset: 2px;
+.chip-btn:hover:not(:disabled) {
+  background: none;
+  color: var(--lilac);
+}
+
+.chip-btn:hover::before {
+  background: color-mix(in srgb, var(--lilac) 18%, var(--panel));
 }
 
 @media (pointer: coarse) {
   .chip-btn {
     min-height: 44px;
   }
+}
+
+.chip-pre {
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px 0 6px;
+  background: var(--c);
+  color: #fff;
+  font: 700 var(--fs-xs) / 1 var(--sans);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+
+.cost .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.group-empty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  margin: 0;
+  padding: var(--space-m);
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+  text-align: center;
 }
 
 /* A weapon's mod sits under it, indented. */

@@ -3,8 +3,9 @@
 // glossary strings are plain text. "activation" is an ActionChip word (Quick, Full, Reaction, Free, Overcharge,
 // Protocol, Quick Tech, Full Tech, Invade); leave it out for no chip.
 // "gist" is the one short line a collapsed row shows; a row without one shows its text's first sentence.
-// Where an action sits under the "1 full or 2 quick" step. Core Power and reactions have none.
-export type ActionGroup = 'attack' | 'move' | 'tech' | 'systems' | 'mech'
+// Which card an action sits in under the "1 full" and "2 quick" steps. "move" (Boost, Disengage) is for the Movement step.
+// Core Power and reactions have none.
+export type ActionGroup = 'attack' | 'tech' | 'other' | 'move'
 export type CombatAction = { name: string; activation?: string; frequency?: string; gist?: string; group?: ActionGroup; text: string }
 // tags: the tag ids a TAGS row explains, so the guide can show only the ones on your gear. short: a narrower value for the
 // value column of a row list, where "7 or less" wouldn't fit.
@@ -32,7 +33,8 @@ export const DICE_NOTE = 'Damage dice become flat damage, rounded up.'
 export const TURN_STEPS: (CombatAction & { activations: string[] })[] = [
   { name: 'Protocol', activations: ['Protocol'], frequency: 'Optional', text: 'Turn on a protocol system at the very start of your turn, before you move or act.' },
   { name: 'Movement', activations: [], text: "Move using your mech's Speed." },
-  { name: '1 full action or 2 quick actions', activations: ['Full', 'Quick'], text: "You can't take the same action twice in a turn, unless an ability or Overcharge lets you." },
+  { name: '1 full', activations: ['Full'], text: "Take 1 full action instead of 2 quick actions. You can't take the same action twice in a turn, unless an ability or Overcharge lets you." },
+  { name: '2 quick', activations: ['Quick'], text: "Take 2 quick actions instead of 1 full action. You can't take the same action twice in a turn, unless an ability or Overcharge lets you." },
   { name: 'Overcharge', activations: ['Overcharge'], frequency: 'Optional, once a turn', text: 'A free action that gives you 1 extra quick action. It costs Heat, more each time.' },
   { name: 'Free', activations: ['Free'], text: 'Free actions cost no action. Core powers and some systems use them.' },
   { name: 'Reaction', activations: ['Reaction'], frequency: 'End of your turn', text: 'Declare 1 reaction at the end of your turn. You commit to it in advance instead of interrupting another post.' },
@@ -46,32 +48,30 @@ export const SCENE_RESOURCES: CombatAction[] = [
 export const QUICK_ACTIONS: CombatAction[] = [
   { name: 'Skirmish', activation: 'Quick', group: 'attack', text: 'Attack with 1 weapon, plus a second Auxiliary weapon on the same mount if it has one.' },
   { name: 'Boost', activation: 'Quick', group: 'move', text: "Move again. Use it to cover more ground or reach a Speed gateway your Speed can't." },
-  { name: 'Reload', activation: 'Quick', group: 'systems', text: 'Reload one Loading weapon, or one mount holding Loading weapons.' },
-  { name: 'Invade', activation: 'Invade', group: 'tech', text: 'Make a tech attack against E-defence. On a hit, deal 2 Heat plus a hacking effect, such as Impaired or Slowed.' },
-  { name: 'Lock on', activation: 'Quick', group: 'tech', text: 'Mark a target you can see as Locked on. No check needed.' },
-  { name: 'Bolster', activation: 'Quick', group: 'tech', text: 'Give an ally +2 (1 Accuracy) on their next check or save.' },
-  { name: 'Hide', activation: 'Quick', group: 'move', text: "Become Hidden if you're out of direct sight, Obscured or Invisible, and not Engaged." },
-  { name: 'Search', activation: 'Quick', group: 'move', text: 'Find a Hidden target. Compare your 10 + Systems with their 10 + Agility. On a tie, the hider may take 1 Heat to stay Hidden.' },
+  { name: 'Reload', activation: 'Quick', group: 'other', text: 'Reload one Loading weapon, or one mount holding Loading weapons.' },
+  { name: 'Invade', activation: 'Invade', group: 'tech', text: 'Make a tech attack against E-defence. On a hit, deal 2 Heat plus a hacking effect. The basic option, Fragment signal, leaves the target Impaired and Slowed until the end of its next turn. Systems and talents add other options.' },
+  { name: 'Lock on', activation: 'Quick Tech', group: 'tech', text: 'Mark a target you can see as Locked on. No check needed.' },
+  { name: 'Bolster', activation: 'Quick Tech', group: 'tech', text: 'Give an ally +2 (1 Accuracy) on their next check or save.' },
+  { name: 'Hide', activation: 'Quick', group: 'other', text: "Become Hidden if you're out of direct sight, Obscured or Invisible, and not Engaged." },
+  { name: 'Search', activation: 'Quick', group: 'other', text: 'Find a Hidden target. Compare your 10 + Systems with their 10 + Agility. On a tie, the hider may take 1 Heat to stay Hidden.' },
   { name: 'Ram', activation: 'Quick', group: 'attack', text: 'Melee attack on an adjacent target. On a full hit or crit, knock them Prone and Knockback 1.' },
   { name: 'Grapple', activation: 'Quick', group: 'attack', text: "Melee attack on an adjacent target. On a hit, a bigger mech holds a smaller one in place, and the smaller mech can't move on its own. Between mechs of the same size, the higher Hull is in control. Breaking free costs the grappled mech 1 quick action and 1 Heat." },
-  { name: 'Quick tech', activation: 'Quick Tech', group: 'tech', text: "Invade, Scan, Lock on, Bolster, or a system's own Quick Tech option." },
   { name: 'Scan', activation: 'Quick Tech', group: 'tech', text: 'No check needed. Learn one thing about a target in Sensors range:<ul><li>Its HP, Structure and Heat.</li><li>Its defences.</li><li>Its weapons and systems.</li><li>Its statuses.</li></ul>' },
-  { name: 'Fragment signal', activation: 'Invade', group: 'tech', text: 'The basic Invade option. On a full hack, the target is Impaired and Slowed until the end of its next turn. Other Invade options come from systems and talents.' },
-  { name: 'Activate', activation: 'Quick', group: 'systems', text: 'Use a system with the Quick tag.' },
-  { name: 'Skill check', activation: 'Quick', group: 'systems', text: 'Make a check for Hull, Agility, Systems or Engineering when the GM calls for one.' },
-  { name: 'Shut down', activation: 'Quick', group: 'mech', text: 'Clear all Heat and Exposed, and end any condition a tech attack caused. You gain Shutdown until you Boot up.' },
-  { name: 'Eject', activation: 'Quick', group: 'mech', frequency: 'Once a scene', text: "The pilot is thrown clear to Close range. The empty mech is Impaired and can't act." },
-  { name: 'Self-destruct', activation: 'Quick', group: 'mech', text: 'At the end of your next turn your mech explodes: Burst 2, 14 explosive damage. Anyone caught can make an Agility save (DC 14) for half. The mech is destroyed, and a pilot still inside dies.' },
+  { name: 'Activate', activation: 'Quick', group: 'other', text: 'Use a system with the Quick tag.' },
+  { name: 'Skill check', activation: 'Quick', group: 'other', text: 'Make a check for Hull, Agility, Systems or Engineering when the GM calls for one.' },
+  { name: 'Shut down', activation: 'Quick', group: 'other', text: 'Clear all Heat and Exposed, and end any condition a tech attack caused. You gain Shutdown until you Boot up.' },
+  { name: 'Eject', activation: 'Quick', group: 'other', frequency: 'Once a scene', text: "The pilot is thrown clear to Close range. The empty mech is Impaired and can't act." },
+  { name: 'Self-destruct', activation: 'Quick', group: 'other', text: 'At the end of your next turn your mech explodes: Burst 2, 14 explosive damage. Anyone caught can make an Agility save (DC 14) for half. The mech is destroyed, and a pilot still inside dies.' },
 ]
 
 export const FULL_ACTIONS: CombatAction[] = [
   { name: 'Barrage', activation: 'Full', group: 'attack', text: 'Attack with 2 weapons, or 1 Superheavy weapon.' },
   { name: 'Disengage', activation: 'Full', group: 'move', text: 'Move safely, without triggering Overwatch or Engagement penalties.' },
-  { name: 'Stabilize', activation: 'Full', group: 'mech', text: 'Cool down, reload and patch up. Choose one from each line:<ol><li>Clear all Heat to 0, or spend 1 Repair to heal to full HP.</li><li>Reload all Loading weapons, clear all Burn, or clear one condition (such as Impaired or Jammed) on yourself or an Engaged ally.</li></ol>' },
-  { name: 'Boot up', activation: 'Full', group: 'mech', text: "Turn your mech back on after Shutdown. It's the one full action you can still take while in Shutdown." },
+  { name: 'Stabilize', activation: 'Full', group: 'other', text: 'Cool down, reload and patch up. Choose one from each line:<ol><li>Clear all Heat to 0, or spend 1 Repair to heal to full HP.</li><li>Reload all Loading weapons, clear all Burn, or clear one condition (such as Impaired or Jammed) on yourself or an Engaged ally.</li></ol>' },
+  { name: 'Boot up', activation: 'Full', group: 'other', text: "Turn your mech back on after Shutdown. It's the one full action you can still take while in Shutdown." },
   { name: 'Full tech', activation: 'Full Tech', group: 'tech', text: "Two Quick Tech actions, which may both be Invade at the same or different targets, or a system's own Full Tech option." },
-  { name: 'Activate', activation: 'Full', group: 'systems', text: "Use a system with the Full tag. Overcharge's extra quick action can't pay for it." },
-  { name: 'Mount or dismount', activation: 'Full', group: 'move', text: "Get into or out of a mech you're Engaged with. An empty mech can't act." },
+  { name: 'Activate', activation: 'Full', group: 'other', text: "Use a system with the Full tag. Overcharge's extra quick action can't pay for it." },
+  { name: 'Mount or dismount', activation: 'Full', group: 'other', text: "Get into or out of a mech you're Engaged with. An empty mech can't act." },
   { name: 'Core Power', frequency: 'Once a mission', text: 'Use the activation and duration the power gives. It returns at Full Repair. Passive core effects are always on.' },
 ]
 
@@ -318,22 +318,22 @@ export const DICE: CombatRow[] = [
   { value: '3d6', text: '11 damage' },
 ]
 export const RECHARGE: CombatRow[] = [
-  { value: 'Recharge 4+, 50% or 4+', text: 'A 1-turn cooldown (usable every other turn), or triggers on a full hit.' },
-  { value: 'Recharge 5+ or 5+', text: 'A 2-turn cooldown, or triggers on a critical hit.' },
-  { value: 'Recharge 6 or 6', text: 'A 3-turn cooldown, or once a scene.' },
+  { value: 'Recharge 4+ or 50%', text: 'A 1-turn cooldown (usable every other turn), or triggers on a full hit.' },
+  { value: 'Recharge 5+', text: 'A 2-turn cooldown, or triggers on a critical hit.' },
+  { value: 'Recharge 6', text: 'A 3-turn cooldown, or once a scene.' },
 ]
 
 // Gists (see CombatRow.gist), set by name or value so the arrays above keep the handbook's wording.
 const gists = (rows: { name?: string; value?: string; gist?: string }[], map: Record<string, string>) =>
   rows.forEach((row) => { row.gist = map[(row.name ?? row.value)!] ?? row.gist })
-gists(TURN_STEPS, { Protocol: 'Turn on a protocol at the very start of your turn.', Movement: "Move using your mech's Speed.", '1 full action or 2 quick actions': 'Take 1 full action or 2 quick actions.', Overcharge: 'Gain 1 extra quick action for Heat.', Free: 'Free actions cost no action.', Reaction: 'Declare 1 reaction in advance.' })
+gists(TURN_STEPS, { Protocol: 'Turn on a protocol at the very start of your turn.', Movement: "Move using your mech's Speed.", '1 full': 'Take 1 full action.', '2 quick': 'Take 2 quick actions.', Overcharge: 'Gain 1 extra quick action for Heat.', Free: 'Free actions cost no action.', Reaction: 'Declare 1 reaction in advance.' })
 gists(SCENE_RESOURCES, { "Lancer's Edge": 'Add +2 to any attack, check or save.', "Lancer's Precision": 'Turn a hit into a critical hit.' })
 gists(QUICK_ACTIONS, {
   Skirmish: 'Attack with 1 weapon.', Reload: 'Reload one Loading weapon or mount.', 'Lock on': 'Mark a target as Locked on.', Bolster: 'Give an ally +2 on their next check or save.',
   Hide: "Become Hidden if you're out of sight and not Engaged.", Search: 'Find a Hidden target.', Ram: 'Knock an adjacent target Prone.', Grapple: 'Hold an adjacent target in place.',
   'Skill check': 'Make a check when the GM calls for one.', 'Shut down': 'Clear all Heat and Exposed, then gain Shutdown.', Eject: 'Throw the pilot clear to Close range.',
-  'Self-destruct': 'Your mech explodes at the end of your next turn.', 'Quick tech': "Choose Invade, Scan, Lock on, Bolster or a system's option.", Invade: 'Tech attack for 2 Heat plus a hacking effect.',
-  'Fragment signal': 'The basic Invade option.', Scan: 'Learn one thing about a target. No check needed.',
+  'Self-destruct': 'Your mech explodes at the end of your next turn.', Invade: 'Tech attack for 2 Heat plus a hacking effect.',
+  Scan: 'Learn one thing about a target. No check needed.',
 })
 gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core Power': "Use your frame's core power." })
 gists([IMPROVISED, JOCKEY, OVERCHARGE, FIGHT], { Fight: 'Attack with a pilot weapon.', 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })

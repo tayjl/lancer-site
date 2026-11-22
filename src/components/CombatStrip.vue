@@ -1,79 +1,119 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { stepActions, type KitAction } from '../combatEntries'
-import { REACTIONS_NOTE, TURN_STEPS } from '../combatRules'
+import { OVERCHARGE_HEAT } from '../combatRules'
 import CombatGroup from './CombatGroup.vue'
 import Icon from './Icon.vue'
+import RulesText from './RulesText.vue'
 
-// The turn as a row of steps. One is open at a time (the first full action step to begin with) and its actions sit under
-// the strip as chip cards. The steps and their order come from TURN_STEPS; a pilot on foot has no protocol or overcharge.
+// The turn as one connected bar of steps (chevrons mean "then", the straight join with "or" means "choose one"). One step is
+// open at a time (2 quick to begin with) and its cards sit under the bar. "1 full" and "2 quick" show four equal cards, every
+// other step two: how it works, and its actions (or, for Overcharge, the Heat numbers). A card's header carries the action's
+// colour and word, so its chips are name only. A pilot on foot has no protocol or overcharge.
 const props = defineProps<{ kitActions: KitAction[]; pilot: boolean; overcharge: string | null; speed: number | null }>()
 
-const FULL = '1 full action or 2 quick actions'
-const open = ref(FULL)
+const open = ref('2 quick')
 
-type Tile = { c?: string; icon: string }
-const INFO: Record<string, { label: string; rule: string; empty?: string; tiles: Tile[] }> = {
-  Protocol: { label: 'Protocol', rule: 'Turn on a protocol at the very start of your turn.', empty: 'No protocols.', tiles: [{ c: 'protocol', icon: 'protocol' }] },
-  Movement: { label: 'Movement', rule: 'Move using your Speed.', tiles: [{ icon: 'speed' }] },
-  [FULL]: { label: 'Full or 2 quick', rule: 'Take 1 full action or 2 quick actions.', tiles: [{ c: 'full', icon: 'activation_full' }, { c: 'quick', icon: 'activation_quick' }] },
-  Overcharge: { label: 'Overcharge', rule: 'Gain 1 extra quick action for Heat.', tiles: [{ c: 'overcharge', icon: 'overcharge' }] },
-  Free: { label: 'Free', rule: 'Take free actions at any point in your turn.', empty: 'No free actions.', tiles: [{ c: 'free', icon: 'free_action' }] },
-  Reaction: { label: 'Reaction', rule: 'Declare 1 reaction in advance.', empty: 'No reactions.', tiles: [{ c: 'reaction', icon: 'reaction' }] },
-}
-// A card's icon and colour. No colour is neutral, so each chip keeps its own badge.
-const LOOK: Record<string, { icon: string; colour?: string; groupActivation?: string }> = {
-  Attacks: { icon: 'crosshair' },
-  Movement: { icon: 'speed' },
-  Tech: { icon: 'tech_quick' },
-  Systems: { icon: 'system' },
-  'Your mech': { icon: 'structure' },
-  'Your kit': { icon: 'generic_item' },
-  Protocols: { icon: 'protocol', colour: '--act-protocol', groupActivation: 'protocol' },
-  Overcharge: { icon: 'overcharge', colour: '--act-overcharge', groupActivation: 'overcharge' },
-  'Free actions': { icon: 'free_action', colour: '--act-free', groupActivation: 'free' },
-  Reactions: { icon: 'reaction', colour: '--act-reaction', groupActivation: 'reaction' },
-}
-
-const steps = computed(() => TURN_STEPS.filter((s) => !props.pilot || (s.name !== 'Protocol' && s.name !== 'Overcharge')).map((s) => ({ key: s.name, ...INFO[s.name] })))
+// c is the step's --act-* colour key; Movement has no activation, so no colour.
+const STEPS = [
+  { key: 'Protocol', icon: 'protocol', c: 'protocol' },
+  { key: 'Movement', icon: 'speed' },
+  { key: '1 full', icon: 'activation_full', c: 'full' },
+  { key: '2 quick', icon: 'activation_quick', c: 'quick' },
+  { key: 'Overcharge', icon: 'overcharge', c: 'overcharge' },
+  { key: 'Free', icon: 'free_action', c: 'free' },
+  { key: 'Reaction', icon: 'reaction', c: 'reaction' },
+]
+const steps = computed(() => STEPS.filter((s) => !props.pilot || (s.key !== 'Protocol' && s.key !== 'Overcharge')))
 const step = computed(() => steps.value.find((s) => s.key === open.value) ?? steps.value[0])
-const rule = computed(() => (step.value.key === 'Movement' && props.speed !== null ? `Move using your Speed: ${props.speed}.` : step.value.rule))
-const groups = computed(() => {
-  const list = stepActions(step.value.key, props.kitActions, props.pilot, props.overcharge)
-  // The kit card always shows, so the six cards stay a 3 x 2.
-  if (step.value.key === FULL && !list.some((g) => g.title === 'Your kit')) list.push({ title: 'Your kit', entries: [] })
-  return list.map((g) => ({ ...g, ...LOOK[g.title], chips: true, note: g.title === 'Reactions' ? REACTIONS_NOTE : undefined }))
+// The bar's segments: the two action steps share one.
+const bar = computed(() => {
+  const list = steps.value.filter((s) => s.key !== '1 full' && s.key !== '2 quick').map((s) => [s])
+  list.splice(list.findIndex((s) => s[0].key === 'Overcharge' || s[0].key === 'Free'), 0, steps.value.filter((s) => s.key === '1 full' || s.key === '2 quick'))
+  return list
 })
-// Four cards make 2 x 2, not 3 + 1.
-const cols = computed(() => ({ 1: 1, 2: 2, 3: 3, 4: 2 })[groups.value.length] ?? 3)
+const segClass = (item: typeof STEPS) => (item.length > 1 ? 'seg-choice' : `seg-${item[0].key.toLowerCase()}`)
+
+const RULE: Record<string, string> = {
+  '2 quick': 'Take 2 different quick actions, or 1 full action instead.',
+  '1 full': 'Take 1 full action, or 2 quick actions instead.',
+}
+
+// The two-card steps. The right card's look; the left card is always neutral.
+const RIGHT: Record<string, { title: string; icon: string; colour?: string; meta?: string }> = {
+  Protocol: { title: 'Your protocols', icon: 'protocol', colour: '--act-protocol', meta: 'Protocol' },
+  Movement: { title: 'Move further', icon: 'speed' },
+  Overcharge: { title: 'Heat cost', icon: 'overcharge', colour: '--act-overcharge', meta: 'Overcharge' },
+  Free: { title: 'Free actions', icon: 'free_action', colour: '--act-free', meta: 'Free' },
+  Reaction: { title: 'Reactions', icon: 'reaction', colour: '--act-reaction', meta: 'Reaction' },
+}
+const LEFT_META: Record<string, string> = { Protocol: 'Optional', Overcharge: 'Once a turn', Reaction: 'End of your turn' }
+
+const four = computed(() => step.value.key === '1 full' || step.value.key === '2 quick')
+const groups = computed(() => stepActions(step.value.key, props.kitActions, props.pilot, props.overcharge))
+const word = computed(() => (step.value.key === '1 full' ? 'Full' : 'Quick'))
+const FOUR_ICON: Record<string, string> = { Attacks: 'crosshair', Other: 'list', 'Your kit': 'generic_item' }
+const cards = computed(() =>
+  groups.value.map((g) => ({
+    title: g.title,
+    icon: g.title === 'Tech' ? (step.value.key === '1 full' ? 'tech_full' : 'tech_quick') : FOUR_ICON[g.title],
+    colour: `--act-${g.colour}`,
+    meta: g.title === 'Tech' ? `${word.value} tech` : word.value,
+    empty: g.empty,
+    entries: g.entries,
+    chips: true,
+  })),
+)
+const left = computed(() => groups.value[0])
+const right = computed(() => ({ ...RIGHT[step.value.key], entries: groups.value[1]?.entries ?? [], empty: groups.value[1]?.empty, chips: true }))
+const heat = computed(() => groups.value[1]?.heat)
 </script>
 
 <template>
   <section class="turn-strip" aria-labelledby="turn-title">
     <h2 id="turn-title" class="label">Your turn</h2>
-    <ol class="strip" :class="{ pilot }" :style="{ '--n': steps.length }" aria-labelledby="turn-title">
-      <li v-for="(s, n) in steps" :key="s.key">
-        <Icon v-if="n" name="chevron-right" class="strip-arrow" />
-        <button type="button" class="step" :aria-pressed="open === s.key" aria-controls="step-panel" @click="open = s.key">
-          <span class="step-top">
-            <span class="step-no num" aria-hidden="true">{{ n + 1 }}</span>
-            <span class="step-tiles" aria-hidden="true">
-              <span v-for="t in s.tiles" :key="t.icon" class="tile" :class="{ neutral: !t.c }" :style="t.c ? { '--c': `var(--act-${t.c})` } : undefined"><Icon :name="t.icon" /></span>
-            </span>
-          </span>
-          <span class="step-name">{{ s.label }}</span>
-        </button>
+    <ol class="bar" :class="{ pilot }" aria-labelledby="turn-title">
+      <li v-for="item in bar" :key="item[0].key" :class="segClass(item)">
+        <div :class="item.length > 1 ? 'choice' : 'single'" :role="item.length > 1 ? 'group' : undefined" :aria-label="item.length > 1 ? '1 full or 2 quick' : undefined">
+          <template v-for="(s, n) in item" :key="s.key">
+            <span v-if="n" class="or" aria-hidden="true">or</span>
+            <button type="button" class="seg" :class="s.key === '1 full' ? 'full' : s.key === '2 quick' ? 'quick' : undefined" :aria-pressed="step.key === s.key" aria-controls="step-panel" :style="s.c ? { '--c': `var(--act-${s.c})` } : undefined" @click="open = s.key">
+              <span class="tile" :class="{ neutral: !s.c }" aria-hidden="true"><Icon :name="s.icon" /></span>
+              <span class="seg-name">{{ s.key }}</span>
+            </button>
+          </template>
+        </div>
       </li>
     </ol>
 
-    <div id="step-panel" class="step-panel" role="region" aria-labelledby="step-title">
-      <p class="step-rule"><b id="step-title">{{ step.label }}</b> {{ rule }}</p>
-      <div v-if="groups.length" class="step-groups" :class="{ single: cols === 1 }" :style="{ '--cols': cols }">
-        <CombatGroup v-for="g in groups" :key="g.title" v-bind="g">
-          <p v-if="g.title === 'Your kit' && !g.entries.length" class="group-empty">No kit actions.</p>
+    <div id="step-panel" class="step-panel" role="region" :aria-label="step.key">
+      <template v-if="four">
+        <p class="step-rule">{{ RULE[step.key] }}</p>
+        <div class="step-cards">
+          <CombatGroup v-for="g in cards" :key="g.title" v-bind="g" />
+        </div>
+      </template>
+      <div v-else-if="left" class="step-pair">
+        <CombatGroup title="How it works" icon="book-open" :meta="LEFT_META[step.key]" :entries="left.entries" chips>
+          <div class="how">
+            <p v-if="step.key === 'Movement' && speed !== null" class="speed-line"><Icon name="speed" /><span class="num">{{ speed }}</span><span class="label">Speed</span></p>
+            <RulesText v-if="left.text" :html="left.text" />
+            <p v-if="left.entries.length" class="label">Speed gateways</p>
+          </div>
+        </CombatGroup>
+        <CombatGroup v-bind="right">
+          <template v-if="heat" #default>
+          <ol v-if="heat" class="heat-track">
+            <li v-for="(n, i) in heat.steps" :key="i">
+              <Icon v-if="i" name="chevron-right" class="heat-arrow" aria-hidden="true" />
+              <span class="label">{{ ['Use 1', 'Use 2', 'Use 3', 'Use 4+'][i] }}</span>
+              <span class="heat-n"><Icon name="heat" /><span class="num">{{ n }}</span><span class="sr-only"> Heat</span></span>
+              <span v-if="Number(n) !== OVERCHARGE_HEAT[i]" class="heat-base">Base: {{ OVERCHARGE_HEAT[i] }}</span>
+            </li>
+          </ol>
+          </template>
         </CombatGroup>
       </div>
-      <p v-else class="empty">{{ step.empty }}</p>
     </div>
   </section>
 </template>
@@ -83,61 +123,198 @@ const cols = computed(() => ({ 1: 1, 2: 2, 3: 3, 4: 2 })[groups.value.length] ??
   margin: 0;
 }
 
-.strip {
+/* The bar. Each segment's shape is on ::before, so the focus ring isn't clipped. Segments overlap by their notch minus a
+   3px gap of page background that follows each chevron. */
+.bar {
+  --notch: 8px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: 1fr; /* rows stay level when a label wraps */
-  gap: var(--space-s);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px 0;
   margin: var(--space-xs) 0 0;
   padding: 0;
   list-style: none;
 }
 
-.strip.pilot {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.bar li {
+  display: grid;
+  margin-left: calc(3px - var(--notch));
 }
 
-.strip li {
+.single,
+.choice {
   display: grid;
 }
 
-.strip-arrow {
-  display: none;
+.choice {
+  position: relative;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 3px;
 }
 
-.step {
+.seg {
+  --l: var(--notch); /* left notch depth, 0 = flat */
+  --r: var(--notch); /* right point depth, 0 = flat */
+  --fill: var(--panel);
+  position: relative;
+  isolation: isolate;
   display: grid;
-  align-content: start;
-  justify-items: start;
-  gap: var(--space-xs);
-  height: 100%;
-  min-height: 64px;
-  padding: var(--space-s) var(--space-m);
-  background: var(--panel);
-  text-align: left;
-}
-
-.step[aria-pressed='true'] {
-  border-color: var(--lilac);
-  background: var(--raised);
-  box-shadow: inset 0 -3px 0 var(--lilac);
-}
-
-.step-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
   width: 100%;
-}
-
-.step-no {
+  height: 100%;
+  min-height: 56px;
+  padding: var(--space-s) calc(var(--notch) + 4px);
+  border: 0;
+  border-radius: 0;
+  background: none;
   color: var(--text-dim);
-  font: 700 var(--fs-s) var(--mono);
 }
 
-.step-tiles {
-  display: flex;
-  gap: 2px;
+.seg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--fill);
+  clip-path: polygon(0 0, calc(100% - var(--r)) 0, 100% 50%, calc(100% - var(--r)) 100%, 0 100%, var(--l) 50%);
+}
+
+.seg:hover:not(:disabled) {
+  --fill: color-mix(in srgb, var(--lilac) 8%, var(--panel));
+  background: none;
+  color: var(--text);
+}
+
+.seg[aria-pressed='true'] {
+  --fill: var(--raised);
+  color: var(--lilac);
+}
+
+.seg[aria-pressed='true']::before {
+  background: linear-gradient(var(--lilac) 0 0) bottom / 100% 3px no-repeat, var(--raised);
+}
+
+.seg:focus-visible {
+  z-index: 1;
+}
+
+.seg-name {
+  font: 700 var(--fs-xs) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* A straight join, "or" on it: choose one. */
+.seg.full {
+  --r: 0;
+}
+
+.seg.quick {
+  --l: 0;
+}
+
+.or {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  translate: -50% -50%;
+  padding: 2px 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--void);
+  color: var(--text-dim);
+  font: 700 var(--fs-xs) / 1 var(--sans);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* The bar ends in the site's clipped corner. */
+.seg-reaction .seg {
+  --r: 0;
+}
+
+.seg-reaction .seg::before {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, var(--l) 50%);
+}
+
+/* Below 64rem: three balanced rows, with flat row ends. */
+@media (max-width: 63.999rem) {
+  .seg-protocol {
+    grid-column: span 3;
+  }
+
+  .seg-movement {
+    grid-column: span 3;
+  }
+
+  .seg-choice {
+    grid-column: span 6;
+  }
+
+  .seg-overcharge,
+  .seg-free,
+  .seg-reaction {
+    grid-column: span 2;
+  }
+
+  .seg-protocol,
+  .seg-choice,
+  .seg-overcharge,
+  .pilot .seg-movement,
+  .pilot .seg-free {
+    margin-left: 0;
+  }
+
+  .seg-protocol .seg,
+  .seg-overcharge .seg,
+  .pilot .seg-movement .seg,
+  .pilot .seg-free .seg {
+    --l: 0;
+  }
+
+  .seg-movement .seg {
+    --r: 0;
+  }
+
+  .seg-choice .seg {
+    --l: 0;
+    --r: 0;
+  }
+
+  .pilot .seg-movement {
+    grid-column: span 6;
+  }
+
+  .pilot .seg-free,
+  .pilot .seg-reaction {
+    grid-column: span 3;
+  }
+}
+
+/* From 64rem: one row, every segment the same width (the choice takes two). */
+@media (min-width: 64rem) {
+  .bar {
+    --notch: 10px;
+    grid-template-columns: 1fr 1fr 2fr 1fr 1fr 1fr;
+  }
+
+  .bar.pilot {
+    grid-template-columns: 1fr 2fr 1fr 1fr;
+  }
+
+  .bar li:first-child {
+    margin-left: 0;
+  }
+
+  .bar li:first-child .seg {
+    --l: 0;
+  }
+
+  .seg {
+    min-height: 64px;
+  }
 }
 
 .tile {
@@ -161,33 +338,7 @@ const cols = computed(() => ({ 1: 1, 2: 2, 3: 3, 4: 2 })[groups.value.length] ??
   height: 16px;
 }
 
-.step-name {
-  line-height: 1.2;
-}
-
-@media (min-width: 64rem) {
-  .strip,
-  .strip.pilot {
-    grid-template-columns: repeat(var(--n), minmax(0, 1fr));
-    gap: var(--space-xl);
-  }
-
-  .strip li {
-    position: relative;
-  }
-
-  .strip-arrow {
-    display: block;
-    position: absolute;
-    top: 50%;
-    left: calc(-1 * var(--space-xl) / 2 - 8px);
-    translate: 0 -50%;
-    width: 16px;
-    height: 16px;
-    color: var(--text-dim);
-  }
-}
-
+/* The open step */
 .step-panel {
   display: grid;
   gap: var(--space-m);
@@ -201,36 +352,111 @@ const cols = computed(() => ({ 1: 1, 2: 2, 3: 3, 4: 2 })[groups.value.length] ??
   font-size: var(--fs-m);
 }
 
-.step-rule b {
-  color: var(--text);
-}
-
-.step-groups {
+.step-cards,
+.step-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-m);
 }
 
 @media (min-width: 40rem) {
-  .step-groups {
-    grid-template-columns: repeat(min(var(--cols), 2), minmax(0, 1fr));
+  .step-cards,
+  .step-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 64rem) {
-  .step-groups {
-    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  .step-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
-/* One card reads as a card, not a 1300px bar. */
-.step-groups.single {
-  max-width: 40rem;
+.how {
+  display: grid;
+  gap: var(--space-s);
+  padding: var(--space-s) var(--space-m) var(--space-m);
 }
 
-.group-empty {
+.how:has(+ .chip-row) {
+  padding-bottom: 0;
+}
+
+.how :deep(.rules-text) {
+  display: grid;
+  gap: var(--space-s);
+}
+
+.how :deep(p) {
+  max-width: 68ch;
   margin: 0;
-  padding: var(--space-s) var(--space-m) var(--space-m);
+  font-size: var(--fs-m);
+}
+
+.how .label {
+  margin: var(--space-s) 0 0;
+}
+
+.speed-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-s);
+  margin: 0;
+}
+
+.speed-line .icon {
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-dim);
+}
+
+.speed-line .num {
+  font: 700 var(--fs-xl) var(--mono);
+}
+
+/* The Heat track sits on the card, no boxes. */
+.heat-track {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  margin: 0;
+  padding: var(--space-m);
+  list-style: none;
+}
+
+.heat-track li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.heat-arrow {
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  translate: 0 -50%;
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+}
+
+.heat-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 700 var(--fs-xl) var(--mono);
+}
+
+.heat-n .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--dmg-heat);
+}
+
+.heat-base {
   color: var(--text-dim);
   font-size: var(--fs-s);
 }
