@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { isGm, profile } from '../auth'
 import { confirmAction } from '../confirm'
 import { changeDiff, kindTone, PUBLIC_COLUMNS, reviewSections, writingSummary, type PublicCard, type DiffLine } from '../changeDiff'
+import FileSection from '../components/FileSection.vue'
 import Icon from '../components/Icon.vue'
 import ChangeTally from '../components/ChangeTally.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
@@ -235,39 +236,35 @@ async function reject() {
         <p v-if="!lines.length" class="empty">No changes.</p>
         <template v-else>
           <!-- Contents: one link per section with its counts and manna, and the key to the symbols, once. -->
-          <nav class="panel contents" aria-label="Contents">
-            <header class="panel-head sec-head">
-              <h2>Contents</h2>
-              <div class="sec-meta">
-                <p class="change-key">
-                  <span v-for="t in tones" :key="t.tone" :class="`tone-${t.tone}`">
-                    <Icon v-if="t.icon" :name="t.icon" /><span v-else aria-hidden="true">~</span>
-                    {{ t.key }}
-                  </span>
-                </p>
-                <a v-if="waiting" href="#decision" class="jump" @click.prevent="jump('decision')">Jump to decision</a>
-              </div>
-            </header>
-            <ol class="toc">
-              <li v-for="(section, i) in sections" :key="section.id">
-                <a :href="`#change-${i}`" @click.prevent="jump(`change-${i}`)">
-                  <span class="toc-name">{{ section.title }}</span>
-                  <ChangeTally :counts="section.counts" :manna="section.manna" />
-                </a>
-              </li>
-            </ol>
-          </nav>
+          <FileSection id="contents" no="00" title="Contents" fixed>
+            <Teleport defer to="#contents-extra">
+              <p class="change-key">
+                <span v-for="t in tones" :key="t.tone" :class="`tone-${t.tone}`">
+                  <Icon v-if="t.icon" :name="t.icon" /><span v-else aria-hidden="true">~</span>
+                  {{ t.key }}
+                </span>
+              </p>
+              <a v-if="waiting" href="#decision" class="jump" @click.prevent="jump('decision')">Jump to decision</a>
+            </Teleport>
+            <nav aria-label="Contents">
+              <ol class="toc">
+                <li v-for="(section, i) in sections" :key="section.id">
+                  <a :href="`#change-${i}`" @click.prevent="jump(`change-${i}`)">
+                    <span class="toc-name">{{ section.title }}</span>
+                    <ChangeTally :counts="section.counts" :manna="section.manna" />
+                  </a>
+                </li>
+              </ol>
+            </nav>
+          </FileSection>
 
           <div class="change-groups">
-            <section v-for="(section, i) in sections" :id="`change-${i}`" :key="section.id" class="panel" :aria-labelledby="`change-${i}-title`">
-              <header class="panel-head sec-head">
-                <h2 :id="`change-${i}-title`">{{ section.title }}</h2>
-                <div class="sec-meta">
-                  <span v-if="mechFrame(section.mechId)" class="dim">{{ mechFrame(section.mechId) }}</span>
-                  <span v-if="section.mechState === 'new'" class="badge">New mech</span>
-                  <ChangeTally :counts="section.counts" :manna="section.manna" />
-                </div>
-              </header>
+            <FileSection v-for="(section, i) in sections" :id="`change-${i}`" :key="section.id" :no="String(i + 1).padStart(2, '0')" :title="section.title" fixed>
+              <Teleport defer :to="`#change-${i}-extra`">
+                <span v-if="mechFrame(section.mechId)" class="dim">{{ mechFrame(section.mechId) }}</span>
+                <span v-if="section.mechState === 'new'" class="badge">New mech</span>
+                <ChangeTally :counts="section.counts" :manna="section.manna" />
+              </Teleport>
               <div v-for="group in section.groups" :key="group.title" class="group">
                 <h3 v-if="group.title" class="label sub-head">{{ group.title }}</h3>
                 <ul>
@@ -296,7 +293,7 @@ async function reject() {
                   </li>
                 </ul>
               </div>
-            </section>
+            </FileSection>
           </div>
         </template>
       </section>
@@ -352,7 +349,7 @@ main > * + * { margin-top: var(--space-l); }
   margin: 0;
 }
 
-.figures dd { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.1; }
+.figures dd { margin: 0; font-size: var(--fs-l); font-weight: 700; line-height: 1.1; }
 .figures-note { margin-top: var(--space-xs); font-size: var(--fs-xs); }
 
 /* Sticky only where there's room: wide and tall screens, as on the pilot sheet. */
@@ -368,10 +365,6 @@ main > * + * { margin-top: var(--space-l); }
 .change-key > span, .change-kind { display: inline-flex; align-items: center; gap: var(--space-xs); }
 .changes > * + * { margin-top: var(--space-m); }
 
-/* A panel's head: the title at the left, its figures at the right. */
-.sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-l); }
-.sec-head h2 { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
-.sec-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-xs) var(--space-l); font-size: var(--fs-s); }
 .jump { font-size: var(--fs-s); }
 
 /* The contents: a link per section, name at the left and its counts and manna at the right. */

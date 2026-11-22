@@ -13,6 +13,7 @@ defineProps<{
     image: string | null
     player: string
     submittedAt: string
+    summary?: string // what changed, one line (changes only)
     to: RouteLocationRaw
   }[]
 }>()
@@ -28,6 +29,7 @@ defineProps<{
     <ol v-else class="card-grid">
       <li v-for="item in items" :key="item.id">
         <PilotCard :to="item.to" :image="item.image" :callsign="item.callsign" :name="item.name" :player="item.player">
+          <span v-if="item.summary">{{ item.summary }}</span>
           <span class="dim">Waiting {{ since(item.submittedAt) }}</span>
         </PilotCard>
       </li>

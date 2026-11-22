@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from './assets/logo.txt?raw'
 import { isGm, isOwner, loadProfile, profile, profileError, session } from './auth'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import InfoDialog from './components/InfoDialog.vue'
 import { supabase } from './lib/supabaseClient'
+import { loadReviewCounts, waitingChanges, waitingPilots } from './reviewCounts'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,16 +24,25 @@ const tabs = [
   { name: 'combat', label: 'Combat' },
 ]
 const gmTabs = computed(() => [
-  { name: 'gm-pilots', label: 'Pilots' },
-  { name: 'gm-changes', label: 'Changes' },
-  ...(isOwner.value ? [{ name: 'gm-content', label: 'Content' }] : []),
+  { name: 'gm-pilots', label: 'Pilots', count: waitingPilots.value },
+  { name: 'gm-changes', label: 'Changes', count: waitingChanges.value },
+  ...(isOwner.value ? [{ name: 'gm-content', label: 'Content', count: 0 }] : []),
 ])
+// The counts refresh when a GM signs in and on every page change (an approval sends you back to a queue).
+watch([isGm, () => route.fullPath], ([gm]) => gm && loadReviewCounts(), { immediate: true })
 const isCurrent = (name: string) => route.name === name || route.meta.section === name
 // Set on every tab, so it overrides RouterLink's own (which only marks the exact page).
 const current = (name: string) => (isCurrent(name) ? 'page' : undefined)
 
 // Narrow screens: the tabs move into a drawer under the bar, opened by Menu. It closes when you pick a page.
 const menuOpen = ref(false)
+const menuButton = useTemplateRef<HTMLButtonElement>('menuButton')
+// Escape closes the drawer and puts focus back on Menu.
+function closeMenu() {
+  if (!menuOpen.value) return
+  menuOpen.value = false
+  menuButton.value?.focus()
+}
 watch(() => route.fullPath, () => (menuOpen.value = false))
 
 // The session ended while the site was open (signed out in another tab, expired): back to the login page.
@@ -51,7 +61,7 @@ async function disconnect() {
 
   <!-- The logged-in layout: a bar across the top, the page under it. -->
   <div v-else class="shell" :class="{ wide: route.meta.wide }">
-    <header class="topbar">
+    <header class="topbar" @keydown.esc="closeMenu">
       <div class="topbar-inner">
         <!-- The HORUS logo (src/assets/logo.txt), small, linking home. Screen readers get the link's label. -->
         <RouterLink :to="{ name: 'home' }" class="home" aria-label="HOR_OS: home">
@@ -68,7 +78,7 @@ async function disconnect() {
             <span class="label gm">GM</span>
             <div class="tabs" data-end>
               <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" class="tab" :aria-current="current(tab.name)">
-                {{ tab.label }}
+                {{ tab.label }}<template v-if="tab.count"> <span class="count" aria-hidden="true">{{ tab.count }}</span><span class="sr-only">, {{ tab.count }} waiting</span></template>
               </RouterLink>
             </div>
           </div>
@@ -77,8 +87,8 @@ async function disconnect() {
         <div class="account">
           <span v-if="profile" class="who">{{ profile.display_name }} <span class="label">{{ profile.role }}</span></span>
           <RouterLink :to="{ name: 'privacy' }" class="privacy">Privacy</RouterLink>
-          <button type="button" class="quiet small" @click="disconnect">Disconnect</button>
-          <button type="button" class="small menu" aria-controls="drawer" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
+          <button type="button" class="quiet small disconnect" @click="disconnect">Disconnect</button>
+          <button ref="menuButton" type="button" class="small menu" aria-controls="drawer" :aria-expanded="menuOpen" @click="menuOpen = !menuOpen">
             {{ menuOpen ? 'Close' : 'Menu' }}
           </button>
         </div>
@@ -89,10 +99,11 @@ async function disconnect() {
         <RouterLink v-for="tab in tabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
         <template v-if="isGm">
           <span class="label gm">GM</span>
-          <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}</RouterLink>
+          <RouterLink v-for="tab in gmTabs" :key="tab.name" :to="{ name: tab.name }" :aria-current="current(tab.name)">{{ tab.label }}<template v-if="tab.count"> <span class="count" aria-hidden="true">{{ tab.count }}</span><span class="sr-only">, {{ tab.count }} waiting</span></template></RouterLink>
         </template>
         <RouterLink :to="{ name: 'privacy' }">Privacy</RouterLink>
         <span v-if="profile" class="label">Signed in as {{ profile.display_name }} ({{ profile.role }})</span>
+        <button type="button" class="quiet" @click="disconnect">Disconnect</button>
       </nav>
     </header>
 
@@ -216,16 +227,49 @@ async function disconnect() {
   text-overflow: ellipsis;
 }
 
+/* The Privacy link looks like the Disconnect button beside it (quiet and small). */
+.privacy {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 8px;
+  font: 700 var(--fs-xs) / 1.2 var(--sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.privacy:hover,
+.privacy:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .menu,
 .drawer {
   display: none;
+}
+
+/* The waiting count: a number in a small outlined box. The number is read aloud as "n waiting" instead. */
+.count {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-left: var(--space-xs);
+  padding: 0 var(--space-xs);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  text-align: center;
 }
 
 /* --- Narrow screens (an owner's full tab set, with Lore, needs about 75rem): logo, Disconnect and Menu; Menu opens the drawer. --- */
 @media (max-width: 77rem) {
   .nav,
   .who,
-  .privacy {
+  .privacy,
+  .disconnect {
     display: none;
   }
 
@@ -262,6 +306,13 @@ async function disconnect() {
   .drawer a[aria-current='page'] {
     color: var(--lilac);
     font-weight: 700;
+  }
+
+  .drawer button {
+    justify-content: flex-start;
+    width: 100%;
+    margin-top: var(--space-s);
+    padding: 0;
   }
 
   .drawer .label {

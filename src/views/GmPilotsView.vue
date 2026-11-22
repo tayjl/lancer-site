@@ -68,7 +68,6 @@ const typed = reactive<Record<number, Rewards>>({})
 type Field = keyof Rewards
 const shown = (pilot: Pilot, field: Field) => typed[pilot.id]?.[field] ?? (field === 'experience' ? pilot.progress?.experience : pilot.sheet?.[field]) ?? 0
 const ready = (pilot: Pilot) => (pilot.progress?.experience ?? 0) >= EXPERIENCE_MAX
-const percent = (pilot: Pilot) => `${Math.min(100, (shown(pilot, 'experience') / EXPERIENCE_MAX) * 100)}%`
 const { gear, bionicPrices } = useGameData()
 // A pending pilot has never been approved: its first full loadout is free (rules.ts freeGear). Otherwise the sheet is the live one.
 const spent = (pilot: Pilot) => {
@@ -165,10 +164,10 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
             </thead>
             <tbody>
               <tr v-for="pilot in roster" :key="pilot.id">
-                <td class="callsign">{{ pilot.callsign || '–' }}</td>
-                <td>{{ pilot.pilot_name }}</td>
-                <td>{{ pilot.player?.display_name || 'Unknown player' }}</td>
-                <td>
+                <td data-label="Callsign" class="callsign">{{ pilot.callsign || '–' }}</td>
+                <td data-label="Name">{{ pilot.pilot_name }}</td>
+                <td data-label="Player">{{ pilot.player?.display_name || 'Unknown player' }}</td>
+                <td data-label="Status">
                   <span
                     class="badge"
                     :class="statusClass(pilot)"
@@ -177,7 +176,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                     {{ statusLabel(pilot) }}
                   </span>
                 </td>
-                <td class="number">
+                <td data-label="Level" class="number">
                   <input
                     class="level"
                     type="number" min="0" step="1"
@@ -187,7 +186,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                     @change="saveNumber(pilot, 'level', $event)"
                   />
                 </td>
-                <td class="xp">
+                <td data-label="Experience" class="xp">
                   <input
                     type="number" min="0" :max="EXPERIENCE_MAX" step="1"
                     :value="shown(pilot, 'experience')"
@@ -195,14 +194,13 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                     :aria-label="`Experience for ${pilot.callsign || pilot.pilot_name}, out of ${EXPERIENCE_MAX}`"
                     @change="saveNumber(pilot, 'experience', $event)"
                   />
-                  <div class="meter-bar" aria-hidden="true"><span :style="{ '--fill': percent(pilot) }"></span></div>
                   <span v-if="ready(pilot)" class="ready">
                     <span class="badge">Ready to level</span>
                     <button type="button" class="small" :disabled="saving[pilot.id]" @click="levelUpPilot(pilot)">Level up</button>
                   </span>
                 </td>
-                <td class="number num">{{ licenceRanks(pilot) }}</td>
-                <td class="number">
+                <td data-label="Licence level" class="number num">{{ licenceRanks(pilot) }}</td>
+                <td data-label="Manna received" class="number">
                   <input
                     type="number" min="0" step="1"
                     :value="shown(pilot, 'manna')"
@@ -211,14 +209,14 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                     @change="saveNumber(pilot, 'manna', $event)"
                   />
                 </td>
-                <td class="number" :title="`${spent(pilot)} spent`">
+                <td data-label="Manna left" class="number" :title="`${spent(pilot)} spent`">
                   <span class="num balance" :class="{ over: left(pilot) < 0 }">{{ formatAmount(left(pilot)) }}</span>
                   <span class="spent"><span class="num">{{ formatAmount(spent(pilot)) }}</span> spent</span>
                 </td>
-                <td class="mech-names" :title="pilot.mechs.map((mech) => mech.name).join(', ')">
+                <td data-label="Mechs" class="mech-names" :title="pilot.mechs.map((mech) => mech.name).join(', ')">
                   {{ pilot.mechs.map((mech) => mech.name).join(', ') || '–' }}
                 </td>
-                <td>
+                <td data-label="Record">
                   <RouterLink :to="sheetLink(pilot)" class="link-button">Open sheet</RouterLink>
                   <span v-if="!pilot.sheet" class="save-message error">Sheet missing</span>
                   <span v-if="rowError[pilot.id]" class="save-message error" role="alert">
@@ -248,8 +246,7 @@ section + section { margin-top: var(--space-l); }
 .table input { width: 8rem; text-align: right; }
 .table input.level { width: 5rem; }
 .xp { width: 9rem; text-align: right; }
-.xp input { width: 6rem; margin-bottom: var(--space-xs); }
-.xp .meter-bar { margin-left: auto; width: 6rem; }
+.xp input { width: 6rem; }
 .ready { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-top: var(--space-xs); }
 .callsign { font-weight: 700; }
 .balance { font-weight: 700; }
@@ -261,5 +258,14 @@ section + section { margin-top: var(--space-l); }
 /* A link drawn like a small button. */
 .link-button { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--edge); border-radius: var(--radius); font: 700 var(--fs-xs) / 1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; }
 .link-button:hover, .link-button:focus-visible { border-color: var(--lilac); color: var(--lilac); }
-@media (pointer: coarse) { .link-button { min-height: var(--tap); } }
+@media (pointer: coarse), (max-width: 40rem) { .link-button { min-height: var(--tap); } }
+@media (max-width: 40rem) {
+  /* Each pilot becomes a card with a label beside every value, so no column (Status) is cut off. */
+  .record-window { max-height: none; overflow: visible; border: 0; }
+  .table, .table tbody, .table tr, .table td { display: block; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table tr { margin-bottom: var(--space-m); border: 1px solid var(--rule); border-radius: var(--radius); background: var(--panel); }
+  .table td { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs) var(--space-m); width: auto; max-width: none; text-align: right; white-space: normal; }
+  .table td::before { content: attr(data-label); color: var(--text-dim); font-size: var(--fs-xs); letter-spacing: 0.08em; text-align: left; text-transform: uppercase; }
+}
 </style>

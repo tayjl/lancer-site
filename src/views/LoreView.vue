@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import Icon from '../components/Icon.vue'
@@ -26,7 +26,16 @@ onMounted(async () => (error.value = await section.store.load()))
 const query = ref('')
 const kinds = ref<LoreKind[]>([])
 const searchBox = useTemplateRef<HTMLInputElement>('searchBox')
-const toggleKind = (kind: LoreKind) => (kinds.value = kinds.value.includes(kind) ? kinds.value.filter((k) => k !== kind) : [...kinds.value, kind])
+// Phones: the chip row scrolls sideways; like the tabs (style.css), a fade over the right edge shows until the last chip is in view.
+const kindsRow = useTemplateRef<HTMLElement>('kindsRow')
+const fadeEnd = () => {
+  const el = kindsRow.value
+  if (el) el.toggleAttribute('data-end', el.scrollLeft + el.clientWidth >= el.scrollWidth - 2)
+}
+const resized = new ResizeObserver(fadeEnd)
+onMounted(() => kindsRow.value && resized.observe(kindsRow.value))
+onUnmounted(() => resized.disconnect())
+const toggleKind =(kind: LoreKind) => (kinds.value = kinds.value.includes(kind) ? kinds.value.filter((k) => k !== kind) : [...kinds.value, kind])
 const clear = () => ((query.value = ''), (kinds.value = []))
 
 const found = computed(() => entries.value.filter((entry) => loreMatches(entry, query.value)))
@@ -83,7 +92,7 @@ async function newEntry() {
         <button v-if="query" type="button" class="small" @click="(query = ''), searchBox?.focus()">Clear</button>
       </div>
       <div class="filters">
-        <div class="kinds" role="group" aria-label="Filter by kind">
+        <div ref="kindsRow" class="kinds" role="group" aria-label="Filter by kind" @scroll.passive="fadeEnd">
           <button
             v-for="kind in LORE_KINDS"
             :key="kind"
@@ -382,6 +391,21 @@ async function newEntry() {
     padding-inline: var(--space-l);
     overflow-x: auto;
     scrollbar-width: none;
+  }
+
+  .kinds::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    flex: none;
+    width: 40px;
+    margin-left: -40px;
+    background: linear-gradient(to right, transparent, var(--void) 85%);
+    pointer-events: none;
+  }
+
+  .kinds[data-end]::after {
+    opacity: 0;
   }
 
   .kind-chip {

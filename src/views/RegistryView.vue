@@ -96,7 +96,7 @@ watch(
   margin: calc(-1 * var(--space-s)) 0 var(--space-l);
 }
 
-/* Showcase cards, so the group and each card's player line are centred: one to a row on phones, two or three on desktop. */
+/* Cards line up with the title and search on the left, with each player line under its card: one to a row on phones, two or three on desktop. */
 .id-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
@@ -111,7 +111,6 @@ watch(
 .id-link {
   display: block;
   max-width: 36rem;
-  margin-inline: auto;
   color: inherit;
   text-decoration: none;
   content-visibility: auto;
@@ -132,7 +131,6 @@ watch(
 .id-grid p {
   margin: var(--space-xs) 0 0;
   font-size: var(--fs-s);
-  text-align: center;
 }
 
 .search {

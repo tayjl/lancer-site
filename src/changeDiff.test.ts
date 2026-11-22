@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changeDiff, listDiff, reviewSections, writingSummary, type Names } from './changeDiff'
+import { changeDiff, changeSummary, listDiff, reviewSections, writingSummary, type Names } from './changeDiff'
 import { wordCount } from './richTextSafe'
 import type { MechPrivate, Sheet } from './myPilot'
 import { mannaSpent } from './rules'
@@ -283,5 +283,18 @@ describe('mechs with the same name', () => {
     const sections = reviewSections(lines)
     expect(sections.map((section) => [section.mechId, section.title])).toEqual([['a', 'Mech: Twin Prime'], ['b', 'Mech: Twin']])
     expect(sections.every((section) => section.groups.some((group) => group.title === 'frame'))).toBe(true)
+  })
+})
+
+describe('changeSummary', () => {
+  const line = (section: string) => ({ section, text: 'x', kind: 'added' as const })
+  it('names each section once, with a count when it has several lines', () => {
+    expect(changeSummary([line('loadout'), line('licences'), line('licences')])).toBe('Loadout, Licences (2)')
+  })
+  it('cuts a long list to three sections', () => {
+    expect(changeSummary(['identity', 'traits', 'loadout', 'licences', 'talents'].map(line))).toBe('Identity, Traits, Loadout, +2 more')
+  })
+  it('is empty when nothing changed', () => {
+    expect(changeSummary([])).toBe('')
   })
 })

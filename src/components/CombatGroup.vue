@@ -428,9 +428,9 @@ button.entry-row {
   background: color-mix(in srgb, var(--lilac) 18%, var(--panel));
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 40rem) {
   .chip-btn {
-    min-height: 44px;
+    min-height: var(--tap);
   }
 }
 

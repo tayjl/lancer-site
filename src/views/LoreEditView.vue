@@ -197,7 +197,7 @@ async function remove() {
                 </button>
               </li>
             </ul>
-            <p v-else class="hint">No related entries yet.</p>
+            <p v-else class="empty">No related entries yet.</p>
             <div><button type="button" class="small" @click="relatedPicker?.open()"><Icon name="plus" />Link entry</button></div>
           </section>
         </div>

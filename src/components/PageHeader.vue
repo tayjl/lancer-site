@@ -53,18 +53,17 @@ p {
   margin-left: auto;
 }
 
+/* Phones: a short side (a count) stays beside the title and a wide one (buttons) wraps under it, with a tighter gap and rule. */
 @media (max-width: 48rem) {
   .page-header {
-    flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-s) var(--space-m);
+    margin-bottom: var(--space-l);
+    padding-bottom: var(--space-m);
   }
 
   h1 {
     font-size: 22px;
-  }
-
-  .side {
-    margin-left: 0;
   }
 }
 </style>

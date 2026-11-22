@@ -70,6 +70,7 @@ const page = (direction: -1 | 1) => row.value?.scrollBy({ left: direction * row.
   top: 0;
   bottom: 1px; /* the row's rule */
   z-index: 1;
+  min-width: var(--tap);
   min-height: 0;
   padding: 0 6px;
   border-radius: 0;

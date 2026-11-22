@@ -82,6 +82,15 @@ defineProps<{ type: CardType; icon: string; name: string; info?: () => Info; met
   overflow-wrap: anywhere;
 }
 
+/* Touch screens: the name is a button, so it gets a full-size tap area. */
+@media (pointer: coarse), (max-width: 40rem) {
+  .name :deep(.info-link) {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+  }
+}
+
 .meta {
   display: flex;
   flex: none;

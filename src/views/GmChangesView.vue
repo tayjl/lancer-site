@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef, watch } from 'vue'
+import { changeDiff, changeSummary, PUBLIC_COLUMNS, type PublicCard } from '../changeDiff'
+import type { Sheet } from '../myPilot'
 import { isGm, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
@@ -12,7 +14,7 @@ import { since } from '../time'
 // latest reviewed changes, which are kept as history (who reviewed them, when, and the note if sent back).
 
 type Pilot = { id: number; callsign: string | null; pilot_name: string; pilot_image?: string | null; player?: { display_name: string } | null } | null
-type Waiting = { id: number; submitted_at: string; character: Pilot }
+type Waiting = { id: number; submitted_at: string; proposed_sheet: unknown; proposed_public: unknown; character: (Pilot & PublicCard & { sheet: { sheet: unknown } | null }) | null }
 type Reviewed = { id: number; status: string; review_reason: string | null; reviewed_at: string | null; character: Pilot; reviewer: { display_name: string } | null }
 
 const waiting = shallowRef<Waiting[]>([])
@@ -21,8 +23,18 @@ const queueCards = computed(() => waiting.value.map(item => ({
   id: item.id, callsign: item.character?.callsign ?? null,
   name: item.character?.pilot_name ?? 'A deleted pilot', image: item.character?.pilot_image ?? null,
   player: item.character?.player?.display_name ?? '–', submittedAt: item.submitted_at,
-  to: { name: 'gm-change', params: { id: item.id } },
+  to: { name: 'gm-change', params: { id: item.id } }, summary: summaryOf(item),
 })))
+// Ids stand in for names: the summary only needs which sections changed.
+const asId = (id: string | number) => String(id)
+const NAMES = { stat: asId, licence: asId, talent: asId, coreBonus: asId, bionic: asId, gear: asId, frame: asId, weapon: asId, system: asId, mod: asId }
+function summaryOf(item: Waiting) {
+  const pilot = item.character
+  if (!pilot?.sheet) return ''
+  const card = Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, pilot[column]])) as PublicCard
+  const proposed = { card: { ...card, ...(item.proposed_public as PublicCard) }, sheet: item.proposed_sheet as Sheet }
+  return changeSummary(changeDiff({ card, sheet: pilot.sheet.sheet as Sheet }, proposed, NAMES))
+}
 const loading = ref(true)
 const error = ref('')
 
@@ -30,7 +42,7 @@ async function load() {
   const [queue, history] = await Promise.all([
     supabase
       .from('pending_changes')
-      .select('id, submitted_at, character:characters(id, callsign, pilot_name, pilot_image, player:profiles(display_name))')
+      .select(`id, submitted_at, proposed_sheet, proposed_public, character:characters(id, callsign, pilot_name, pilot_image, ${PUBLIC_COLUMNS.join(', ')}, player:profiles(display_name), sheet:character_sheets(sheet))`)
       .eq('status', 'pending')
       .not('submitted_at', 'is', null)
       .order('submitted_at'),
@@ -41,7 +53,7 @@ async function load() {
       .order('reviewed_at', { ascending: false })
       .limit(20),
   ])
-  waiting.value = (queue.data ?? []) as Waiting[]
+  waiting.value = (queue.data ?? []) as unknown as Waiting[]
   reviewed.value = (history.data ?? []) as Reviewed[]
   error.value = queue.error?.message ?? history.error?.message ?? ''
   loading.value = false
@@ -99,7 +111,7 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
 <style scoped>
 section + section { margin-top: var(--space-l); }
 .table-window { overflow: auto; border: 1px solid var(--rule); }
-.callsign { font-weight: 700; }
+.callsign { display: inline-flex; align-items: center; min-height: var(--tap); font-weight: 700; }
 /* The rejection reason, cut to one line; the full reason is on the change's page. */
 .reason { max-width: 24rem; overflow: hidden; text-overflow: ellipsis; }
 </style>

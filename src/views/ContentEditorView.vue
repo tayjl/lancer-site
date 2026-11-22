@@ -5,6 +5,7 @@ import { isOwner, profile } from '../auth'
 import EditorPane from '../components/editor/EditorPane.vue'
 import CommendationPane from '../components/editor/CommendationPane.vue'
 import FactionPane from '../components/editor/FactionPane.vue'
+import GroupHead from '../components/GroupHead.vue'
 import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -231,6 +232,7 @@ async function exportLcp() {
 
       <div class="browser">
         <nav v-show="showList" ref="listBox" class="list" :aria-label="info.label" @keydown="step">
+          <h2 class="sr-only">{{ info.label }}</h2>
           <label v-if="inRules" class="field category">
             <span>Category</span>
             <select :value="sec ?? ''" @change="setQuery({ sec: ($event.target as HTMLSelectElement).value || undefined })">
@@ -246,11 +248,9 @@ async function exportLcp() {
           <p v-else-if="loadingList" class="dim" role="status">Loading…</p>
           <template v-else-if="inRules">
             <section v-for="box in boxes" :key="box.key" class="group">
-              <header class="group-head">
-                <h3>{{ box.label }}</h3>
-                <span class="num dim count">{{ box.total }}</span>
-                <button v-if="box.add" type="button" class="small add" :aria-label="`New ${noun(box.key)} in ${box.label}`" @click="newIn(box.key)"><Icon name="plus" />New {{ noun(box.key) }}</button>
-              </header>
+              <GroupHead :title="box.label" :count="box.total">
+                <button v-if="box.add" type="button" class="small" :aria-label="`New ${noun(box.key)} in ${box.label}`" @click="newIn(box.key)"><Icon name="plus" />New {{ noun(box.key) }}</button>
+              </GroupHead>
               <template v-for="part in box.parts" :key="part.label ?? ''">
                 <h4 v-if="part.label" class="label sub">{{ part.label }}</h4>
                 <ul class="rows">
@@ -267,21 +267,18 @@ async function exportLcp() {
                   </li>
                 </ul>
               </template>
-              <p v-if="!box.total" class="none dim">No items yet.</p>
+              <p v-if="!box.total" class="empty">No items yet.</p>
               <div v-if="box.more" class="more"><button type="button" class="quiet small" @click="showMore(box.key)">Show {{ box.more }} more</button></div>
             </section>
-            <p v-if="query.trim() && !boxes.length" class="none dim">Nothing matches that search.</p>
+            <p v-if="query.trim() && !boxes.length" class="empty">Nothing matches that search.</p>
           </template>
           <template v-else>
             <button v-if="byMaker" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
-            <p v-if="byMaker && !groups.length" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+            <p v-if="byMaker && !groups.length" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
             <section v-for="group in groups" :key="group.key" class="group" :class="{ branded: group.logo || (group.colour && group.colour !== 'var(--lilac)') }" :style="group.colour ? { '--mf': group.colour } : undefined">
-              <header class="group-head">
-                <Icon v-if="group.logo" :src="group.logo" class="group-logo" />
-                <h3>{{ group.name }}</h3>
-                <span class="num dim count">{{ group.total }}</span>
-                <button v-if="group.add" type="button" class="small add" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
-              </header>
+              <GroupHead :title="group.name" :count="group.total" :logo="group.logo">
+                <button v-if="group.add" type="button" class="small" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
+              </GroupHead>
               <ul class="rows">
                 <li v-for="row in group.rows" :key="row.key">
                   <button type="button" class="row" :aria-current="wide && row.key === itemKey ? 'true' : undefined" @click="choose(row.key)">
@@ -295,7 +292,7 @@ async function exportLcp() {
                   </button>
                 </li>
               </ul>
-              <p v-if="!group.rows.length && !group.more" class="none dim">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+              <p v-if="!group.rows.length && !group.more" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
               <div v-if="group.more" class="more"><button type="button" class="quiet small" @click="showMore(group.key)">Show {{ group.more }} more</button></div>
             </section>
           </template>
@@ -432,27 +429,8 @@ async function exportLcp() {
   border-top: 0;
 }
 
-.group-head h3 {
-  min-width: 0;
-  margin: 0;
-  font-size: var(--fs-s);
-  letter-spacing: 0.08em;
-  overflow-wrap: anywhere;
-  text-transform: uppercase;
-}
-
-.group-head .count {
-  margin-left: 0;
-  font-size: var(--fs-xs);
-}
-
 .add-site {
   justify-self: start;
-}
-
-.group-head .add {
-  flex: none;
-  margin-left: auto;
 }
 
 .row-name {
@@ -460,12 +438,6 @@ async function exportLcp() {
   font-size: var(--fs-s);
   font-weight: 700;
   overflow-wrap: anywhere;
-}
-
-.none {
-  margin: 0;
-  padding: var(--space-s) var(--space-m);
-  font-size: var(--fs-s);
 }
 
 .more {

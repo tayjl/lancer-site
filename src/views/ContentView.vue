@@ -2,6 +2,7 @@
 import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { isOwner, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
+import FileSection from '../components/FileSection.vue'
 import { fetchAll, supabase } from '../lib/supabaseClient'
 import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
@@ -218,11 +219,8 @@ async function removePack(pack: InstalledPack) {
       <p v-if="fileError" class="notice warn" role="alert">{{ fileError }}</p>
       <p v-if="reading" role="status" class="dim">Loading…</p>
 
-      <section v-if="candidate && plan" class="panel" aria-labelledby="preview-title">
-        <header class="panel-head">
-          <h2 id="preview-title">{{ plan.existing ? 'Review pack update' : 'Review import' }}</h2>
-          <p class="dim file">{{ filename }}</p>
-        </header>
+      <FileSection v-if="candidate && plan" id="import-preview" no="01" :title="plan.existing ? 'Review pack update' : 'Review import'" fixed>
+        <p class="dim file">{{ filename }}</p>
         <h3 class="pack-title">{{ candidate.manifest.name }}</h3>
         <p class="sep dim">
           <span>By {{ candidate.manifest.author }}</span>
@@ -263,13 +261,10 @@ async function removePack(pack: InstalledPack) {
             <button v-else type="button" class="primary" :disabled="saving" @click="importPack">{{ saving ? 'Importing…' : plan.existing ? 'Update pack' : 'Import pack' }}</button>
           </div>
         </footer>
-      </section>
+      </FileSection>
 
-      <section class="panel" aria-labelledby="installed-title">
-        <header class="panel-head">
-          <h2 id="installed-title">Installed packs</h2>
-          <p class="dim"><span class="num">{{ packs.length }}</span> {{ packs.length === 1 ? 'pack' : 'packs' }}, <span class="num">{{ items.length }}</span> items</p>
-        </header>
+      <FileSection id="installed-packs" :no="candidate ? '02' : '01'" title="Installed packs" fixed>
+        <p class="dim summary"><span class="num">{{ packs.length }}</span> {{ packs.length === 1 ? 'pack' : 'packs' }}, <span class="num">{{ items.length }}</span> items</p>
         <div v-if="packs.length" class="search">
           <label class="field"><span>Search</span><input v-model="search" type="search" placeholder="Pack name or author" /></label>
         </div>
@@ -294,18 +289,14 @@ async function removePack(pack: InstalledPack) {
             </tr></tbody>
           </table>
         </div>
-      </section>
+      </FileSection>
 
-      <section v-if="!loading && !loadError" class="panel" aria-labelledby="library-title">
-        <header class="panel-head">
-          <h2 id="library-title">Content library</h2>
-          
-        </header>
+      <FileSection v-if="!loading && !loadError" id="content-library" :no="candidate ? '03' : '02'" title="Content library" fixed>
         <ul class="counts">
           <li v-for="row in totals" :key="row.kind"><span class="label">{{ row.label }}</span><span class="num">{{ row.count }}</span></li>
           <li><span class="label">Biomods</span><span class="num">{{ biomods }}</span></li>
         </ul>
-      </section>
+      </FileSection>
     </template>
   </main>
 </template>
@@ -316,7 +307,8 @@ main > * + * { margin-top: var(--space-l); }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-s); }
 
 /* --- The import preview --- */
-.file { overflow-wrap: anywhere; }
+.file { margin: 0 0 var(--space-m); overflow-wrap: anywhere; }
+.summary { margin: 0 0 var(--space-m); }
 .pack-title { margin: 0 0 var(--space-xs); font-size: var(--fs-l); overflow-wrap: anywhere; }
 .sep { margin: 0 0 var(--space-m); font-size: var(--fs-s); }
 .prose { margin: 0 0 var(--space-l); }
@@ -347,4 +339,12 @@ main > * + * { margin-top: var(--space-l); }
 .counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: 0 var(--space-xl); margin: 0; padding: 0; list-style: none; }
 .counts li { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-m); padding: var(--space-s) 0; border-bottom: 1px solid var(--rule); }
 .counts .num { font-weight: 700; }
+
+/* Phones: the action buttons share the row, the totals stack. */
+@media (max-width: 40rem) {
+  .actions > :is(button, a) { flex: 1 1 auto; }
+  .preview-foot .actions { width: 100%; margin-left: 0; }
+  .totals { flex-direction: column; gap: var(--space-xs); }
+  .counts { grid-template-columns: minmax(0, 1fr); }
+}
 </style>

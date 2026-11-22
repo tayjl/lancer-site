@@ -349,7 +349,7 @@ const clear = () => {
   min-width: 0;
 }
 
-/* A fixed grid of equal cards: two columns from 40rem. */
+/* A fixed grid of equal cards: two columns from 40rem (the status cards three), three columns from 77rem. */
 .card-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -361,24 +361,17 @@ const clear = () => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .card-grid.status {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   /* Three cards: the third spans both columns until there is room for three. */
-  .card-grid.status > :last-child,
   .card-grid.three > :last-child {
     grid-column: span 2;
   }
 }
 
-@media (min-width: 48rem) {
-  .card-grid.status {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .card-grid.status > :last-child {
-    grid-column: auto;
-  }
-}
-
-@media (min-width: 64rem) {
+@media (min-width: 77rem) {
   .card-grid.three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

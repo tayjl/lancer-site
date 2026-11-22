@@ -196,13 +196,14 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
   margin: 0;
 }
 
-/* Two even columns: the identity (a showcase, so centred: the logo with its chips under it) and the radar, which
-   fills its column; one column on phones. The frame's name and maker are on the plate above. */
+/* Two columns gathered in the middle: the identity (a showcase, so centred: the logo with its chips under it) and the
+   radar beside it, like the pilot page's stat row; one column on phones. The frame's name and maker are on the plate above. */
 .top {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 18rem) minmax(0, 26rem);
   align-items: center;
-  gap: var(--space-l);
+  justify-content: center;
+  gap: var(--space-xl);
 }
 
 .identity {
@@ -217,7 +218,6 @@ const summary = computed(() => `${props.baseFrame.name} build compared with ever
 }
 
 .radar {
-  max-width: 28rem;
   justify-self: center;
 }
 

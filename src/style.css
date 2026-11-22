@@ -244,9 +244,9 @@ a.gm:hover {
   font-size: var(--fs-xs);
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 40rem) {
   :where(button.small) {
-    min-height: 44px;
+    min-height: var(--tap);
   }
 }
 
@@ -465,8 +465,8 @@ label.field .error {
   margin-right: 6px;
 }
 
-/* Touch screens: a crumb link is a full tap target (as button.small above). */
-@media (pointer: coarse) {
+/* Touch and phone screens: a crumb link is a full tap target (as button.small above). */
+@media (pointer: coarse), (max-width: 40rem) {
   .crumbs li {
     display: flex;
     align-items: center;

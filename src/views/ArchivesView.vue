@@ -7,6 +7,7 @@ import CatalogueNotice from '../components/CatalogueNotice.vue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
+import GroupHead from '../components/GroupHead.vue'
 import Icon from '../components/Icon.vue'
 import {
   ARCHIVE_CATEGORIES, EXOTIC_MAKER, MAKER_CATEGORIES, archiveEntries, archiveGroups, filterByMakers, listFacts, makerColour, makerLogo, parseItem,
@@ -222,11 +223,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
         <section v-for="block in blocks" :key="block.name" class="block">
           <h2 v-if="block.name" class="sheet-label">{{ block.name }}<span class="num dim count">{{ block.count }}</span></h2>
           <section v-for="group in block.groups" :key="group.key" class="group" :class="{ branded: group.logo || group.colour !== 'var(--lilac)' }" :style="{ '--mf': group.colour }">
-            <header v-if="group.title" class="group-head">
-              <Icon v-if="group.logo" :src="group.logo" class="group-logo" />
-              <h3>{{ group.title }}</h3>
-              <span class="num dim count">{{ group.entries.length }}</span>
-            </header>
+            <GroupHead v-if="group.title" :title="group.title" :count="group.entries.length" :logo="group.logo" />
             <template v-for="section in group.sections" :key="section.licence">
               <h4 v-if="section.licence || group.sections.length > 1" class="label licence">{{ section.licence ? `${section.licence} licence` : 'No licence' }}</h4>
               <ul class="rows">
@@ -315,7 +312,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
 .maker-chip.chosen {
   border-color: var(--maker);
   background: color-mix(in srgb, var(--maker) 22%, transparent);
-  color: var(--maker);
+  color: var(--text);
   font-weight: 700;
 }
 
@@ -358,7 +355,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
 }
 
 .maker-id {
-  color: var(--maker);
+  color: color-mix(in srgb, var(--maker), white 35%); /* lightened so the large name reaches 4.5:1 on its tinted header */
   font-size: 2.25rem;
   font-weight: 700;
   line-height: 1.1;
@@ -410,8 +407,11 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
   text-align: left;
 }
 
+/* Normal text colour for contrast; the manufacturer's colour is the dash before it. */
 .made-name {
-  color: var(--maker);
+  padding-left: var(--space-s);
+  border-left: 3px solid var(--maker);
+  color: var(--text);
   font-size: var(--fs-s);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -457,17 +457,6 @@ button.made:focus-visible .made-name {
   margin-left: var(--space-s);
   font-weight: 400;
   letter-spacing: 0;
-}
-
-.group-head h3 {
-  margin: 0;
-  font-size: var(--fs-s);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.group-head .count {
-  margin-left: auto;
 }
 
 .licence {

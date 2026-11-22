@@ -301,3 +301,12 @@ export function writingSummary(line: DiffLine): string | null {
   if (!words) return `${line.text} cleared`
   return line.before ? `${line.text} rewritten · ${wordCount(line.before)} → ${words} words` : `${line.text} written · ${words} words`
 }
+
+// One line for the review queue: "Loadout, Licences (2), Mech: Lantern", at most 3 sections then "+n more".
+export function changeSummary(lines: DiffLine[], max = 3): string {
+  const parts = reviewSections(lines).map((s) => {
+    const count = s.groups.reduce((total, g) => total + g.lines.length, 0)
+    return count > 1 ? `${s.title} (${count})` : s.title
+  })
+  return parts.length > max ? `${parts.slice(0, max).join(', ')}, +${parts.length - max} more` : parts.join(', ')
+}

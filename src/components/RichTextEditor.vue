@@ -134,15 +134,14 @@ const isNormalSize = () => !is('textStyle', { fontSize: XSMALL }) && !is('textSt
   box-shadow: 0 0 0 1px var(--lilac);
 }
 
-/* The header strip: one row, scrolling sideways if a phone is too narrow for it. */
+/* The header strip: groups wrap onto a second row when a phone is too narrow, so no button is clipped. */
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-s);
-  overflow-x: auto;
   padding: var(--space-xs);
   border-bottom: 1px solid var(--rule);
   background: var(--raised);
-  scrollbar-width: none; /* the cut-off button at the edge shows there is more */
 }
 
 /* A segmented group: joined buttons parted by thin rules. */
