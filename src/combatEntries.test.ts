@@ -92,11 +92,11 @@ describe('stepActions', () => {
   })
   it('sorts the quick and full cards, and each tech action shows by itself', () => {
     expect(names('2 quick', false, 'Attacks')).toEqual(['Skirmish', 'Ram', 'Grapple'])
-    expect(names('2 quick', false, 'Tech')).toEqual(['Invade', 'Lock on', 'Bolster', 'Scan'])
-    expect(names('2 quick', false, 'Your kit')).toEqual(['Jump jets', 'Hack'])
+    expect(names('2 quick', false, 'Tech')).toEqual(['Invade', 'Lock on', 'Bolster', 'Scan', 'Hack'])
+    expect(names('2 quick', false, 'Your kit')).toEqual(['Jump jets'])
     expect(names('1 full', false, 'Attacks')).toEqual(['Barrage', 'Improvised attack'])
-    expect(names('1 full', false, 'Tech')).toEqual(['Full tech'])
-    expect(names('1 full', false, 'Your kit')).toEqual(['Big gun', 'Deep hack'])
+    expect(names('1 full', false, 'Tech')).toEqual(['Full tech', 'Deep hack'])
+    expect(names('1 full', false, 'Your kit')).toEqual(['Big gun'])
     expect(names('1 full', false, 'Other')).not.toContain('Boost')
   })
   it('shows gear kit actions in Pilot mode only, and mech ones in Mech mode only', () => {
@@ -114,6 +114,15 @@ describe('stepActions', () => {
     expect(fight.text).toContain('Needs a Sidearm weapon.')
     expect(stepActions('1 full', [], true, null, true).flatMap((g) => g.entries.map((e) => e.name))).toContain('Fight')
     expect(stepActions('2 quick', [], false, null, true).flatMap((g) => g.entries.map((e) => e.name))).not.toContain('Fight')
+  })
+  it('lists kit tech actions in the Tech card, not Your kit', () => {
+    const gear = [kit('Hack', 'Quick Tech'), kit('Pilot hack', 'Quick Tech', 'gear'), kit('Jump jets', 'Quick')]
+    const tech = (pilot: boolean, title: string) => stepActions('2 quick', gear, pilot).find((g) => g.title === title)!.entries.map((e) => e.name)
+    expect(tech(false, 'Tech')).toContain('Hack')
+    expect(tech(false, 'Tech')).not.toContain('Pilot hack')
+    expect(tech(true, 'Tech')).toEqual(['Pilot hack'])
+    expect(tech(false, 'Your kit')).toEqual(['Jump jets'])
+    expect(tech(true, 'Your kit')).toEqual([])
   })
   it('colours the cards', () => {
     expect(stepActions('2 quick', []).map((g) => g.colour)).toEqual(['quick', 'tech', 'quick', 'quick'])

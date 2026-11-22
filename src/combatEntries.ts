@@ -116,6 +116,7 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
   const keyed = (key: string) => general.filter((a) => a.activation && actionKey(a.activation) === key && !a.group && a.activation !== 'Overcharge').map(actionEntry)
   const how = (text: string, colour?: string): StepGroup => ({ title: 'How it works', colour, text, entries: [] })
   const activation = (a: { activation?: string }) => (a.activation ?? '').toLowerCase()
+  const isTech = (e: { activation?: string }) => ['quick tech', 'full tech', 'invade'].includes(activation(e))
 
   const activations = STEP_ACTIVATIONS[stepName]
   if (activations) {
@@ -123,9 +124,13 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
     return [
       ...GROUPS.map(([group, title, empty]): StepGroup => ({
         title, empty, colour: group === 'tech' ? 'tech' : colour, ...(group === 'tech' && !pilot && { text: TECH_NOTE }),
-        entries: general.filter((a) => (a.group === group || (group === 'other' && !a.group)) && activations.includes(activation(a))).map(actionEntry),
+        // Kit tech actions (a system's or a piece of gear's) sit in the Tech card, so it is never empty beside them.
+        entries: [
+          ...general.filter((a) => (a.group === group || (group === 'other' && !a.group)) && activations.includes(activation(a))).map(actionEntry),
+          ...(group === 'tech' ? kit((e) => activations.includes(activation(e)) && isTech(e)) : []),
+        ],
       })),
-      { title: 'Your kit', colour, empty: 'No kit actions.', entries: kit((e) => activations.includes(activation(e))) },
+      { title: 'Your kit', colour, empty: 'No kit actions.', entries: kit((e) => activations.includes(activation(e)) && !isTech(e)) },
     ]
   }
   switch (stepName) {
