@@ -35,6 +35,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
   const resources = mechResources(sheet, effects)
   const rows: LoadoutRow[] = []
   const tagIds = new Set<string>()
+  const gearTagIds = new Set<string>() // the pilot's gear, for Pilot mode's Tags card
   const sizes = new Set<string>()
   const needs = (activation?: string) => {
     const word = activation?.toLowerCase()
@@ -44,8 +45,9 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
   const itemRow = (block: LoadoutBlock, item: Item, label: string | undefined, kinds: string[]): LoadoutRow => {
     const { stats, tags, text } = itemDetails(item, tagNames)
     const rules = cardRules(item)
-    // Gear shows only in Pilot mode, where the Tags card is hidden, so it must not drive the tag list.
-    if (block !== 'gear') {
+    // Gear shows only in Pilot mode, so its tags are kept apart from the mech's tag list.
+    if (block === 'gear') item.tags.forEach(tag => gearTagIds.add(tag.id))
+    else {
       item.tags.forEach(tag => tagIds.add(tag.id))
       rules.forEach(rule => needs(rule.activation))
     }
@@ -104,7 +106,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
     const slot = item && LOADOUT.find(slot => slot.type === item.type)?.label
     if (item) rows.push({ ...itemRow('gear', owned.damageType ? equipmentDetails(item, sheet, [], { damageType: owned.damageType }) : item, slot && slot.toLowerCase() !== 'pilot gear' ? capitalise(slot) : undefined, ['range', 'damage', 'bonus']), slot: item.type as LoadoutRow['slot'] })
   }
-  return { rows, missing, tagIds, sizes, structureRepairs: resources.structureRepairs, frame, overcharge: resources.overcharge, stats: mechStats(frame, sheet.mech_skills, effects.modifiers) }
+  return { rows, missing, tagIds, gearTagIds, sizes, structureRepairs: resources.structureRepairs, frame, overcharge: resources.overcharge, stats: mechStats(frame, sheet.mech_skills, effects.modifiers) }
 }
 
 const catalogueItem = (own: Map<string, Item>, catalogue: EffectCatalogue, id: string) => own.get(id) ?? catalogue.integrated.get(id)

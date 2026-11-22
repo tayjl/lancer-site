@@ -134,12 +134,16 @@ const kitEntries = (block: LoadoutBlock): CombatEntry[] => {
   })
 }
 // Your kit's own actions (a system's, a trait's, a core power's), for the turn strip.
+// An unknown activation word still counts (it lands in the Free step), but "None" is passive.
+const acts = (word?: string) => !!word && word.trim().toLowerCase() !== 'none'
 const kitActions = computed<KitAction[]>(() =>
   (loadout.value?.rows ?? []).flatMap((row) => [
-    ...(activationOf(row.activation) ? [{ label: row.label, name: row.name, activation: row.activation, text: row.html, value: row.kind === 'core-power' ? 'Core power' : undefined }] : []),
-    ...row.rules.filter((rule) => activationOf(rule.activation)).map((rule) => ({ label: row.name, name: rule.name, activation: rule.activation, frequency: rule.frequency, stats: rule.stats, text: rule.text })),
+    ...(acts(row.activation) ? [{ label: row.label, name: row.name, activation: row.activation, text: row.html, value: row.kind === 'core-power' ? 'Core power' : undefined }] : []),
+    ...row.rules.filter((rule) => acts(rule.activation)).map((rule) => ({ label: row.name, name: rule.name, activation: rule.activation, frequency: rule.frequency, stats: rule.stats, text: rule.text })),
   ].map((entry) => ({ ...entry, block: row.block }))).map((entry) => ({ ...entry, key: actionKey(entry.activation), gist: firstSentence(entry.text) || undefined })),
 )
+// An equipped Sidearm weapon lets a pilot Fight as a Quick action.
+const sidearm = computed(() => (loadout.value?.rows ?? []).some((row) => row.block === 'gear' && row.item?.tags.some((t) => t.id === 'tg_sidearm')))
 // Everest: "Lodestar: 1 Repair restores 1 Structure."
 const repairLine = computed(() => {
   const n = loadout.value?.structureRepairs
@@ -153,8 +157,8 @@ type Content = { id: string; no: string; title: string; folded?: boolean; blocks
 function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Content[] {
   const l = loadout.value
   const sizes = trim ? WEAPON_SIZES.filter((row) => l!.sizes.has(row.value)) : WEAPON_SIZES
-  // Tag wording comes from the content editor. Trimmed: every visible tag on your gear, homebrew too.
-  const tagRows = (trim ? [...l!.tagIds].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b)) : TAG_IDS)
+  // Tag wording comes from the content editor. Trimmed (always in Pilot mode): every visible tag on your gear, homebrew too.
+  const tagRows = (pilot || trim ? [...(pilot ? l?.gearTagIds ?? [] : l!.tagIds)].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b)) : TAG_IDS)
     .filter((id) => tagNames.value.has(id) && !hiddenTags.value.has(id))
     .map((id) => ({ tag: tagNames.value.get(id)!.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(id) ?? '').replaceAll('{VAL}', 'X') }))
   const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame' || b.key === 'weapons' || b.key === 'gear', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
@@ -162,15 +166,16 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
   // In Pilot mode "Down and out" is only in On foot.
   const [cover, conditions, other] = STATUS_GROUPS.map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.filter((row) => !pilot || !ON_FOOT_ROWS.includes(row)).map((row) => rowEntry(row)) }))
   const rows = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => rowEntry(row))
+  const tags: Group = { title: trim || pilot ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, empty: 'None.', entries: tagRows.map((row) => ({ ...row, gist: firstSentence(row.text) })) }
   const topics = rulesTopics(pilot, repairLine.value).map((card): Group => ({ title: card.title, icon: card.icon, chips: true, entries: card.topics.map((t) => ({ name: t.name, text: t.text, info: t.info })) }))
 
   const content: [string, string, string, boolean, Block[]][] = [
     ['combat-kit', '01', 'Your kit', false, pilot ? [{ grid: 'one', columns: [[gear]] }, { grid: 'one', columns: [[talents]] }] : [{ grid: 'one', columns: [[frameCard]] }, { grid: 'one', columns: [[weapons]] }, { grid: 'three', columns: [[systems, talents, core]] }]],
     ['combat-tags', '02', 'Tags and statuses', false, pilot
-      ? [{ grid: 'two', columns: [[cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(ON_FOOT_ROWS) }]] }]
+      ? [{ grid: 'two', columns: [[tags, cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(ON_FOOT_ROWS) }]] }]
       : [
           { grid: 'two', columns: [[
-            { title: trim ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, empty: 'None.', entries: tagRows.map((row) => ({ ...row, gist: firstSentence(row.text) })) },
+            tags,
             { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', chips: true, entries: rows(sizes) },
           ]] },
           { grid: 'status', columns: [[cover, conditions, other]] },
@@ -187,7 +192,7 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
 // The turn's actions as one card, for search (the strip hides then). Each action once, however many steps it is in.
 const actionsCard = (on: boolean) => {
   const seen = new Set<string>()
-  const entries = TURN_STEPS.flatMap((s) => stepActions(s.name, kitActions.value, mode.value === 'pilot', overcharge.value))
+  const entries = TURN_STEPS.flatMap((s) => stepActions(s.name, kitActions.value, mode.value === 'pilot', overcharge.value, sidearm.value))
     .flatMap((g) => g.entries)
     .filter((e) => !seen.has(`${e.name}|${e.activation}`) && seen.add(`${e.name}|${e.activation}`))
   return find({ title: 'Actions', icon: 'list', chips: true, tagged: true, entries }, false, on)
@@ -245,7 +250,7 @@ const clear = () => {
       <p v-if="!contentReady" class="dim" role="status">Loading…</p>
       <p v-else-if="searching && !matches" class="empty">Nothing matches that search.</p>
       <template v-else>
-        <CombatStrip v-if="!searching" :kit-actions="kitActions" :pilot="mode === 'pilot'" :overcharge="overcharge" :speed="speed" />
+        <CombatStrip v-if="!searching" :kit-actions="kitActions" :pilot="mode === 'pilot'" :overcharge="overcharge" :speed="speed" :sidearm="sidearm" />
         <div v-else-if="actions" class="columns">
           <div class="column"><CombatGroup v-bind="actions" /></div>
         </div>

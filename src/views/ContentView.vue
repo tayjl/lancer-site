@@ -28,7 +28,12 @@ const reading = ref(false)
 const saving = ref(false)
 const loadingCore = ref(false)
 const coreInstalled = computed(() => hasCoreContent(items.value))
-const coreUpdatable = computed(() => coreNeedsUpdate(items.value))
+// The seed's ids, read once core is installed. The seed is a large file, so it loads only then.
+const seedIds = shallowRef<string[]>([])
+watch(coreInstalled, async (on) => {
+  if (on && !seedIds.value.length) seedIds.value = (await import('../coreContent').catch(() => null))?.coreContent.items.map(item => item.id) ?? []
+}, { immediate: true })
+const coreUpdatable = computed(() => coreNeedsUpdate(items.value, seedIds.value))
 const fileError = ref('')
 const saveError = ref('')
 const result = shallowRef<{ name: string; version: string; added: number; updated: number; retained: number } | null>(null)

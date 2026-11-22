@@ -103,9 +103,10 @@ describe('gear', () => {
   it('gives gear rows their slot and keeps their tags out of the tag list', () => {
     const gear = [gearItem('a', 'Armor'), gearItem('w', 'Weapon')]
     const sheet = { owned_gear: [{ key: 'k1', id: 'a' }, { key: 'k2', id: 'w' }], equipped_gear: ['k1', 'k2'] } as never
-    const { rows, tagIds } = combatLoadout({}, sheet, { ...catalogue, gear }, tagNames)
+    const { rows, tagIds, gearTagIds } = combatLoadout({}, sheet, { ...catalogue, gear }, tagNames)
     expect(rows.map(r => [r.block, r.slot])).toEqual([['gear', 'Armor'], ['gear', 'Weapon']])
     expect(tagIds.size).toBe(0)
+    expect([...gearTagIds]).toEqual(['tg_loading'])
   })
   it('groups gear by slot in order and leaves empty groups out', () => {
     const rows = [row('g1', 'Gear'), row('a1', 'Armor'), row('w1', 'Weapon'), row('g2', 'Gear')]

@@ -10,7 +10,7 @@ import RulesText from './RulesText.vue'
 // open at a time (2 quick to begin with) and its cards sit under the bar. "1 full" and "2 quick" show four equal cards, every
 // other step two: how it works, and its actions (or, for Overcharge, the Heat numbers). A card's header carries the action's
 // colour and word, so its chips are name only. A pilot on foot has no protocol or overcharge.
-const props = defineProps<{ kitActions: KitAction[]; pilot: boolean; overcharge: string | null; speed: number | null }>()
+const props = defineProps<{ kitActions: KitAction[]; pilot: boolean; overcharge: string | null; speed: number | null; sidearm?: boolean }>()
 
 const open = ref('2 quick')
 
@@ -50,7 +50,7 @@ const RIGHT: Record<string, { title: string; icon: string; colour?: string; meta
 const LEFT_META: Record<string, string> = { Protocol: 'Optional', Overcharge: 'Once a turn', Reaction: 'End of your turn' }
 
 const four = computed(() => step.value.key === '1 full' || step.value.key === '2 quick')
-const groups = computed(() => stepActions(step.value.key, props.kitActions, props.pilot, props.overcharge))
+const groups = computed(() => stepActions(step.value.key, props.kitActions, props.pilot, props.overcharge, props.sidearm))
 const word = computed(() => (step.value.key === '1 full' ? 'Full' : 'Quick'))
 const FOUR_ICON: Record<string, string> = { Attacks: 'crosshair', Other: 'list', 'Your kit': 'generic_item' }
 const cards = computed(() =>
@@ -59,6 +59,7 @@ const cards = computed(() =>
     icon: g.title === 'Tech' ? (step.value.key === '1 full' ? 'tech_full' : 'tech_quick') : FOUR_ICON[g.title],
     colour: `--act-${g.colour}`,
     meta: g.title === 'Tech' ? `${word.value} tech` : word.value,
+    note: g.text,
     empty: g.empty,
     entries: g.entries,
     chips: true,

@@ -13,12 +13,21 @@ describe('official core content', () => {
     expect(hasCoreContent(installed.filter(item => item.kind !== 'pilot_gear'))).toBe(false)
   })
 
-  it('offers a core update only when core exists without actions', () => {
+  it('offers a core update only when core exists and some seed item is missing', () => {
+    const ids = coreContent.items.map(item => item.id)
     const withoutActions = installed.filter(item => item.kind !== 'actions')
-    expect(coreNeedsUpdate([])).toBe(false)
-    expect(coreNeedsUpdate(withoutActions)).toBe(true)
-    expect(coreNeedsUpdate(installed)).toBe(coreContent.items.every(item => item.kind !== 'actions'))
-    expect(coreNeedsUpdate([...withoutActions, { id: 'x', kind: 'actions', pack_id: 1 }])).toBe(false)
+    expect(coreNeedsUpdate([], ids)).toBe(false)
+    expect(coreNeedsUpdate(withoutActions, ids)).toBe(true)
+    expect(coreNeedsUpdate(installed, ids)).toBe(false)
+    expect(coreNeedsUpdate(installed, [...ids, 'act_brand_new'])).toBe(true)
+    expect(coreNeedsUpdate(installed, [])).toBe(false)
+  })
+
+  it('words Overkill and Knockback for the campaign', () => {
+    const tag = (id: string) => String(coreContent.items.find(item => item.id === id)!.data.description)
+    expect(tag('tg_overkill')).toBe('Before an attack you can take 1 Heat to add +2 damage, once per attack.')
+    expect(tag('tg_knockback')).toMatch(/full hit or crit/)
+    expect(tag('tg_reliable')).toMatch(/^This weapon has some degree/)
   })
 
   it('does not include missing-data placeholders', () => {

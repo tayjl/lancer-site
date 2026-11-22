@@ -4,7 +4,7 @@ import {
   ATTACK_EXTRAS, ATTACK_FORMULAS, ATTACK_RESULTS, AREAS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DAMAGE_TYPES, DEFENCES, DICE, DICE_NOTE,
   DRONES_NOTE, FOOT_RULES, KNOCKBACK, KNOCKBACK_NOTE, MOVEMENT_NOTE, ON_FOOT_ROWS, OVERCHARGE, OVERCHARGE_HEAT, OVERCHARGE_LATER,
   PILOT_CHECKS_NOTE, PILOT_DCS, PUSHING_THROUGH, RANGE_BONUSES, RANGE_TALENTS, RANGE_TIERS, REACTIONS_NOTE, RECHARGE, REPAIRS, RESOURCES_NOTE, RESULTS_NOTE,
-  SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TERRAIN, TURN_STEPS,
+  SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TECH_NOTE, TERRAIN, TURN_STEPS,
   type CombatAction, type CombatFormula, type CombatRow,
 } from './combatRules'
 import { plainText } from './rulesText'
@@ -105,11 +105,15 @@ const DEFAULT_HEAT = OVERCHARGE_HEAT.map(String).join(' → ')
 
 // One turn step's cards. Kit actions are your gear's own (a system's, a talent's). "overcharge" is your mech's Heat track,
 // when it has a frame. Empty cards stay, with their "empty" line. An unknown step has none.
-export function stepActions(stepName: string, kitActions: KitAction[], pilot = false, overcharge: string | null = null): StepGroup[] {
+// "sidearm": the pilot has a Sidearm weapon equipped, so Fight is a Quick action too.
+export function stepActions(stepName: string, kitActions: KitAction[], pilot = false, overcharge: string | null = null, sidearm = false): StepGroup[] {
   const general: CombatAction[] = baseActions.value.filter((a) => (pilot ? a.pilot : a.mech))
+  const fight = pilot && sidearm ? general.find((a) => a.name === 'Fight') : undefined
+  if (fight) general.push({ ...fight, activation: 'Quick', group: 'attack', gist: undefined, text: `${fight.text}<br>Needs a Sidearm weapon.` })
   // A pilot on foot only has the actions on their gear.
   const kit = (keep: (e: KitAction) => boolean) => kitActions.filter((e) => keep(e) && (pilot ? e.block === 'gear' : e.block !== 'gear'))
-  const keyed = (key: string) => general.filter((a) => actionKey(a.activation) === key && !a.group && a.activation !== 'Overcharge').map(actionEntry)
+  // An action with no activation (Core power rules) is a Rules topic, not a step action.
+  const keyed = (key: string) => general.filter((a) => a.activation && actionKey(a.activation) === key && !a.group && a.activation !== 'Overcharge').map(actionEntry)
   const how = (text: string, colour?: string): StepGroup => ({ title: 'How it works', colour, text, entries: [] })
   const activation = (a: { activation?: string }) => (a.activation ?? '').toLowerCase()
 
@@ -118,7 +122,7 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
     const colour = stepName === '1 full' ? 'full' : 'quick'
     return [
       ...GROUPS.map(([group, title, empty]): StepGroup => ({
-        title, empty, colour: group === 'tech' ? 'tech' : colour,
+        title, empty, colour: group === 'tech' ? 'tech' : colour, ...(group === 'tech' && !pilot && { text: TECH_NOTE }),
         entries: general.filter((a) => (a.group === group || (group === 'other' && !a.group)) && activations.includes(activation(a))).map(actionEntry),
       })),
       { title: 'Your kit', colour, empty: 'No kit actions.', entries: kit((e) => activations.includes(activation(e))) },
@@ -135,10 +139,10 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
       const track = overcharge ?? DEFAULT_HEAT
       return [
         how(`${(general.find((a) => a.activation === 'Overcharge') ?? OVERCHARGE).text}<br>${OVERCHARGE_LATER}`, 'overcharge'),
-        { title: 'Heat', colour: 'overcharge', entries: [], heat: { steps: track.split(' → '), custom: track !== DEFAULT_HEAT } },
+        { title: 'Heat', colour: 'overcharge', entries: kit((e) => activation(e) === 'overcharge'), heat: { steps: track.split(' → '), custom: track !== DEFAULT_HEAT } },
       ]
     }
-    case 'Free': return [how(pilot ? 'Free actions cost no action. Some gear uses them.' : TURN_STEPS.find((s) => s.name === 'Free')!.text, 'free'), { title: 'Free actions', colour: 'free', empty: 'No free actions.', entries: [...keyed('free'), ...kit((e) => e.key === 'free')] }]
+    case 'Free': return [how(pilot ? 'Free actions cost no action. Some gear uses them.' : TURN_STEPS.find((s) => s.name === 'Free')!.text, 'free'), { title: 'Free actions', colour: 'free', empty: 'No free actions.', entries: [...keyed('free'), ...kit((e) => e.key === 'free' && activation(e) !== 'overcharge')] }]
     case 'Reaction': return [how(REACTIONS_NOTE, 'reaction'), { title: 'Reactions', colour: 'reaction', empty: 'No reactions.', entries: [...keyed('reaction'), ...kit((e) => e.key === 'reaction')] }]
     default: return []
   }
@@ -168,11 +172,13 @@ export function rulesTopics(pilot: boolean, repairLine?: string): TopicCard[] {
     html: [r.note ? `${r.note}.` : '', `<b>${r.physical[0]}:</b> ${r.physical[1]}`, `<b>${r.tech[0]}:</b> ${r.tech[1]}`].filter(Boolean).join('<br>'),
   }))
   const structure = STRUCTURE_STRESS.map((s): InfoCard => ({ heading: `Step ${s.n}`, html: `<b>Structure:</b> ${s.structure}<br><b>Stress:</b> ${s.stress}` }))
+  const core = baseActions.value.find((a) => a.id === 'act_core_power_rules')
   const prefixed = (rows: CombatRow[], word: string) => rowCards(rows.map((r) => ({ ...r, value: `${word} ${r.value}` })))
   return [
     { title: 'Checks and resources', icon: 'star', topics: [
       topic('Checks and saves', [...formulaCards(CHECK_FORMULAS), ...rowCards(CHECK_RESULTS)]),
       ...sceneResources().map((r) => topic(r.name, [{ heading: r.frequency ?? '', html: r.text }, note(RESOURCES_NOTE)])),
+      ...(core && !pilot ? [topic('Core power', [{ heading: core.frequency ?? '', html: core.text }])] : []),
       topic('Pushing through', [note(PUSHING_THROUGH)]),
       ...(pilot ? [topic('Pilot checks', [note(PILOT_CHECKS_NOTE), ...prefixed(PILOT_DCS, 'DC')])] : []),
     ] },
@@ -204,7 +210,7 @@ export function rulesTopics(pilot: boolean, repairLine?: string): TopicCard[] {
       topic('Cover', [note(COVER_NOTE)]),
     ] },
     { title: 'Structure and repairs', icon: 'structure', topics: pilot
-      ? [...ofRow(FOOT_RULES, 'Pilot stats'), ...ON_FOOT_ROWS.map((r) => topic(r.value, rowCards([r])))]
+      ? [...ofRow(FOOT_RULES, 'Pilot stats', 'Pilot gear'), ...ON_FOOT_ROWS.map((r) => topic(r.value, rowCards([r])))]
       : [
         topic('Structure and stress', [...STRUCTURE_TRIGGERS.map((t) => ({ heading: t.name, html: t.text })), ...structure, note(STRUCTURE_NOTE, 'Nothing left to destroy')]),
         topic('Rest', [...rowCards(REPAIRS.filter((r) => r.value === 'Rest')), ...(repairLine ? [note(repairLine)] : [])]),

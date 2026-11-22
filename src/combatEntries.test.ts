@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { actionKey, entryInfo, rulesTopics, stepActions, turnEntries, type CombatEntry, type KitAction } from './combatEntries'
 import {
   ATTACK_EXTRAS, ATTACK_FORMULAS, ATTACK_RESULTS, AREAS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DEFENCES, DICE, DICE_NOTE, DRONES_NOTE, FIGHT, FOOT_RULES,
-  FULL_ACTIONS, IMPROVISED, JOCKEY, KNOCKBACK, KNOCKBACK_NOTE, MOVEMENT_NOTE, OVERCHARGE, PILOT_ACTIONS, PILOT_CHECKS_NOTE, PILOT_DCS, PUSHING_THROUGH, QUICK_ACTIONS, RANGE_BONUSES, RANGE_TALENTS, RANGE_TIERS, REACTIONS,
-  RECHARGE, REPAIRS, RESOURCES_NOTE, RESULTS_NOTE, SCENE_RESOURCES, SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TERRAIN, TURN_STEPS, type CombatRow,
+  FULL_ACTIONS, IMPROVISED, JOCKEY, KNOCKBACK, KNOCKBACK_NOTE, MOVEMENT_NOTE, OVERCHARGE, PILOT_ACTIONS, PILOT_CHECKS_NOTE, PILOT_DCS, PILOT_OVERWATCH, PUSHING_THROUGH, QUICK_ACTIONS, RANGE_BONUSES, RANGE_TALENTS, RANGE_TIERS, REACTIONS,
+  RECHARGE, REPAIRS, RESOURCES_NOTE, RESULTS_NOTE, SCENE_RESOURCES, SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TECH_NOTE, TERRAIN, TURN_STEPS, type CombatRow,
 } from './combatRules'
 
 describe('PILOT_ACTIONS', () => {
@@ -17,7 +17,9 @@ describe('PILOT_ACTIONS', () => {
   it('reuses the existing objects and takes the Quick Activate', () => {
     expect(PILOT_ACTIONS).toContain(FIGHT)
     expect(PILOT_ACTIONS).toContain(JOCKEY)
-    expect(PILOT_ACTIONS).toContain(REACTIONS.find((a) => a.name === 'Overwatch'))
+    expect(PILOT_ACTIONS).toContain(PILOT_OVERWATCH)
+    expect(PILOT_ACTIONS).not.toContain(REACTIONS.find((a) => a.name === 'Overwatch'))
+    expect(PILOT_OVERWATCH.text).toMatch(/pilot weapon/)
     expect(PILOT_ACTIONS.find((a) => a.name === 'Activate')?.activation).toBe('Quick')
   })
   it('has no dice words', () => {
@@ -92,7 +94,7 @@ describe('stepActions', () => {
     expect(names('2 quick', false, 'Attacks')).toEqual(['Skirmish', 'Ram', 'Grapple'])
     expect(names('2 quick', false, 'Tech')).toEqual(['Invade', 'Lock on', 'Bolster', 'Scan'])
     expect(names('2 quick', false, 'Your kit')).toEqual(['Jump jets', 'Hack'])
-    expect(names('1 full', false, 'Attacks')).toEqual(['Barrage', 'Improvised attack', 'Jockey'])
+    expect(names('1 full', false, 'Attacks')).toEqual(['Barrage', 'Improvised attack'])
     expect(names('1 full', false, 'Tech')).toEqual(['Full tech'])
     expect(names('1 full', false, 'Your kit')).toEqual(['Big gun', 'Deep hack'])
     expect(names('1 full', false, 'Other')).not.toContain('Boost')
@@ -103,6 +105,15 @@ describe('stepActions', () => {
     expect(names('Protocol', true, 'Protocols')).toEqual(['Pilot proto'])
     expect(names('Protocol', false, 'Protocols')).toEqual(['Wake'])
     expect(names('2 quick', true, 'Your kit')).not.toContain('Jump jets')
+  })
+  it('lists Fight as a Quick action only with a Sidearm weapon', () => {
+    const quick = (sidearm: boolean) => stepActions('2 quick', [], true, null, sidearm).find((g) => g.title === 'Attacks')!.entries
+    expect(quick(false).map((e) => e.name)).not.toContain('Fight')
+    const fight = quick(true).find((e) => e.name === 'Fight')!
+    expect(fight.activation).toBe('Quick')
+    expect(fight.text).toContain('Needs a Sidearm weapon.')
+    expect(stepActions('1 full', [], true, null, true).flatMap((g) => g.entries.map((e) => e.name))).toContain('Fight')
+    expect(stepActions('2 quick', [], false, null, true).flatMap((g) => g.entries.map((e) => e.name))).not.toContain('Fight')
   })
   it('colours the cards', () => {
     expect(stepActions('2 quick', []).map((g) => g.colour)).toEqual(['quick', 'tech', 'quick', 'quick'])
@@ -126,7 +137,7 @@ describe('stepActions', () => {
   })
   it('gives the other steps a how-it-works card and their actions', () => {
     expect(names('Protocol')).toEqual(['Wake'])
-    expect(names('Free')).toEqual(['Core power rules', 'Perk'])
+    expect(names('Free')).toEqual(['Perk'])
     expect(names('Reaction')).toEqual(['Brace', 'Overwatch', 'Reaction systems', 'Guard'])
     for (const step of ['Protocol', 'Free', 'Reaction']) expect(stepActions(step, mine)[0].title).toBe('How it works')
     expect(stepActions('Nope', mine)).toEqual([])
@@ -156,13 +167,32 @@ describe('stepActions', () => {
   })
   it('shows every mech action in exactly one step, and no generic Quick tech', () => {
     const list = TURN_STEPS.flatMap((s) => stepActions(s.name, [], false).flatMap((g) => g.entries.map((e) => e.name)))
-    for (const a of [...QUICK_ACTIONS, ...FULL_ACTIONS, IMPROVISED, JOCKEY, ...REACTIONS]) {
+    for (const a of [...QUICK_ACTIONS, ...FULL_ACTIONS.filter((x) => x.name !== 'Core power rules'), IMPROVISED, ...REACTIONS]) {
       expect(list.filter((n) => n === a.name), a.name).toHaveLength(a.name === 'Activate' ? 2 : 1) // Activate has a quick and a full version
     }
     expect(list).not.toContain('Quick tech')
     expect(list).not.toContain('Fragment signal')
     expect(list).not.toContain('Fight')
     expect(list).not.toContain('Overcharge')
+  })
+  it('lists Prepare as a mech Quick action in Other, and Jockey for pilots only', () => {
+    expect(names('2 quick', false, 'Other')).toContain('Prepare')
+    expect(names('2 quick', true)).not.toContain('Prepare')
+    expect(names('1 full', false)).not.toContain('Jockey')
+    expect(names('1 full', true)).toContain('Jockey')
+  })
+  it('gives Overcharge kit actions to the Overcharge step, not Free', () => {
+    const boost = kit('Surge', 'Overcharge')
+    const withBoost = [...mine, boost]
+    expect(stepActions('Overcharge', withBoost)[1].entries.map((e) => e.name)).toEqual(['Surge'])
+    expect(stepActions('Free', withBoost).flatMap((g) => g.entries.map((e) => e.name))).not.toContain('Surge')
+  })
+  it('falls back to the Free step for an activation it does not know', () => {
+    expect(stepActions('Free', [...mine, kit('Odd', 'Sometimes')]).flatMap((g) => g.entries.map((e) => e.name))).toContain('Odd')
+  })
+  it('explains Quick Tech and Full Tech on the Tech card', () => {
+    expect(stepActions('2 quick', []).find((g) => g.title === 'Tech')!.text).toBe(TECH_NOTE)
+    expect(stepActions('2 quick', []).find((g) => g.title === 'Attacks')!.text).toBeUndefined()
   })
   it('marks Scan, Lock on and Bolster as Quick Tech, and has one Invade', () => {
     for (const n of ['Scan', 'Lock on', 'Bolster']) expect(QUICK_ACTIONS.find((a) => a.name === n)?.activation).toBe('Quick Tech')
@@ -224,6 +254,11 @@ describe('rulesTopics', () => {
     for (const n of [RESOURCES_NOTE, RESULTS_NOTE, PUSHING_THROUGH, MOVEMENT_NOTE, KNOCKBACK_NOTE, SENSORS_NOTE, AURAS_NOTE, COVER_NOTE, CONVERSIONS_NOTE, DICE_NOTE, STRUCTURE_NOTE, DRONES_NOTE, SIZE_NOTE]) expect(mech).toContain(n)
     expect(pilot).toContain(PILOT_CHECKS_NOTE)
     expect(pilot).not.toContain(DICE_NOTE)
+  })
+  it('shows Core power rules as a mech Rules topic, not a step action', () => {
+    expect(names(false)).toContain('Core power')
+    expect(names(true)).not.toContain('Core power')
+    expect(TURN_STEPS.flatMap((s) => stepActions(s.name, [], false).flatMap((g) => g.entries.map((e) => e.name)))).not.toContain('Core power rules')
   })
   it('has no "roll" or "average"', () => {
     expect(text(false) + text(true)).not.toMatch(/\broll|average/i)

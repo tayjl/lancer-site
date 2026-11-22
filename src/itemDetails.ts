@@ -143,7 +143,8 @@ export function itemRules(raw: Record<string, unknown>, activeEffects = true): I
   for (const key of ['on_attack', 'on_hit', 'on_crit']) if (raw[key]) result.push({ name: capitalise(key.replaceAll('_', ' ')), text: String(raw[key]), stats: [] })
   const entries = (value: unknown) => (Array.isArray(value) ? value : []) as Entry[]
   const extras = (entry: Record<string, unknown>) => ({
-    ...(activationOf(entry.activation) ? { activation: String(entry.activation) } : {}),
+    // An unknown word stays, so the Combat page can still list the action. It gets no chip.
+    ...(entry.activation && String(entry.activation).toLowerCase() !== 'none' ? { activation: String(entry.activation) } : {}),
     stats: [...entryStats('range', entries(entry.range)), ...entryStats('damage', entries(entry.damage))],
   })
   const action = (entry: Record<string, unknown>, fallback: string): ItemRule => {

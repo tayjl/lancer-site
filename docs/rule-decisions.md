@@ -33,6 +33,8 @@ Rules will keep changing. To change one:
 - **Attacks against a pilot on foot are compared with a flat 10**, plus bonuses from gear or talents. **10 is the base DC for everything**, changed by stats and bonuses where they apply.
 
 - **Pilots on foot can take** Boost, Hide, Search, Activate, Reload, Skill check, Fight, Jockey, Mount or dismount, Improvised attack and Overwatch. No Overcharge, tech actions or Core Power. Fight is 10 + Grit against Evasion with the pilot weapon's flat damage.
+- **Fight is a Quick action too with a Sidearm weapon (Light A/C, Light Signature)**, as the tag says.
+- **Pilot Overwatch uses any pilot weapon, not the mech weapon classes.**
 
 ## 2026-11-21
 - **Starting manna is 2000.**

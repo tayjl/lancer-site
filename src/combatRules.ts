@@ -14,7 +14,7 @@ export type CombatFormula = { formula: string; note?: string; example: string }
 
 // Rules text that was written in the page's template, here so the search can reach it.
 export const RESOURCES_NOTE = 'They reset every combat or scene.'
-export const REACTIONS_NOTE = 'Declare 1 reaction at the end of your turn. You commit to it in advance instead of interrupting another post.'
+export const REACTIONS_NOTE = 'Declare 1 reaction at the end of your turn. You commit to it in advance instead of interrupting another post. Reactions you declare expire at the start of your next turn.'
 export const RESULTS_NOTE = "Compare your total with the target's Evasion (attacks) or E-defence (tech attacks)."
 export const PILOT_CHECKS_NOTE = 'Out of the mech, pilots use narrative triggers (+2, +4 or +6). Compare 10 + trigger with the DC.'
 export const PUSHING_THROUGH = "Spend Lancer's Edge (+2) or take 1 narrative stress to close a gap of 1 or 2."
@@ -28,6 +28,7 @@ export const SENSORS_NOTE = 'Sensors set the reach of tech attacks, Lock on and 
 export const AURAS_NOTE = 'For anything that works within a range.'
 export const COVER_NOTE = 'Terrain cover gives no defence bonus in player vs player combat. Cover from deployables still counts. Screened, Barrier-protected and Obscured still apply.'
 export const CONVERSIONS_NOTE = 'For talents, traits and frames written for dice.'
+export const TECH_NOTE = "Quick Tech actions are Invade, Scan, Lock on, Bolster, or a system's own Quick Tech option. A Full Tech action is two Quick Tech actions (both may be Invade, at the same or different targets) or a system's own Full Tech option."
 export const DICE_NOTE = 'Damage dice become flat damage, rounded up.'
 
 export const TURN_STEPS: (CombatAction & { activations: string[] })[] = [
@@ -54,6 +55,7 @@ export const QUICK_ACTIONS: CombatAction[] = [
   { name: 'Bolster', activation: 'Quick Tech', group: 'tech', text: 'Give an ally +2 (1 Accuracy) on their next check or save.' },
   { name: 'Hide', activation: 'Quick', group: 'other', text: "Become Hidden if you're out of direct sight, Obscured or Invisible, and not Engaged." },
   { name: 'Search', activation: 'Quick', group: 'other', text: 'Find a Hidden target. Compare your 10 + Systems with their 10 + Agility. On a tie, the hider may take 1 Heat to stay Hidden.' },
+  { name: 'Prepare', activation: 'Quick', group: 'other', text: "Ready a Quick action and give it a trigger, worded as 'When X, then Y'. Until the start of your next turn, you take it as a reaction when the trigger happens. It counts as taking the action, so the usual limits apply (no Skirmish twice, no Ordnance after moving). You can't move or take other actions or reactions while holding it. Dropping it frees your reactions. If the trigger never happens, it's lost." },
   { name: 'Ram', activation: 'Quick', group: 'attack', text: 'Melee attack on an adjacent target. On a full hit or crit, knock them Prone and Knockback 1.' },
   { name: 'Grapple', activation: 'Quick', group: 'attack', text: "Melee attack on an adjacent target. On a hit, a bigger mech holds a smaller one in place, and the smaller mech can't move on its own. Between mechs of the same size, the higher Hull is in control. Breaking free costs the grappled mech 1 quick action and 1 Heat." },
   { name: 'Scan', activation: 'Quick Tech', group: 'tech', text: 'No check needed. Learn one thing about a target in Sensors range:<ul><li>Its HP, Structure and Heat.</li><li>Its defences.</li><li>Its weapons and systems.</li><li>Its statuses.</li></ul>' },
@@ -247,6 +249,7 @@ export const FOOT_RULES: CombatRow[] = [
   { value: 'Attacks on a pilot', text: 'Compare the attack with a flat 10, plus any bonuses from gear or talents.' },
   { value: 'Mech destroyed', text: 'When your mech blows up, the pilot survives. They are thrown clear to Close range, Prone and Stunned until the end of their next turn.' },
   { value: 'Melt down', text: 'The reactor explodes at the end of your next turn, like Self-destruct. The pilot must Eject before then or dies.' },
+  { value: 'Pilot gear', text: 'Up to two pilot weapons, one armour and three gear.' },
 ]
 // The Statuses tab's "On foot" card (Pilot mode).
 export const ON_FOOT_ROWS: CombatRow[] = [...statuses('Down and out'), ...FOOT_RULES.filter((row) => ['Mech destroyed', 'Melt down'].includes(row.value))]
@@ -262,6 +265,11 @@ export const FIGHT: CombatAction = {
   group: 'attack',
   text: "Attack with a pilot weapon. Compare 10 + Grit with the target's Evasion. Use the flat damage on the weapon.",
 }
+export const PILOT_OVERWATCH: CombatAction = {
+  name: 'Overwatch',
+  activation: 'Reaction',
+  text: 'Name a pilot weapon and a target. If the target moves away from you before your next turn, you get a free attack with that weapon on your next turn.',
+}
 // What a pilot on foot can do, reusing the mech action objects. It throws if a name goes missing.
 const pick = (list: CombatAction[], name: string, activation?: string) => {
   const found = list.find((a) => a.name === name && (!activation || a.activation === activation))
@@ -276,9 +284,9 @@ export const PILOT_ACTIONS: CombatAction[] = [
   FIGHT,
   JOCKEY,
   IMPROVISED,
-  pick(REACTIONS, 'Overwatch'),
+  PILOT_OVERWATCH,
 ]
-export const DRONES_NOTE = 'Unless the system says otherwise: Size ½, HP 5, Evasion 10, E-defence 10 and armour 0.'
+export const DRONES_NOTE = 'Unless the system says otherwise: Size ½, HP 5, Evasion 10, E-defence 10 and armour 0. Note their location and HP at the end of each post.'
 export const SIZE_NOTE = 'Every frame has a Size on its sheet (½, 1, 2 or 3). Grapple compares Sizes.'
 
 export const WEAPON_SIZES: CombatRow[] = [
@@ -288,7 +296,7 @@ export const WEAPON_SIZES: CombatRow[] = [
   { value: 'Superheavy', text: "Takes up two mounts and needs a full action (Barrage) to fire. It can't be used with Skirmish or Overwatch." },
 ]
 // The tags the guide lists. Their names and wording come from the content editor.
-export const TAG_IDS = ['tg_accurate', 'tg_inaccurate', 'tg_ai', 'tg_ap', 'tg_arcing', 'tg_danger_zone', 'tg_heat_self', 'tg_knockback', 'tg_limited', 'tg_loading', 'tg_mod', 'tg_ordnance', 'tg_overkill', 'tg_overshield', 'tg_protocol', 'tg_reaction', 'tg_reliable', 'tg_seeking', 'tg_shield', 'tg_smart', 'tg_thrown', 'tg_unique']
+export const TAG_IDS = ['tg_accurate', 'tg_inaccurate', 'tg_ai', 'tg_ap', 'tg_arcing', 'tg_danger_zone', 'tg_heat_self', 'tg_heat_target', 'tg_knockback', 'tg_limited', 'tg_loading', 'tg_mod', 'tg_ordnance', 'tg_overkill', 'tg_overshield', 'tg_protocol', 'tg_reaction', 'tg_reliable', 'tg_seeking', 'tg_shield', 'tg_smart', 'tg_thrown', 'tg_unique', 'tg_sidearm', 'tg_archaic', 'tg_turn', 'tg_round', 'tg_unlimited', 'tg_grenade', 'tg_mine', 'tg_deployable', 'tg_drone', 'tg_pilot_weapon', 'tg_personal_armor', 'tg_gear']
 
 export const DICE: CombatRow[] = [
   { value: '1d3', text: '2 damage' },
@@ -308,14 +316,14 @@ const gists = (rows: { name?: string; value?: string; gist?: string }[], map: Re
 gists(TURN_STEPS, { Protocol: 'Turn on a protocol at the very start of your turn.', Movement: "Move using your mech's Speed.", '1 full': 'Take 1 full action.', '2 quick': 'Take 2 quick actions.', Overcharge: 'Gain 1 extra quick action for Heat.', Free: 'Free actions cost no action.', Reaction: 'Declare 1 reaction in advance.' })
 gists(SCENE_RESOURCES, { "Lancer's Edge": 'Add +2 to any attack, check or save.', "Lancer's Precision": 'Turn a hit into a critical hit.' })
 gists(QUICK_ACTIONS, {
-  Skirmish: 'Attack with 1 weapon.', Reload: 'Reload one Loading weapon or mount.', 'Lock on': 'Mark a target as Locked on.', Bolster: 'Give an ally +2 on their next check or save.',
+  Skirmish: 'Attack with 1 weapon.', Prepare: 'Ready a Quick action to take as a reaction.', Reload: 'Reload one Loading weapon or mount.', 'Lock on': 'Mark a target as Locked on.', Bolster: 'Give an ally +2 on their next check or save.',
   Hide: "Become Hidden if you're out of sight and not Engaged.", Search: 'Find a Hidden target.', Ram: 'Knock an adjacent target Prone.', Grapple: 'Hold an adjacent target in place.',
   'Skill check': 'Make a check when the GM calls for one.', 'Shut down': 'Clear all Heat and Exposed, then gain Shutdown.', Eject: 'Throw the pilot clear to Close range.',
   'Self-destruct': 'Your mech explodes at the end of your next turn.', Invade: 'Tech attack for 2 Heat plus a hacking effect.',
   Scan: 'Learn one thing about a target. No check needed.',
 })
 gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core power rules': "Use your frame's core power." })
-gists([IMPROVISED, JOCKEY, OVERCHARGE, FIGHT], { Fight: 'Attack with a pilot weapon.', 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })
+gists([IMPROVISED, JOCKEY, OVERCHARGE, FIGHT, PILOT_OVERWATCH], { Overwatch: 'Get a free attack on a target that moves away.', Fight: 'Attack with a pilot weapon.', 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })
 gists(REACTIONS, { Brace: 'Halve the next damaging attack on you.', Overwatch: 'Get a free attack on a target that moves away.', 'Reaction systems': 'Declare them at the end of your turn too.' })
 gists(STATUS_ROWS, {
   'Barrier-protected': 'Ranged attacks against you get −2.', Screened: 'Ranged attacks against you get −2.', Obscured: 'Attacks from beyond Close get −2. You can Hide.',

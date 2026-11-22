@@ -26,10 +26,11 @@ export function hasCoreContent(items: InstalledItem[]) {
   return required.every(([id, kind]) => items.some(item => item.id === id && item.kind === kind))
 }
 
-// Core is installed but lacks the seeded base actions (added after the first core import).
-// shortcut: only checks the actions kind, widen if more core kinds are added later.
-export function coreNeedsUpdate(items: InstalledItem[]) {
-  return hasCoreContent(items) && !items.some(item => item.kind === 'actions')
+// Core is installed but lacks some item the current core seed has (new official or base action items).
+// "seedIds" are the ids from coreContent, which is loaded on demand, so the caller passes them in.
+export function coreNeedsUpdate(items: InstalledItem[], seedIds: string[]) {
+  const have = new Set(items.map(item => item.id))
+  return hasCoreContent(items) && seedIds.some(id => !have.has(id))
 }
 
 export const MAX_LCP_BYTES = 15 * 1024 * 1024

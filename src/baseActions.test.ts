@@ -18,6 +18,13 @@ describe('base actions', () => {
     expect(BASE_ACTIONS.filter(a => a.pilot).map(a => a.name).sort()).toEqual(PILOT_ACTIONS.map(a => a.name).sort())
   })
 
+  it('give the pilot its own Overwatch, and keep Jockey off the mech', () => {
+    const overwatch = BASE_ACTIONS.filter(a => a.name === 'Overwatch')
+    expect(overwatch.map(a => [a.id, a.mech, a.pilot])).toEqual([['act_overwatch_reaction', true, false], ['act_overwatch_pilot', false, true]])
+    expect(BASE_ACTIONS.find(a => a.name === 'Jockey')).toMatchObject({ mech: false, pilot: true })
+    expect(BASE_ACTIONS.find(a => a.name === 'Prepare')).toMatchObject({ mech: true, pilot: false, activation: 'Quick', group: 'other' })
+  })
+
   it('drop hidden and nameless rows', () => {
     expect(toBaseAction('a', { name: 'Brace', hidden: true })).toBeNull()
     expect(toBaseAction('a', { name: ' ' })).toBeNull()
