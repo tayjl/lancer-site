@@ -63,7 +63,7 @@ Vue + Vite + **TypeScript**; **Supabase** (free tier: database, Discord login, s
 - **Readability and usability come first.** Terminal styling is flavour, not structure.
 - **One job per colour, never colour alone** (always a symbol or word too). Lilac = interactive only. Game meanings follow COMP/CON's conventions and colours.
 - **Left-align** read text, lists, tables; **centre** showcase things (hangar mechs, stat tiles, empty states).
-- **No dice:** damage is a flat number (dice mean rounded up), never labelled "average".
+- **No dice:** damage is a flat number (dice mean rounded up), never labelled "average". Never say "roll" on screen: "compare with" or "check against".
 - A pilot's `--pilot` colour is decoration only and is always read through `displayColour()`.
 - **Identity colour is equal on pilot and mech pages:** `--pilot` / `--mf` colour only the header, the section-title dashes and the stat tiles' top strip, nothing else (rule in [ui-principles.md](docs/claude/ui-principles.md)).
 - Use the CSS variables in `src/style.css`, never new hex values. Phone and desktop equally.

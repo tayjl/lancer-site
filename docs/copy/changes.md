@@ -49,7 +49,7 @@ Every audit entry that was changed or deleted, in audit order. Entries not liste
 | H-70 | Hunter II: Thrown 5 (or existing higher Thrown); thrown weapons return at end of turn. | Hunter II: Thrown 5. Thrown weapons return at end of turn. |
 | H-71 | {source}: +{expression} {damage type} damage (added before the flat conversion) | {Source}: +{expression} {damage type} damage |
 | H-73 | engineering: +{n} limited uses  /  {source}: +{n} limited uses | Engineering: +{n} limited uses / {Source}: +{n} limited uses |
-| H-74 | attack roll bonus: +{n} | Attack roll: +{n} |
+| H-74 | attack roll bonus: +{n} | Attack: +{n} (no "roll", 2026-11-22) |
 | H-75 | attack accuracy: +{n} (Auto-Stabilizing Hardpoints) (Tweaked Optics) | Accuracy: +{n} (Auto-Stabilizing Hardpoints) (Tweaked Optics) |
 | H-76 | Stripped reactor shielding: spend 2 Heat when attacking to use the alternate area pattern (conditional). | Stripped reactor shielding: Spend 2 Heat to use the alternate area pattern. |
 | H-77 | Overpower Caliber: +4 bonus damage on hit, once per round (not included in base damage). | Overpower Caliber: +4 damage on hit, once per round. Not in the damage above. |

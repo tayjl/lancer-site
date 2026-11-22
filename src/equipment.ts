@@ -125,7 +125,7 @@ export function equipmentDetails(item: Item, sheet: Sheet, bonuses: NamedBonus[]
   })
   const accuracy = bonuses.filter(entry => ['attack', 'melee'].includes(entry.bonus.id) && matches(entry, selected)).reduce((sum, entry) => sum + (entry.bonus.id !== 'melee' || selected.type === 'Melee' ? bonusValue(entry.bonus.accuracy, variables) ?? 0 : 0), 0)
   const attack = applicable(['attack']).reduce((sum, entry) => sum + entry.value, 0)
-  if (attack) sources.push(`Attack roll: ${attack >= 0 ? '+' : ''}${attack}`)
+  if (attack) sources.push(`Attack: ${attack >= 0 ? '+' : ''}${attack}`)
   const auto = location && !location.integrated && sheet.core_bonuses?.includes('cb_auto_stabilizing_hardpoints') && coreMounts.cb_auto_stabilizing_hardpoints === location.mount ? 1 : 0
   const optics = upgraded && options?.accuracy !== false ? 1 : 0
   if (accuracy + (auto || 0) + optics) sources.push(`Accuracy: +${accuracy + (auto || 0) + optics}${auto ? ' (Auto-Stabilizing Hardpoints)' : ''}${optics ? ' (Tweaked Optics)' : ''}`)

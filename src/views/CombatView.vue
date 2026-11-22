@@ -195,7 +195,7 @@ function build(on: boolean, trim: boolean, turnCards = on): TabContent[] {
     ]]],
     ['actions', [[...(turnCards ? [{ title: 'Your turn', icon: 'list', entries: turn.steps }, { title: 'Scene resources', icon: 'star', note: 'They reset every combat or scene.', entries: turn.resources }] : []), action('quick')], ['protocol', 'full', 'tech', 'free', 'reaction'].map(action)]],
     ['attacks', [[
-      { title: 'Attack rolls', icon: 'crosshair', data: data('f', ATTACK_FORMULAS) },
+      { title: 'Attack totals', icon: 'crosshair', data: data('f', ATTACK_FORMULAS) },
       { title: 'Results', icon: 'approved', note: RESULTS_NOTE, data: data('m', ATTACK_RESULTS) },
     ], [
       { title: 'Damage', icon: 'explosive', data: [...data('type', DAMAGE_TYPES), ...data('f', DAMAGE_FORMULAS)] },
@@ -347,7 +347,7 @@ const clear = () => {
                   </table>
                   <table v-if="ofKind(g, 'recharge').length" class="table">
                     <thead>
-                      <tr><th scope="col">Roll</th><th scope="col">Becomes</th></tr>
+                      <tr><th scope="col">Written as</th><th scope="col">Becomes</th></tr>
                     </thead>
                     <tbody>
                       <tr v-for="row in ofKind(g, 'recharge')" :key="row.value"><th scope="row">{{ row.value }}</th><td>{{ row.text }}</td></tr>

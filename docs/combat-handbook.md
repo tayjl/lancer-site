@@ -256,8 +256,9 @@ When your HP hits 0, you take **1 Structure damage** (resetting HP to full with 
 * **Down and Out (pilots):** A pilot at **0 HP**. They're **Stunned** and die if they take any more damage. An ally Engaged with them can use Stabilize's second choice to bring them back to **1 HP**.
 
 **Pilots on foot**
-* **Pilot stats:** **HP 6**, **E-Defense 10**, **Armor 0**, **Speed 4**, plus gear and talents (as on the pilot sheet). Pilots have no Evasion. *(Open: what attacks against a pilot on foot roll against.)*
+* **Pilot stats:** **HP 6**, **E-Defense 10**, **Armor 0**, **Speed 4**, plus gear and talents (as on the pilot sheet). Pilots have no Evasion.
 * **Pilot attacks:** **10 + Grit** against the target's Evasion. Use the flat damage on the pilot weapon.
+* **Attacks on a pilot:** Compare the attack with a flat **10**, plus any bonuses from gear or talents.
 * **Jockey (Full Action):** Climb onto a mech you're Engaged with: **10 + Grit** against the mech's **10 + Hull**. On a success, choose one each turn you stay on: **Distract** (Impaired and Slowed until the end of its next turn) • **Shred** (2 Heat) • **Damage** (4 Kinetic, ignores Armor). The mech can shake you off with a successful Hull check on its turn.
 * **Mech destroyed (Blow Up):** The pilot survives, thrown clear to **Close**, **Prone** and **Stunned** until the end of their next turn.
 * **Melt Down:** The reactor explodes at the **end of your next turn**, like Self-Destruct. The pilot must **Eject** before then or dies.

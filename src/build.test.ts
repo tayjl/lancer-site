@@ -55,7 +55,7 @@ describe('complete core character builds', () => {
     const resources = mechResources(sheet, effects)
     expect(resources).toMatchObject({ aiCap: 2, limited: 3, structureRepairs: 1, overcharge: '1 → 2 → 4 → 4' })
     const death = mechEffects({ frame: 'mf_deaths_head' }, {}, catalogue)
-    expect(equipmentDetails(weapons.get('mw_assault_rifle')!, {}, death.bonuses).sources).toContain('Attack roll: +1')
+    expect(equipmentDetails(weapons.get('mw_assault_rifle')!, {}, death.bonuses).sources).toContain('Attack: +1')
     expect(death.reminders.some(entry => entry.text.includes('first ranged attack'))).toBe(true)
   })
   it('adds the check supplement only when the frame’s data lacks it', () => {

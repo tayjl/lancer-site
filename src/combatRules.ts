@@ -72,14 +72,14 @@ export const QUICK_ACTIONS: CombatAction[] = [
   { name: 'Boost', activation: 'Quick', text: "Move again. Use it to cover more ground or reach a Speed gateway your Speed can't." },
   { name: 'Reload', activation: 'Quick', text: 'Reload one Loading weapon, or one mount holding Loading weapons.' },
   { name: 'Invade', activation: 'Invade', text: 'Make a tech attack against E-defence. On a hit, deal 2 Heat plus a hacking effect, such as Impaired or Slowed.' },
-  { name: 'Lock on', activation: 'Quick', text: 'Mark a target you can see as Locked on. No roll needed.' },
+  { name: 'Lock on', activation: 'Quick', text: 'Mark a target you can see as Locked on. No check needed.' },
   { name: 'Bolster', activation: 'Quick', text: 'Give an ally +2 (1 Accuracy) on their next check or save.' },
   { name: 'Hide', activation: 'Quick', text: "Become Hidden if you're out of direct sight, Obscured or Invisible, and not Engaged." },
   { name: 'Search', activation: 'Quick', text: 'Find a Hidden target. Compare your 10 + Systems with their 10 + Agility. On a tie, the hider may take 1 Heat to stay Hidden.' },
   { name: 'Ram', activation: 'Quick', text: 'Melee attack on an adjacent target. On a full hit or crit, knock them Prone and Knockback 1.' },
   { name: 'Grapple', activation: 'Quick', text: "Melee attack on an adjacent target. On a hit, a bigger mech holds a smaller one in place, and the smaller mech can't move on its own. Between mechs of the same size, the higher Hull is in control. Breaking free costs the grappled mech 1 quick action and 1 Heat." },
   { name: 'Quick tech', activation: 'Quick Tech', text: "Invade, Scan, Lock on, Bolster, or a system's own Quick Tech option." },
-  { name: 'Scan', activation: 'Quick Tech', text: 'No roll. Learn one thing about a target in Sensors range:<ul><li>Its HP, Structure and Heat.</li><li>Its defences.</li><li>Its weapons and systems.</li><li>Its statuses.</li></ul>' },
+  { name: 'Scan', activation: 'Quick Tech', text: 'No check needed. Learn one thing about a target in Sensors range:<ul><li>Its HP, Structure and Heat.</li><li>Its defences.</li><li>Its weapons and systems.</li><li>Its statuses.</li></ul>' },
   { name: 'Fragment signal', activation: 'Invade', text: 'The basic Invade option. On a full hack, the target is Impaired and Slowed until the end of its next turn. Other Invade options come from systems and talents.' },
   { name: 'Activate', activation: 'Quick', text: 'Use a system with the Quick tag.' },
   { name: 'Skill check', activation: 'Quick', text: 'Make a check for Hull, Agility, Systems or Engineering when the GM calls for one.' },
@@ -113,13 +113,13 @@ export const OVERCHARGE_LATER = `After the 4th use, the cost stays at ${OVERCHAR
 export const REACTIONS: CombatAction[] = [
   { name: 'Brace', activation: 'Reaction', text: "The first damaging attack on you before your next turn deals half damage and half Heat. On your next turn you can't take reactions or move, and you can take only 1 quick action (no full actions or Overcharge)." },
   { name: 'Overwatch', activation: 'Reaction', text: 'Name a Melee or CQB weapon (not Heavy) and a target. If that target moves away from you before your next turn, you get a free attack on them on your next turn.' },
-  { name: 'Reaction systems', activation: 'Reaction', text: 'Systems and talents with the Reaction tag that change a roll are declared at the end of your turn too. They add +2 (1 Accuracy) or −2 (1 Difficulty) to the roll when it happens.' },
+  { name: 'Reaction systems', activation: 'Reaction', text: 'Systems and talents with the Reaction tag that change a total are declared at the end of your turn too. They add +2 (1 Accuracy) or −2 (1 Difficulty) to the total when it happens.' },
 ]
 
 export const ATTACK_FORMULAS: CombatFormula[] = [
   { formula: 'Attack = 10 + Grit (or NPC bonus) + accuracy − difficulty', example: 'Grit 2, target Locked on: 10 + 2 + 2 = 14' },
   { formula: 'Tech attack = 10 + Tech attack + accuracy − difficulty', example: "Tech attack 1, you're Impaired: 10 + 1 − 2 = 9" },
-  { formula: '1 Accuracy = +2 · 1 Difficulty = −2', note: 'At most 2 of either on one roll (±4), from weapon tags, statuses and reactions combined.', example: 'Accurate weapon against a Prone target: 2 Accuracy, +4' },
+  { formula: '1 Accuracy = +2 · 1 Difficulty = −2', note: 'At most 2 of either on one attack or check (±4), from weapon tags, statuses and reactions combined.', example: 'Accurate weapon against a Prone target: 2 Accuracy, +4' },
 ]
 
 export const ATTACK_RESULTS: { margin: string; note?: string; physical: [string, string]; tech: [string, string] }[] = [
@@ -267,6 +267,7 @@ export const RANGE_TALENTS: CombatRow[] = [
 export const FOOT_RULES: CombatRow[] = [
   { value: 'Pilot stats', text: 'HP 6, E-defence 10, armour 0 and Speed 4, plus gear and talents as on the pilot sheet. Pilots have no Evasion.' },
   { value: 'Pilot attacks', text: "10 + Grit against the target's Evasion. Use the flat damage on the pilot weapon." },
+  { value: 'Attacks on a pilot', text: 'Compare the attack with a flat 10, plus any bonuses from gear or talents.' },
   { value: 'Mech destroyed', text: 'When your mech blows up, the pilot survives. They are thrown clear to Close range, Prone and Stunned until the end of their next turn.' },
   { value: 'Melt down', text: 'The reactor explodes at the end of your next turn, like Self-destruct. The pilot must Eject before then or dies.' },
 ]
@@ -330,7 +331,7 @@ gists(QUICK_ACTIONS, {
   Hide: "Become Hidden if you're out of sight and not Engaged.", Search: 'Find a Hidden target.', Ram: 'Knock an adjacent target Prone.', Grapple: 'Hold an adjacent target in place.',
   'Skill check': 'Make a check when the GM calls for one.', 'Shut down': 'Clear all Heat and Exposed, then gain Shutdown.', Eject: 'Throw the pilot clear to Close range.',
   'Self-destruct': 'Your mech explodes at the end of your next turn.', 'Quick tech': "Choose Invade, Scan, Lock on, Bolster or a system's option.", Invade: 'Tech attack for 2 Heat plus a hacking effect.',
-  'Fragment signal': 'The basic Invade option.', Scan: 'Learn one thing about a target. No roll.',
+  'Fragment signal': 'The basic Invade option.', Scan: 'Learn one thing about a target. No check needed.',
 })
 gists(FULL_ACTIONS, { Barrage: 'Attack with 2 weapons, or 1 Superheavy.', Disengage: 'Move without triggering Overwatch or Engagement.', 'Mount or dismount': 'Get into or out of a mech.', 'Full tech': "Take two Quick Tech actions, or a system's option.", 'Core Power': "Use your frame's core power." })
 gists([IMPROVISED, JOCKEY, OVERCHARGE], { 'Improvised attack': 'A melee attack that deals 4 kinetic damage.', Jockey: "Climb onto a mech you're Engaged with.", Overcharge: 'Gain 1 extra quick action for Heat.' })

@@ -21,6 +21,7 @@ Rules will keep changing. To change one:
 | One frame, weapon, system or talent | Not code: owners edit it in the content editor (Content tab) |
 
 ## 2026-11-22
+- **Never say "roll" on screen** (no dice). Say "compare with" or "check against".
 - **The combat guide follows the developer's handbook**, [combat-handbook.md](combat-handbook.md): diceless, mapless, for text posts. Change the handbook first, then `src/combatRules.ts`.
 - **Dice convert by rounding up, everywhere**, the combat handbook included (1d3 = 2, 1d6 = 4, 2d6 = 7, 3d6 = 11). The handbook's own "1d6 = 3" was overruled.
 - **Overcharge costs 1 → 2 → 4 → 6 Heat**, and stays at 6 after the 4th use, until a Full Repair. This is the default on the mech page too (`mechResources()`). A frame or talent's own steps replace it.
@@ -29,7 +30,7 @@ Rules will keep changing. To change one:
 - **Lock On and Bolster are Quick actions**, as the handbook says.
 - **Section 9 of the handbook** (core-book rules adapted by Claude at the developer's request) is adopted. Balance calls made there that the developer hasn't confirmed: the defender picks which part Structure 2 destroys, Obscured gives −2 only beyond Close, and Self-Destruct allows a DC 14 Agility save for half.
 - **Grit** is half the licence level, rounded up. It's used in attack totals (handbook formula). Mech stats still don't add it.
-- **Open:** what attacks against a pilot on foot target, since pilots have no Evasion.
+- **Attacks against a pilot on foot are compared with a flat 10**, plus bonuses from gear or talents. **10 is the base DC for everything**, changed by stats and bonuses where they apply.
 
 ## 2026-11-21
 - **Starting manna is 2000.**
@@ -47,4 +48,3 @@ Rules will keep changing. To change one:
 
 ## Still open
 - Starting pilot stats and starting level (CLAUDE.md, Open questions).
-- Attacks against pilots on foot (see 2026-11-22).
