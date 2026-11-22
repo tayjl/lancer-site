@@ -190,6 +190,7 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
 }
 
 .group-sub {
+  max-width: none; /* the rule runs the full column, wide or narrow */
   margin: 0;
   padding: var(--space-s) var(--space-m);
   border-bottom: 1px solid var(--rule);

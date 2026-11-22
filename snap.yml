@@ -1,0 +1,286 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - 'link "HOR_OS: home" [ref=f1e6] [cursor=pointer]':
+        - /url: /
+        - generic [aria-hidden] [ref=f1e7]: ▄█ ▄██▄ █▄ ▄▄███ ▀██▀ ███▄▄ ▄████████▄ ▄████████▄ ▀██████████████████████████▀ ▀▀██████████████████▀▀ ▀██████████▀ ████████ ▀██████▀ ▀████▀ ████ ██ ██
+      - generic [ref=f1e8]:
+        - button "Disconnect" [ref=f1e9] [cursor=pointer]
+        - button "Menu" [ref=f1e10] [cursor=pointer]
+  - main [ref=f1e11]:
+    - generic [ref=f1e13]:
+      - heading "Combat" [level=1] [ref=f1e14]
+      - paragraph [ref=f1e15]: What you can do on your turn, and the rules to look up.
+    - generic [ref=f1e16]:
+      - generic [ref=f1e17]:
+        - generic [ref=f1e18]:
+          - generic [ref=f1e19]: Viewing as
+          - radiogroup "Viewing as" [ref=f1e20]:
+            - generic [ref=f1e21] [cursor=pointer]:
+              - radio "Mech" [checked] [ref=f1e22]
+              - text: Mech
+            - generic [ref=f1e23] [cursor=pointer]:
+              - radio "Pilot" [ref=f1e24]
+              - text: Pilot
+        - generic [ref=f1e26]:
+          - generic [ref=f1e27]: Search
+          - searchbox "Search" [ref=f1e28]
+      - complementary "Your mech" [ref=f1e29]:
+        - heading "Your mech" [level=2] [ref=f1e30]
+        - generic [ref=f1e31]:
+          - generic [ref=f1e32]:
+            - generic [ref=f1e33]:
+              - generic [ref=f1e34]: Mech
+              - combobox "Mech" [ref=f1e35]:
+                - option "Lodestar" [selected]
+                - option "Bare Bones"
+            - paragraph [ref=f1e36]:
+              - text: "Frame:"
+              - 'button "Full information: GMS Everest" [ref=f1e37] [cursor=pointer]': GMS Everest
+          - list "Lodestar's stats" [ref=f1e38]:
+            - listitem [ref=f1e39]:
+              - generic [ref=f1e40]: "4"
+              - generic [ref=f1e43]: Structure
+            - listitem [ref=f1e44]:
+              - generic [ref=f1e45]: "4"
+              - generic [ref=f1e48]: Stress
+            - listitem [ref=f1e49]:
+              - generic [ref=f1e50]: "10"
+              - generic [ref=f1e53]: HP
+            - listitem [ref=f1e54]:
+              - generic [ref=f1e55]: "6"
+              - generic [ref=f1e58]: Heat cap
+            - listitem [ref=f1e59]:
+              - generic [ref=f1e60]: "0"
+              - generic [ref=f1e63]: Armour
+            - listitem [ref=f1e64]:
+              - generic [ref=f1e65]: "8"
+              - generic [ref=f1e68]: Evasion
+            - listitem [ref=f1e69]:
+              - generic [ref=f1e70]: "8"
+              - generic [ref=f1e73]: E-defence
+            - listitem [ref=f1e74]:
+              - generic [ref=f1e75]: "0"
+              - generic [ref=f1e78]: Tech attack
+            - listitem [ref=f1e79]:
+              - generic [ref=f1e80]: "4"
+              - generic [ref=f1e83]: Speed
+            - listitem [ref=f1e84]:
+              - generic [ref=f1e85]: "5"
+              - generic [ref=f1e88]: Repair cap
+            - listitem [ref=f1e89]:
+              - generic [ref=f1e90]: "1"
+              - generic [ref=f1e93]: Size
+            - listitem [ref=f1e94]:
+              - generic [ref=f1e95]: "0"
+              - generic [ref=f1e98]: Grit
+      - region "Your turn" [ref=f1e99]:
+        - heading "Your turn" [level=2] [ref=f1e100]
+        - list "Your turn" [ref=f1e101]:
+          - listitem [ref=f1e102]:
+            - button "Protocol" [ref=f1e104] [cursor=pointer]
+          - listitem [ref=f1e108]:
+            - button "Movement" [ref=f1e110] [cursor=pointer]
+          - listitem [ref=f1e114]:
+            - group "1 full or 2 quick" [ref=f1e115]:
+              - button "1 full" [ref=f1e116] [cursor=pointer]
+              - generic [aria-hidden]: or
+              - button "2 quick" [pressed] [ref=f1e120] [cursor=pointer]
+          - listitem [ref=f1e124]:
+            - button "Overcharge" [ref=f1e126] [cursor=pointer]
+          - listitem [ref=f1e130]:
+            - button "Free" [ref=f1e132] [cursor=pointer]
+          - listitem [ref=f1e136]:
+            - button "Reaction" [ref=f1e138] [cursor=pointer]
+        - region "2 quick" [ref=f1e142]:
+          - paragraph [ref=f1e143]: Take 2 different quick actions, or 1 full action instead.
+          - generic [ref=f1e144]:
+            - region "Attacks" [ref=f1e145]:
+              - generic [ref=f1e146]:
+                - heading "Attacks" [level=3] [ref=f1e148]
+                - generic [ref=f1e149]: Quick
+              - list [ref=f1e152]:
+                - listitem [ref=f1e153]:
+                  - button "Skirmish" [ref=f1e154] [cursor=pointer]
+                - listitem [ref=f1e156]:
+                  - button "Ram" [ref=f1e157] [cursor=pointer]
+                - listitem [ref=f1e159]:
+                  - button "Grapple" [ref=f1e160] [cursor=pointer]
+            - region "Tech" [ref=f1e162]:
+              - generic [ref=f1e163]:
+                - heading "Tech" [level=3] [ref=f1e165]
+                - generic [ref=f1e166]: Quick tech
+              - list [ref=f1e169]:
+                - listitem [ref=f1e170]:
+                  - button "Invade" [ref=f1e171] [cursor=pointer]
+                - listitem [ref=f1e173]:
+                  - button "Lock on" [ref=f1e174] [cursor=pointer]
+                - listitem [ref=f1e176]:
+                  - button "Bolster" [ref=f1e177] [cursor=pointer]
+                - listitem [ref=f1e179]:
+                  - button "Scan" [ref=f1e180] [cursor=pointer]
+            - region "Other" [ref=f1e182]:
+              - generic [ref=f1e183]:
+                - heading "Other" [level=3] [ref=f1e185]
+                - generic [ref=f1e186]: Quick
+              - list [ref=f1e189]:
+                - listitem [ref=f1e190]:
+                  - button "Reload" [ref=f1e191] [cursor=pointer]
+                - listitem [ref=f1e193]:
+                  - button "Hide" [ref=f1e194] [cursor=pointer]
+                - listitem [ref=f1e196]:
+                  - button "Search" [ref=f1e197] [cursor=pointer]
+                - listitem [ref=f1e199]:
+                  - button "Activate" [ref=f1e200] [cursor=pointer]
+                - listitem [ref=f1e202]:
+                  - button "Skill check" [ref=f1e203] [cursor=pointer]
+                - listitem [ref=f1e205]:
+                  - button "Shut down" [ref=f1e206] [cursor=pointer]
+                - listitem [ref=f1e208]:
+                  - button "Eject" [ref=f1e209] [cursor=pointer]
+                - listitem [ref=f1e211]:
+                  - button "Self-destruct" [ref=f1e212] [cursor=pointer]
+            - region "Your kit" [ref=f1e214]:
+              - generic [ref=f1e215]:
+                - heading "Your kit" [level=3] [ref=f1e217]
+                - generic [ref=f1e218]: Quick
+              - paragraph [ref=f1e219]: No kit actions.
+      - region "01 Your kit" [ref=f1e220]:
+        - heading [level=2] [ref=f1e222]:
+          - button "01 Your kit" [expanded] [ref=f1e223] [cursor=pointer]:
+            - generic [ref=f1e225]: "01"
+            - text: Your kit
+        - generic [ref=f1e226]:
+          - region "Frame" [ref=f1e229]:
+            - generic [ref=f1e230]:
+              - heading "Frame" [level=3] [ref=f1e232]
+              - generic [ref=f1e233]: GMS Everest
+            - generic [ref=f1e234]:
+              - generic [ref=f1e235]:
+                - paragraph [ref=f1e236]: Traits
+                - list [ref=f1e237]:
+                  - listitem [ref=f1e238]:
+                    - button "Initiative" [ref=f1e239] [cursor=pointer]
+                  - listitem [ref=f1e241]:
+                    - button "Replaceable Parts" [ref=f1e242] [cursor=pointer]
+              - generic [ref=f1e244]:
+                - paragraph [ref=f1e245]: Core system
+                - list [ref=f1e246]:
+                  - listitem [ref=f1e247]:
+                    - button "Boost (Hyperspec Fuel Injector) Free" [ref=f1e248] [cursor=pointer]:
+                      - generic [ref=f1e249]: Boost (Hyperspec Fuel Injector)
+                      - generic [ref=f1e250]: Free
+              - generic [ref=f1e252]:
+                - paragraph [ref=f1e253]: Core power
+                - list [ref=f1e254]:
+                  - listitem [ref=f1e255]:
+                    - button "Power Up Protocol" [ref=f1e256] [cursor=pointer]:
+                      - generic [ref=f1e257]: Power Up
+                      - generic [ref=f1e258]: Protocol
+          - region "Weapons" [ref=f1e262]:
+            - heading "Weapons" [level=3] [ref=f1e265]
+            - generic [ref=f1e266]:
+              - generic [ref=f1e267]:
+                - paragraph [ref=f1e268]: Mount 1 · Main
+                - list [ref=f1e269]:
+                  - listitem [ref=f1e270]:
+                    - button "Assault Rifle" [ref=f1e271] [cursor=pointer]
+              - generic [ref=f1e273]:
+                - paragraph [ref=f1e274]: Mount 2 · Flex
+                - list [ref=f1e275]:
+                  - listitem [ref=f1e276]:
+                    - button "Missile Rack" [ref=f1e277] [cursor=pointer]
+          - generic [ref=f1e280]:
+            - region "Systems" [ref=f1e281]:
+              - heading "Systems" [level=3] [ref=f1e284]
+              - paragraph [ref=f1e285]: None.
+            - region "Pilot gear" [ref=f1e286]:
+              - heading "Pilot gear" [level=3] [ref=f1e289]
+              - paragraph [ref=f1e290]: None.
+            - region "Talents" [ref=f1e291]:
+              - heading "Talents" [level=3] [ref=f1e294]
+              - paragraph [ref=f1e295]: None.
+            - region "Core bonuses" [ref=f1e296]:
+              - heading "Core bonuses" [level=3] [ref=f1e299]
+              - paragraph [ref=f1e300]: None.
+      - region "02 Tags and statuses" [ref=f1e301]:
+        - heading [level=2] [ref=f1e303]:
+          - button "02 Tags and statuses" [expanded] [ref=f1e304] [cursor=pointer]:
+            - generic [ref=f1e306]: "02"
+            - text: Tags and statuses
+        - generic [ref=f1e307]:
+          - generic [ref=f1e308] [cursor=pointer]:
+            - checkbox "Show all tags" [ref=f1e309]
+            - text: Show all tags
+          - generic [ref=f1e311]:
+            - region "Tags on your gear" [ref=f1e312]:
+              - heading "Tags on your gear" [level=3] [ref=f1e315]
+              - list [ref=f1e318]:
+                - listitem [ref=f1e319]:
+                  - button "Loading" [ref=f1e320] [cursor=pointer]
+                - listitem [ref=f1e322]:
+                  - button "Protocol" [ref=f1e323] [cursor=pointer]
+                - listitem [ref=f1e325]:
+                  - button "Reliable X" [ref=f1e326] [cursor=pointer]
+            - region "Weapon sizes on your gear" [ref=f1e328]:
+              - heading "Weapon sizes on your gear" [level=3] [ref=f1e331]
+              - list [ref=f1e334]:
+                - listitem [ref=f1e335]:
+                  - button "Auxiliary" [ref=f1e336] [cursor=pointer]
+                - listitem [ref=f1e338]:
+                  - button "Main" [ref=f1e339] [cursor=pointer]
+          - generic [ref=f1e342]:
+            - region "Cover and stealth" [ref=f1e343]:
+              - heading "Cover and stealth" [level=3] [ref=f1e346]
+              - list [ref=f1e349]:
+                - listitem [ref=f1e350]:
+                  - button "Barrier-protected" [ref=f1e351] [cursor=pointer]
+                - listitem [ref=f1e353]:
+                  - button "Screened" [ref=f1e354] [cursor=pointer]
+                - listitem [ref=f1e356]:
+                  - button "Obscured" [ref=f1e357] [cursor=pointer]
+                - listitem [ref=f1e359]:
+                  - button "Hidden" [ref=f1e360] [cursor=pointer]
+                - listitem [ref=f1e362]:
+                  - button "Invisible" [ref=f1e363] [cursor=pointer]
+                - listitem [ref=f1e365]:
+                  - button "Intangible" [ref=f1e366] [cursor=pointer]
+            - region "Conditions" [ref=f1e368]:
+              - heading "Conditions" [level=3] [ref=f1e371]
+              - list [ref=f1e374]:
+                - listitem [ref=f1e375]:
+                  - button "Immobilized" [ref=f1e376] [cursor=pointer]
+                - listitem [ref=f1e378]:
+                  - button "Impaired" [ref=f1e379] [cursor=pointer]
+                - listitem [ref=f1e381]:
+                  - button "Jammed" [ref=f1e382] [cursor=pointer]
+                - listitem [ref=f1e384]:
+                  - button "Lock on" [ref=f1e385] [cursor=pointer]
+                - listitem [ref=f1e387]:
+                  - button "Shredded" [ref=f1e388] [cursor=pointer]
+                - listitem [ref=f1e390]:
+                  - button "Slowed" [ref=f1e391] [cursor=pointer]
+                - listitem [ref=f1e393]:
+                  - button "Stunned" [ref=f1e394] [cursor=pointer]
+            - region "Other statuses" [ref=f1e396]:
+              - heading "Other statuses" [level=3] [ref=f1e399]
+              - list [ref=f1e402]:
+                - listitem [ref=f1e403]:
+                  - button "Burn X" [ref=f1e404] [cursor=pointer]
+                - listitem [ref=f1e406]:
+                  - button "Danger zone" [ref=f1e407] [cursor=pointer]
+                - listitem [ref=f1e409]:
+                  - button "Down and out (pilot status)" [ref=f1e410] [cursor=pointer]
+                - listitem [ref=f1e412]:
+                  - button "Engaged" [ref=f1e413] [cursor=pointer]
+                - listitem [ref=f1e415]:
+                  - button "Exposed" [ref=f1e416] [cursor=pointer]
+                - listitem [ref=f1e418]:
+                  - button "Prone" [ref=f1e419] [cursor=pointer]
+                - listitem [ref=f1e421]:
+                  - button "Shutdown" [ref=f1e422] [cursor=pointer]
+      - region "03 Rules" [ref=f1e424]:
+        - heading [level=2] [ref=f1e426]:
+          - button "03 Rules" [ref=f1e427] [cursor=pointer]:
+            - generic [ref=f1e429]: "03"
+            - text: Rules

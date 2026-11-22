@@ -4,6 +4,7 @@ import { cardRules, itemDetails, type ItemRule, type ItemStat } from './itemDeta
 import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type ReminderKind } from './mechData'
 import type { MechPrivate, Sheet } from './myPilot'
 import { selectWeaponProfile } from './equipment'
+import { bracingMount } from './rules'
 import { capitalise } from './text'
 
 // What a pilot can use in a fight, for the combat guide's "Your loadout": the chosen mech's weapons and systems, the
@@ -22,6 +23,7 @@ export type LoadoutRow = {
   rules: ItemRule[]
   mods: { name: string; html: string; tags: string[]; item: Item }[]
   item?: Item
+  mount?: { index: number | null; type: string } // weapons rows only: null index means built in
 }
 
 const BLOCK_OF: Partial<Record<string, LoadoutBlock>> = { frame: 'frame', trait: 'frame', core: 'frame', 'core-power': 'frame', talent: 'talents', 'core-bonus': 'core-bonuses' }
@@ -49,6 +51,7 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
   if (frame) {
     const mods = new Map(fittedMods(details, frame))
     const weapon = (id: string, key: string, builtIn = false) => {
+      const m = builtIn ? null : Number(key.split(':')[0])
       const base = catalogueItem(catalogue.weapons, catalogue, id)
       if (!base) return
       const item = selectWeaponProfile(base, details.weapon_options?.[key]?.profile ?? 0)
@@ -61,7 +64,10 @@ export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: Eff
         tagIds.add('tg_mod')
         row.mods.push({ name: mod.name, html: text, tags, item: mod })
       }
-      if (item.mount) sizes.add(item.mount)
+      if (item.mount) {
+        sizes.add(item.mount)
+        row.mount = { index: m, type: m === null ? '' : frame.mounts[m] ?? '' }
+      }
       rows.push(row)
     }
     for (const id of frame.integrated) weapon(id, `integrated:${id}`, true)
@@ -102,3 +108,21 @@ const catalogueItem = (own: Map<string, Item>, catalogue: EffectCatalogue, id: s
 const FRAME_GROUPS = [['trait', 'Traits'], ['core', 'Core system'], ['core-power', 'Core power'], ['frame', 'Overcharge']] as const
 export const frameGroups = <T extends { kind?: string }>(rows: T[]) =>
   FRAME_GROUPS.map(([kind, title]) => ({ title, rows: rows.filter(row => row.kind === kind) })).filter(group => group.rows.length)
+
+// The Weapons card's rows, one group per mount that holds a weapon, then the built-in ones. A Superheavy weapon's title
+// names the empty mount that braces it.
+export function weaponGroups(rows: LoadoutRow[], frame: Frame | null) {
+  const groups: { title: string; sub?: string; rows: LoadoutRow[] }[] = []
+  if (!frame) return groups
+  const weapons = rows.filter(row => row.block === 'weapons' && row.mount)
+  const held = frame.mounts.map((_, k) => (weapons.some(row => row.mount!.index === k) ? ['x'] : []))
+  frame.mounts.forEach((type, k) => {
+    const here = weapons.filter(row => row.mount!.index === k)
+    if (!here.length) return
+    const brace = here.some(row => row.item?.mount === 'Superheavy') ? bracingMount(frame.mounts, held.map((h, j) => (j === k ? h : [])), k) : -1
+    groups.push({ title: brace < 0 ? `Mount ${k + 1}` : `Mounts ${Math.min(k, brace) + 1} and ${Math.max(k, brace) + 1}`, sub: type || undefined, rows: here })
+  })
+  const built = weapons.filter(row => row.mount!.index === null)
+  if (built.length) groups.push({ title: 'Integrated', rows: built })
+  return groups
+}

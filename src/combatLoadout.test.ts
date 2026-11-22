@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { coreContent } from './coreContent'
-import { combatLoadout, frameGroups } from './combatLoadout'
+import { combatLoadout, frameGroups, weaponGroups } from './combatLoadout'
 import { actionKey, stepActions, type KitAction } from './combatEntries'
 import { toItem, type Item } from './gameData'
 import type { EffectCatalogue, Frame } from './mechData'
@@ -71,5 +71,27 @@ describe('frameGroups', () => {
     expect(groups.map(group => group.title)).toEqual(['Traits', 'Core power', 'Overcharge'])
     expect(groups[1].rows[0].activation).toBe('Protocol')
     expect(groups[0].rows.map(row => row.name)).toEqual(['A', 'B'])
+  })
+})
+
+describe('weaponGroups', () => {
+  const builtIn = [...weapons.keys()].find(id => id !== 'mw_assault_rifle' && id !== 'mw_missile_rack' && weapons.get(id)!.mount)!
+  const frame: Frame = { ...everest, mounts: ['Main', 'Flex', 'Heavy', 'Main'], integrated: [builtIn] }
+  const mounts = [['mw_assault_rifle'], ['mw_missile_rack', 'mw_missile_rack'], ['mw_assault_rifle'], []]
+  const rows = () => combatLoadout({ frame: frame.id, mounts }, {}, { ...catalogue, frames: [frame] }, tagNames).rows
+
+  it('groups by mount in order, skips empty mounts and puts integrated last', () => {
+    const groups = weaponGroups(rows(), frame)
+    expect(groups.map(g => [g.title, g.sub, g.rows.length])).toEqual([['Mount 1', 'Main', 1], ['Mount 2', 'Flex', 2], ['Mount 3', 'Heavy', 1], ['Integrated', undefined, 1]])
+  })
+  it('ignores rows that are not weapons and keeps a weapon mod', () => {
+    const all = rows()
+    all.find(row => row.mount?.index === 0)!.mods.push({ name: 'Mod', html: '', tags: [], item: all[0].item! })
+    const groups = weaponGroups(all, frame)
+    expect(groups.flatMap(g => g.rows).every(row => row.block === 'weapons')).toBe(true)
+    expect(groups[0].rows[0].mods).toHaveLength(1)
+  })
+  it('returns nothing without a frame', () => {
+    expect(weaponGroups(rows(), null)).toEqual([])
   })
 })
