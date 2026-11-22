@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { catalogueError } from '../catalogue'
-import { turnEntries } from '../combatEntries'
 import { frameInfo } from '../info'
 import type { Frame } from '../mechData'
 import type { PublicMech } from '../pilots'
-import CombatGroup from './CombatGroup.vue'
 import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 
-// The combat guide's summary of your turn: your mech with its key numbers (in Pilot mode, your pilot with theirs), then
-// the turn's steps and the scene resources. On a desktop it's a column beside the tabs; on a phone the mech sits on "Your kit" and the rules on
-// "Actions" (the .on-* classes), and the rules hide while searching (their rows are found in the Actions tab then).
+// The combat guide's summary: your mech with its key numbers (in Pilot mode, your pilot with theirs), full width above the turn strip.
 type Vital = { id: string; name: string; icon?: string; value: number | null }
 const props = defineProps<{
   loading: boolean
@@ -25,19 +21,14 @@ const props = defineProps<{
   frame: Frame | null
   frames: Frame[]
   vitals: Vital[]
-  overcharge: string | null
-  tab: string
-  searching: boolean
 }>()
 const emit = defineEmits<{ chooseMech: [id: string]; retry: [] }>()
 const shown = computed(() => props.vitals.filter((vital) => vital.value !== null))
-const speed = computed(() => props.vitals.find((vital) => vital.id === 'speed' || vital.id === 'pilot_speed')?.value ?? null)
-const turn = computed(() => turnEntries(speed.value, props.overcharge, props.mode === 'pilot'))
 </script>
 
 <template>
-  <aside class="turn" :class="{ 'on-kit': tab === 'kit' && !searching, 'on-actions': tab === 'actions' && !searching, searching }" aria-label="Your turn">
-    <h2 class="sr-only">Your turn</h2>
+  <aside class="turn" :aria-label="mode === 'pilot' ? 'Your pilot' : 'Your mech'">
+    <h2 class="sr-only">{{ mode === 'pilot' ? 'Your pilot' : 'Your mech' }}</h2>
     <div class="turn-mech">
       <p v-if="loading" class="dim" role="status">Loading…</p>
       <template v-else-if="loadError">
@@ -70,17 +61,12 @@ const turn = computed(() => turnEntries(speed.value, props.overcharge, props.mod
         </ul>
       </template>
     </div>
-    <div class="turn-rules">
-      <CombatGroup title="Your turn" icon="list" :entries="turn.steps" gist />
-      <CombatGroup title="Scene resources" icon="star" note="They reset every combat or scene." :entries="turn.resources" gist />
-    </div>
   </aside>
 </template>
 
 <style scoped>
 .turn,
-.turn-mech,
-.turn-rules {
+.turn-mech {
   display: grid;
   align-content: start;
   gap: var(--space-m);
@@ -163,22 +149,5 @@ const turn = computed(() => turnEntries(speed.value, props.overcharge, props.mod
   color: var(--text-dim);
   font: 700 var(--fs-xs) / 1.2 var(--sans);
   text-transform: uppercase;
-}
-
-/* Searching finds the turn's rows in the Actions tab, so the column keeps only the mech. */
-.searching .turn-rules {
-  display: none;
-}
-
-/* Phones and tablets: the mech shows on Your kit, the rules on Actions, nothing else. */
-@media (max-width: 63.999rem) {
-  .turn:not(.on-kit):not(.on-actions) {
-    display: none;
-  }
-
-  .turn:not(.on-kit) .turn-mech,
-  .turn:not(.on-actions) .turn-rules {
-    display: none;
-  }
 }
 </style>

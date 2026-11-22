@@ -1,6 +1,6 @@
 import type { Info } from './info'
-import type { ItemStat } from './itemDetails'
-import { OVERCHARGE_HEAT, SCENE_RESOURCES, TURN_STEPS, type CombatAction, type CombatRow } from './combatRules'
+import { activationOf, type ItemStat } from './itemDetails'
+import { FULL_ACTIONS, IMPROVISED, JOCKEY, OVERCHARGE, OVERCHARGE_HEAT, OVERCHARGE_LATER, PILOT_ACTIONS, QUICK_ACTIONS, REACTIONS, SCENE_RESOURCES, TURN_STEPS, type ActionGroup, type CombatAction, type CombatRow } from './combatRules'
 import { plainText } from './rulesText'
 
 // One row of a combat guide card (CombatGroup.vue). With "info" it's a button that opens the full information; "plain"
@@ -67,3 +67,37 @@ export const entryInfo = (entry: CombatEntry, kind: string): Info =>
     stats: [],
     groups: [{ cards: [{ heading: '', html: entry.text ?? '', activation: entry.activation }] }],
   }
+
+// Which kind of action an activation is: its chip colour, with Overcharge and a power with no chip (Core Power) as 'free'.
+export const actionKey = (activation?: string) => {
+  const colour = activationOf(activation)?.colour
+  return !colour || colour === 'overcharge' ? 'free' : colour
+}
+
+// One turn step's actions as titled groups, empty ones left out. Kit actions are your gear's own (a system's, a talent's).
+// "overcharge" is your mech's Heat cost text, when it has a frame.
+export type KitAction = CombatEntry & { key: string; block: string }
+const GROUPS: [ActionGroup, string][] = [['attack', 'Attacks'], ['move', 'Movement'], ['tech', 'Tech'], ['systems', 'Systems'], ['mech', 'Your mech']]
+export function stepActions(stepName: string, kitActions: KitAction[], pilot = false, overcharge: string | null = null): { title: string; entries: CombatEntry[] }[] {
+  const general: CombatAction[] = pilot ? PILOT_ACTIONS : [...QUICK_ACTIONS, ...FULL_ACTIONS, IMPROVISED, JOCKEY, OVERCHARGE, ...REACTIONS]
+  // A pilot on foot only has the actions on their gear.
+  const kit = (...keys: string[]) => kitActions.filter((e) => keys.includes(e.key) && (!pilot || e.block === 'gear'))
+  const entry = (a: CombatAction) =>
+    a === OVERCHARGE ? { ...actionEntry(a), heat: overcharge ?? OVERCHARGE_HEAT.join(' → '), text: `${a.text}<br>${OVERCHARGE_LATER}` } : actionEntry(a)
+  const keyed = (key: string) => general.filter((a) => actionKey(a.activation) === key && !a.group).map(entry)
+  const named = (...names: string[]) => general.filter((a) => names.includes(a.name)).map(entry)
+  const groups = (list: { title: string; entries: CombatEntry[] }[]) => list.filter((g) => g.entries.length)
+
+  switch (stepName) {
+    case 'Protocol': return groups([{ title: 'Protocols', entries: kit('protocol') }])
+    case 'Movement': return groups([{ title: 'Movement', entries: named('Boost', 'Disengage') }])
+    case 'Overcharge': return groups([{ title: 'Overcharge', entries: general.filter((a) => a === OVERCHARGE).map(entry) }])
+    case 'Free': return groups([{ title: 'Free actions', entries: [...keyed('free').filter((e) => e.name !== OVERCHARGE.name), ...kit('free')] }])
+    case 'Reaction': return groups([{ title: 'Reactions', entries: [...keyed('reaction'), ...kit('reaction')] }])
+    case '1 full action or 2 quick actions': return groups([
+      ...GROUPS.map(([group, title]) => ({ title, entries: general.filter((a) => a.group === group).map(entry) })),
+      { title: 'Your kit', entries: kit('quick', 'full', 'tech') },
+    ])
+    default: return []
+  }
+}
