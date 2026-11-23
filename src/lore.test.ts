@@ -43,10 +43,10 @@ describe('kinds', () => {
 
 describe('file look', () => {
   it('turns a title into a file name', () => {
-    expect(fileName('The Karrakin Ledger!')).toBe('the_karrakin_ledger.txt')
-    expect(fileName('  --A  b-- ')).toBe('a_b.txt')
-    expect(fileName('!!!')).toBe('untitled.txt')
-    expect(fileName('')).toBe('untitled.txt')
+    expect(fileName('The Karrakin Ledger!')).toBe('the_karrakin_ledger.omnif')
+    expect(fileName('  --A  b-- ')).toBe('a_b.omnif')
+    expect(fileName('!!!')).toBe('untitled.omnif')
+    expect(fileName('')).toBe('untitled.omnif')
   })
 
   it('shows the size in b under 1000 characters, else k', () => {

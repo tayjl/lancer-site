@@ -42,8 +42,8 @@ export function loreMatches(entry: Pick<LoreEntry, 'title' | 'summary' | 'body'>
   return words.every((word) => text.includes(word))
 }
 
-// Pithub's file look: "The Karrakin Ledger!" -> "the_karrakin_ledger.txt".
-export const fileName = (title: string) => `${title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '') || 'untitled'}.txt`
+// Pithub's file look: "The Karrakin Ledger!" -> "the_karrakin_ledger.omnif".
+export const fileName = (title: string) => `${title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '') || 'untitled'}.omnif`
 
 // Body length as "812b" under 1000 characters, else "2.1k".
 export function fileSize(body: unknown) {
