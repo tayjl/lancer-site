@@ -192,7 +192,7 @@ watch(id, async (now, was) => {
         <div class="search">
           <label class="grep">
             <span class="sr-only">Search</span>
-            <span aria-hidden="true"><span class="who">&gt;//</span> run ./pit/grep</span>
+            <span aria-hidden="true"><span class="who">&gt;//</span> run ./pit/query</span>
             <input ref="searchBox" v-model="query" type="search" placeholder="Title or text" @keydown.esc="query = ''" />
           </label>
           <button v-if="query" type="button" class="option" @click="clear">Clear</button>
@@ -203,7 +203,7 @@ watch(id, async (now, was) => {
       <p v-if="!(loaded && !error && !entries.length)" class="divider" aria-hidden="true">{{ shade }}</p>
       <p v-if="newError" role="alert" class="err">Not saved: {{ newError }}</p>
 
-      <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./pit/ls -la<template v-if="query.trim()"> | grep "{{ query.trim() }}"</template></p>
+      <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./pit/ls -la<template v-if="query.trim()"> | query "{{ query.trim() }}"</template></p>
 
       <section class="frame">
         <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">/pit/files</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
@@ -500,7 +500,7 @@ watch(id, async (now, was) => {
   column-gap: 2ch;
   align-items: baseline;
   min-height: var(--tap);
-  padding: 4px 0 4px 2ch;
+  padding: 4px 0 4px var(--space-s); /* lines up with the count line below */
   color: var(--text-dim);
   text-decoration: none;
 }
