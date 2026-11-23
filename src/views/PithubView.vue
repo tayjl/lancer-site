@@ -129,17 +129,17 @@ watch(id, async (now, was) => {
 <template>
   <main class="pit">
     <header class="pit-head">
-      <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">HORUS</span> // UNSUPERVISED ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+      <p class="ln deco" aria-hidden="true"><span>╔═[ rt//<span class="hot">INC OVERRIDE</span>>>> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
       <h1><span class="sr-only">Pithub</span><span class="deco" aria-hidden="true">░▒▓█ </span><span class="pit-title glitch" aria-hidden="true">PITHUB://</span><span class="deco" aria-hidden="true"> █▓▒░</span></h1>
-      <p class="node clip" aria-hidden="true">node 7f//pit <span class="flag">unsecured</span> mirror kostutet</p>
+      <p class="node clip" aria-hidden="true">un_omni-7.pit.node:7 <span class="flag">unsecured</span> 0ns</p>
       <div v-if="!id" class="status deco" aria-hidden="true">
-        <p class="ln"><span>SIGNAL</span><span class="fill">{{ dots }}</span><span class="hot">UNSECURED</span></p>
-        <p class="ln"><span>ARCHIVE SCRAPE</span><span class="fill">{{ dots }}</span><span>{{ loaded ? entries.length : '??' }} FILES</span></p>
-        <p class="ln"><span>SOURCE</span><span class="fill">{{ dots }}</span><span>UNKNOWN</span></p>
-        <p class="ln"><span>OPERATOR</span><span class="fill">{{ dots }}</span><span>████████</span></p>
-        <p class="ln"><span>INTEGRITY</span><span class="fill">{{ dots }}</span><span>▓▓▓▒▒░░ 4▒%</span></p>
+        <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">unsecured//no encrypt</span></p>
+        <p class="ln"><span>scraped</span><span class="fill">{{ dots }}</span><span>{{ loaded ? entries.length : '??' }} omnif</span></p>
+        <p class="ln"><span>source</span><span class="fill">{{ dots }}</span><span>un_omni-???.node</span></p>
+        <p class="ln"><span>operator</span><span class="fill">{{ dots }}</span><span>████████</span></p>
+        <p class="ln"><span>integrity</span><span class="fill">{{ dots }}</span><span>▓▓▓▒▒░░ 4▒%</span></p>
       </div>
-      <p class="ln deco" aria-hidden="true"><span>╚═[ R▒COVERED ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
+      <p class="ln deco" aria-hidden="true"><span>╚═[ working . . . d▒ne ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
     </header>
 
     <div v-if="error && !loaded" class="pit-msg">
@@ -154,8 +154,8 @@ watch(id, async (now, was) => {
         <button type="button" class="option" @click="back">Back</button>
       </div>
       <template v-else>
-        <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">anon@pit:~</span><span class="dim">$</span> cat {{ fileName(entry.title) }}</p>
-        <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">lancer omni file · size {{ fileSize(entry.body) }} · modified {{ formatDate(entryDate(entry)) }}</p>
+        <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./usr/cat {{ fileName(entry.title) }}</p>
+        <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">lancer omni file // size {{ fileSize(entry.body) }} // modified {{ formatDate(entryDate(entry)) }}</p>
         <p v-if="isDraft(entry)" class="out" :class="{ waiting: typed < 3 }"><span class="draft">Draft</span> Only GMs can see drafts.</p>
         <p class="rule" aria-hidden="true" :class="{ waiting: typed < fileLines }">{{ rule }}</p>
 
@@ -177,11 +177,11 @@ watch(id, async (now, was) => {
     <template v-else>
       <p class="divider" aria-hidden="true">{{ shade }}</p>
       <section v-if="!(loaded && !error && !entries.length)" class="query" aria-label="Search the archive">
-        <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">SEARCH THE ARCHIVE</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+        <p class="ln deco" aria-hidden="true"><span>╔═[ &gt;// <span class="hot">SEARCH THE ARCHIVE</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
         <div class="search">
           <label class="grep">
             <span class="sr-only">Search</span>
-            <span aria-hidden="true"><span class="who">anon@pit:~</span><span class="dim">$</span> grep</span>
+            <span aria-hidden="true"><span class="who">&gt;//</span> run ./usr/grep</span>
             <input ref="searchBox" v-model="query" type="search" placeholder="Title or text" @keydown.esc="query = ''" />
           </label>
           <button v-if="query" type="button" class="option" @click="clear">Clear</button>
@@ -192,8 +192,8 @@ watch(id, async (now, was) => {
       <p v-if="!(loaded && !error && !entries.length)" class="divider" aria-hidden="true">{{ shade }}</p>
       <p v-if="newError" role="alert" class="err">Not saved: {{ newError }}</p>
 
-      <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">anon@pit:~</span><span class="dim">$</span> ls -la<template v-if="query.trim()"> | grep "{{ query.trim() }}"</template></p>
-      <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">total {{ shownList.length }}</p>
+      <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./usr/ls -la<template v-if="query.trim()"> | grep "{{ query.trim() }}"</template></p>
+      <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">{{ shownList.length }} omnif found</p>
 
       <p v-if="!loaded" class="out" role="status">Loading…</p>
       <div v-else-if="!entries.length" class="pit-msg" role="status">
@@ -225,8 +225,8 @@ watch(id, async (now, was) => {
     </template>
 
     <footer class="foot" aria-hidden="true">
-      <p class="ln deco"><span>╚═[ END OF DUMP ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
-      <p class="deco clip">no one reads this node ▒░ keep it that way</p>
+      <p class="ln deco"><span>╚═[ connection lost// ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
+      <p class="deco clip">nobody reads this ▒░ good luck</p>
     </footer>
   </main>
 </template>
