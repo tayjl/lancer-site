@@ -4,12 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { isGm, profile } from '../auth'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import Icon from '../components/Icon.vue'
+import ImageUpload from '../components/ImageUpload.vue'
 import ItemPicker from '../components/ItemPicker.vue'
 import PageHeader from '../components/PageHeader.vue'
 import SaveStatus from '../components/SaveStatus.vue'
 import SheetField from '../components/SheetField.vue'
 import { confirmAction } from '../confirm'
 import type { Json } from '../lib/database.types'
+import { deleteImage, imageUrl } from '../images'
 import { CHANGED_ELSEWHERE } from '../lib/supabaseClient'
 import { KIND_INFO, LORE_KINDS, isDraft, isKind, loreSection, type LoreEntry, type LoreKind } from '../lore'
 
@@ -38,6 +40,7 @@ const title = ref('')
 const summary = ref('')
 const kind = ref<LoreKind>('story')
 const related = ref<string[]>([])
+const image = ref<string | null>(null) // Pithub only
 // The body lives in its editor; this is the latest of it, for Retry.
 let body: Json | null = null
 watch(
@@ -49,6 +52,7 @@ watch(
     summary.value = entry.value.summary
     kind.value = entry.value.kind
     related.value = entry.value.related
+    image.value = entry.value.image ?? null
   },
   { immediate: true },
 )
@@ -65,7 +69,8 @@ async function save(extra: { published_at?: string | null } = {}) {
   saving.value++
   saved.value = false
   const name = title.value.trim()
-  const fields = { title: name, kind: kind.value, summary: summary.value, body, related: related.value, ...extra }
+  // lore_entries has no image column, so only Pithub sends it.
+  const fields = { title: name, kind: kind.value, summary: summary.value, body, related: related.value, ...(section.plain && { image: image.value }), ...extra }
   const failed = !name ? 'A title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await section.store.save(id, fields)
   saving.value--
   error.value = failed ?? ''
@@ -82,6 +87,15 @@ const saveSummary = () => summary.value !== entry.value?.summary && save()
 const saveKind = (next: LoreKind) => ((kind.value = next), save())
 // The body is never empty in the database: an empty editor saves an empty document.
 const saveBody = (doc: Json | null) => ((body = doc ?? { type: 'doc', content: [] }), save())
+
+// Pithub's picture: saved like any field. The replaced file is deleted once the save works (best effort, see deleteImage).
+async function saveImage(path: string | null) {
+  const old = image.value
+  image.value = path
+  const failed = await save()
+  if (!failed && old && old !== path) deleteImage(old)
+  return failed
+}
 
 const draft = computed(() => (entry.value ? isDraft(entry.value) : false))
 const publish = () => save({ published_at: new Date().toISOString() })
@@ -114,9 +128,12 @@ function addRelated(relatedId: string) {
 const deleteError = ref('') // shown in the danger zone, beside its button
 async function remove() {
   if (!(await confirmAction(`Delete ${entry.value?.title}? Links to it stop working. This can't be undone.`, { confirmLabel: 'Delete entry', danger: true }))) return
+  const picture = image.value
   const failed = await section.store.remove(id)
   deleteError.value = failed ?? ''
-  if (!failed) router.push({ name: section.list })
+  if (failed) return
+  if (picture) deleteImage(picture) // best effort, so the picture doesn't outlive its entry
+  router.push({ name: section.list })
 }
 </script>
 
@@ -186,6 +203,11 @@ async function remove() {
         </div>
 
         <div class="stack">
+          <section v-if="section.plain" class="panel picture">
+            <h2 class="sheet-label">Image</h2>
+            <img v-if="imageUrl(image)" :src="imageUrl(image)!" alt="" class="preview" />
+            <ImageUpload :path="image" :save="saveImage" />
+          </section>
           <section v-if="!section.plain" class="panel related">
             <h2 class="sheet-label">Related entries</h2>
             <ul v-if="relatedEntries.length" class="chips">
@@ -333,6 +355,19 @@ async function remove() {
 /* The body's field sits in its own panel, so no box around the panel's heading. */
 .panel :deep(.sheet-label) {
   margin-top: 0;
+}
+
+/* Pithub's picture: a small preview above the buttons. */
+.picture .sheet-label {
+  margin: 0 0 var(--space-s);
+}
+
+.preview {
+  display: block;
+  max-width: 100%;
+  max-height: 12rem;
+  border: 1px solid var(--rule);
+  object-fit: contain;
 }
 
 /* Related entries: removable chips. */

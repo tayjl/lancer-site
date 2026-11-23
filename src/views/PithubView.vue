@@ -10,7 +10,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { isGm } from '../auth'
 import RichText from '../components/RichText.vue'
 import { useCopyLink } from '../copyLink'
-import { LORE_SECTIONS, entryDate, fileName, fileSize, isDraft, loreMatches } from '../lore'
+import { imageUrl } from '../images'
+import { LORE_SECTIONS, entryDate, fileName, fileSize, imageFileName, isDraft, loreMatches } from '../lore'
 import { formatDate } from '../time'
 
 // Pithub: the hidden leaked-files terminal. The list (/pithub) and one file (/pithub/:id) are one page, like the
@@ -35,6 +36,10 @@ const fileTitle = useTemplateRef<HTMLElement>('fileTitle')
 const shownList = computed(() => entries.value.filter((entry) => loreMatches(entry, query.value)))
 const hasDrafts = computed(() => entries.value.some(isDraft))
 const entry = computed(() => entries.value.find((other) => other.id === id.value))
+// The file's picture: a missing or broken file hides its box (no broken-image icon).
+const picture = computed(() => imageUrl(entry.value?.image))
+const pictureFailed = ref(false)
+watch(picture, () => (pictureFailed.value = false))
 
 function clear() {
   query.value = ''
@@ -131,13 +136,13 @@ watch(id, async (now, was) => {
     <header class="pit-head">
       <p class="ln deco" aria-hidden="true"><span>╔═[ rt//<span class="hot">INC OVERRIDE</span>>>> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
       <h1><span class="sr-only">Pithub</span><span class="deco" aria-hidden="true">░▒▓█ </span><span class="pit-title glitch" aria-hidden="true">PITHUB://</span><span class="deco" aria-hidden="true"> █▓▒░</span></h1>
-      <p class="node clip" aria-hidden="true">un_omni-7.pit.node:7 <span class="flag">sanitised</span> 0ns</p>
+      <p class="node clip" aria-hidden="true">un_omni-7.damavand.node:7 <span class="flag">sanitised</span></p>
       <div v-if="!id" class="status deco" aria-hidden="true">
         <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">sanitised//pithom link</span></p>
         <p class="ln"><span>scraped</span><span class="fill">{{ dots }}</span><span>{{ loaded ? entries.length : '??' }} omnif</span></p>
         <p class="ln"><span>source</span><span class="fill">{{ dots }}</span><span>un_omni-???.node</span></p>
       </div>
-      <p class="ln deco" aria-hidden="true"><span>╚═[ pithom//feed mirrored ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
+      <p class="ln deco" aria-hidden="true"><span>╚═[ relay//damavand station ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
     </header>
 
     <div v-if="error && !loaded" class="pit-msg">
@@ -155,7 +160,7 @@ watch(id, async (now, was) => {
         <p class="ln deco" aria-hidden="true"><span>╔═[ /pit/files/<span class="hot">{{ fileName(entry.title) }}</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
         <div class="box">
         <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./pit/cat {{ fileName(entry.title) }}</p>
-        <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">lancer omni file // size {{ fileSize(entry.body) }} // modified {{ formatDate(entryDate(entry)) }}</p>
+        <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">omni file // size {{ fileSize(entry.body) }} // modified {{ formatDate(entryDate(entry)) }}</p>
         <p v-if="isDraft(entry)" class="out" :class="{ waiting: typed < 3 }"><span class="draft">Draft</span> Only GMs can see drafts.</p>
         <p class="rule" aria-hidden="true" :class="{ waiting: typed < fileLines }">{{ rule }}</p>
 
@@ -170,6 +175,12 @@ watch(id, async (now, was) => {
           <RichText :doc="entry.body" class="file-body" />
         </article>
 
+        <div v-if="picture && !pictureFailed" class="picture" :class="{ waiting: !headerDone }">
+          <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">{{ imageFileName(entry.title) }}</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+          <div class="box pic"><img :src="picture" alt="Attached image" @error="pictureFailed = true" /></div>
+          <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
+        </div>
+
         <div class="opts end" :class="{ waiting: !headerDone }"><button type="button" class="option" @click="back">Back</button></div>
         </div>
         <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
@@ -179,7 +190,7 @@ watch(id, async (now, was) => {
     <template v-else>
       <p class="divider" aria-hidden="true">{{ shade }}</p>
       <section v-if="!(loaded && !error && !entries.length)" class="query" aria-label="Search the archive">
-        <p class="ln deco" aria-hidden="true"><span>╔═[ &gt;// <span class="hot">SEARCH THE ARCHIVE</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+        <p class="ln deco" aria-hidden="true"><span>╔═[ &gt;// <span class="hot">/pit/query</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
         <div class="search">
           <label class="grep">
             <span class="sr-only">Search</span>
@@ -209,7 +220,7 @@ watch(id, async (now, was) => {
             <button type="button" class="option" @click="clear">Clear</button>
           </div>
           <template v-else>
-            <p class="file head deco" aria-hidden="true" :class="{ waiting: typed < 2 }"><span>perms</span><span class="size">size</span><span>modified</span><span>name</span></p>
+            <p class="file head deco" aria-hidden="true" :class="{ waiting: typed < 2 }"><span class="size">size</span><span>modified</span><span>name</span></p>
             <ul class="files" aria-label="Files">
               <li v-for="(file, i) in shownList" :key="file.id" :class="{ waiting: typed < i + 3 }">
                 <RouterLink
@@ -218,7 +229,6 @@ watch(id, async (now, was) => {
                   class="file"
                 >
                   <span class="sr-only">{{ file.title }}, {{ formatDate(entryDate(file)) }}{{ isDraft(file) ? ', Draft' : '' }}. File name: </span>
-                  <span class="perms" aria-hidden="true">-r--r--r--</span>
                   <span class="size" aria-hidden="true">{{ fileSize(file.body) }}</span>
                   <span class="date" aria-hidden="true">{{ formatDate(entryDate(file)) }}</span>
                   <span class="name-cell"><span class="name">{{ fileName(file.title) }}</span><span v-if="isDraft(file)" class="draft">Draft</span></span>
@@ -271,6 +281,14 @@ watch(id, async (now, was) => {
 }
 
 /* --- Header: the one glitching element --- */
+.pit-head {
+  margin-bottom: 1lh; /* one blank line before the first box */
+}
+
+.pit-head + .divider {
+  margin-top: 0;
+}
+
 .pit-head h1 {
   margin: 0;
 }
@@ -482,14 +500,13 @@ watch(id, async (now, was) => {
   min-height: 0;
   padding-block: 0 var(--space-xs);
   border-bottom: 1px solid var(--edge);
-  font-size: var(--fs-xs);
-  text-transform: uppercase;
+  text-transform: uppercase; /* same font size as the rows, so the columns line up */
 }
 
 .file {
   position: relative;
   display: grid;
-  grid-template-columns: 10ch 5ch 11ch minmax(0, 1fr);
+  grid-template-columns: 5ch 11ch minmax(0, 1fr);
   column-gap: 2ch;
   align-items: baseline;
   min-height: var(--tap);
@@ -545,7 +562,6 @@ a.file:focus-visible .name {
     padding-block: 6px;
   }
 
-  .perms,
   .file.head {
     display: none;
   }
@@ -565,6 +581,25 @@ a.file:focus-visible .name {
 }
 
 /* --- File --- */
+/* The picture's own box, inside the file's. */
+.picture {
+  margin-top: var(--space-l);
+}
+
+.box.pic {
+  padding: var(--space-s);
+  text-align: center;
+}
+
+.pic img {
+  display: block;
+  max-width: 100%;
+  max-height: 28rem;
+  margin: 0 auto;
+  border: 1px solid var(--edge);
+  object-fit: contain;
+}
+
 .file-title {
   margin: var(--space-l) 0 var(--space-m);
   font: 700 var(--fs-l) / 1.3 var(--mono);

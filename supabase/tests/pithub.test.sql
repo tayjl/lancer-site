@@ -33,6 +33,8 @@ select throws_ok(
 update public.pithub_entries set title = 'Hacked' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 update public.pithub_entries set published_at = now() where id = 'aaaaaaaa-0000-0000-0000-000000000002';
 delete from public.pithub_entries where id = 'aaaaaaaa-0000-0000-0000-000000000001';
+update public.pithub_entries set image = '11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222.webp'
+  where id = 'aaaaaaaa-0000-0000-0000-000000000001';
 
 -- ---------------------------------------------------------------------
 -- A GM
@@ -79,6 +81,19 @@ select throws_ok($$ insert into public.pithub_entries (title, kind) values ('   
 select throws_ok($$ insert into public.pithub_entries (title, kind) values ('Ok', 'rumour') $$,
   '23514', null, 'an unknown kind is refused');
 
+select is((select image is null from public.pithub_entries where id = 'aaaaaaaa-0000-0000-0000-000000000001'), true,
+  'players cannot set an entry image');
+select lives_ok(
+  $$ update public.pithub_entries set image = '33333333-3333-3333-3333-333333333333/22222222-2222-2222-2222-222222222222.webp'
+     where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
+  'GMs can set a valid entry image path');
+select throws_ok(
+  $$ update public.pithub_entries set image = 'https://evil.example/x.png' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
+  '23514', null, 'a URL is refused as an entry image');
+select throws_ok(
+  $$ update public.pithub_entries set image = '../x.webp' where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
+  '23514', null, 'a malformed path is refused as an entry image');
+
 -- ---------------------------------------------------------------------
 -- An owner counts as a GM
 -- ---------------------------------------------------------------------
@@ -90,6 +105,13 @@ select is((select count(*)::int from public.pithub_entries where id::text like '
 select lives_ok(
   $$ update public.pithub_entries set title = 'Edited by owner' where id = 'aaaaaaaa-0000-0000-0000-000000000002' $$,
   'owners can edit pithub entries');
+
+-- Players still read the image on a published entry.
+reset role;
+set local role authenticated;
+set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+select is((select image from public.pithub_entries where id = 'aaaaaaaa-0000-0000-0000-000000000001'),
+  '33333333-3333-3333-3333-333333333333/22222222-2222-2222-2222-222222222222.webp', 'players read the image on a published entry');
 
 -- ---------------------------------------------------------------------
 -- Logged-out visitors

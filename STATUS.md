@@ -9,10 +9,10 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Latest release
-Everything is pushed (latest: the Pithub redesign, 2026-11-23: `/pithub` is its own one-terminal view, `src/views/PithubView.vue`, no migration). Not yet viewed signed in: check phone and desktop, the typing animation, back/scroll/focus, and the GM editor (Kind, Summary and Related hidden). Each release and its hosted migrations are in the completed-work log in [docs/claude/history.md](docs/claude/history.md).
+Everything is pushed (latest: Pithub image attachments, 2026-11-23). `/pithub` is its own one-terminal view (`src/views/PithubView.vue`). Not yet checked: the first-visit typing animation and reduced motion. Each release and its hosted migrations are in the completed-work log in [docs/claude/history.md](docs/claude/history.md).
 
 ## Pending hosted migrations
-None. Everything through `20261122120000_editable_rule_numbers` is on the hosted project (applied 2026-11-22). The full list is in [docs/claude/history.md](docs/claude/history.md).
+None. Everything through `20261123120000_pithub_entry_image` is on the hosted project (applied 2026-11-23). The full list is in [docs/claude/history.md](docs/claude/history.md).
 
 ## Next steps
 - **Owner, once:** press 'Update core content' on the content page. It adds the base actions, the rules rows and the campaign wording for Overkill and Knockback. Check the preview counts first (hosted pack 'LANCER Core', 440 items).

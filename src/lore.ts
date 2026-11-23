@@ -20,7 +20,8 @@ export const KIND_INFO: Record<LoreKind, { name: string; plural: string; icon: s
 }
 
 // "author" is the writer's profile, joined in for their display name (as the pilots' player is).
-export type LoreEntry = Omit<Tables<'lore_entries'>, 'kind'> & { kind: LoreKind; author: { display_name: string } | null }
+// "image" is a stored picture path and exists on pithub_entries only (lore rows have none, so it is undefined there).
+export type LoreEntry = Omit<Tables<'lore_entries'>, 'kind'> & { kind: LoreKind; image?: string | null; author: { display_name: string } | null }
 
 export const isKind = (value: string): value is LoreKind => (LORE_KINDS as readonly string[]).includes(value)
 export const isDraft = (entry: Pick<LoreEntry, 'published_at'>) => entry.published_at === null
@@ -45,6 +46,9 @@ export function loreMatches(entry: Pick<LoreEntry, 'title' | 'summary' | 'body'>
 // Pithub's file look: "The Karrakin Ledger!" -> "the_karrakin_ledger.omnif".
 export const fileName = (title: string) => `${title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '') || 'untitled'}.omnif`
 
+// A file's picture: "the_karrakin_ledger.omnimgf".
+export const imageFileName = (title: string) => fileName(title).replace(/\.omnif$/, '.omnimgf')
+
 // Body length as "812b" under 1000 characters, else "2.1k".
 export function fileSize(body: unknown) {
   const length = docText(body).length
@@ -54,14 +58,15 @@ export function fileSize(body: unknown) {
 const sorted = (list: LoreEntry[]) => [...list].sort((a, b) => entryDate(b).localeCompare(entryDate(a)))
 
 type LoreTable = 'lore_entries' | 'pithub_entries'
-type LoreFields = Pick<TablesUpdate<'lore_entries'>, 'title' | 'kind' | 'summary' | 'body' | 'related' | 'published_at'>
+// "image" is only ever sent for pithub (the editor adds it when section.plain): lore_entries has no such column.
+type LoreFields = Pick<TablesUpdate<'lore_entries'>, 'title' | 'kind' | 'summary' | 'body' | 'related' | 'published_at'> & { image?: string | null }
 
 // One store per table. "entries" is everything the user may read, newest first. Shared by the pages, so moving between
 // them shows entries at once while the latest are fetched again.
 function loreStore(table: LoreTable) {
   const entries = shallowRef<LoreEntry[]>([])
   const loaded = ref(false)
-  // shortcut: pithub_entries has lore_entries' exact columns, so one table type serves both; split the types if they ever differ.
+  // shortcut: pithub_entries has lore_entries' columns plus "image", so one table type serves both and "image" is typed by hand; split the types if they differ more.
   const from = () => supabase.from(table as 'lore_entries')
 
   // Writes run one after another, and a fetch waits for them, so a save can't be overtaken (or overwritten by a
@@ -95,7 +100,7 @@ function loreStore(table: LoreTable) {
   function save(id: string, fields: LoreFields) {
     return queued(async () => {
       const seen = entries.value.find((entry) => entry.id === id)?.updated_at ?? ''
-      const result = await checkWrite(await from().update(fields).eq('id', id).eq('updated_at', seen).select('*'), {
+      const result = await checkWrite(await from().update(fields as TablesUpdate<'lore_entries'>).eq('id', id).eq('updated_at', seen).select('*'), {
         seen,
         recheck: () => from().select('updated_at').eq('id', id).maybeSingle(),
       })

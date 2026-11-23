@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Json } from './lib/database.types'
-import { KIND_INFO, LORE_KINDS, fileName, fileSize, loreMatches, readMinutes, readTime } from './lore'
+import { KIND_INFO, LORE_KINDS, fileName, fileSize, imageFileName, loreMatches, readMinutes, readTime } from './lore'
 
 const para = (text: string): Json => ({ type: 'paragraph', content: [{ type: 'text', text }] })
 const doc = (...content: Json[]): Json => ({ type: 'doc', content })
@@ -47,6 +47,7 @@ describe('file look', () => {
     expect(fileName('  --A  b-- ')).toBe('a_b.omnif')
     expect(fileName('!!!')).toBe('untitled.omnif')
     expect(fileName('')).toBe('untitled.omnif')
+    expect(imageFileName('The Karrakin Ledger!')).toBe('the_karrakin_ledger.omnimgf')
   })
 
   it('shows the size in b under 1000 characters, else k', () => {
