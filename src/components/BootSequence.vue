@@ -36,10 +36,12 @@ function artParts(line: string) {
 }
 
 // The logo (the eye) is the only clickable part of the art. Its columns per row: [from, to). Rows 1-6 are the wide top,
-// the rest the narrow middle. Update these if art.txt changes.
+// rows 7-14 the pillar down the middle, which narrows (the slanting edges beside it are not part of the logo).
+// Update these if art.txt changes.
 const EYE_TOP = 1
-const EYE_ROWS = 15
-const eyeCols = (row: number) => (row <= 6 ? [26, 57] : [35, 47])
+const EYE_ROWS = 14
+const PILLAR = [[36, 44], [36, 44], [37, 43], [37, 43], [37, 43], [38, 42], [39, 41], [39, 41]]
+const eyeCols = (row: number) => (row <= 6 ? [26, 57] : PILLAR[row - 7])
 type Part = { text: string; tone?: string; eye?: boolean }
 function withEye(parts: Part[], row: number): Part[] {
   if (row < EYE_TOP || row > EYE_ROWS) return parts
@@ -212,15 +214,15 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
   animation: glitch 6s steps(1, end) 2s infinite; /* style.css */
 }
 
-/* Covers just the eye: rows 1-15, from column 26 to 57 (the wide top is the box, the narrow middle sits inside it). */
+/* Covers just the eye: rows 1-14, from column 26 to 57 (the wide top is the box, the narrow middle sits inside it). */
 .eye-link {
   position: absolute;
   top: 1lh;
   left: 26ch;
   width: 31ch;
-  height: 15lh;
+  height: 14lh;
   /* Wide top, narrow middle, so the letters beside the eye aren't part of the link. */
-  clip-path: polygon(0 0, 100% 0, 100% 6lh, 21ch 6lh, 21ch 100%, 9ch 100%, 9ch 6lh, 0 6lh);
+  clip-path: polygon(0 0, 100% 0, 100% 6lh, 18ch 6lh, 18ch 100%, 10ch 100%, 10ch 6lh, 0 6lh);
 }
 
 .art-wrap:has(.eye-link:hover) .eye,
