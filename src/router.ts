@@ -76,9 +76,9 @@ export const router = createRouter({
     { path: '/lore', name: 'lore', component: () => import('./views/LoreView.vue'), meta: LORE_META },
     { path: '/lore/:id', name: 'lore-entry', component: () => import('./views/LoreView.vue'), meta: LORE_META },
     { path: '/lore/:id/edit', name: 'lore-edit', component: () => import('./views/LoreEditView.vue'), meta: { ...LORE_META, gm: true } },
-    // Pithub: lore on its own table with a terminal skin (LoreView.vue). Reached by the home page's art, not the tabs.
-    { path: '/pithub', name: 'pithub', component: () => import('./views/LoreView.vue'), meta: PITHUB_META },
-    { path: '/pithub/:id', name: 'pithub-entry', component: () => import('./views/LoreView.vue'), meta: PITHUB_META },
+    // Pithub: lore's table in its own terminal view (PithubView.vue). Reached by the home page's art, not the tabs.
+    { path: '/pithub', name: 'pithub', component: () => import('./views/PithubView.vue'), meta: PITHUB_META },
+    { path: '/pithub/:id', name: 'pithub-entry', component: () => import('./views/PithubView.vue'), meta: PITHUB_META },
     { path: '/pithub/:id/edit', name: 'pithub-edit', component: () => import('./views/LoreEditView.vue'), meta: { ...PITHUB_META, gm: true } },
     // GM tabs. /gm opens the first one.
     { path: '/gm', name: 'gm', redirect: { name: 'gm-pilots' } },

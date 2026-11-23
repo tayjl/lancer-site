@@ -165,7 +165,7 @@ async function remove() {
               <span>Title</span>
               <input v-model="title" type="text" maxlength="120" @change="saveTitle" />
             </label>
-            <fieldset class="kind">
+            <fieldset v-if="!section.plain" class="kind">
               <legend>Kind</legend>
               <div class="kind-options">
                 <label v-for="option in LORE_KINDS" :key="option" class="kind-opt">
@@ -174,7 +174,7 @@ async function remove() {
                 </label>
               </div>
             </fieldset>
-            <label class="field">
+            <label v-if="!section.plain" class="field">
               <span>Summary</span>
               <input v-model="summary" type="text" maxlength="300" @change="saveSummary" />
             </label>
@@ -186,7 +186,7 @@ async function remove() {
         </div>
 
         <div class="stack">
-          <section class="panel related">
+          <section v-if="!section.plain" class="panel related">
             <h2 class="sheet-label">Related entries</h2>
             <ul v-if="relatedEntries.length" class="chips">
               <li v-for="link in relatedEntries" :key="link.id" class="chip-x">

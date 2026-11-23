@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Json } from './lib/database.types'
-import { KIND_INFO, LORE_KINDS, loreMatches, readMinutes, readTime } from './lore'
+import { KIND_INFO, LORE_KINDS, fileName, fileSize, loreMatches, readMinutes, readTime } from './lore'
 
 const para = (text: string): Json => ({ type: 'paragraph', content: [{ type: 'text', text }] })
 const doc = (...content: Json[]): Json => ({ type: 'doc', content })
@@ -38,5 +38,21 @@ describe('kinds', () => {
   it('names every kind, singular and plural', () => {
     expect(LORE_KINDS.map((kind) => KIND_INFO[kind].plural)).toEqual(['Stories', 'Places', 'Factions', 'People', 'Events'])
     expect(KIND_INFO.person.name).toBe('Person')
+  })
+})
+
+describe('file look', () => {
+  it('turns a title into a file name', () => {
+    expect(fileName('The Karrakin Ledger!')).toBe('the_karrakin_ledger.txt')
+    expect(fileName('  --A  b-- ')).toBe('a_b.txt')
+    expect(fileName('!!!')).toBe('untitled.txt')
+    expect(fileName('')).toBe('untitled.txt')
+  })
+
+  it('shows the size in b under 1000 characters, else k', () => {
+    expect(fileSize(null)).toBe('0b')
+    expect(fileSize(doc(para('x'.repeat(812))))).toBe('812b')
+    expect(fileSize(doc(para('x'.repeat(999))))).toBe('999b')
+    expect(fileSize(doc(para('x'.repeat(2100))))).toBe('2.1k')
   })
 })

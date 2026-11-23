@@ -42,6 +42,15 @@ export function loreMatches(entry: Pick<LoreEntry, 'title' | 'summary' | 'body'>
   return words.every((word) => text.includes(word))
 }
 
+// Pithub's file look: "The Karrakin Ledger!" -> "the_karrakin_ledger.txt".
+export const fileName = (title: string) => `${title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '') || 'untitled'}.txt`
+
+// Body length as "812b" under 1000 characters, else "2.1k".
+export function fileSize(body: unknown) {
+  const length = docText(body).length
+  return length < 1000 ? `${length}b` : `${(length / 1000).toFixed(1)}k`
+}
+
 const sorted = (list: LoreEntry[]) => [...list].sort((a, b) => entryDate(b).localeCompare(entryDate(a)))
 
 type LoreTable = 'lore_entries' | 'pithub_entries'
@@ -111,7 +120,7 @@ function loreStore(table: LoreTable) {
 // Each section's table, routes and wording. The views pick one by route meta.section; two stores, so moving between
 // lore and Pithub never mixes their lists.
 export const LORE_SECTIONS = {
-  lore: { name: 'Lore', empty: 'No lore yet.', list: 'lore', entry: 'lore-entry', edit: 'lore-edit', links: true, store: loreStore('lore_entries') },
-  pithub: { name: 'Pithub', empty: 'No entries yet.', list: 'pithub', entry: 'pithub-entry', edit: 'pithub-edit', links: false, store: loreStore('pithub_entries') },
+  lore: { name: 'Lore', empty: 'No lore yet.', list: 'lore', entry: 'lore-entry', edit: 'lore-edit', links: true, plain: false, store: loreStore('lore_entries') },
+  pithub: { name: 'Pithub', empty: 'No entries yet.', list: 'pithub', entry: 'pithub-entry', edit: 'pithub-edit', links: false, plain: true, store: loreStore('pithub_entries') },
 }
 export const loreSection = (section: unknown) => LORE_SECTIONS[section === 'pithub' ? 'pithub' : 'lore']
