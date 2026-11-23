@@ -138,9 +138,9 @@ watch(id, async (now, was) => {
       <h1><span class="sr-only">Pithub</span><span class="deco" aria-hidden="true">░▒▓█ </span><span class="pit-title glitch" aria-hidden="true">PITHUB://</span><span class="deco" aria-hidden="true"> █▓▒░</span></h1>
       <p class="node clip" aria-hidden="true">un_omni-7.damavand.node:7 <span class="flag">sanitised</span></p>
       <div v-if="!id" class="status deco" aria-hidden="true">
-        <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">sanitised//pithom link</span></p>
+        <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">qebhet sanitisation protocol</span></p>
         <p class="ln"><span>scraped</span><span class="fill">{{ dots }}</span><span>{{ loaded ? entries.length : '??' }} omnif</span></p>
-        <p class="ln"><span>source</span><span class="fill">{{ dots }}</span><span>un_omni-???.node</span></p>
+        <p class="ln"><span>source</span><span class="fill">{{ dots }}</span><span>un_omni-7.damavand.node:7</span></p>
       </div>
       <p class="ln deco" aria-hidden="true"><span>╚═[ relay//damavand station ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
     </header>
@@ -159,31 +159,29 @@ watch(id, async (now, was) => {
       <template v-else>
         <p class="ln deco" aria-hidden="true"><span>╔═[ /pit/files/<span class="hot">{{ fileName(entry.title) }}</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
         <div class="box">
+        <div class="file-head">
         <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./pit/cat {{ fileName(entry.title) }}</p>
-        <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">omni file // size {{ fileSize(entry.body) }} // modified {{ formatDate(entryDate(entry)) }}</p>
-        <p v-if="isDraft(entry)" class="out" :class="{ waiting: typed < 3 }"><span class="draft">Draft</span> Only GMs can see drafts.</p>
-        <p class="rule" aria-hidden="true" :class="{ waiting: typed < fileLines }">{{ rule }}</p>
-
         <div class="opts" :class="{ waiting: !headerDone }">
           <button type="button" class="option" @click="back">Back</button>
           <span aria-live="polite"><button type="button" class="option" @click="copyLink({ name: section.entry, params: { id } })">{{ copied || 'Copy link' }}</button></span>
           <button v-if="isGm" type="button" class="option" @click="router.push({ name: section.edit, params: { id } })">Edit file</button>
         </div>
+        </div>
+        <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">omni file // size {{ fileSize(entry.body) }} // modified {{ formatDate(entryDate(entry)) }}</p>
+        <p v-if="isDraft(entry)" class="out" :class="{ waiting: typed < 3 }"><span class="draft">Draft</span> Only GMs can see drafts.</p>
+        <p class="rule" aria-hidden="true" :class="{ waiting: typed < fileLines }">{{ rule }}</p>
 
         <article :class="{ waiting: !headerDone }">
           <h2 ref="fileTitle" tabindex="-1" class="file-title">{{ entry.title }}</h2>
           <RichText :doc="entry.body" class="file-body" />
         </article>
-
+        </div>
+        <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
         <div v-if="picture && !pictureFailed" class="picture" :class="{ waiting: !headerDone }">
           <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">{{ imageFileName(entry.title) }}</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
           <div class="box pic"><img :src="picture" alt="Attached image" @error="pictureFailed = true" /></div>
           <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
         </div>
-
-        <div class="opts end" :class="{ waiting: !headerDone }"><button type="button" class="option" @click="back">Back</button></div>
-        </div>
-        <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
       </template>
     </template>
 
@@ -243,9 +241,6 @@ watch(id, async (now, was) => {
       </section>
     </template>
 
-    <footer class="foot" aria-hidden="true">
-      <p class="ln deco"><span>╚═[ connection lost// ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
-    </footer>
   </main>
 </template>
 
@@ -407,11 +402,6 @@ watch(id, async (now, was) => {
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
-}
-
-.foot {
-  margin-top: var(--space-xl);
-  font-size: var(--fs-xs);
 }
 
 /* --- Search: its own framed input, the side bars are borders so they match the ═ lines --- */
@@ -637,11 +627,15 @@ a.file:focus-visible .name {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs) var(--space-m);
-  margin-left: -0.5rem; /* the first bracket lines up with the text, cancelling the option's padding */
+  margin-left: auto; /* right-aligned in the file header */
 }
 
-.opts.end {
-  margin-top: var(--space-xl);
+.file-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-m);
 }
 
 .pit button.option {
