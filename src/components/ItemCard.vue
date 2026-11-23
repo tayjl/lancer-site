@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import type { Info } from '../info'
 import type { CardType } from '../itemDetails'
 import Icon from './Icon.vue'
@@ -10,17 +11,20 @@ import InfoButton from './InfoButton.vue'
 // buttons ("foot"). A "mod" slot (a weapon's mod) comes after the source line, and then a thin rule sets the foot apart
 // so the weapon's buttons don't read as the mod's. "integrated": built into the frame or granted, so it can't be
 // removed. "source": the pack it comes from, as the last line of the body.
+// The small button in the header minimises the card: only the header and the stats row (an "item-stats" list) stay.
 defineProps<{ type: CardType; icon: string; name: string; info?: () => Info; meta?: string; unit?: string; integrated?: boolean; source?: string }>()
+const minimised = ref(false)
 </script>
 
 <template>
-  <article class="item-card" :class="[type, { integrated }]">
+  <article class="item-card" :class="[type, { integrated, minimised }]">
     <header class="head">
       <Icon :name="icon" />
       <h3 class="name"><InfoButton v-if="info" :info="info" :label="name" /><template v-else>{{ name }}</template></h3>
       <span v-if="meta || $slots.meta" class="meta">
         <slot name="meta"><span :class="{ num: unit }">{{ meta }}</span><span v-if="unit" class="unit">{{ unit }}</span></slot>
       </span>
+      <button type="button" class="fold" :class="{ push: !(meta || $slots.meta) }" :aria-label="minimised ? 'Expand' : 'Minimise'" :aria-expanded="!minimised" @click="minimised = !minimised">{{ minimised ? '+' : '−' }}</button>
     </header>
     <div v-if="$slots.default || source" class="body" :class="{ 'has-mod': $slots.mod }">
       <slot />
@@ -107,6 +111,55 @@ defineProps<{ type: CardType; icon: string; name: string; info?: () => Info; met
   letter-spacing: 0.06em;
   text-transform: uppercase;
   opacity: 0.85;
+}
+
+/* The fold button: a real button with a full tap area, a symbol and an outline so it isn't colour alone. */
+.fold {
+  flex: none;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  margin: -6px calc(var(--space-s) * -1) -6px 0;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: 700 18px/1 var(--sans);
+  cursor: pointer;
+}
+
+.fold::before,
+.fold::after {
+  content: none;
+}
+
+.fold:hover,
+.fold:focus-visible {
+  background: rgb(255 255 255 / 0.2);
+}
+
+/* Lime header: white fill and the lilac focus ring vanish, so go dark. */
+.core .fold:hover,
+.core .fold:focus-visible {
+  background: rgb(0 0 0 / 0.15);
+}
+
+.core .fold:focus-visible {
+  outline-color: var(--void);
+}
+
+.fold.push {
+  margin-left: auto;
+}
+
+/* Minimised: keep only the stats row. A body with no stats goes, and so does the foot. */
+.minimised .body > :deep(:not(.item-stats)),
+.minimised .foot {
+  display: none;
+}
+
+.minimised .body:not(:has(> .item-stats)) {
+  display: none;
 }
 
 .body {

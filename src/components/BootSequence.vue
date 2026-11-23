@@ -35,7 +35,29 @@ function artParts(line: string) {
   return parts
 }
 
-const artLines = toLines(art).map(artParts)
+// The logo (the eye) is the only clickable part of the art. Its columns per row: [from, to). Rows 1-6 are the wide top,
+// the rest the narrow middle. Update these if art.txt changes.
+const EYE_TOP = 1
+const EYE_ROWS = 15
+const eyeCols = (row: number) => (row <= 6 ? [26, 57] : [35, 47])
+type Part = { text: string; tone?: string; eye?: boolean }
+function withEye(parts: Part[], row: number): Part[] {
+  if (row < EYE_TOP || row > EYE_ROWS) return parts
+  const [from, to] = eyeCols(row)
+  const out: Part[] = []
+  let col = 0
+  for (const part of parts) {
+    const cuts = [0, from - col, to - col, part.text.length].map((c) => Math.min(Math.max(c, 0), part.text.length))
+    for (let k = 0; k < 3; k++) {
+      const text = part.text.slice(cuts[k], cuts[k + 1])
+      if (text) out.push({ text, tone: part.tone, eye: k === 1 && !part.tone })
+    }
+    col += part.text.length
+  }
+  return out
+}
+
+const artLines = toLines(art).map((line, i) => withEye(artParts(line), i))
 // Small phones get the art without the arrow banner at the bottom (everything from the first ">>>>" line on).
 const bannerStart = toLines(art).findIndex((line) => line.includes('>>>>'))
 const smallArtLines = bannerStart === -1 ? artLines : artLines.slice(0, bannerStart)
@@ -125,13 +147,19 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
 
 <template>
   <!-- Both parts are flavour text only, so screen readers skip them (aria-hidden is on the <pre>s, never around a link). -->
-  <component :is="link && finished ? RouterLink : 'div'" :to="link && finished ? link : undefined" :aria-label="link && finished ? 'Pithub' : undefined" class="art-slot" @click="skip">
+  <div class="art-slot" @click="skip">
     <!-- Every art line is laid out from the start (just hidden), so the space is reserved.
          Kept on one line: inside <pre>, any extra line break would show up as a blank line. -->
-    <pre class="art art-full" aria-hidden="true"><span v-for="(parts, i) in artLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="part.tone">{{ part.text }}</span></span></pre>
+    <div class="art-wrap art-full">
+      <pre class="art" aria-hidden="true"><span v-for="(parts, i) in artLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="[part.tone, { eye: part.eye }]">{{ part.text }}</span></span></pre>
+      <RouterLink v-if="link && finished" :to="link" class="eye-link" aria-label="Pithub" />
+    </div>
     <!-- Only one of these two is shown, depending on the column's width (see the @container rule). -->
-    <pre class="art art-small" aria-hidden="true"><span v-for="(parts, i) in smallArtLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="part.tone">{{ part.text }}</span></span></pre>
-  </component>
+    <div class="art-wrap art-small">
+      <pre class="art" aria-hidden="true"><span v-for="(parts, i) in smallArtLines" :key="i" class="art-line" :class="{ waiting: i >= artShown }"><span v-for="(part, j) in parts" :key="j" :class="[part.tone, { eye: part.eye }]">{{ part.text }}</span></span></pre>
+      <RouterLink v-if="link && finished" :to="link" class="eye-link" aria-label="Pithub" tabindex="-1" />
+    </div>
+  </div>
 
   <div ref="log" class="log" aria-hidden="true" @click="skip">
     <div class="log-lines">
@@ -169,21 +197,35 @@ const artShown = computed(() => visible(introLines.length, artLines.length))
    1.15 line height (31.05em tall). It fills the column's width but leaves room for the log below
    (see .login in LoginView), and tops out at 16px. Sizes are rounded to whole pixels so the
    block characters stay sharp; the first lines are the fallback for older browsers. */
-.art {
+.art-wrap {
   position: relative;
-  margin: 0;
   font-family: var(--mono);
   font-size: min(100cqi / 46.9, (100dvh - 20rem) / 31.05, 16px);
   font-size: round(down, min(100cqi / 46.9, (100dvh - 20rem) / 31.05, 16px), 1px);
   line-height: 1.15;
   line-height: round(1.15em, 1px);
+}
+
+.art {
+  margin: 0;
+  font: inherit;
   animation: glitch 6s steps(1, end) 2s infinite; /* style.css */
 }
 
-a.art-slot {
-  color: inherit;
-  text-decoration: none;
-  cursor: default; /* no hover hint: it's a secret */
+/* Covers just the eye: rows 1-15, from column 26 to 57 (the wide top is the box, the narrow middle sits inside it). */
+.eye-link {
+  position: absolute;
+  top: 1lh;
+  left: 26ch;
+  width: 31ch;
+  height: 15lh;
+  /* Wide top, narrow middle, so the letters beside the eye aren't part of the link. */
+  clip-path: polygon(0 0, 100% 0, 100% 6lh, 21ch 6lh, 21ch 100%, 9ch 100%, 9ch 6lh, 0 6lh);
+}
+
+.art-wrap:has(.eye-link:hover) .eye,
+.art-wrap:has(.eye-link:focus-visible) .eye {
+  color: var(--danger);
 }
 
 .art-line {
@@ -278,7 +320,7 @@ a.art-slot {
 
 /* Too short to pin anything (e.g. a phone held sideways): the page just scrolls normally. */
 @media (max-height: 30rem) {
-  .art {
+  .art-wrap {
     font-size: round(down, 100cqi / 46.9, 1px);
   }
 
