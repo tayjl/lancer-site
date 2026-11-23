@@ -131,15 +131,13 @@ watch(id, async (now, was) => {
     <header class="pit-head">
       <p class="ln deco" aria-hidden="true"><span>╔═[ rt//<span class="hot">INC OVERRIDE</span>>>> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
       <h1><span class="sr-only">Pithub</span><span class="deco" aria-hidden="true">░▒▓█ </span><span class="pit-title glitch" aria-hidden="true">PITHUB://</span><span class="deco" aria-hidden="true"> █▓▒░</span></h1>
-      <p class="node clip" aria-hidden="true">un_omni-7.pit.node:7 <span class="flag">unsecured</span> 0ns</p>
+      <p class="node clip" aria-hidden="true">un_omni-7.pit.node:7 <span class="flag">sanitised</span> 0ns</p>
       <div v-if="!id" class="status deco" aria-hidden="true">
-        <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">unsecured//no encrypt</span></p>
+        <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">sanitised//pithom link</span></p>
         <p class="ln"><span>scraped</span><span class="fill">{{ dots }}</span><span>{{ loaded ? entries.length : '??' }} omnif</span></p>
         <p class="ln"><span>source</span><span class="fill">{{ dots }}</span><span>un_omni-???.node</span></p>
-        <p class="ln"><span>operator</span><span class="fill">{{ dots }}</span><span>████████</span></p>
-        <p class="ln"><span>integrity</span><span class="fill">{{ dots }}</span><span>▓▓▓▒▒░░ 4▒%</span></p>
       </div>
-      <p class="ln deco" aria-hidden="true"><span>╚═[ working . . . d▒ne ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
+      <p class="ln deco" aria-hidden="true"><span>╚═[ pithom//feed mirrored ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
     </header>
 
     <div v-if="error && !loaded" class="pit-msg">
@@ -154,7 +152,9 @@ watch(id, async (now, was) => {
         <button type="button" class="option" @click="back">Back</button>
       </div>
       <template v-else>
-        <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./usr/cat {{ fileName(entry.title) }}</p>
+        <p class="ln deco" aria-hidden="true"><span>╔═[ /pit/files/<span class="hot">{{ fileName(entry.title) }}</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+        <div class="box">
+        <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./pit/cat {{ fileName(entry.title) }}</p>
         <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">lancer omni file // size {{ fileSize(entry.body) }} // modified {{ formatDate(entryDate(entry)) }}</p>
         <p v-if="isDraft(entry)" class="out" :class="{ waiting: typed < 3 }"><span class="draft">Draft</span> Only GMs can see drafts.</p>
         <p class="rule" aria-hidden="true" :class="{ waiting: typed < fileLines }">{{ rule }}</p>
@@ -171,6 +171,8 @@ watch(id, async (now, was) => {
         </article>
 
         <div class="opts end" :class="{ waiting: !headerDone }"><button type="button" class="option" @click="back">Back</button></div>
+        </div>
+        <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
       </template>
     </template>
 
@@ -181,7 +183,7 @@ watch(id, async (now, was) => {
         <div class="search">
           <label class="grep">
             <span class="sr-only">Search</span>
-            <span aria-hidden="true"><span class="who">&gt;//</span> run ./usr/grep</span>
+            <span aria-hidden="true"><span class="who">&gt;//</span> run ./pit/grep</span>
             <input ref="searchBox" v-model="query" type="search" placeholder="Title or text" @keydown.esc="query = ''" />
           </label>
           <button v-if="query" type="button" class="option" @click="clear">Clear</button>
@@ -192,41 +194,47 @@ watch(id, async (now, was) => {
       <p v-if="!(loaded && !error && !entries.length)" class="divider" aria-hidden="true">{{ shade }}</p>
       <p v-if="newError" role="alert" class="err">Not saved: {{ newError }}</p>
 
-      <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./usr/ls -la<template v-if="query.trim()"> | grep "{{ query.trim() }}"</template></p>
-      <p class="out" aria-hidden="true" :class="{ waiting: typed < 2 }">{{ shownList.length }} omnif found</p>
+      <p class="cmd" aria-hidden="true" :class="{ waiting: typed < 1 }"><span class="who">&gt;//</span> run ./pit/ls -la<template v-if="query.trim()"> | grep "{{ query.trim() }}"</template></p>
 
-      <p v-if="!loaded" class="out" role="status">Loading…</p>
-      <div v-else-if="!entries.length" class="pit-msg" role="status">
-        <p>{{ section.empty }}</p>
-        <button v-if="isGm" type="button" class="option" @click="newFile">New file</button>
-      </div>
-      <div v-else-if="!shownList.length" class="pit-msg" role="status">
-        <p>Nothing matches that search.</p>
-        <button type="button" class="option" @click="clear">Clear</button>
-      </div>
-      <template v-else>
-        <ul class="files" aria-label="Files">
-          <li v-for="(file, i) in shownList" :key="file.id" :class="{ waiting: typed < i + 3 }">
-            <RouterLink
-              :id="`pit-${file.id}`"
-              :to="{ name: section.entry, params: { id: file.id } }"
-              class="file"
-            >
-              <span class="sr-only">{{ file.title }}, {{ formatDate(entryDate(file)) }}{{ isDraft(file) ? ', Draft' : '' }}. File name: </span>
-              <span class="perms" aria-hidden="true">-r--r--r--</span>
-              <span class="size" aria-hidden="true">{{ fileSize(file.body) }}</span>
-              <span class="date" aria-hidden="true">{{ formatDate(entryDate(file)) }}</span>
-              <span class="name-cell"><span class="name">{{ fileName(file.title) }}</span><span v-if="isDraft(file)" class="draft">Draft</span></span>
-            </RouterLink>
-          </li>
-        </ul>
-        <p v-if="isGm && hasDrafts" class="out">Only GMs can see drafts.</p>
-      </template>
+      <section class="frame">
+        <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">/pit/files</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+        <div class="box list">
+          <p v-if="!loaded" class="out" role="status">Loading…</p>
+          <div v-else-if="!entries.length" class="pit-msg" role="status">
+            <p>{{ section.empty }}</p>
+            <button v-if="isGm" type="button" class="option" @click="newFile">New file</button>
+          </div>
+          <div v-else-if="!shownList.length" class="pit-msg" role="status">
+            <p>Nothing matches that search.</p>
+            <button type="button" class="option" @click="clear">Clear</button>
+          </div>
+          <template v-else>
+            <p class="file head deco" aria-hidden="true" :class="{ waiting: typed < 2 }"><span>perms</span><span class="size">size</span><span>modified</span><span>name</span></p>
+            <ul class="files" aria-label="Files">
+              <li v-for="(file, i) in shownList" :key="file.id" :class="{ waiting: typed < i + 3 }">
+                <RouterLink
+                  :id="`pit-${file.id}`"
+                  :to="{ name: section.entry, params: { id: file.id } }"
+                  class="file"
+                >
+                  <span class="sr-only">{{ file.title }}, {{ formatDate(entryDate(file)) }}{{ isDraft(file) ? ', Draft' : '' }}. File name: </span>
+                  <span class="perms" aria-hidden="true">-r--r--r--</span>
+                  <span class="size" aria-hidden="true">{{ fileSize(file.body) }}</span>
+                  <span class="date" aria-hidden="true">{{ formatDate(entryDate(file)) }}</span>
+                  <span class="name-cell"><span class="name">{{ fileName(file.title) }}</span><span v-if="isDraft(file)" class="draft">Draft</span></span>
+                </RouterLink>
+              </li>
+            </ul>
+            <p class="out count" aria-hidden="true" :class="{ waiting: typed < 2 }">{{ shownList.length }} omnif found</p>
+            <p v-if="isGm && hasDrafts" class="out">Only GMs can see drafts.</p>
+          </template>
+        </div>
+        <p class="ln deco" aria-hidden="true"><span>╚</span><span class="fill">{{ bar }}</span><span>╝</span></p>
+      </section>
     </template>
 
     <footer class="foot" aria-hidden="true">
       <p class="ln deco"><span>╚═[ connection lost// ]</span><span class="fill">{{ bar }}</span><span>╝</span></p>
-      <p class="deco clip">nobody reads this ▒░ good luck</p>
     </footer>
   </main>
 </template>
@@ -234,7 +242,7 @@ watch(id, async (now, was) => {
 <style scoped>
 .pit {
   container-type: inline-size;
-  width: min(100% - 2rem, 47rem); /* the login's width rule, without its height cap: this page scrolls */
+  width: min(100% - 2rem, 58rem); /* wider than the login column, no height cap: this page scrolls */
   margin: 0 auto;
   padding: var(--space-xl) 0 3rem;
   font: 400 0.875rem / 1.25rem var(--mono); /* the boot log's size and line height */
@@ -350,6 +358,16 @@ watch(id, async (now, was) => {
   white-space: nowrap;
 }
 
+.ln > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ln > span:last-child {
+  flex: none;
+}
+
 .ln .fill {
   flex: 1;
   min-width: 0;
@@ -424,11 +442,48 @@ watch(id, async (now, was) => {
   display: none;
 }
 
+/* --- Frames: list and file share the search's side bars --- */
+.frame {
+  margin-top: var(--space-s);
+}
+
+.box {
+  padding: var(--space-s) var(--space-s);
+  border-inline: 3px double var(--text-dim);
+}
+
+.box.list {
+  padding-inline: 0;
+}
+
+.box > .out,
+.box > .count {
+  padding-inline: var(--space-s);
+}
+
+.count {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--edge);
+}
+
 /* --- File list --- */
 .files {
-  margin: var(--space-xs) 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.files li + li {
+  border-top: 1px solid var(--raised);
+}
+
+.file.head {
+  min-height: 0;
+  padding-block: 0 var(--space-xs);
+  border-bottom: 1px solid var(--edge);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
 }
 
 .file {
@@ -463,13 +518,18 @@ watch(id, async (now, was) => {
   visibility: hidden;
 }
 
-.file:hover::before,
-.file:focus-visible::before {
+a.file:hover::before,
+a.file:focus-visible::before {
   visibility: visible;
 }
 
-.file:hover .name,
-.file:focus-visible .name {
+a.file:hover,
+a.file:focus-visible {
+  background: var(--raised);
+}
+
+a.file:hover .name,
+a.file:focus-visible .name {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -485,7 +545,8 @@ watch(id, async (now, was) => {
     padding-block: 6px;
   }
 
-  .perms {
+  .perms,
+  .file.head {
     display: none;
   }
 
