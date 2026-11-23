@@ -137,7 +137,7 @@ watch(id, async (now, was) => {
       <p class="ln deco" aria-hidden="true"><span>╔═[ rt//<span class="hot">INC OVERRIDE</span>>>> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
       <h1><span class="sr-only">Pithub</span><span class="deco" aria-hidden="true">░▒▓█ </span><span class="pit-title glitch" aria-hidden="true">PITHUB://</span><span class="deco" aria-hidden="true"> █▓▒░</span></h1>
       <p class="node clip" aria-hidden="true">un_omni-7.damavand.node:7 <span class="flag">sanitised</span></p>
-      <div v-if="!id" class="status deco" aria-hidden="true">
+      <div class="status deco" aria-hidden="true">
         <p class="ln"><span>connection</span><span class="fill">{{ dots }}</span><span class="hot">qebhet sanitisation protocol</span></p>
         <p class="ln"><span>scraped</span><span class="fill">{{ dots }}</span><span>{{ loaded ? entries.length : '??' }} omnif</span></p>
         <p class="ln"><span>source</span><span class="fill">{{ dots }}</span><span>un_omni-7.damavand.node:7</span></p>
@@ -188,7 +188,7 @@ watch(id, async (now, was) => {
     <template v-else>
       <p class="divider" aria-hidden="true">{{ shade }}</p>
       <section v-if="!(loaded && !error && !entries.length)" class="query" aria-label="Search the archive">
-        <p class="ln deco" aria-hidden="true"><span>╔═[ &gt;// <span class="hot">/pit/query</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
+        <p class="ln deco" aria-hidden="true"><span>╔═[ <span class="hot">/pit/query</span> ]</span><span class="fill">{{ bar }}</span><span>╗</span></p>
         <div class="search">
           <label class="grep">
             <span class="sr-only">Search</span>
@@ -506,7 +506,7 @@ watch(id, async (now, was) => {
 }
 
 .size {
-  text-align: right;
+  text-align: left; /* first column starts at the same edge as the count line */
 }
 
 .date {
