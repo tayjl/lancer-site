@@ -6,6 +6,57 @@ State at the end of the session: all commits are on `origin/main` (`e92c73f` plu
 
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
+## 0. Remaining objectives from the original plan (the developer wants ALL of this done)
+The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that every kind of content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Treat each as in scope. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (CLAUDE.md), and finish each with the reviewers, a browser pass and the docs.
+
+**0.1 Finish the Phase 0 audit** (explorer, read-only; the first pass was partial)
+- Compare every column in `src/lib/database.types.ts` and every LANCER data field against the form field that edits it. Known gaps with no input: `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`.
+- Triage constants not yet looked at: `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts` (marked content or engine).
+- Rebuild the capability matrix (kind by effects, grants, requirements, actions) from runtime behaviour, not form imports.
+- Done when: a report lists every gap and each gets an editor field or a written reason it stays code.
+
+**0.2 Phase 2 leftovers: one fact, one entry**
+- Fold Pilot Overwatch into Overwatch as a "Pilot" version. Needs a version or variant field on actions that keeps "uses any pilot weapon" (docs/rule-decisions.md). Remove `PILOT_OVERWATCH`.
+- `REACTIONS_NOTE` must stop repeating the Reaction step's general rule.
+- Full Repair text: replace "Overcharge goes back to 1 Heat" with a placeholder for the first Overcharge step.
+- Engaged: one database entry, with the range tier linking the status (a `{status:...}` placeholder, or one shared row).
+- Done when: no rules text states a number held in Numbers, names an action by copy, or exists twice.
+
+**0.3 Phase 3 leftovers: every game list is content**
+- Move to Definitions: statuses and conditions, personal stats (with icons), tag groups, stat icons, mech skills (HASE, add `MAX_SKILL` and the RequirementListField ranks), and `weapon_mounts` if it needs to differ from sizes.
+- Remove or move the code special cases: the `Flex` rule in `allowedSizes`, `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak, hardcoded mount ids in `mechData.ts` and `bracingMount()` in `rules.ts`. Where a rule truly needs code, put the id in the Definition's data (a flag) so the owner can still add a new one.
+- Make the combat guide's damage types (`src/combatRules.ts` `DAMAGE_TYPES` and the four rule rows) follow the Definitions.
+- Frame size error text must follow the Definition rows.
+- Show "Used by n" on each Definitions row before trying to delete.
+- Done when: an owner can add a damage type, status, mount type, personal stat or skill in the editor and it works on the sheet, archive and combat page with no code change.
+
+**0.4 Phase 4: every kind carries every building block**
+- Grants on mods and pilot gear: the sheet (`src/mechData.ts`, pilot code) must read them first (today only weapons and systems are read), then add the form field.
+- Requirements on core systems: the engine must read `core_system.requires` first (for example when the frame is picked), then add the field.
+- Actions on biomods: migration for a column or table (`save_bionic`, `bionic_bonuses`), then the form field.
+- Add effects, grants, requirements and actions to tags, manufacturers, actions, rules, factions and commendations where it makes sense, or write down per kind why not.
+- New building blocks: grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, add a stat with its own sheet row, conditional effects with a shown reminder.
+- Registry: make an effect that changes anything other than a mech or personal stat work from a registry entry alone (today it needs code in `mechData.ts`). Add the missing pilot-side reminder for undeclared `pilot_*` effects (`src/gameData.ts`).
+- Duplicate for manufacturers, rules and the site kinds; Used by that also scans biomods and reads sensibly for licences.
+- Done when: the capability matrix has no empty cell without a written reason, and a homebrew mechanic "never done before" can be built from the editor alone.
+
+**0.5 Phase 7 leftovers: nothing is out of reach**
+- Export every kind: Definitions, factions, commendations and biomods (not LCP kinds) so the campaign's content can be backed up and restored. Import them back.
+- Biomods can be deleted, not only hidden (guard against in-use, like `delete_content_item`).
+- Decide and build the faction and commendation delete safety (block when in use, or keep the warning).
+- Hidden filtering must cover any picker added later: add a test that fails if a picker reads a content list without `offered(...)`.
+
+**0.6 Missing editor inputs and consistency**
+- Add the editor fields found in 0.1.
+- A hidden value on an existing item shows its label, not the raw id, in the picker.
+- Tag preview shows the "Show on combat page" flag.
+- Old text fixes: the Range row title "Engaged (melee) (1)" doubled parentheses, "Reliable X" dice wording and US spellings in tag text (ask the developer which wording first).
+- Retry button on every page's load-error notice, not only Combat.
+
+**0.7 Verify everything that was never opened in a browser**
+- Work through section 4 below. Run each UX review as a narrow job with a report-by-turn-45 limit.
+- Security-audit what was skipped: the final `game_definitions` migration after its last hardening round, and the front-end hide filters.
+
 ## 1. Deployed (2026-11-24): what was done and what to check live
 Done, in this order:
 1. Replayed every migration from an empty local database (`npx supabase db reset`). This found a real bug (a string-replace had turned the `$$` quotes in `rule_number_limits.sql` into `$`); fixed and committed.
