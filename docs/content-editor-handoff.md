@@ -6,59 +6,77 @@ State at the end of the session: all commits are on `origin/main` (`e92c73f` plu
 
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
-## 0. Remaining objectives from the original plan (the developer wants ALL of this done)
-The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that every kind of content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Treat each as in scope. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (CLAUDE.md), and finish each with the reviewers, a browser pass and the docs.
+## 0. Remaining objectives from the original plan (the developer wants this done)
+The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (CLAUDE.md), and finish each with the reviewers, a browser pass and the docs.
 
-**Out of scope (the only exclusion, the developer, 2026-11-24):** entirely new mechanics, meaning a brand-new kind of calculation the engine has never done. The developer will hardcode those: a registry entry plus a code change in `mechData.ts` or the rules code is acceptable for them. Everything that only configures an existing mechanic stays in scope (a new damage type, status, mount, stat, skill, grant, requirement, action or effect built from what the engine can already count). When unsure, treat it as in scope and put the question in the report.
+### Scope decisions (the developer, 2026-11-24)
+**Out of scope**
+- Entirely new mechanics (a brand-new kind of calculation the engine has never done). The developer hardcodes those. Anything that only configures an existing mechanic is in scope. When unsure, treat it as in scope and ask in the report.
+- **Stats and skills stay as they are:** editing, adding or choosing icons for mech stats, pilot (personal) stats and the HASE skills is out. Do not move `PERSONAL_STATS`, `MECH_SKILLS`, `STAT_ICONS`, `MAX_SKILL` or the RequirementListField ranks into Definitions.
+- **Core system requirements:** not needed (a core system comes with its mech; the frame's own `requires` gates both).
+- **Simple kinds stay simple:** tags, manufacturers, actions, rules, factions and commendations are labels or small text and need no effects, grants, requirements or actions.
+- **Pilot Overwatch stays separate** from Overwatch (no merge, no variant field).
+- **The special rules in code stay:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `rules.ts` never change.
+- **The Engaged status** is being removed by the developer: do no work on it (no placeholder, no shared row, no doubled-parentheses fix).
+- **Exports of site-specific content** (Definitions, factions, commendations, biomods) are low priority: only do them if everything else is finished.
 
-**0.1 Finish the Phase 0 audit** (explorer, read-only; the first pass was partial)
+**In scope, stated by the developer**
+- The combat guide must reflect what is in the database (so it follows the Definitions, including damage types).
+- Statuses and conditions: **editing and adding them is important** (as Definitions or content rows the combat page reads).
+- **Remove all data duplication**, `REACTIONS_NOTE` included.
+- **Biomods can grant stuff** to a pilot or a mech stat, and **can be deleted**.
+- **Conditional effects with a reminder** should exist on most things.
+
+### 0.1 Finish the Phase 0 audit (explorer, read-only; the first pass was partial)
 - Compare every column in `src/lib/database.types.ts` and every LANCER data field against the form field that edits it. Known gaps with no input: `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`.
-- Triage constants not yet looked at: `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts` (marked content or engine).
+- Triage constants not yet looked at: `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts` (content or engine). Leave stats, skills and the two special rules above as engine.
 - Rebuild the capability matrix (kind by effects, grants, requirements, actions) from runtime behaviour, not form imports.
+- **Duplication sweep:** list every fact that is written in more than one place (rule text copied between rows, notes repeating a turn step, a number in text and in Numbers, a name copied instead of linked, a value in code and in the database). This feeds 0.2.
 - Done when: a report lists every gap and each gets an editor field or a written reason it stays code.
 
-**0.2 Phase 2 leftovers: one fact, one entry**
-- Fold Pilot Overwatch into Overwatch as a "Pilot" version. Needs a version or variant field on actions that keeps "uses any pilot weapon" (docs/rule-decisions.md). Remove `PILOT_OVERWATCH`.
+### 0.2 Remove all data duplication
 - `REACTIONS_NOTE` must stop repeating the Reaction step's general rule.
 - Full Repair text: replace "Overcharge goes back to 1 Heat" with a placeholder for the first Overcharge step.
-- Engaged: one database entry, with the range tier linking the status (a `{status:...}` placeholder, or one shared row).
-- Done when: no rules text states a number held in Numbers, names an action by copy, or exists twice.
+- Work through the 0.1 duplication sweep until nothing is stated twice: one database entry per fact, other places link it with a placeholder (`{action:id}`, number keys) or read it.
+- Skip Engaged (being removed) and Pilot Overwatch (stays separate).
+- Done when: no rules text states a number held in Numbers, names an action by copy, or repeats another entry.
 
-**0.3 Phase 3 leftovers: every game list is content**
-- Move to Definitions: statuses and conditions, personal stats (with icons), tag groups, stat icons, mech skills (HASE, add `MAX_SKILL` and the RequirementListField ranks), and `weapon_mounts` if it needs to differ from sizes.
-- Remove or move the code special cases: the `Flex` rule in `allowedSizes`, `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak, hardcoded mount ids in `mechData.ts` and `bracingMount()` in `rules.ts`. Where a rule truly needs code, put the id in the Definition's data (a flag) so the owner can still add a new one.
-- Make the combat guide's damage types (`src/combatRules.ts` `DAMAGE_TYPES` and the four rule rows) follow the Definitions.
-- Frame size error text must follow the Definition rows.
-- Show "Used by n" on each Definitions row before trying to delete.
-- Done when: an owner can add a damage type, status, mount type, personal stat or skill in the editor and it works on the sheet, archive and combat page with no code change.
+### 0.3 Statuses, conditions and the remaining Definitions
+- **Statuses and conditions become editable and addable.** Today they are partly code (`src/combatRules.ts:169`, status cards in `src/rulesData.ts`). Make each one a Definition or content row the combat page reads (name, text, icon and colour from existing variables, group, and whatever the combat page needs). Owner can add, edit, hide and delete (guarded) in the editor; the combat guide and any status picker or chip read them from the database.
+- **Combat guide follows the database:** `DAMAGE_TYPES` and the four damage type rule rows in `src/combatRules.ts` / `src/rulesData.ts` must come from the Definitions, so a new damage type appears in the guide. Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
+- Other Definitions work: tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
+- Frame size error text must follow the Definition rows. Show "Used by n" on each Definitions row before trying to delete.
+- Done when: an owner can add a damage type, a status or a condition, or a mount type in the editor and it works on the sheet, archive and combat page with no code change.
 
-**0.4 Phase 4: every kind carries every building block**
-- Grants on mods and pilot gear: the sheet (`src/mechData.ts`, pilot code) must read them first (today only weapons and systems are read), then add the form field.
-- Requirements on core systems: not needed (decided by the developer, 2026-11-24). A core system comes with its mech, and the frame's own `requires` already gates both.
-- Actions on biomods: required (decided by the developer). Needs a migration for the storage (`bionics` has no actions column; see `save_bionic`, `bionic_bonuses`), the form field (the existing ActionListField), and the sheet reading biomod actions the way it reads actions on other kinds. Update the database types, tests and the security review.
-- Tags, manufacturers, actions, rules, factions and commendations stay simple (decided by the developer, 2026-11-24): they are labels or small text, and they don't need effects, grants, requirements or actions. Leave them as they are.
-- New building blocks built from existing mechanics: grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, add a stat with its own sheet row (a stat the engine already adds up, like a personal stat), conditional effects shown as a reminder. If one of these truly needs a new kind of calculation, skip it and say so in the report.
-- Registry: every effect the engine can already count must work from a registry entry alone, with no code change (check the list in `BONUS_REGISTRY` against what `mechData.ts` handles). An entirely new calculation is out of scope and may need code. Add the missing pilot-side reminder for undeclared `pilot_*` effects (`src/gameData.ts`).
+### 0.4 Building blocks on the kinds that need them
+- **Biomods** (decided): 
+  - Actions on biomods: migration for the storage (`bionics` has no actions column; see `save_bionic`, `bionic_bonuses`), the form field (the existing ActionListField), and the sheet reading biomod actions the way it reads them on other kinds.
+  - Biomods grant to a pilot or mech stat: today a biomod only has the limited stat bonus list (`bionic_bonuses`). Give it the full effect registry (mech stats and pilot effects, with the same picker, search and summaries), stored and read like other kinds. Grants (equipment, deployables) too, as other kinds have.
+  - Deleting biomods: see 0.5.
+  - Update database types, tests and the security review for the migration.
+- **Conditional effects with a reminder on most things.** The effect editor had a condition field that was hidden from the editor ("Trimmed from the effect editor: the condition field", data kept). Bring it back: an effect can carry a condition text and then shows on the sheet as a named reminder, not counted. Offer it on every kind that carries effects (frames, weapons, systems, mods, gear, talents, core bonuses, biomods). Reuse `bonusReminder`. If it needs a new kind of calculation, that is out of scope: reminder only.
+- **Grants on mods and pilot gear:** the sheet (`src/mechData.ts`, pilot code) must read them first (today only weapons and systems are read), then add the form field. Also: grant a pilot weapon or gear, grant a talent rank or licence.
+- **Registry:** every effect the engine can already count must work from a registry entry alone, with no code change (check `BONUS_REGISTRY` against what `mechData.ts` handles). An entirely new calculation is out of scope. Add the missing pilot-side reminder for undeclared `pilot_*` effects (`src/gameData.ts`).
 - **Commendation requirements (decided by the developer, 2026-11-24):** any kind that takes requirements (frames, weapons, systems, mods, gear, talents, core bonuses, biomods) can require a commendation. Add `'commendation'` to `REQUIREMENT_KINDS` (`src/gameData.ts:47`), a commendation picker in `RequirementListField.vue`, and validation in `src/contentEditor.ts` (the commendation must exist). `unmetRequirements` (`src/rules.ts:101`) must receive the pilot's commendation ids (they live in `pilot_commendations`, not on the sheet: see `src/commendations.ts` and `src/pilots.ts`), so every caller that evaluates requirements has to pass them: the pickers, the mech page rule check and the pilot rule problems. Read how the submit-time SQL check evaluates requirements first (`supabase/migrations/20261121140000_homebrew_rules.sql`, `20261122120000_editable_rule_numbers.sql`) and extend it if it checks them, with pgTAP tests and a security review. **Losing a commendation:** a pilot who already owns the item keeps it and it is **flagged on the sheet** as a rule problem (`Needs {commendation name}.`, site-text style) so a GM can see it; it does not block saving unrelated changes, and a picker shows `Needs {name}` for anyone who doesn't have it. Check how existing unmet requirements on owned items surface today (talent, licence, core bonus) and reuse that path. Tests: requirement met, not met, commendation removed after buying, hidden commendation (a hidden commendation must still count for pilots who have it), a deleted commendation (the faction/commendation delete cascade removes the award: decide whether the requirement then reads as unmet or the commendation is blocked from deletion while required; prefer blocking deletion, and add the check to the in-use guard).
-- Duplicate for manufacturers, rules and the site kinds; Used by that also scans biomods and reads sensibly for licences.
-- Done when: the capability matrix's empty cells are only the ones the developer ruled out (core system requirements; every block on tags, manufacturers, actions, rules, factions and commendations), and a homebrew variation "never done before" (anything short of an entirely new calculation) can be built from the editor alone.
+- Used by that also scans biomods and reads sensibly for licences. (Duplicate for the simple kinds is not needed.)
+- Done when: the capability matrix's empty cells are only the ones ruled out above, biomods can grant stat effects and actions, and a homebrew variation short of an entirely new calculation can be built from the editor alone.
 
-**0.5 Phase 7 leftovers: nothing is out of reach**
-- Export every kind: Definitions, factions, commendations and biomods (not LCP kinds) so the campaign's content can be backed up and restored. Import them back.
-- Biomods can be deleted, not only hidden (guard against in-use, like `delete_content_item`).
-- Decide and build the faction and commendation delete safety (block when in use, or keep the warning).
+### 0.5 After-launch completeness
+- **Biomods can be deleted**, not only hidden (guard against in-use like `delete_content_item`; pilots who own it are the in-use case).
+- Decide and build the faction and commendation delete safety (block when in use, or keep the warning); commendations required by an item must block deletion (see commendation requirements).
 - Hidden filtering must cover any picker added later: add a test that fails if a picker reads a content list without `offered(...)`.
+- Low priority, last: export and import for Definitions, factions, commendations and biomods.
 
-**0.6 Missing editor inputs and consistency**
+### 0.6 Missing editor inputs and consistency
 - Add the editor fields found in 0.1.
 - A hidden value on an existing item shows its label, not the raw id, in the picker.
 - Tag preview shows the "Show on combat page" flag.
-- Old text fixes: the Range row title "Engaged (melee) (1)" doubled parentheses, "Reliable X" dice wording and US spellings in tag text (ask the developer which wording first).
+- Old text fixes: "Reliable X" dice wording and US spellings in tag text (ask the developer which wording first).
 - Retry button on every page's load-error notice, not only Combat.
 
-**0.7 Verify everything that was never opened in a browser**
+### 0.7 Verify everything that was never opened in a browser
 - Work through section 4 below. Run each UX review as a narrow job with a report-by-turn-45 limit.
-- Security-audit what was skipped: the final `game_definitions` migration after its last hardening round, and the front-end hide filters.
+- Security-audit what was skipped: the final `game_definitions` migration after its last hardening round, the front-end hide filters, and any new migration (biomod actions and effects, statuses, commendation requirements).
 
 ## 1. Deployed (2026-11-24): what was done and what to check live
 Done, in this order:
@@ -85,7 +103,6 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 - **Conflict Reload leaves a "Leave site?" prompt in `EditorPane`.** Fixed in `DefinitionPane` only. `EditorPane`'s conflict Reload (`ConflictNotice`, a plain `window.location.reload()`) has the same `beforeunload` guard and probably prompts too.
 - **Owner's first pack import stamps every row** in `content_saves` as an editor save. An import isn't an editor save. Decide: skip stamping on insert for pack imports, or accept.
 - **Trigger raises if the signed-in user has no profile row** (`private.stamp_save` foreign key). Unreachable for real owners; matters only for a service-role call carrying a user JWT.
-- **Pilot Overwatch is not folded into Overwatch.** An action has one `text` and mech/pilot flags and no way to keep the "uses any pilot weapon" wording. Needs a version field or a separate approach (decision in the cleanup doc: link, don't merge; the Reaction step now links Brace and Overwatch).
 - **Seed ids are positional** (`SEED_IDS`, `ACTION_IDS`): a new seed row needs an id placed to match its `add()` call. Snapshot tests fail until updated on purpose. Consider keyed ids.
 - **Frame size error text is fixed** ("Size is ½, 1, 2 or 3.") and goes stale if the owner adds a size.
 - **Duplicate carries built-in core checks** for official frames (fixed, tested) but the first edit of an official frame's core checks writes a full copy that no longer follows `CORE_CHECK_BONUSES`. Never confirmed that the first edit saves its own copy (the reviewer could not tell).
@@ -93,11 +110,11 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 - **Used by** matches exact strings, so a manufacturer code can match a weapon's `license` text. It does not scan biomods. "Used by" reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
 - **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decide whether to block it (restrictive policy or `on delete restrict`).
 - A very long faction name is accepted (only unique, no length check).
-- **Phase 2 leftovers:** the Full Repair text still says "Overcharge goes back to 1 Heat" (no placeholder for the first step). `REACTIONS_NOTE` still repeats the Reaction step's general rule. The Engaged status and range rows share one string in code but the database holds two copies. The Range row title reads "Engaged (melee) (1)" with doubled parentheses (probably old). Combat guide "damage type" rows still come from `DAMAGE_TYPES` in `src/combatRules.ts` and do not follow Definitions.
+- **Phase 2 leftovers:** the Full Repair text still says "Overcharge goes back to 1 Heat" (no placeholder for the first step), and `REACTIONS_NOTE` still repeats the Reaction step's general rule: both are in scope (0.2). The combat guide's damage type rows still come from `DAMAGE_TYPES` in `src/combatRules.ts` and do not follow Definitions: in scope (0.3). The Engaged status is being removed by the developer, so its duplicate row and doubled-parentheses title need no work.
 - Tag preview in the editor does not show the "Show on combat page" flag.
 - Old wording in core text: "Reliable X" says "rolls less damage" (dice wording the developer is deciding), tags use US spelling ("Armor-Piercing", "Personal Armor", "E-Defense") against the site's "armour" and "E-defence".
 - `pilot_foo` effects with no registry entry are treated as the pilot's but never shown as a reminder on the pilot sheet (needs a pilot reminder in `src/gameData.ts`).
-- A brand-new effect type that changes anything other than a mech or personal stat still needs code in `src/mechData.ts`.
+- A brand-new effect type that changes anything other than a mech or personal stat still needs code in `src/mechData.ts`: out of scope, the developer hardcodes entirely new mechanics.
 - `lcp.ts` now imports `contentEditor.ts` at runtime: check the bundle size of the content/import page.
 - LCP import validates actions and rules with an empty tag and stat context, so unknown tags or stats warn at most.
 - Hidden in `loadKind`: **not filtered centrally** (it would break lookups). Pickers call `offered(list, keep)` in `src/catalogue.ts:42`. A new picker must call it or hidden items leak. Nothing in the database blocks awarding a hidden commendation.
@@ -105,17 +122,17 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 - Before `pilot_stats` loads, `isPilotBonus` treats personal stats as mech bonuses (corrects on load).
 
 ## 3. Not built (decided or offered, left out)
-- **Phase 4 building blocks:** grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, a new stat with its own sheet row, conditional effects with a shown reminder. Need engine code.
-- **Grants on mods and pilot gear:** the sheet never reads them (equipped grants cover weapons and systems only). Needs engine support first.
+Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_STATS`, `MECH_SKILLS`, `STAT_ICONS`, `MAX_SKILL` and the RequirementListField ranks stay in code) and entirely new mechanics. Everything else below that is not marked otherwise is in scope, see section 0.
+- **Phase 4 building blocks still to build (0.4):** grant a pilot weapon or gear, grant a talent rank or licence, conditional effects with a shown reminder, biomod actions and biomod effects on pilot and mech stats. Out of scope: changing a pilot or mech skill, a new stat with its own sheet row (stats and skills stay as they are).
+- **Grants on mods and pilot gear:** the sheet never reads them (equipped grants cover weapons and systems only). In scope (0.4): the sheet reads them first, then the form field.
 - **Actions on biomods:** required, see 0.4.
 - **Requirements on core systems:** not needed (developer decision, 2026-11-24).
-- **Mech skills (HASE) and personal stats as Definitions** (decided: allowed, not urgent). `MAX_SKILL` and the RequirementListField ranks are still hardcoded.
-- **Definitions leftovers in code on purpose:** the `Flex` rule in `allowedSizes`, `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`, the `Integrated Auxiliary`/`Main/Aux`/`Superheavy` ids in `mechData.ts`, `bracingMount()` in `src/rules.ts`. `weapon_mounts` is an allowed kind with no rows (the code uses one list for sizes and mounts, seeded as `weapon_sizes`). Data-only values (`Ship-class`, `Special`, `Spool Weapon`, `???`) are not seeded.
+- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Still to move or justify (0.3): `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`, the `Integrated Auxiliary`/`Main/Aux`/`Superheavy` ids in `mechData.ts`. `weapon_mounts` is an allowed kind with no rows (the code uses one list for sizes and mounts, seeded as `weapon_sizes`). Data-only values (`Ship-class`, `Special`, `Spool Weapon`, `???`) are not seeded.
 - **Fields with no editor input** (audit): `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`. The audit also did not compare `database.types.ts` column by column against the forms, and did not triage `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts:123` constants.
 - **Rare kinds that don't exist:** reserves, backgrounds and NPCs are not content kinds (out of scope until they exist).
 - **Used-by counts before delete** on Definitions rows (the refusal appears only after trying).
-- **Duplicate** is not offered for manufacturers, rules or site kinds (ids typed, fixed or database-made).
-- Pilot Overwatch fold, see section 2.
+- **Duplicate** is not offered for manufacturers, rules or site kinds: not needed, those kinds stay simple.
+- Pilot Overwatch stays separate from Overwatch (developer decision, 2026-11-24). Not a task.
 - "What changed" history beyond the last save (decided: last save only).
 
 ## 4. Never browser-checked (code and tests only)
