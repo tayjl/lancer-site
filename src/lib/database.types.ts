@@ -250,6 +250,7 @@ export type Database = {
       commendations: {
         Row: {
           description: string
+          hidden: boolean
           icon: string
           id: string
           name: string
@@ -257,6 +258,7 @@ export type Database = {
         }
         Insert: {
           description?: string
+          hidden?: boolean
           icon: string
           id?: string
           name: string
@@ -264,6 +266,7 @@ export type Database = {
         }
         Update: {
           description?: string
+          hidden?: boolean
           icon?: string
           id?: string
           name?: string
@@ -341,6 +344,35 @@ export type Database = {
           {
             foreignKeyName: "content_packs_imported_by_fkey"
             columns: ["imported_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_saves: {
+        Row: {
+          key: string
+          saved_at: string
+          saved_by: string | null
+          source: string
+        }
+        Insert: {
+          key: string
+          saved_at?: string
+          saved_by?: string | null
+          source: string
+        }
+        Update: {
+          key?: string
+          saved_at?: string
+          saved_by?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_saves_saved_by_fkey"
+            columns: ["saved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -430,18 +462,21 @@ export type Database = {
       organisations: {
         Row: {
           description: string | null
+          hidden: boolean
           id: number
           name: string
           updated_at: string
         }
         Insert: {
           description?: string | null
+          hidden?: boolean
           id?: never
           name: string
           updated_at?: string
         }
         Update: {
           description?: string | null
+          hidden?: boolean
           id?: never
           name?: string
           updated_at?: string
