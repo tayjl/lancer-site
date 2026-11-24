@@ -347,6 +347,39 @@ export type Database = {
           },
         ]
       }
+      game_definitions: {
+        Row: {
+          created_at: string
+          data: Json
+          hidden: boolean
+          id: string
+          kind: string
+          label: string
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          hidden?: boolean
+          id: string
+          kind: string
+          label: string
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          hidden?: boolean
+          id?: string
+          kind?: string
+          label?: string
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lore_entries: {
         Row: {
           body: Json
@@ -951,6 +984,10 @@ export type Database = {
         Returns: undefined
       }
       delete_content_item: { Args: { target_id: string }; Returns: undefined }
+      delete_definition: {
+        Args: { target_id: string; target_kind: string }
+        Returns: undefined
+      }
       delete_my_account: { Args: never; Returns: undefined }
       dismiss_approval_note: {
         Args: { expected_note: string; target_character_id: number }
@@ -1080,6 +1117,10 @@ export type Database = {
           target_id?: number
         }
         Returns: Json
+      }
+      save_definitions: {
+        Args: { rows: Json; target_kind: string }
+        Returns: undefined
       }
       send_back_pilot: {
         Args: { note: string; target_character_id: number }
