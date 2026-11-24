@@ -1904,6 +1904,7 @@ a.lore-link:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: var(--tap);
   color: var(--text-dim);
   font-size: var(--fs-s);
 }
