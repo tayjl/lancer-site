@@ -5,7 +5,7 @@ import Icon from '../Icon.vue'
 import FoldPanel from './FoldPanel.vue'
 import { latest } from './useFields'
 
-// The item's data as JSON, for everything the form has no field for (and for every kind that has no form yet). It edits the
+// The item's data as JSON, for everything the form has no field for. It edits the
 // same object as the form: what you type here shows in the form and the preview as soon as it's valid JSON, and the
 // form's changes appear here. While the JSON is broken the last good data stays, and "error" says why (Save is blocked).
 const modelProp = defineModel<Data>({ required: true })

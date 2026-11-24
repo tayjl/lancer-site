@@ -1852,31 +1852,6 @@ a.lore-link:focus-visible,
   font-size: var(--fs-s);
 }
 
-/* A faction's or commendation's editor (useSimpleEditor.ts): its panels, then the buttons' row. */
-.simple-editor {
-  display: grid;
-  gap: var(--space-m);
-  min-width: 0;
-}
-
-.simple-editor .panel {
-  display: grid;
-  gap: var(--space-m);
-  align-content: start;
-}
-
-.simple-editor .panel > :is(h2, h3, .notice),
-.simple-editor :is(.row, .danger-body) > p {
-  margin: 0;
-}
-
-.simple-editor .row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-}
-
 /* An id that can't be edited: dashed, like a field that's only there to read. */
 .ed-form input[readonly] {
   border-style: dashed;

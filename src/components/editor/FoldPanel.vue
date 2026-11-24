@@ -39,7 +39,7 @@ summary { display: flex; align-items: center; gap: var(--space-m); min-height: v
 summary::-webkit-details-marker { display: none; }
 summary:focus-visible { outline: 2px solid var(--lilac); outline-offset: 2px; }
 /* A step above the fields' 12px labels, so the sections stand out from what's in them. */
-summary h3 { flex: none; margin: 0; font-size: var(--fs-m); }
+summary h3 { flex: 0 1 auto; min-width: 0; margin: 0; font-size: var(--fs-m); }
 .fold-sum { min-width: 0; overflow: hidden; color: var(--text-dim); font-size: var(--fs-s); text-overflow: ellipsis; white-space: nowrap; }
 details[open] > summary .fold-sum, details[open] > summary .fold-bad { display: none; }
 .fold-bad { display: inline-flex; flex: none; align-items: center; gap: 4px; color: var(--danger); font-size: var(--fs-s); font-weight: 700; }

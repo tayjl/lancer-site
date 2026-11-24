@@ -10,6 +10,8 @@ import Icon from '../Icon.vue'
 import InfoBody from '../InfoBody.vue'
 import ItemCard from '../ItemCard.vue'
 import ItemDetails from '../ItemDetails.vue'
+import MedalBadge from '../MedalBadge.vue'
+import { fill } from '../../rulesData'
 import RulePreview from './RulePreview.vue'
 import RulesText from '../RulesText.vue'
 import SheetTabs from '../SheetTabs.vue'
@@ -33,7 +35,8 @@ function build(data: Data): Built {
     if (kind === 'core_bonuses') { const bonus = toCoreBonus(id, data); return { info: coreBonusInfo(bonus), bonus } }
     if (kind === 'manufacturers') return { info: manufacturerInfo(toManufacturer(id, data), frames.value) }
     if (kind === 'tags') return { info: { kind: 'Tag', name: String(data.name ?? id), facts: [], stats: [], groups: [{ title: 'Meaning', cards: [{ heading: 'Meaning', html: String(data.description ?? '') }] }] } }
-    if (kind === 'actions') return { info: { kind: 'Action', name: String(data.name ?? id), facts: data.frequency ? [{ text: String(data.frequency) }] : [], stats: [], groups: data.detail ? [{ title: 'Rules', cards: [{ heading: 'Rules text', html: String(data.detail) }] }] : [] } }
+    if (kind === 'actions') return { info: { kind: 'Action', name: String(data.name ?? id), facts: data.frequency ? [{ text: String(data.frequency) }] : [], stats: [], groups: data.detail ? [{ title: 'Rules', cards: [{ heading: 'Rules text', html: fill(String(data.detail)) }] }] : [] } }
+    if (kind === 'factions' || kind === 'commendations') return { info: { kind: kind === 'factions' ? 'Faction' : 'Commendation', name: String(data.name ?? ''), facts: [], stats: [], groups: [] } }
     if (kind === 'bionics') {
       const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), source: String(data.source ?? '') || null, effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
       return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name]))) }
@@ -84,8 +87,7 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
     </template>
     <template v-else-if="view === 'Original'">
       <p class="dim note">The pack's version.</p>
-      <p v-if="was && 'error' in was" class="notice warn">Original failed: {{ was.error }}</p>
-      <InfoBody v-else-if="was" :info="was.info" />
+      <InfoBody v-if="was && 'info' in was" :info="was.info" />
     </template>
     <template v-else>
       <header class="head">
@@ -96,6 +98,10 @@ const view = computed({ get: () => (tabs.value.includes(chosen.value) ? chosen.v
           <ActionChip v-if="kind === 'actions'" :activation="String(data.activation ?? '')" />
         </div>
       </header>
+      <template v-if="kind === 'commendations'">
+        <MedalBadge :icon="String(data.icon ?? '')" :name="String(data.name ?? '').trim() || 'Commendation'" />
+        <p v-if="data.description" class="note">{{ data.description }}</p>
+      </template>
       <InfoBody :info="now.info" />
     </template>
   </section>

@@ -54,7 +54,7 @@ export function ruleFields(r: Record<string, string | number[] | null>) {
   const section = pick('section') ?? ''
   const numbers = (r.edited_numbers ?? r.numbers) as number[] | null
   const order = Number(pick('order') ?? NaN)
-  const facts = section === 'numbers' ? (numbers ?? []).join(', ') : section === 'tag_list' ? '' : pick('value') ?? ''
+  const facts = section === 'numbers' ? (numbers ?? []).join(', ') : pick('value') ?? ''
   return { facts, fields: { section, group: pick('group') ?? '', order: Number.isNaN(order) ? Infinity : order } }
 }
 
@@ -139,6 +139,8 @@ export async function createItem(kind: EditorKind, edits: Data, packId: number |
     const saved = data as { id: number; updated_at: string } | null
     return error || !saved ? { error: error ? message(error) : NOT_ALLOWED } : { updatedAt: saved.updated_at, key: String(saved.id) }
   }
+  if (kind === 'factions') return siteCreate(supabase.from('organisations').insert({ name: String(working.name).trim() }).select('id, updated_at'))
+  if (kind === 'commendations') return siteCreate(supabase.from('commendations').insert(commendationFields(working)).select('id, updated_at'))
   const result = await checkWrite(await supabase.from('content_items').insert({ id: String(working.id), pack_id: packId!, kind, data: working as Json, draft: true }).select('updated_at'))
   return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: String(working.id) }
 }
@@ -153,7 +155,21 @@ export async function saveItem(item: Loaded, edits: Data, homebrew: boolean): Pr
     if (error) return { error: /changed somewhere else/.test(error.message) ? CHANGED_ELSEWHERE : message(error) }
     return saved ? { updatedAt: saved.updated_at } : { error: NOT_ALLOWED }
   }
+  if (item.kind === 'factions') return siteUpdate(item, supabase.from('organisations').update({ name: String(working.name).trim() }).eq('id', Number(item.key)).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('organisations').select('updated_at').eq('id', Number(item.key)).maybeSingle())
+  if (item.kind === 'commendations') return siteUpdate(item, supabase.from('commendations').update(commendationFields(working)).eq('id', item.key).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('commendations').select('updated_at').eq('id', item.key).maybeSingle())
   return update(item, homebrew ? { data: working as Json } : { edited: working as Json })
+}
+
+// Factions (a name) and commendations (name, description, icon) are rows of their own tables, their ids made by the database.
+const commendationFields = (working: Data) => ({ name: String(working.name).trim(), description: String(working.description ?? ''), icon: String(working.icon ?? '') })
+async function siteCreate(insert: PromiseLike<{ data: { id: number | string; updated_at: string }[] | null; error: { message: string } | null }>): Promise<Saved & { key?: string }> {
+  const result = await checkWrite(await insert)
+  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: String(result.row.id) }
+}
+type Checked = PromiseLike<{ data: { updated_at: string }[] | null; error: { message: string } | null }>
+async function siteUpdate(item: Loaded, write: Checked, recheck: () => PromiseLike<{ data: { updated_at: string } | null }>): Promise<Saved> {
+  const result = await checkWrite(await write, { seen: item.updatedAt, recheck })
+  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at }
 }
 
 // Publishing a draft, or putting an edited import back to the pack's own version (edited = null).
@@ -170,45 +186,11 @@ async function update(item: Loaded, changes: { data?: Json; edited?: Json | null
 }
 
 // Only homebrew items can be deleted, and only while no pilot uses them (the database says so too).
-export async function deleteItem(key: string): Promise<string | null> {
+export async function deleteItem(key: string, kind?: EditorKind): Promise<string | null> {
+  if (kind === 'factions') return (await checkWrite(await supabase.from('organisations').delete().eq('id', Number(key)).select('id'))).error
+  if (kind === 'commendations') return (await checkWrite(await supabase.from('commendations').delete().eq('id', key).select('id'))).error
   const { error } = await supabase.rpc('delete_content_item', { target_id: key })
   return error ? message(error) : null
-}
-
-// Factions: just a name (the reputation tracker's organisations). Deleting one removes every pilot's reputation with it.
-export async function createFaction(name: string): Promise<{ updatedAt: string; key: string; error?: undefined } | { error: string; updatedAt?: undefined; key?: undefined }> {
-  const result = await checkWrite(await supabase.from('organisations').insert({ name: name.trim() }).select('id, updated_at'))
-  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: String(result.row.id) }
-}
-export async function saveFaction(item: Loaded, name: string): Promise<Saved> {
-  const seen = item.updatedAt
-  const id = Number(item.key)
-  const result = await checkWrite(
-    await supabase.from('organisations').update({ name: name.trim() }).eq('id', id).eq('updated_at', seen).select('updated_at'),
-    { seen, recheck: () => supabase.from('organisations').select('updated_at').eq('id', id).maybeSingle() },
-  )
-  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at }
-}
-export async function deleteFaction(key: string): Promise<string | null> {
-  return (await checkWrite(await supabase.from('organisations').delete().eq('id', Number(key)).select('id'))).error
-}
-
-// Commendations: a name, a description and an icon. Deleting one takes it from every pilot who has it.
-export type CommendationFields = { name: string; description: string; icon: string }
-export async function createCommendation(fields: CommendationFields): Promise<{ updatedAt: string; key: string; error?: undefined } | { error: string; updatedAt?: undefined; key?: undefined }> {
-  const result = await checkWrite(await supabase.from('commendations').insert({ ...fields, name: fields.name.trim() }).select('id, updated_at'))
-  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: result.row.id }
-}
-export async function saveCommendation(item: Loaded, fields: CommendationFields): Promise<Saved> {
-  const seen = item.updatedAt
-  const result = await checkWrite(
-    await supabase.from('commendations').update({ ...fields, name: fields.name.trim() }).eq('id', item.key).eq('updated_at', seen).select('updated_at'),
-    { seen, recheck: () => supabase.from('commendations').select('updated_at').eq('id', item.key).maybeSingle() },
-  )
-  return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at }
-}
-export async function deleteCommendation(key: string): Promise<string | null> {
-  return (await checkWrite(await supabase.from('commendations').delete().eq('id', key).select('id'))).error
 }
 
 // The pilots using an item, each named once, in their sheet or an open change.

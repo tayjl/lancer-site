@@ -1,5 +1,6 @@
 import { capitalise, sameName } from './text'
 import { bonusValue } from './bonuses'
+import { ICON_CHOICES } from './commendations'
 import { flatDamage } from './damage'
 import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
@@ -229,6 +230,8 @@ export type Context = {
   coreBonuses?: Set<string>
   // The frames that are themselves alternates of another (an alternate can't be of one of these).
   alternates?: Set<string>
+  // The other factions' or commendations' names, for the one-of-a-name check.
+  others?: string[]
 }
 
 const isNumber = (value: unknown) => (typeof value === 'number' && Number.isFinite(value)) || (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value)))
@@ -555,6 +558,9 @@ export function validateCommendation(name: string, description: string, icon: st
 
 // The same checks for any kind, as the editor calls them.
 export function problemsFor(kind: EditorKind, data: Data, ctx: Context): Problem[] {
+  const name = String(data.name ?? '')
+  if (kind === 'factions') return validateFaction(name, ctx.others ?? [])
+  if (kind === 'commendations') return validateCommendation(name, String(data.description ?? ''), String(data.icon ?? ''), ctx.others ?? [], ICON_CHOICES)
   return kind === 'bionics' ? validateBionic(data, ctx) : validateItem(kind, data, ctx)
 }
 

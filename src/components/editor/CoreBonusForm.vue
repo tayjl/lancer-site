@@ -5,6 +5,7 @@ import { plural } from '../../text'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
+import ManufacturerField from './ManufacturerField.vue'
 import FoldPanel from './FoldPanel.vue'
 import GrantFields from './GrantFields.vue'
 import RequirementListField from './RequirementListField.vue'
@@ -34,13 +35,7 @@ const grants = computed(() => list<string>(model.value.integrated).length + list
       <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
-      <Field class="span2" label="Manufacturer" path="source">
-        <select v-model="source">
-          <option value="" disabled>Choose…</option>
-          <option v-if="source && !manufacturers.some((maker) => maker.id === source)" :value="source">{{ source }}</option>
-          <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
-        </select>
-      </Field>
+      <ManufacturerField v-model="source" :manufacturers="manufacturers" />
     </div>
   </FoldPanel>
 

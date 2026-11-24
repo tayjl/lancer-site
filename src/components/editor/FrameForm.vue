@@ -12,10 +12,11 @@ import InfoButton from '../InfoButton.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
-import ChoiceField from './ChoiceField.vue'
 import CoreSystemFields from './CoreSystemFields.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
+import ManufacturerField from './ManufacturerField.vue'
+import LicenceField from './LicenceField.vue'
 import FieldError from './FieldError.vue'
 import FoldPanel from './FoldPanel.vue'
 import GrantFields from './GrantFields.vue'
@@ -40,7 +41,7 @@ const roles = f.list<string>('mechtype')
 const mounts = f.list<string>('mounts')
 const traits = f.list<Data>('traits')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
-const rank = computed({ get: () => Number(model.value.license_level) || 0, set: (value: number) => (model.value = { ...model.value, license_level: value }) })
+const rank = computed(() => Number(model.value.license_level) || 0)
 
 const entry = (value: unknown): Data => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Data) : {})
 // Bonuses on a frame can only be the mech's own.
@@ -110,28 +111,17 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
       >
         <input class="code" :value="String(model.id ?? '')" type="text" readonly />
       </Field>
-      <Field class="span2" label="Manufacturer" path="source">
-        <select v-model="source">
-          <option value="" disabled>Choose…</option>
-          <option v-if="source && !manufacturers.some((maker) => maker.id === source)" :value="source">{{ source }}</option>
-          <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
-        </select>
-      </Field>
+      <ManufacturerField v-model="source" :manufacturers="manufacturers" />
       <Field class="span2" label="Alternate of" path="license_id">
         <select v-model="alternate">
           <option value="">None</option>
           <option v-for="frame in originals" :key="frame.id" :value="frame.id">{{ frame.source }} {{ frame.name }}</option>
         </select>
       </Field>
-      <Field class="span2" label="Licence" path="license_id">
-        <input class="code" :value="String(model.license_id ?? '')" type="text" readonly />
-      </Field>
+      <LicenceField v-model="model" />
     </div>
     <Field block label="Mech type" path="mechtype">
       <ToggleChips v-model="roles" :options="FRAME_ROLES" label="Mech type" />
-    </Field>
-    <Field block label="Unlocked at licence rank" path="license_level">
-      <ChoiceField v-model="rank" label="Unlocked at licence rank" :options="[0, 1, 2, 3].map((value) => ({ value, label: roman(value) }))" />
     </Field>
     <Field block label="Image" path="image">
       <div class="art-edit">

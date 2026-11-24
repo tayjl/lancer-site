@@ -7,6 +7,7 @@ import Icon from '../Icon.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import BonusListField from './BonusListField.vue'
 import Field from './Field.vue'
+import ManufacturerField from './ManufacturerField.vue'
 import FieldError from './FieldError.vue'
 import FoldPanel from './FoldPanel.vue'
 import GrantFields from './GrantFields.vue'
@@ -31,7 +32,7 @@ const cost = f.number('mod_point_cost')
 // The usual slots, then any the campaign has made up.
 const listId = useId()
 const { bionics } = useGameData()
-const slots = computed(() => [...new Set([...BIONIC_SLOTS, ...bionics.value.map((bionic) => bionic.slot).filter(Boolean)])])
+const slots = computed(() => [...new Set([...BIONIC_SLOTS, ...bionics.value.map((biomod) => biomod.slot).filter(Boolean)])])
 const retired = f.flag('retired')
 const bonuses = f.list<{ stat_id: string; amount: number }>('bonuses')
 // The same effects every other kind has (not the personal stats: the stat bonuses above are those).
@@ -57,13 +58,7 @@ const add = () => {
         <input v-model="slot" type="text" autocomplete="off" :list="listId" />
         <datalist :id="listId"><option v-for="option in slots" :key="option" :value="option"></option></datalist>
       </Field>
-      <Field class="span2" label="Manufacturer" path="source" hint="HORUS, NHC and Exotic biomods are GM-only.">
-        <select v-model="source">
-          <option value="">None</option>
-          <option v-if="source && !manufacturers.some((maker) => maker.id === source)" :value="source">{{ source }}</option>
-          <option v-for="maker in manufacturers" :key="maker.id" :value="maker.id">{{ maker.id }}{{ maker.name !== maker.id ? ` · ${maker.name}` : '' }}</option>
-        </select>
-      </Field>
+      <ManufacturerField v-model="source" :manufacturers="manufacturers" optional hint="HORUS, NHC and Exotic biomods are GM-only." />
       <Field class="span2" label="Price (manna)" path="manna_cost"><input v-model="price" type="number" min="0" step="1" /></Field>
       <Field class="span2" label="Mod points" path="mod_point_cost"><input v-model="cost" type="number" min="0" step="1" /></Field>
     </div>

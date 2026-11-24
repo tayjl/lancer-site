@@ -12,11 +12,13 @@ import ConflictNotice from '../ConflictNotice.vue'
 import Icon from '../Icon.vue'
 import SaveStatus from '../SaveStatus.vue'
 import SheetTabs from '../SheetTabs.vue'
-import BionicForm from './BionicForm.vue'
+import BiomodForm from './BiomodForm.vue'
+import CommendationForm from './CommendationForm.vue'
 import CoreBonusForm from './CoreBonusForm.vue'
 import EditorPreview from './EditorPreview.vue'
 import GearForm from './GearForm.vue'
 import ManufacturerForm from './ManufacturerForm.vue'
+import FactionForm from './FactionForm.vue'
 import FrameForm from './FrameForm.vue'
 import ModForm from './ModForm.vue'
 import RawDataField from './RawDataField.vue'
@@ -28,8 +30,8 @@ import TalentForm from './TalentForm.vue'
 import WeaponForm from './WeaponForm.vue'
 import { provideProblems } from './useFields'
 
-// One item's editor: a bar (name, state, Revert, Publish, Save), what to know before saving, the form (or the raw-data
-// box, for kinds with no form yet) and the live preview. Saving is explicit, not automatic, because saving an item
+// One item's editor: a bar (name, state, Revert, Publish, Save), what to know before saving, the form, the raw-data box
+// under the danger zone and the live preview. Saving is explicit, not automatic, because saving an item
 // pilots use changes their sheets. It owns what's on screen ("working") and the version last loaded or saved
 // ("baseline"); the view keys it by item, so it starts afresh for each one. "item" is null for a new one.
 const props = defineProps<{
@@ -42,6 +44,8 @@ const props = defineProps<{
   manufacturers: { id: string; name: string }[]
   stats: { id: string; name: string }[]
   takenIds: Set<string>
+  // The other factions' or commendations' names.
+  names: string[]
   blank: Data
   wide: boolean
 }>()
@@ -52,6 +56,12 @@ const isNew = props.item === null
 // Homebrew: in the Campaign homebrew pack (or about to be). Anything else is an imported item, whose edits are kept apart (content_items.edited).
 const homebrew = !isNew && props.item!.packId !== null && props.item!.packId === props.homebrewId
 const imported = !isNew && !info.site && !homebrew
+// Factions and commendations are rows of their own tables: no packs and no item usage, and the owner can delete them.
+const own = props.kind === 'factions' || props.kind === 'commendations'
+const deletable = homebrew || (own && !isNew)
+// What deleting one does to pilots (an item is refused while pilots use it, so it says nothing).
+const effect = props.kind === 'factions' ? "Every pilot's reputation with it is removed." : props.kind === 'commendations' ? 'Pilots who have it lose it.' : ''
+const deleteLabel = `Delete ${own ? info.singular : 'item'}`
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 
 const working = shallowRef<Data>(clone(props.item ? (props.item.edited ?? props.item.data) : props.blank))
@@ -77,9 +87,9 @@ const sizeWatch = new ResizeObserver(measure)
 onMounted(() => { if (side.value) sizeWatch.observe(side.value); window.addEventListener('resize', measure) })
 onUnmounted(() => { sizeWatch.disconnect(); window.removeEventListener('resize', measure) })
 
-// A new item's id comes from its name (bionics get theirs from the database, a manufacturer's is typed) until it's saved the first time.
+// A new item's id comes from its name (site rows get theirs from the database, a manufacturer's is typed) until it's saved the first time.
 watch(() => working.value.name, (name) => {
-  if (!isNew || props.kind === 'bionics' || props.kind === 'manufacturers') return
+  if (!isNew || info.site || props.kind === 'manufacturers') return
   const id = newId(props.kind, String(name ?? ''), props.takenIds)
   // A frame is its own licence, so its licence id follows its id.
   working.value = { ...working.value, id, ...(props.kind === 'frames' && !working.value.variant ? { license_id: id } : {}) }
@@ -101,8 +111,9 @@ const problems = computed<Problem[]>(() => {
     talents: new Set(talents.value.map((talent) => talent.id)),
     coreBonuses: new Set(coreBonuses.value.map((bonus) => bonus.id)),
     alternates: new Set(frames.value.filter((frame) => alternateOf(frame, frames.value)).map((frame) => frame.id)),
+    others: props.names,
   })
-  if (isNew && props.kind !== 'bionics' && props.takenIds.has(String(working.value.id))) found.push({ level: 'error', text: 'That ID is already used by another item.', field: 'id' })
+  if (isNew && !info.site && props.takenIds.has(String(working.value.id))) found.push({ level: 'error', text: 'That ID is already used by another item.', field: 'id' })
   if (rawError.value) found.push({ level: 'error', text: rawError.value })
   return found
 })
@@ -118,7 +129,7 @@ const bonusTypes = computed(() => bonusTypesFor(props.kind, props.stats))
 const pilots = ref<string[]>([])
 const usageError = ref(false)
 onMounted(async () => {
-  if (!props.item) return
+  if (!props.item || own) return
   const result = await usageOf(props.kind, props.item.key)
   pilots.value = result.pilots
   usageError.value = !!result.error
@@ -130,8 +141,7 @@ watch(working, () => { if (dirty.value) status.saved.value = false })
 // An Exotic manufacturer puts the Exotic Gear tag on the item (and the save adds it too, editorStore.ts).
 watch(working, (data) => { const next = withExoticTag(props.kind, data); if (next !== data) working.value = next })
 const busy = computed(() => status.saving.value)
-// A Tags card entry is named by its tag.
-const named = computed(() => { const name = String(working.value.name ?? '').trim(); return props.kind === 'rules' && working.value.section === 'tag_list' ? (props.tags.find((t) => t.id === name)?.name ?? name) : name })
+const named = computed(() => String(working.value.name ?? '').trim())
 const title = computed(() => named.value || (isNew ? `New ${info.singular}` : props.item!.key))
 const current = () => ({ ...props.item!, updatedAt: updatedAt.value })
 
@@ -196,8 +206,8 @@ const discard = () => {
 
 const deleteError = ref('')
 async function remove() {
-  if (!(await confirmAction(`Delete ${title.value}? This can't be undone.`, { confirmLabel: 'Delete item', danger: true }))) return
-  deleteError.value = (await deleteItem(props.item!.key)) ?? ''
+  if (!(await confirmAction([`Delete ${title.value}?`, effect, "This can't be undone."].filter(Boolean).join(' '), { confirmLabel: deleteLabel, danger: true }))) return
+  deleteError.value = (await deleteItem(props.item!.key, props.kind)) ?? ''
   if (!deleteError.value) {
     invalidateCatalogues()
     baseline.value = clone(working.value)
@@ -219,7 +229,7 @@ defineExpose({ dirty })
       <Icon :name="info.icon" class="kind-ico" />
       <h2>{{ title }}</h2>
       <span v-if="draft" class="badge draft">Draft</span>
-      <span v-else-if="homebrew" class="badge approved">Published</span>
+      <span v-else-if="homebrew" class="badge">Published</span>
       <span v-else-if="hasEdit" class="badge">Edited</span>
       <span v-else-if="imported" class="badge">Official</span>
       <span v-if="dirty && !busy" class="dim status">Unsaved changes</span>
@@ -247,7 +257,7 @@ defineExpose({ dirty })
       <div v-show="showForm" :key="resetKey" class="ed-form">
         <!-- Where an imported item comes from: one quiet line (the bar's badge says Official or Edited). -->
         <div v-if="imported" class="source">
-          <p class="dim">{{ hasEdit ? 'Edited from' : 'From' }} {{ packName }}.</p>
+          <p class="dim">From {{ packName }}.</p>
           <button v-if="hasEdit" type="button" class="small" :disabled="busy || conflict" @click="revertToOriginal">Revert to original</button>
         </div>
         <p v-if="pilots.length" class="notice" role="status">{{ usedBy(pilots) }}. Saving changes their sheets.</p>
@@ -269,25 +279,25 @@ defineExpose({ dirty })
         <ManufacturerForm v-else-if="kind === 'manufacturers'" v-model="working" :locked="!isNew" />
         <TagForm v-else-if="kind === 'tags'" v-model="working" :locked="!isNew" />
         <ActionForm v-else-if="kind === 'actions'" v-model="working" :locked="!isNew" />
-        <RuleForm v-else-if="kind === 'rules'" v-model="working" :locked="!isNew" :tags="tags" />
-        <BionicForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
-        <p v-else class="notice" role="note">
-          <span>No form for {{ info.label.toLowerCase() }} yet. Edit the raw data.</span>
-        </p>
-        <RawDataField v-if="!info.site" v-model="working" @error="rawError = $event" />
+        <RuleForm v-else-if="kind === 'rules'" v-model="working" :locked="!isNew" />
+        <BiomodForm v-else-if="kind === 'bionics'" v-model="working" :stats="stats" :manufacturers="manufacturers" />
+        <FactionForm v-else-if="kind === 'factions'" v-model="working" />
+        <CommendationForm v-else-if="kind === 'commendations'" v-model="working" />
 
-        <section v-if="homebrew" class="panel danger-zone" aria-labelledby="danger-title">
+        <section v-if="deletable" class="panel danger-zone" aria-labelledby="danger-title">
           <h3 id="danger-title" class="sheet-label">Danger zone</h3>
           <div class="danger-body">
-            <p class="dim">Deleting removes this item. This can't be undone.</p>
+            <p class="dim">Deleting removes this {{ own ? info.singular : 'item' }}. {{ effect }} This can't be undone.</p>
             <span v-if="pilots.length" class="blocked">
-              <button type="button" class="danger" disabled aria-describedby="delete-why">Delete item</button>
+              <button type="button" class="danger" disabled aria-describedby="delete-why">{{ deleteLabel }}</button>
               <span id="delete-why" class="blocked-reason">{{ usedBy(pilots) }}</span>
             </span>
-            <button v-else type="button" class="danger" :disabled="busy || usageError" @click="remove">Delete item</button>
+            <button v-else type="button" class="danger" :disabled="busy || usageError" @click="remove">{{ deleteLabel }}</button>
           </div>
           <p v-if="deleteError" class="notice warn" role="alert">Not deleted: {{ deleteError }}</p>
         </section>
+
+        <RawDataField v-model="working" @error="rawError = $event" />
       </div>
 
       <aside v-show="showPreview" ref="side" class="side" :class="{ stick: fits }">

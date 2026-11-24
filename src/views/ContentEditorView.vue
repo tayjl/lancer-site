@@ -3,8 +3,6 @@ import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { isOwner, profile } from '../auth'
 import EditorPane from '../components/editor/EditorPane.vue'
-import CommendationPane from '../components/editor/CommendationPane.vue'
-import FactionPane from '../components/editor/FactionPane.vue'
 import GroupHead from '../components/GroupHead.vue'
 import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -14,7 +12,7 @@ import { confirmAction } from '../confirm'
 import { HOMEBREW_PACK, KINDS, blankItem, kindInfo, newId, type EditorKind } from '../contentEditor'
 import { RULES_GROUP, RULE_CATEGORIES, newKind, newRule, noun, oldLink, ruleBoxes, ruleCounts, tabOf } from '../ruleList'
 import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, type ListRow, type Loaded, type Pack } from '../editorStore'
-import { hiddenTags, loadTagNames, tagNames } from '../gameData'
+import { hiddenTags, loadBaseActions, loadRules, loadTagNames, tagNames } from '../gameData'
 import { useListPane } from '../listPane'
 
 // The content editor (owners only): make and change the game content the site is built on, with a live preview of what
@@ -53,7 +51,8 @@ const tagChoices = computed(() => [...tagNames.value].filter(([id]) => !hiddenTa
 const makerChoices = computed(() => [...manufacturers.value.map((maker) => ({ id: maker.id, name: maker.name })), { id: EXOTIC_MAKER.id, name: EXOTIC_MAKER.name }])
 const TABS = KINDS.filter((k) => k.key === 'rules' || !RULES_GROUP.includes(k.key))
 const tabLabels = TABS.map((k) => k.label)
-const tabCounts = computed(() => Object.fromEntries(TABS.map((k) => [k.label, k.key === 'rules' ? RULES_GROUP.reduce((n, key) => n + (counts.value[key] ?? 0), 0) : counts.value[k.key] ?? 0])))
+// Nothing shows until the counts are loaded.
+const tabCounts = computed(() => !Object.keys(counts.value).length ? undefined : Object.fromEntries(TABS.map((k) => [k.label, k.key === 'rules' ? RULES_GROUP.reduce((n, key) => n + (counts.value[key] ?? 0), 0) : counts.value[k.key] ?? 0])))
 
 async function refreshList() {
   // The Rules tab lists rules, actions and tags together. One failing still lists what loaded.
@@ -72,6 +71,8 @@ async function refreshAll() {
   takenIds.value = await loadIds()
   ready.value = true
   loadTagNames()
+  loadBaseActions()
+  loadRules()
   await refreshList()
 }
 watch(isOwner, (owner) => owner && refreshAll(), { immediate: true })
@@ -96,6 +97,8 @@ watch([tab, itemKey], async ([k, key]) => {
 }, { immediate: true })
 
 // A new item starts blank; its id is made from its name (src/contentEditor.ts).
+// The other factions' or commendations' names, for the one-of-a-name check.
+const otherNames = computed(() => rows.value.filter((row) => row.key !== loaded.value?.key).map((row) => row.name))
 const taken = computed(() => takenIds.value ?? new Set<string>())
 const kind = computed<EditorKind>(() => (!inRules.value ? tab.value : isNewItem.value ? newKind(sec.value) : (loaded.value?.kind ?? 'rules')))
 const blank = computed(() => {
@@ -154,9 +157,8 @@ const groups = computed<{ key: string; id: number; name: string; rows: ListRow[]
   })
 })
 const byMaker = computed(() => BY_MAKER.includes(kind.value))
-// Rules: a box per category. A tag's row is named by its tag.
-// {VAL} (where a tag's number goes) shows as X.
-const ruleRows = computed(() => rows.value.map((row) => ({ ...row, name: (row.section === 'tag_list' ? (tagNames.value.get(row.name) ?? row.name) : row.name).replaceAll('{VAL}', 'X') })))
+// Rules: a box per category. {VAL} (where a tag's number goes) shows as X.
+const ruleRows = computed(() => rows.value.map((row) => ({ ...row, name: row.name.replaceAll('{VAL}', 'X') })))
 const boxes = computed(() => ruleBoxes(ruleRows.value, { sec: sec.value, query: query.value, expanded: expanded.value }))
 const ruleCount = computed(() => ruleCounts(rows.value))
 const listed = computed(() => (inRules.value ? boxes.value.flatMap((box) => box.parts.flatMap((part) => part.rows)) : groups.value.flatMap((group) => group.rows)))
@@ -180,7 +182,10 @@ async function created(key: string) {
   setQuery({ item: key })
 }
 async function changed() {
-  if (kind.value === 'tags') loadTagNames()
+  // The preview fills in tag, action and number placeholders from what's loaded.
+  loadTagNames()
+  loadBaseActions()
+  loadRules()
   await refreshList()
 }
 async function deleted() {
@@ -213,7 +218,7 @@ async function exportLcp() {
         summary="Make and change game content."
         :crumbs="[{ label: 'GM' }, { label: 'Content', to: { name: 'gm-content' } }, { label: 'Editor' }]"
       >
-        <div class="actions">
+        <div v-if="isOwner" class="actions">
           <span class="private gm">Owner only</span>
           <RouterLink :to="{ name: 'gm-content' }" class="link-button">Packs and imports</RouterLink>
           <button type="button" @click="exportLcp"><Icon name="download" />Export as .lcp</button>
@@ -302,26 +307,6 @@ async function exportLcp() {
           <button v-if="!wide" type="button" class="quiet small back" @click="choose(undefined)"><Icon name="arrow-left" />{{ info.label }}</button>
           <p v-if="loadingItem || (itemKey && !ready)" class="dim" role="status">Loading…</p>
           <p v-else-if="itemError" class="notice warn" role="alert">{{ itemError }}</p>
-          <FactionPane
-            v-else-if="kind === 'factions' && (loaded || isNewItem)"
-            :key="`factions:${loaded?.key ?? 'new'}`"
-            ref="editor"
-            :item="loaded"
-            :others="rows.filter((row) => row.key !== loaded?.key).map((row) => row.name)"
-            @created="created"
-            @changed="changed"
-            @deleted="deleted"
-          />
-          <CommendationPane
-            v-else-if="kind === 'commendations' && (loaded || isNewItem)"
-            :key="`commendations:${loaded?.key ?? 'new'}`"
-            ref="editor"
-            :item="loaded"
-            :others="rows.filter((row) => row.key !== loaded?.key).map((row) => row.name)"
-            @created="created"
-            @changed="changed"
-            @deleted="deleted"
-          />
           <EditorPane
             v-else-if="loaded"
             :key="`${loaded.kind}:${loaded.key}`"
@@ -335,6 +320,7 @@ async function exportLcp() {
             :manufacturers="makerChoices"
             :stats="stats"
             :taken-ids="taken"
+            :names="otherNames"
             :blank="blank"
             :wide="wide"
             @changed="changed"
@@ -353,6 +339,7 @@ async function exportLcp() {
             :manufacturers="makerChoices"
             :stats="stats"
             :taken-ids="taken"
+            :names="otherNames"
             :blank="blank"
             :wide="wide"
             @created="created"

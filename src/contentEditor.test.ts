@@ -164,6 +164,15 @@ describe('the Exotic Gear tag', () => {
   })
 })
 
+describe('problemsFor site rows', () => {
+  const ctx = { id: '', tags: new Map(), statIds: [], others: ['Union'] } as Context
+  it('checks a faction and a commendation by their own rules', () => {
+    expect(problemsFor('factions', { id: '', name: 'union ' }, ctx).map((p) => p.field)).toEqual(['name'])
+    expect(problemsFor('commendations', { id: '', name: 'Ace', description: '', icon: 'medal' }, ctx)).toEqual([])
+    expect(problemsFor('commendations', { id: '', name: 'Ace', description: '', icon: 'nope' }, ctx).map((p) => p.field)).toEqual(['icon'])
+  })
+})
+
 describe('validateFaction', () => {
   it('needs a name no other faction has, whatever the capitals', () => {
     expect(validateFaction('Harrison Armory', ['Union'])).toEqual([])
