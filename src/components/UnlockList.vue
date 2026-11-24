@@ -4,7 +4,7 @@ import Icon from './Icon.vue'
 import InfoButton from './InfoButton.vue'
 
 // The gear a licence rank unlocks (the pilot sheet's ladder and the licence's full information): its type's symbol,
-// then the name. With "links" the name goes to its entry in the archives; otherwise it opens its full information.
+// then the name. With "links" the name goes to its entry in the archives (a hidden item has none, so it opens its information); otherwise it opens its full information.
 // With "cards" (the licence's full information) each is a bar in its type's colour, like an item card's header.
 defineProps<{ items: Unlock[]; links?: boolean; cards?: boolean }>()
 // The item cards' colours (ItemCard.vue): mods go with systems.
@@ -16,7 +16,7 @@ const TYPE = { frame: 'frame', weapon: 'weapon', system: 'system', mod: 'system'
     <li v-for="item in items" :key="`${item.kind}:${item.name}`" :class="cards && TYPE[item.kind]">
       <Icon :name="item.kind" />
       <span class="sr-only">{{ item.kind }}:</span>
-      <InfoButton :label="item.name" :to="links ? item.to : undefined" :info="item.info" />
+      <InfoButton :label="item.name" :to="links && !item.hidden ? item.to : undefined" :info="item.info" />
     </li>
   </ul>
 </template>

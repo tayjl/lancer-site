@@ -1,6 +1,7 @@
 import { capitalise, sameName } from './text'
 import { BONUS_REGISTRY, bonusDef, bonusValue, personalDef, type BonusDef, type BonusFilter } from './bonuses'
 import { ICON_CHOICES } from './commendations'
+import { coreCheckBonuses } from './coreRules'
 import { flatDamage } from './damage'
 import { defIds } from './definitions'
 import { IMAGE_PATH } from './images'
@@ -126,6 +127,12 @@ export function duplicateItem(kind: EditorKind, data: Data, taken: Iterable<stri
   const name = `Copy of ${String(data.name ?? '').trim()}`.trim()
   const id = newId(kind, name, taken)
   const copy: Data = JSON.parse(JSON.stringify(data))
+  // An official frame's core power checks live in a code table keyed by its id, so the copy gets them written out.
+  const core = isObject(copy.core_system) ? copy.core_system : undefined
+  if (kind === 'frames' && core && !Array.isArray(core.check_bonuses)) {
+    const checks = coreCheckBonuses(String(data.id), core)
+    if (checks.length) core.check_bonuses = JSON.parse(JSON.stringify(checks))
+  }
   return { ...copy, id, name, ...(kind === 'frames' && !data.variant && data.license_id === data.id ? { license_id: id } : {}) }
 }
 

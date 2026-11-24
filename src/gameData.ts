@@ -67,6 +67,8 @@ export type Item = {
   profiles?: Record<string, unknown>[]
   raw?: Record<string, unknown>
   sources?: string[]
+  // Hidden from players' pickers and lists (an owner's choice). A pilot who has it keeps it, so lookups still find it.
+  hidden?: boolean
 }
 
 // Pack data is plain JSON to the database; this picks out the fields the site shows.
@@ -90,6 +92,7 @@ export function toItem(id: string, data: unknown): Item {
     tags: list<Item['tags'][number]>(item.tags),
     profiles: list<Record<string, unknown>>(item.profiles),
     raw: item,
+    ...(item.hidden === true ? { hidden: true } : {}),
   }
 }
 
@@ -207,9 +210,9 @@ export const loadPilotStats = () =>
 // A talent: three ranks, each with a name and rules text (simple HTML). A core bonus: its manufacturer and
 // rules text. Both from the imported LANCER packs.
 export type TalentRank = { name: string; description: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; exclusive?: boolean; [key: string]: unknown }
-export type Talent = { id: string; name: string; terse: string; ranks: TalentRank[]; requires?: unknown }
+export type Talent = { id: string; name: string; terse: string; ranks: TalentRank[]; requires?: unknown; hidden?: boolean }
 // integrated / special_equipment: items it builds in or unlocks. replace_integrated: its integrated weapons replace the frame's own.
-export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; replace_integrated?: boolean; [key: string]: unknown }
+export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; replace_integrated?: boolean; hidden?: boolean; [key: string]: unknown }
 
 // A pilot's loadout slots: one armour, two weapons, three gear unless an owner changed the numbers (rulesData.ts NUMBER_KEYS).
 export const LOADOUT = [
@@ -344,11 +347,11 @@ export const bionicItems = (catalogue: Bionic[]) =>
 export function toTalent(id: string, data: unknown): Talent {
   const talent = (data ?? {}) as { name?: string; terse?: string; ranks?: TalentRank[] }
   const ranks = (talent.ranks ?? []).map((rank) => ({ ...rank, name: String(rank.name ?? ''), description: flatDamageText(String(rank.description ?? '')), bonuses: Array.isArray(rank.bonuses) ? rank.bonuses : [] }))
-  return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks, requires: (talent as { requires?: unknown }).requires }
+  return { id, name: String(talent.name ?? id), terse: String(talent.terse ?? ''), ranks, requires: (talent as { requires?: unknown }).requires, ...((talent as { hidden?: unknown }).hidden === true ? { hidden: true } : {}) }
 }
 export function toCoreBonus(id: string, data: unknown): CoreBonus {
   const bonus = (data ?? {}) as { name?: string; source?: string; effect?: string; bonuses?: Bonus[] }
-  return { ...((data ?? {}) as object), id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: flatDamageText(String(bonus.effect ?? '')), bonuses: Array.isArray(bonus.bonuses) ? bonus.bonuses : [] }
+  return { ...((data ?? {}) as object), id, name: String(bonus.name ?? id), source: String(bonus.source ?? ''), effect: flatDamageText(String(bonus.effect ?? '')), bonuses: Array.isArray(bonus.bonuses) ? bonus.bonuses : [], ...((bonus as { hidden?: unknown }).hidden === true ? { hidden: true } : {}) }
 }
 
 export function useGameData() {

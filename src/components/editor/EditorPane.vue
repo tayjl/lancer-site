@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, provide, ref, shallowRef, useTemplate
 import { confirmAction } from '../../confirm'
 import { loadKind } from '../../catalogue'
 import { DUPLICABLE, REFERRING_KINDS, bonusTypesFor, duplicateItem, errorsOf, kindInfo, newId, problemsFor, referencesTo, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
-import { createItem, deleteItem, homebrewPack, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
+import { createItem, deleteItem, homebrewPack, loadSaveLine, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
 import { invalidateCatalogues, useGameData } from '../../gameData'
 import { alternateOf, licensedFrames, useMechData } from '../../mechData'
 import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
@@ -63,6 +63,9 @@ const deletable = homebrew || (own && !isNew)
 // What deleting one does to pilots (an item is refused while pilots use it, so it says nothing).
 const effect = props.kind === 'factions' ? "Every pilot's reputation with it is removed." : props.kind === 'commendations' ? 'Pilots who have it lose it.' : ''
 const deleteLabel = `Delete ${own ? info.singular : 'item'}`
+// Tags, actions, rules and biomods have a hidden control in their own form (a biomod's is "retired"); every other kind gets one here.
+const ownHide = ['tags', 'actions', 'rules', 'bionics'].includes(props.kind)
+const SAVE_SOURCE: Partial<Record<EditorKind, string>> = { bionics: 'bionics', factions: 'organisations', commendations: 'commendations' }
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 
 const working = shallowRef<Data>(clone(props.item ? (props.item.edited ?? props.item.data) : props.blank))
@@ -143,6 +146,16 @@ onMounted(async () => {
   references.value = referencesTo(props.item.key, loaded.flatMap((result) => result.rows))
 })
 
+// Who saved it last (owner-only stamp; nothing for an item nobody has saved yet).
+const savedLine = ref('')
+const loadStamp = async () => { if (props.item) savedLine.value = await loadSaveLine(SAVE_SOURCE[props.kind] ?? 'content_items', props.item.key) }
+onMounted(loadStamp)
+const hidden = computed({
+  get: () => working.value.hidden === true,
+  // Unticking removes the field, so the item matches its original again.
+  set: (value) => { const { hidden: _, ...rest } = working.value; working.value = value ? { ...rest, hidden: true } : rest },
+})
+
 const status = useSaveStatus()
 const conflict = ref(false)
 watch(working, () => { if (dirty.value) status.saved.value = false })
@@ -180,6 +193,7 @@ async function save() {
     if (isNew) return emit('created', result.key!)
     updatedAt.value = result.updatedAt!
     hasEdit.value = hasEdit.value || imported
+    loadStamp()
     emit('changed')
   })
 }
@@ -278,6 +292,10 @@ defineExpose({ dirty })
             <li v-for="(problem, index) in shown" :key="index"><b>{{ problem.level === 'error' ? 'Error' : 'Warning' }}:</b> {{ problem.text }}</li>
           </ul>
         </div>
+
+        <label v-if="!ownHide" class="check"><input v-model="hidden" type="checkbox" />Hidden from players</label>
+        <p v-if="hidden && !ownHide" class="dim hint">Players can't pick it. Pilots who have it keep it.</p>
+        <p v-if="savedLine" class="dim hint">{{ savedLine }}</p>
 
         <GearForm v-if="kind === 'pilot_gear'" v-model="working" :tags="tags" :bonus-types="bonusTypes" :locked="!isNew" />
         <CoreBonusForm v-else-if="kind === 'core_bonuses'" v-model="working" :manufacturers="manufacturers" :bonus-types="bonusTypes" :locked="!isNew" />

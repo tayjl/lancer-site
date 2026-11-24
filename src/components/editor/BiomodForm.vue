@@ -51,7 +51,7 @@ const add = () => {
 </script>
 
 <template>
-  <FoldPanel title="Basics" open :summary="[slot, source, retired ? 'Retired' : ''].filter(Boolean).join(' · ')" :paths="['name', 'slot', 'source', 'manna_cost', 'mod_point_cost']">
+  <FoldPanel title="Basics" open :summary="[slot, source, retired ? 'Hidden' : ''].filter(Boolean).join(' · ')" :paths="['name', 'slot', 'source', 'manna_cost', 'mod_point_cost']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field class="span2" label="Slot" path="slot" hint="Pick one or type your own.">
@@ -62,7 +62,7 @@ const add = () => {
       <Field class="span2" label="Price (manna)" path="manna_cost"><input v-model="price" type="number" min="0" step="1" /></Field>
       <Field class="span2" label="Mod points" path="mod_point_cost"><input v-model="cost" type="number" min="0" step="1" /></Field>
     </div>
-    <label class="check"><input v-model="retired" type="checkbox" />Retired. Pilots who have it keep it.</label>
+    <label class="check"><input v-model="retired" type="checkbox" />Hidden from players. Pilots who have it keep it.</label>
   </FoldPanel>
 
   <FoldPanel title="Stat bonuses" :summary="plural(bonuses.length, 'bonus', 'bonuses')" :paths="['bonuses']">

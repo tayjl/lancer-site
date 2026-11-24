@@ -28,7 +28,7 @@ export const ICON_CHOICES = [
 export const awardIcon = (name: string) => (ICON_CHOICES.includes(name) ? name : 'medal')
 
 export async function loadCommendations(): Promise<{ rows: Commendation[]; error: string | null }> {
-  return fetchAll((from, to) => supabase.from('commendations').select('id, name, description, icon, updated_at').order('name').order('id').range(from, to))
+  return fetchAll((from, to) => supabase.from('commendations').select('id, name, description, icon, updated_at').eq('hidden', false).order('name').order('id').range(from, to))
 }
 
 // One pilot's awards, oldest first, and the GM's writes (award, revoke). Writes return an error message, or null.

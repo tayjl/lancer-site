@@ -34,7 +34,7 @@ export type RankStep = { name?: string; html?: string; unlocks?: Unlock[]; choic
 const props = defineProps<{
   title: string
   noun: string
-  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; exotic?: boolean; stale?: boolean; needs?: string }[]
+  options: { id: string; name: string; meta?: string; info?: () => Info; gmOnly?: boolean; exotic?: boolean; stale?: boolean; needs?: string; hidden?: boolean }[]
   held: Record<string, number>
   details: (id: string) => RankStep[]
   columns?: boolean
@@ -133,7 +133,7 @@ const licenceArt = (id: string) => {
 const licenceLogo = (id: string) => makerLogo(manufacturers.value.find((m) => m.id === frames.value.find((f) => f.id === id)?.source))
 const offered = computed(() =>
   props.options
-    .filter((option) => !props.held[option.id] && !option.stale)
+    .filter((option) => !props.held[option.id] && !option.stale && !option.hidden)
     .map((option) => {
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
       const blocked = restricted(option.id) || (gmOverride.value ? '' : option.needs) || (affordable.value ? '' : 'Not enough manna')

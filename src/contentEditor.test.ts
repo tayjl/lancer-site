@@ -144,6 +144,9 @@ describe('duplicate and references', () => {
   it('makes a frame its own licence again', () => {
     expect(duplicateItem('frames', { id: 'hb_mf_a', name: 'A', license_id: 'hb_mf_a' }, []).license_id).toBe('hb_mf_copy_of_a')
     expect(duplicateItem('frames', { id: 'hb_mf_b', name: 'B', license_id: 'hb_mf_a', variant: 'B' }, []).license_id).toBe('hb_mf_a')
+    // The copy of an official frame keeps its built-in core power checks.
+    expect((duplicateItem('frames', { id: 'mf_drake', name: 'Drake', core_system: { name: 'Core' } }, []).core_system as { check_bonuses: unknown[] }).check_bonuses).toEqual([{ id: 'agility', accuracy: -1, val: 0 }])
+    expect(duplicateItem('frames', { id: 'hb_mf_c', name: 'C', core_system: { name: 'Core' } }, []).core_system).toEqual({ name: 'Core' })
   })
   it('finds what points at an id, except its own id and name', () => {
     const rows = [

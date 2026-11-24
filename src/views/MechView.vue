@@ -29,6 +29,7 @@ import { framePick } from '../pickerRows'
 import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
+import { offered } from '../catalogue'
 import { useGameData } from '../gameData'
 import { EFFECT_KINDS, fittedMods, grantingSources, frameRanges, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
@@ -203,7 +204,7 @@ const reasonFor = useRestriction()
 const onMech = computed(() => new Set([...(details.value.systems ?? []), ...(details.value.mounts ?? []).flat().filter((id): id is string => !!id), ...Object.values(details.value.weapon_mods ?? {})]))
 const frameOptions = computed(() => {
   const ranges = frameRanges(frames.value)
-  return frames.value.map((f) => ({
+  return offered(frames.value, (f) => f.id === details.value.frame).map((f) => ({
     id: f.id,
     name: f.name,
     ...framePick(f, ranges, manufacturers.value, frames.value),

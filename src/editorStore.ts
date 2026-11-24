@@ -3,6 +3,7 @@ import type { Json } from './lib/database.types'
 import { LCP_KINDS, writeLcp, type LcpKind } from './lcp'
 import { CHANGED_ELSEWHERE, NOT_ALLOWED, checkWrite, fetchAll, supabase } from './lib/supabaseClient'
 import { plural } from './text'
+import { formatDate } from './time'
 
 // The content editor's reads and writes (ContentEditorView.vue). Every write ends in .select() through checkWrite(),
 // and changes to a row it already has are guarded with the updated_at it loaded (so a newer save elsewhere is never
@@ -64,15 +65,15 @@ const MAKER_KINDS: EditorKind[] = ['frames', 'weapons', 'systems', 'mods', 'core
 export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; error: string | null }> {
   if (kind === 'bionics') {
     const { rows, error } = await fetchAll((from, to) => supabase.from('bionics').select('id, name, slot, source, manna_cost, mod_point_cost, retired').order('name').order('id').range(from, to))
-    return { rows: rows.map((b) => ({ key: String(b.id), kind, name: b.name, facts: [b.slot, plural(b.mod_point_cost, 'mod point'), `${b.manna_cost} manna`, b.retired ? 'Retired' : ''].filter(Boolean).join(' · '), packId: null, draft: false, edited: false, source: b.source ?? '' })), error }
+    return { rows: rows.map((b) => ({ key: String(b.id), kind, name: b.name, facts: [b.slot, plural(b.mod_point_cost, 'mod point'), `${b.manna_cost} manna`, ].filter(Boolean).join(' · '), packId: null, draft: false, edited: false, hidden: b.retired, source: b.source ?? '' })), error }
   }
   if (kind === 'factions') {
-    const { rows, error } = await fetchAll((from, to) => supabase.from('organisations').select('id, name').order('name').order('id').range(from, to))
-    return { rows: rows.map((f) => ({ key: String(f.id), kind, name: f.name, facts: '', packId: null, draft: false, edited: false })), error }
+    const { rows, error } = await fetchAll((from, to) => supabase.from('organisations').select('id, name, hidden').order('name').order('id').range(from, to))
+    return { rows: rows.map((f) => ({ key: String(f.id), kind, name: f.name, facts: '', packId: null, draft: false, edited: false, hidden: f.hidden })), error }
   }
   if (kind === 'commendations') {
-    const { rows, error } = await fetchAll((from, to) => supabase.from('commendations').select('id, name, description').order('name').order('id').range(from, to))
-    return { rows: rows.map((c) => ({ key: c.id, kind, name: c.name, facts: c.description, packId: null, draft: false, edited: false })), error }
+    const { rows, error } = await fetchAll((from, to) => supabase.from('commendations').select('id, name, description, hidden').order('name').order('id').range(from, to))
+    return { rows: rows.map((c) => ({ key: c.id, kind, name: c.name, facts: c.description, packId: null, draft: false, edited: false, hidden: c.hidden })), error }
   }
   const { rows, error } = await fetchAll((from, to) =>
     supabase.from('content_items')
@@ -97,14 +98,14 @@ export async function loadItem(kind: EditorKind, key: string): Promise<{ item: L
     return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: updated_at, data: { id: String(data.id), name: rest.name, description: rest.description ?? '', slot: rest.slot, source: rest.source ?? '', effect: rest.effect, manna_cost: rest.manna_cost, mod_point_cost: rest.mod_point_cost, retired: rest.retired, bonuses: bonusList } }, error: null }
   }
   if (kind === 'factions') {
-    const { data, error } = await supabase.from('organisations').select('id, name, updated_at').eq('id', Number(key)).maybeSingle()
+    const { data, error } = await supabase.from('organisations').select('id, name, hidden, updated_at').eq('id', Number(key)).maybeSingle()
     if (error || !data) return { item: null, error: error?.message ?? null }
-    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: key, name: data.name } }, error: null }
+    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: key, name: data.name, hidden: data.hidden } }, error: null }
   }
   if (kind === 'commendations') {
-    const { data, error } = await supabase.from('commendations').select('id, name, description, icon, updated_at').eq('id', key).maybeSingle()
+    const { data, error } = await supabase.from('commendations').select('id, name, description, icon, hidden, updated_at').eq('id', key).maybeSingle()
     if (error || !data) return { item: null, error: error?.message ?? null }
-    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: data.id, name: data.name, description: data.description, icon: data.icon } }, error: null }
+    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: data.updated_at, data: { id: data.id, name: data.name, description: data.description, icon: data.icon, hidden: data.hidden } }, error: null }
   }
   // The Rules list opens three kinds, so the row says which it is.
   const { data, error } = await supabase.from('content_items').select('id, kind, pack_id, draft, data, edited, updated_at').eq('id', key).maybeSingle()
@@ -113,6 +114,20 @@ export async function loadItem(kind: EditorKind, key: string): Promise<{ item: L
     item: { key, kind: data.kind as EditorKind, packId: data.pack_id, draft: data.draft, data: isObject(data.data) ? data.data : {}, edited: isObject(data.edited) ? data.edited : null, updatedAt: data.updated_at },
     error: null,
   }
+}
+
+// "Saved by Ana, 3 Nov 2026": who last saved a row and when (content_saves, owner-only, stamped by a trigger). Nothing when there's no stamp.
+export const saveLine = (name: string | null | undefined, savedAt: string | null | undefined) => (savedAt ? `Saved by ${name || 'a former owner'}, ${formatDate(savedAt)}` : '')
+// source is the table name, key the row's id (a definition's is "kind/id").
+export async function loadSaveLine(source: string, key: string): Promise<string> {
+  const { data } = await supabase.from('content_saves').select('saved_at, saver:profiles(display_name)').eq('source', source).eq('key', key).maybeSingle()
+  return data ? saveLine(data.saver?.display_name, data.saved_at) : ''
+}
+
+// A definitions list has a stamp per row; the most recent one stands for the list.
+export async function loadListSaveLine(kind: string): Promise<string> {
+  const { data } = await supabase.from('content_saves').select('saved_at, saver:profiles(display_name)').eq('source', 'game_definitions').like('key', `${kind}/%`).order('saved_at', { ascending: false }).limit(1).maybeSingle()
+  return data ? saveLine(data.saver?.display_name, data.saved_at) : ''
 }
 
 // The pack new items go in: made the first time an owner makes an item (or found, if another owner just did).
@@ -139,7 +154,7 @@ export async function createItem(kind: EditorKind, edits: Data, packId: number |
     const saved = data as { id: number; updated_at: string } | null
     return error || !saved ? { error: error ? message(error) : NOT_ALLOWED } : { updatedAt: saved.updated_at, key: String(saved.id) }
   }
-  if (kind === 'factions') return siteCreate(supabase.from('organisations').insert({ name: String(working.name).trim() }).select('id, updated_at'))
+  if (kind === 'factions') return siteCreate(supabase.from('organisations').insert({ name: String(working.name).trim(), hidden: working.hidden === true }).select('id, updated_at'))
   if (kind === 'commendations') return siteCreate(supabase.from('commendations').insert(commendationFields(working)).select('id, updated_at'))
   const result = await checkWrite(await supabase.from('content_items').insert({ id: String(working.id), pack_id: packId!, kind, data: working as Json, draft: true }).select('updated_at'))
   return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: String(working.id) }
@@ -155,13 +170,13 @@ export async function saveItem(item: Loaded, edits: Data, homebrew: boolean): Pr
     if (error) return { error: /changed somewhere else/.test(error.message) ? CHANGED_ELSEWHERE : message(error) }
     return saved ? { updatedAt: saved.updated_at } : { error: NOT_ALLOWED }
   }
-  if (item.kind === 'factions') return siteUpdate(item, supabase.from('organisations').update({ name: String(working.name).trim() }).eq('id', Number(item.key)).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('organisations').select('updated_at').eq('id', Number(item.key)).maybeSingle())
+  if (item.kind === 'factions') return siteUpdate(item, supabase.from('organisations').update({ name: String(working.name).trim(), hidden: working.hidden === true }).eq('id', Number(item.key)).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('organisations').select('updated_at').eq('id', Number(item.key)).maybeSingle())
   if (item.kind === 'commendations') return siteUpdate(item, supabase.from('commendations').update(commendationFields(working)).eq('id', item.key).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('commendations').select('updated_at').eq('id', item.key).maybeSingle())
   return update(item, homebrew ? { data: working as Json } : { edited: working as Json })
 }
 
 // Factions (a name) and commendations (name, description, icon) are rows of their own tables, their ids made by the database.
-const commendationFields = (working: Data) => ({ name: String(working.name).trim(), description: String(working.description ?? ''), icon: String(working.icon ?? '') })
+const commendationFields = (working: Data) => ({ name: String(working.name).trim(), description: String(working.description ?? ''), icon: String(working.icon ?? ''), hidden: working.hidden === true })
 async function siteCreate(insert: PromiseLike<{ data: { id: number | string; updated_at: string }[] | null; error: { message: string } | null }>): Promise<Saved & { key?: string }> {
   const result = await checkWrite(await insert)
   return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at, key: String(result.row.id) }

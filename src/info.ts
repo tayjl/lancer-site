@@ -219,15 +219,16 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
 export const archiveLink = (category: ArchiveCategory, id: string): RouteLocationRaw => ({ name: 'archives', query: { cat: category, item: `${category}:${id}` } })
 // "to" links to its archive entry (the licence's information); "info" opens its full information (the sheet's ladder and
 // the editor, which shouldn't navigate away).
-export type Unlock = { kind: 'frame' | 'weapon' | 'system' | 'mod'; name: string; to: RouteLocationRaw; info: () => Info }
+// A hidden one has no archive entry, so its "to" is left out where it's shown (UnlockList.vue).
+export type Unlock = { kind: 'frame' | 'weapon' | 'system' | 'mod'; name: string; to: RouteLocationRaw; info: () => Info; hidden?: boolean }
 
 // What rank "level" (1 to 3) of a frame's licence unlocks: the frame and its alternate frames (each at its own level),
 // weapons, systems and mods.
 export const licenceUnlocks = (frame: Frame, weapons: Item[], systems: Item[], mods: Item[], level: number, frames: Frame[] = [frame]): Unlock[] => [
-  ...licenceFrames(frame, frames).filter((f) => f.licenceLevel === level).map((f) => ({ kind: 'frame' as const, name: f.name, to: archiveLink('frames', f.id), info: () => frameInfo(f, frames) })),
-  ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon' as const, name: item.name, to: archiveLink('mech weapons', item.id), info: () => itemInfo(item) })),
-  ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system' as const, name: item.name, to: archiveLink('mech systems', item.id), info: () => itemInfo(item) })),
-  ...mods.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'mod' as const, name: item.name, to: archiveLink('weapon mods', item.id), info: () => itemInfo(item) })),
+  ...licenceFrames(frame, frames).filter((f) => f.licenceLevel === level).map((f) => ({ kind: 'frame' as const, name: f.name, hidden: f.hidden, to: archiveLink('frames', f.id), info: () => frameInfo(f, frames) })),
+  ...weapons.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'weapon' as const, name: item.name, hidden: item.hidden, to: archiveLink('mech weapons', item.id), info: () => itemInfo(item) })),
+  ...systems.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'system' as const, name: item.name, hidden: item.hidden, to: archiveLink('mech systems', item.id), info: () => itemInfo(item) })),
+  ...mods.filter((item) => item.licenceId === frame.id && item.licenceLevel === level).map((item) => ({ kind: 'mod' as const, name: item.name, hidden: item.hidden, to: archiveLink('weapon mods', item.id), info: () => itemInfo(item) })),
 ]
 
 // A licence (one per licensed frame): what each of its three ranks unlocks, side by side like the sheet's ladder.

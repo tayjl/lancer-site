@@ -21,12 +21,13 @@ const loadError = ref('')
 async function load() {
   loading.value = true
   const [orgs, lvls, rep] = await Promise.all([
-    fetchAll((from, to) => supabase.from('organisations').select('id, name').order('name').order('id').range(from, to)),
+    fetchAll((from, to) => supabase.from('organisations').select('id, name, hidden').order('name').order('id').range(from, to)),
     supabase.from('reputation_levels').select('id, name').order('sort_order'),
     supabase.from('reputation').select('organisation_id, level_id').eq('character_id', props.characterId),
   ])
   loadError.value = orgs.error ?? lvls.error?.message ?? rep.error?.message ?? ''
-  factions.value = orgs.rows
+  // A hidden faction is offered no more, but stays for a pilot who already has a level with it.
+  factions.value = orgs.rows.filter((f) => !f.hidden || rep.data?.some((row) => row.organisation_id === f.id))
   levels.value = lvls.data ?? []
   for (const faction of factions.value) {
     chosen[faction.id] = String(rep.data?.find((row) => row.organisation_id === faction.id)?.level_id ?? '')

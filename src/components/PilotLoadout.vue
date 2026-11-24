@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, type Ref } from 'vue'
 import { confirmAction } from '../confirm'
+import { offered } from '../catalogue'
 import { equippedGear, loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemInfo, showInfo } from '../info'
 import { DAMAGE_CHOICES, equipmentDetails, variableDamage } from '../equipment'
@@ -234,7 +235,7 @@ const kindGroup = (item: Item): PickGroup => {
 
 const options = computed((): PickOption[] => {
   if (buying.value)
-    return props.items
+    return offered(props.items)
       .map((item) => {
         const row = catalogueRow(item)
         const price = gearPrice(item)
@@ -248,7 +249,7 @@ const options = computed((): PickOption[] => {
     const old = entryAt(slot)?.key
     const kept = props.owned.filter((o) => o.key !== old)
     const before = gearCost(props.owned)
-    return props.items
+    return offered(props.items, (item) => item.id === entryAt(slot)?.id)
       .filter((item) => item.type === slot.type)
       .map((item) => {
         const row = catalogueRow(item)

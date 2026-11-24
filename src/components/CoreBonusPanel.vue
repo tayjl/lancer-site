@@ -65,7 +65,7 @@ const blocked = (id: string) =>
 const manufacturers = useManufacturers()
 const offered = computed(() =>
   props.options
-    .filter((bonus) => !props.taken.includes(bonus.id))
+    .filter((bonus) => !props.taken.includes(bonus.id) && !bonus.hidden)
     .map((bonus) => {
       return {
         id: bonus.id,

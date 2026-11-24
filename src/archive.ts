@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import { loadKind } from './catalogue'
+import { loadKind, offered } from './catalogue'
 import { defIds } from './definitions'
 import type { Bionic, CoreBonus, Item, Talent } from './gameData'
 import { flatDamageText } from './damage'
@@ -85,7 +85,7 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
   return [
     ...manufacturers.map((m) =>
       entry({ category: 'manufacturers', group: m.id, id: m.id, name: m.name, summary: plainText(m.quote), info: () => manufacturerInfo(m, frames) }, [], [m.description])),
-    ...licensedFrames(frames).map((f) =>
+    ...offered(licensedFrames(frames)).map((f) =>
       entry(
         {
           category: 'licences', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, exotic: isExotic(f), frame: f, info: () => licenceInfo(f, weapons, systems, mods, frames),
@@ -93,17 +93,17 @@ export function archiveEntries(content: ArchiveContent): ArchiveEntry[] {
         f.mechtype,
         [],
       )),
-    ...coreBonuses.map((b) =>
+    ...offered(coreBonuses).map((b) =>
       entry({ category: 'core bonuses', group: b.source || 'other', id: b.id, name: b.name, exotic: isExotic(b), summary: plainText(b.effect), info: () => coreBonusInfo(b) }, [], [b.effect])),
-    ...frames.map((f) =>
+    ...offered(frames).map((f) =>
       entry({ category: 'frames', group: f.source || 'other', id: f.id, name: f.name, level: f.licenceLevel, exotic: isExotic(f), frame: f, info: () => frameInfo(f, frames) }, f.mechtype, [f.description])),
-    ...weapons.map((w) => item('mech weapons', w)),
-    ...systems.map((s) => item('mech systems', s)),
-    ...mods.map((m) => item('weapon mods', m)),
-    ...gear.map((g) => item('pilot gear', g, g.type)),
+    ...offered(weapons).map((w) => item('mech weapons', w)),
+    ...offered(systems).map((s) => item('mech systems', s)),
+    ...offered(mods).map((m) => item('weapon mods', m)),
+    ...offered(gear).map((g) => item('pilot gear', g, g.type)),
     ...biomods.filter((b) => !b.retired).map((b) =>
       entry({ category: 'biomods', group: b.source?.trim() || 'other', id: String(b.id), name: b.name, exotic: isExotic(b), bionic: b, summary: plainText(b.effect), info: () => bionicInfo(b, statNames) }, [b.slot], [b.effect, b.description ?? ''])),
-    ...talents.map((t) =>
+    ...offered(talents).map((t) =>
       entry({ category: 'talents', group: '', id: t.id, name: t.name, exotic: isExotic(t), summary: t.terse, info: () => talentInfo(t) }, [], t.ranks.flatMap((r) => [r.name, r.description]))),
   ]
 }

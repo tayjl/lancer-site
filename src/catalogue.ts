@@ -38,3 +38,7 @@ export const loadKind = (kind: string) =>
       supabase.from('content_items').select('id, kind, data, edited').eq('kind', kind).eq('draft', false).order('id').range(from, to))
     return { rows: rows.map(({ id, kind, data, edited }) => ({ id, kind, data: edited ?? data })), error } as Loaded<{ id: string; kind: string; data: Json }>
   })
+
+// Items an owner hid (data.hidden, or edited.hidden: loadKind already merges the two) stay in every list so a pilot who has
+// one still sees it on the sheet. Pickers and archive lists leave them out with this, keeping any "keep" says is in use.
+export const offered = <T extends { hidden?: boolean }>(list: T[], keep: (item: T) => boolean = () => false) => list.filter((item) => !item.hidden || keep(item))

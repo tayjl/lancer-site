@@ -42,6 +42,8 @@ export type Frame = {
   stats: Record<string, number>
   description: string
   raw?: Record<string, unknown>
+  // Hidden from pickers and lists, still found by id (see Item in gameData.ts).
+  hidden?: boolean
 }
 
 // Which weapon sizes each place on a mount takes comes from the mount type's row (mountSlots in src/definitions.ts).
@@ -486,6 +488,7 @@ export function toFrame(id: string, data: unknown): Frame {
     stats: (frame.stats ?? {}) as Record<string, number>,
     description: String(frame.description ?? ''),
     raw: frame,
+    ...(frame.hidden === true ? { hidden: true } : {}),
   }
 }
 

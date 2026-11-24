@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { confirmAction } from '../confirm'
+import { offered } from '../catalogue'
 import { tagNames, toItem, useGameData, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
 import { itemInfo } from '../info'
@@ -144,7 +145,8 @@ const { talents, coreBonuses } = useGameData()
 const options = computed(() => {
   const t = target.value
   if (!t) return []
-  const list = t.kind === 'weapon' ? props.weapons.filter((item) => t.allowed.includes(item.mount)) : t.kind === 'mod' ? props.mods : props.systems
+  const all = t.kind === 'weapon' ? props.weapons.filter((item) => t.allowed.includes(item.mount)) : t.kind === 'mod' ? props.mods : props.systems
+  const list = offered(all, (item) => item.id === (t.kind === 'system' ? null : t.id))
   const key = t.kind === 'system' ? '' : `${t.m}:${t.i}`
   const onMech = [...props.installed, ...props.mounts.flat().filter((id): id is string => !!id), ...builtIn.value.map(item => item.id), ...Object.values(liveMods.value)]
   // What this choice replaces leaves the mech: the weapon (and its mod), or the mod.

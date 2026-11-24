@@ -4,7 +4,7 @@ import { confirmAction } from '../../confirm'
 import type { Problem } from '../../contentEditor'
 import { blankRow, definitionProblems, iconLabel, idFromLabel, notDeleted, savePayload, slotsText, toEditRows, withData, withoutName, type EditRow } from '../../definitionEditor'
 import { defIds, defKindInfo, loadDefinitionRows, loadDefinitions, type DefKind } from '../../definitions'
-import { deleteDefinition, saveDefinitions } from '../../editorStore'
+import { deleteDefinition, loadListSaveLine, saveDefinitions } from '../../editorStore'
 import { invalidateCatalogues } from '../../gameData'
 import { iconNames, iconUrl } from '../../icons'
 import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
@@ -34,6 +34,7 @@ const loadError = ref('')
 const resetKey = ref(0)
 const dirty = computed(() => JSON.stringify(rows.value) !== JSON.stringify(baseline.value))
 
+const savedLine = ref('')
 async function load() {
   const result = await loadDefinitionRows(props.kind)
   loading.value = false
@@ -41,6 +42,7 @@ async function load() {
   if (result.error) return
   rows.value = toEditRows(result.rows)
   baseline.value = clone(rows.value)
+  savedLine.value = await loadListSaveLine(props.kind)
 }
 onMounted(load)
 
@@ -141,6 +143,7 @@ defineExpose({ dirty })
           <li v-for="(problem, index) in shown" :key="index"><b>Error:</b> {{ problem.text }}</li>
         </ul>
       </div>
+      <p v-if="savedLine" class="dim hint">{{ savedLine }}</p>
       <p class="dim hint">The order here is the order in every list.</p>
       <p v-if="!rows.length" class="empty">No {{ info.label.toLowerCase() }} yet.</p>
 
