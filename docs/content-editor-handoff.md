@@ -1,22 +1,30 @@
 # Content editor cleanup: handoff
 
-Covers: everything left undone, unchecked or unreviewed after the 2026-11-24 session that built phases 0 to 7 of [content-editor-cleanup.md](content-editor-cleanup.md). Work through it top to bottom. Nothing is pushed. Nothing was checked on the hosted database.
+Covers: everything left undone, unchecked or unreviewed after the 2026-11-24 session that built phases 0 to 7 of [content-editor-cleanup.md](content-editor-cleanup.md). Work through it top to bottom. Everything is pushed and the four migrations are on the hosted project (section 1).
 
-State at the end of the session: all phases committed on `main` (about 20 local commits, last is "Editor ticks: 44px tap target"), `npm run build` clean, `npm test` 532 passing. `CLAUDE.md` still has the developer's own uncommitted change: leave it alone.
+State at the end of the session: all commits are on `origin/main` (`e92c73f` plus a docs commit), `npm run build` clean, `npm test` 532 passing, the full pgTAP suite passes on a clean database. `CLAUDE.md` still has the developer's own uncommitted change: leave it alone.
 
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
-## 1. Before pushing (blocking)
-1. **Apply four migrations to the hosted database in this order**, then run `npm run types` against hosted and diff the result against the hand-edited `src/lib/database.types.ts` (two migrations' types were written by hand because `npm run types` reads hosted):
-   - `20261124100000_rule_number_limits.sql`
-   - `20261124110000_content_editor_cleanup_data.sql`
-   - `20261124120000_game_definitions.sql`
-   - `20261124130000_hidden_and_last_save.sql`
-2. **Replay all four from an empty database** (`npx supabase db reset` on a throwaway or after backing up local data). Two of them were edited in place after being applied locally, and the local table had a leftover constraint (`game_definitions_frame_size_numeric`) from an earlier draft. Nobody has proven the final files build the same schema as the local database.
-3. **Check hosted data before the data migration** (`..._content_editor_cleanup_data`): it reads the live `tag_list` rows to set the combat-page flag, rewrites 7 rules and 2 actions rows, deletes 35 `rule_tag_list_*` rows and groups the number rows. Look for owner-edited rows (`edited` not null) on hosted. Locally none of the rewritten text rows were edited, so no owner text was overwritten.
-4. **Confirm hosted has seeded `rules` and `actions` rows.** Phase 1 removed the code fallback, so a database with none now shows empty lists.
-5. **Fix or explain the failing pgTAP files.** `npx supabase test db` fails in about seven older files: `gm_edit`, `pilot_inventory`, `rule_numbers`, `security`, `submit_rules`, `homebrew_rules`, and `content_editor` (aborts at line 20: pack 27 "Campaign homebrew" still has 2 items). Every agent blamed local owner-edited rows (`rule_num_starting_manna` = 2500, `rule_num_licence_rank_price` = 650) or local data, but **nobody ran the suite on a clean baseline**, so "none are new" is unproven. Run it on a fresh database and on `git stash`-ed or pre-session commit `2ebe70e` to compare. `rule_numbers.test.sql` also inserts `rule_num_*` rows that already exist and counts all rules rows: make it hermetic.
-6. Local data cleanup: `tg_ap` has a leftover `edited.description` "REWORDED tag text for AP.". `test-gm` is set to owner locally. `damage_types/Variable` has a bumped `updated_at`. Pilot 1032's Lodestar mount was restored by hand (backups in the old scratchpad). Nine content items have effective `hidden=true`: six were hidden tags, three were never identified.
+## 1. Deployed (2026-11-24): what was done and what to check live
+Done, in this order:
+1. Replayed every migration from an empty local database (`npx supabase db reset`). This found a real bug (a string-replace had turned the `$$` quotes in `rule_number_limits.sql` into `$`); fixed and committed.
+2. Ran the full pgTAP suite on that clean database: every file passes. So the earlier failures in `gm_edit`, `pilot_inventory`, `rule_numbers`, `security`, `submit_rules`, `homebrew_rules` and `content_editor` were my local test data, not the migrations. One data-dependent test (the tag flag) was dropped from `content_editor_cleanup_data.test.sql`.
+3. Read hosted state (read-only): 35 actions, 181 rules (6 owner-edited, none of the rewritten text rows except `rule_notes_tech`, which the owner had blanked and which stays blank), 61 tags, all 35 `rule_tag_list_*` names match real tags. No hosted game_definitions or content_saves yet.
+4. Dry-ran the data migration in a rolled-back transaction on a copy of the hosted rules, actions and tags: 181 to 145 rules, 35 tags flagged, 7 rule and 2 action texts updated, 17 number rows grouped.
+5. Backed up the hosted rows the data migration touches (`hosted-rules-actions-tags-before.json` in the old session scratchpad, may be gone) and applied the four migrations to hosted with `npx supabase migration up --remote --yes`. Verified after: 145 rules, 0 tag_list rows, 35 flagged tags, 72 definitions, 8 limits, migration list matches.
+6. `npm run types` against hosted produced the same types as the hand-edited file.
+7. Pushed 17 commits to `main` (`2ebe70e..e92c73f`); Cloudflare builds from the push.
+Note: for a few minutes between the migrations and the Cloudflare build, the old site ran on the migrated data (raw `{repair_cost}` text, an empty Tags card). Nothing to do now.
+
+Rollback if needed: restore the backed-up rows (content_items kinds rules, actions, tags) and re-add the 35 `rule_tag_list_*` rows; the new tables and columns can stay.
+
+**Check live first (not done yet, needs a login):**
+- Combat page, Mech and Pilot modes: Tags card lists 35 tags with no empty card; no raw `{...}` text anywhere; Overcharge, Reaction, Engaged and the pilot gear line read once and correctly; the Quick Tech note is blank (the owner's own edit) so check it is acceptable.
+- Content editor as owner: tab groups and the Tags, Actions, Rules and Definitions tabs; Definitions lists 72 rows in 12 kinds; hide and restore a test item and see the Saved by line; Duplicate; the effect picker.
+- Player login: hidden items gone from pickers and the archive, owned items still shown.
+- `npm run build` output has no `lcp.ts`/`contentEditor.ts` bundle surprise on the content page.
+- Hosted `content_saves` fills as the owner edits; the first pack import stamps every row (see section 2).
 
 ## 2. Bugs and suspect behaviour to investigate
 - **Frame-size id counted twice.** A bad frame-size id (for example `01`) made the Definitions banner say "Fix 2 problems" and list one line twice. The agent deduplicated the output (`definitionProblems` in `src/definitionEditor.ts`) without finding the cause. Find the second source, then drop the dedupe if it hides a real double check.
@@ -73,14 +81,15 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - Security-auditor ran on: rule_number_limits, factions/commendations writes (6b), game_definitions (twice), save_definitions, hidden and last save. **Not audited:** the `content_editor_cleanup_data` migration (data only, skipped on purpose), the final edited `game_definitions` migration after its last hardening round (the hardened version was only tested by its own pgTAP file), and the front-end hide filters.
 - UX reviewers ran out of turns several times (phase 2, 6, 4, 7); their reports are partial. Items they could not reach are listed in section 4.
 - No audit of concurrent sessions, deadlocks, real two-tab races, hosted behaviour or large incompressible payloads.
+- (done) the failing pgTAP files were local data; the suite is clean.
 - `delete_definition` and `save_definitions` use a text-match in-use guard and take share locks on `character_sheets` and `pending_changes`: a delete can briefly stall pilot writes. Real concurrency not tested.
 - A rejected pending change that a player resubmits could bring back a deleted definition id; approval-time checks may not validate against `game_definitions`.
 - Hidden definitions are readable by players (RLS does not enforce `hidden`): fine if hidden only means not offered. Change the select policy if they should be secret.
 - Ids differing only by case or whitespace are distinct definition rows; lookups are case-insensitive, so a mount `main` counts as `Main`.
 
 ## 6. Housekeeping
-- Update `STATUS.md` (state, unpushed work, hosted migrations, next steps) and [claude/content-editor.md](claude/content-editor.md) after the next round. The agents added entries per phase; read both once for contradictions.
+- Update `STATUS.md` and [claude/content-editor.md](claude/content-editor.md) after the next round (STATUS and history.md were updated at deploy). The agents added an entry per phase to content-editor.md; read it once for contradictions and merge the per-phase entries into one description.
 - Delete `docs/content-editor-cleanup.md` sections that are now history, or mark phases done.
-- Use `npm run types` after the hosted migrations to replace the hand-edited `src/lib/database.types.ts`.
+- Types: regenerated against hosted after the migrations; identical to the hand-edited file.
 - Untracked `.playwright-cli/` is gitignored. Reviewers left test pilots, rows and stamps locally; the leftover `content_saves` row for `mf_drake` pre-dates them.
 - Reviewers' turn limits: give a UX review one narrow job and tell it to report by turn 45.

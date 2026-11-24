@@ -1,6 +1,6 @@
 # Content editor cleanup (draft plan)
 
-Covers: What is wrong with the owner content editor today, and the phases to fix it. Nothing here is built yet.
+Covers: What was wrong with the owner content editor, and the phases to fix it. **Phases 0 to 7 were built and deployed on 2026-11-24** (order used: 0, 5a, 1, 2, 6, 3, 4, 5b, 7). What is left, unchecked or deferred: [content-editor-handoff.md](content-editor-handoff.md). The text below is the original plan, kept for the reasons behind each phase.
 See also: [claude/content-editor.md](claude/content-editor.md), [claude/content-editor-forms.md](claude/content-editor-forms.md), [claude/lcp-import.md](claude/lcp-import.md).
 
 Drafted 2026-11-24 from a read of the code. The editor is for GMs and owners to control site content, not player characters. Lore, archives, pithub and personal stats keep their own pages and are out of scope.
