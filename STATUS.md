@@ -12,7 +12,7 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 Everything is pushed (latest: Pithub image attachments, 2026-11-23). `/pithub` is its own one-terminal view (`src/views/PithubView.vue`). Not yet checked: the first-visit typing animation and reduced motion. Each release and its hosted migrations are in the completed-work log in [docs/claude/history.md](docs/claude/history.md).
 
 ## Pending hosted migrations
-`20261124100000_rule_number_limits` (balance number defaults and ranges in one table) and `20261124110000_content_editor_cleanup_data` (moves tag list rows to a tag flag, new seed wording, number groups; apply before pushing, in this order). Everything through `20261123120000_pithub_entry_image` is on the hosted project (applied 2026-11-23). The full list is in [docs/claude/history.md](docs/claude/history.md).
+`20261124100000_rule_number_limits` (balance number defaults and ranges in one table) and `20261124110000_content_editor_cleanup_data` (moves tag list rows to a tag flag, new seed wording, number groups) and `20261124120000_game_definitions` (the `game_definitions` table with seeded damage types, activations, mount types and the other small lists, plus `delete_definition`). Apply before pushing, in this order. Everything through `20261123120000_pithub_entry_image` is on the hosted project (applied 2026-11-23). The full list is in [docs/claude/history.md](docs/claude/history.md).
 
 ## Next steps
 - **Owner, once:** press 'Update core content' on the content page. It adds the base actions, the rules rows and the campaign wording for Overkill and Knockback. Check the preview counts first (hosted pack 'LANCER Core', 440 items).
