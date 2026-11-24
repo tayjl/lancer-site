@@ -193,6 +193,17 @@ export async function deleteItem(key: string, kind?: EditorKind): Promise<string
   return error ? message(error) : null
 }
 
+// A whole definitions list in one go (all or nothing; the function adds and updates only). Returns the error, or null.
+export async function saveDefinitions(kind: string, rows: object[]): Promise<string | null> {
+  const { error } = await supabase.rpc('save_definitions', { target_kind: kind, rows: rows as Json })
+  return error ? (error.message === CHANGED_ELSEWHERE ? CHANGED_ELSEWHERE : message(error)) : null
+}
+// The database refuses while an item or a sheet still uses the id.
+export async function deleteDefinition(kind: string, id: string): Promise<string | null> {
+  const { error } = await supabase.rpc('delete_definition', { target_kind: kind, target_id: id })
+  return error ? message(error) : null
+}
+
 // The pilots using an item, each named once, in their sheet or an open change.
 export async function usageOf(kind: EditorKind, key: string): Promise<{ pilots: string[]; error: string | null }> {
   const { data, error } = await supabase.rpc('item_usage', { item_id: key, is_bionic: kind === 'bionics' })

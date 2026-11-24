@@ -317,45 +317,6 @@ defineExpose({ dirty })
   min-width: 0;
 }
 
-/* Where it stands: the item's name and state, then what to do, sticky under the tabs so Save is always at hand. */
-.bar {
-  position: sticky;
-  top: calc(var(--topbar-h) + var(--tabs-h) + 1px);
-  z-index: 3;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s) var(--space-m);
-  padding: var(--space-s) var(--space-m);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
-}
-
-.bar h2 {
-  margin: 0;
-  font-size: var(--fs-l);
-  overflow-wrap: anywhere;
-}
-
-.kind-ico {
-  width: 22px;
-  height: 22px;
-  color: var(--text-dim);
-}
-
-.status {
-  font-size: var(--fs-s);
-}
-
-.btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-s);
-  margin-left: auto;
-}
-
 .cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(24rem, 30%, 26rem);
@@ -405,23 +366,11 @@ defineExpose({ dirty })
 
 /* Phones: the bar is too tall to keep on screen, so it scrolls with the page; Edit and Preview are its first row. */
 @media (max-width: 56rem) {
-  .bar {
-    position: static;
-  }
-
   .mtabs {
     flex-basis: 100%;
     margin: 0 calc(var(--space-m) * -1);
     padding: 0 var(--space-m);
   }
 
-  .btn-row {
-    flex-basis: 100%;
-    margin-left: 0;
-  }
-
-  .kind-ico {
-    display: none;
-  }
 }
 </style>

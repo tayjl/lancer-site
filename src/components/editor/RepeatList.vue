@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Data">
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import type { Data } from '../../contentEditor'
 import { capitalise } from '../../text'
 import Icon from '../Icon.vue'
@@ -9,10 +9,11 @@ import { latest, useProblems, useRowKeys } from './useFields'
 // a one-line summary, buttons to move it up or down or remove it, and "Add" under the list. The slots draw the entries:
 // "title" (default "Noun 1"), "summary" (shown while folded) and the body, which is given the entry, its index and
 // "change" (merges fields into it). With "path" a box also says "Needs fixing" while folded if something inside has a
-// problem. "fixed" (a talent's three ranks) leaves out Add, Remove and the move buttons.
+// problem. "fixed" (a talent's three ranks) leaves out Add, Remove and the move buttons. "removable" says which
+// entries have a Remove button (default all). "nameOf" names an entry for its buttons (default "Noun 1").
 const modelProp = defineModel<T[]>({ required: true })
 const model = latest(modelProp)
-const props = defineProps<{ noun: string; make: () => T; path?: string; fixed?: boolean; addLabel?: string }>()
+const props = defineProps<{ noun: string; make: () => T; path?: string; fixed?: boolean; addLabel?: string; removable?: (item: T) => boolean; nameOf?: (item: T, index: number) => string }>()
 defineSlots<{
   title?(props: { item: T; index: number }): unknown
   summary?(props: { item: T; index: number }): unknown
@@ -31,12 +32,16 @@ const toggled = (index: number, event: Event) => {
 }
 const bad = (index: number) => !!props.path && at(`${props.path}.${index}`, true).some((problem) => problem.level === 'error')
 const change = (index: number, changes: Partial<T>) => (model.value = model.value.map((item, i) => (i === index ? { ...item, ...changes } : item)))
-const move = (index: number, by: number) => {
+const move = (index: number, by: number, event?: Event) => {
+  // A move button that reaches the end becomes disabled and would drop focus: hand it to the other one.
+  const tools = (event?.currentTarget as HTMLElement | null)?.parentElement
   const next = [...model.value]
   ;[next[index], next[index + by]] = [next[index + by], next[index]]
   moved(index, by)
   model.value = next
+  if (tools) nextTick(() => { const [up, down] = tools.querySelectorAll<HTMLButtonElement>('.icon-btn:not(.remove)'); if (document.activeElement === document.body) (up.disabled ? down : up).focus() })
 }
+const name = (item: T, index: number) => props.nameOf?.(item, index) ?? `${props.noun} ${index + 1}`
 const remove = (index: number) => {
   removed(index)
   model.value = model.value.filter((_, i) => i !== index)
@@ -53,9 +58,9 @@ const remove = (index: number) => {
             <span class="rep-sum"><slot name="summary" :item="item" :index="index" /></span>
             <span v-if="bad(index)" class="rep-bad"><Icon name="warning" />Needs fixing</span>
             <span v-if="!fixed" class="tools">
-              <button type="button" class="icon-btn" :disabled="index === 0" :aria-label="`Move ${noun} ${index + 1} up`" @click="move(index, -1)"><Icon name="chevron-up" /></button>
-              <button type="button" class="icon-btn" :disabled="index === model.length - 1" :aria-label="`Move ${noun} ${index + 1} down`" @click="move(index, 1)"><Icon name="chevron-down" /></button>
-              <button type="button" class="icon-btn remove" :aria-label="`Remove ${noun} ${index + 1}`" @click="remove(index)"><Icon name="close" /></button>
+              <button type="button" class="icon-btn" :disabled="index === 0" :aria-label="`Move ${name(item, index)} up`" @click="move(index, -1, $event)"><Icon name="chevron-up" /></button>
+              <button type="button" class="icon-btn" :disabled="index === model.length - 1" :aria-label="`Move ${name(item, index)} down`" @click="move(index, 1, $event)"><Icon name="chevron-down" /></button>
+              <button v-if="!removable || removable(item)" type="button" class="icon-btn remove" :aria-label="`Remove ${name(item, index)}`" @click="remove(index)"><Icon name="close" /></button>
             </span>
             <Icon name="chevron-down" class="fold" />
           </summary>

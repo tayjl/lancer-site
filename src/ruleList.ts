@@ -1,20 +1,18 @@
-import { blankItem, type Data, type EditorKind } from './contentEditor'
+import { blankItem, type Data } from './contentEditor'
 import type { ListRow } from './editorStore'
 import { SECTIONS } from './rulesData'
 
-// The content editor's Rules tab: one list for the rules, the base actions and the tags (ContentEditorView.vue). Pure, so
+// The content editor's Rules tab: one list of the rules, a box per category (ContentEditorView.vue). Pure, so
 // it's tested without the page (src/ruleList.test.ts). The sections themselves come from rulesData.ts SECTIONS.
 
-// The kinds listed under the Rules tab, and the category order (the combat page's flow). Actions and tags are categories too.
-export const RULES_GROUP: EditorKind[] = ['rules', 'actions', 'tags']
-const ORDER = ['turn_steps', 'actions', 'tags', 'sizes', 'statuses', 'checks', 'attacks', 'dice', 'movement', 'range', 'structure', 'foot', 'notes', 'numbers']
-export const RULE_CATEGORIES = ORDER.map((key) => ({ key, label: key === 'actions' ? 'Actions' : key === 'tags' ? 'Tags' : ruleSection(key)!.label }))
+// The category order (the combat page's flow).
+const ORDER = ['turn_steps', 'sizes', 'statuses', 'checks', 'attacks', 'dice', 'movement', 'range', 'structure', 'foot', 'notes', 'numbers']
+export const RULE_CATEGORIES = ORDER.map((key) => ({ key, label: ruleSection(key)!.label }))
 export function ruleSection(key: string) { return SECTIONS.find((s) => s.id === key) }
 
 // The code reads these entries by id, so they can't be added or moved to another section.
 export const FIXED_SECTIONS = ['notes', 'turn_steps', 'numbers']
 export const canAdd = (key: string) => !FIXED_SECTIONS.includes(key)
-export const noun = (key: string) => (key === 'actions' ? 'action' : key === 'tags' ? 'tag' : 'rule')
 
 // The Preview's icon per section. Statuses use their card's icon instead.
 const ICONS: Record<string, string> = { turn_steps: 'list', statuses: 'warning', checks: 'star', attacks: 'crosshair', movement: 'speed', range: 'range', structure: 'structure', foot: 'pilot', sizes: 'weapon', dice: 'variable', notes: 'info', numbers: 'variable' }
@@ -22,11 +20,8 @@ export const sectionIcon = (key: string) => ICONS[key] ?? 'info'
 // Table rows (but not statuses) have a short value column.
 export const hasValue = (key: string) => ruleSection(key)?.shape === 'table' && key !== 'statuses'
 
-// Which tab a ?cat= shows (Tags and Actions now live under Rules), and the one-time redirect from an old link.
-export const tabOf = (cat: unknown) => (cat === 'tags' || cat === 'actions' ? 'rules' : cat)
-export const oldLink = (query: Record<string, unknown>) => (query.cat === 'tags' || query.cat === 'actions' ? { cat: 'rules', sec: query.cat } : null)
-// What a New button in a category makes.
-export const newKind = (sec: string | undefined): EditorKind => (sec === 'actions' || sec === 'tags' ? sec : 'rules')
+// The one-time redirect from an old ?cat=rules&sec=tags|actions link to the Tags or Actions tab.
+export const oldLink = (query: Record<string, unknown>) => (query.cat === 'rules' && (query.sec === 'tags' || query.sec === 'actions') ? { cat: query.sec, sec: undefined } : null)
 
 // A new rule in a section: last order + 10, and an empty group where the section asks for one.
 export function newRule(id: string, section: string, rows: ListRow[]): Data {
@@ -36,7 +31,7 @@ export function newRule(id: string, section: string, rows: ListRow[]): Data {
 
 export type RuleBox = { key: string; label: string; add: boolean; total: number; more: number; parts: { label?: string; rows: ListRow[] }[] }
 const LIMIT = 40
-const boxKey = (row: ListRow) => (row.kind === 'actions' || row.kind === 'tags' ? row.kind : ORDER.includes(row.section ?? '') ? row.section! : 'other')
+const boxKey = (row: ListRow) => (ORDER.includes(row.section ?? '') ? row.section! : 'other')
 const byName = (a: ListRow, b: ListRow) => a.name.localeCompare(b.name)
 
 // The list's boxes: one per category in order (or just the chosen one, or the matches of a search), rules sorted by group,
@@ -52,7 +47,7 @@ export function ruleBoxes(rows: ListRow[], { sec, query, expanded }: { sec?: str
     if ((cat.key === 'other' && !all.length) || (searching && !found.length)) return []
     const groups = ruleSection(cat.key)?.groups ?? []
     const rank = (r: ListRow) => { const i = groups.findIndex((g) => g.id === r.group); return i < 0 ? groups.length : i }
-    const sorted = [...found].sort(cat.key === 'actions' || cat.key === 'tags' ? byName : (a, b) => rank(a) - rank(b) || (a.order ?? Infinity) - (b.order ?? Infinity) || byName(a, b))
+    const sorted = [...found].sort((a, b) => rank(a) - rank(b) || (a.order ?? Infinity) - (b.order ?? Infinity) || byName(a, b))
     const limit = searching || expanded.has(cat.key) ? Infinity : LIMIT
     const shown = sorted.slice(0, limit)
     const parts = groups.length

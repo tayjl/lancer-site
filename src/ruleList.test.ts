@@ -1,46 +1,60 @@
 import { describe, expect, it } from 'vitest'
 import { problemsFor } from './contentEditor'
 import type { ListRow } from './editorStore'
-import { RULE_CATEGORIES, canAdd, newKind, newRule, oldLink, ruleBoxes, ruleCounts, tabOf } from './ruleList'
+import { KINDS, TAB_GROUPS, groupOf } from './contentEditor'
+import { RULE_CATEGORIES, canAdd, newRule, oldLink, ruleBoxes, ruleCounts } from './ruleList'
 import { SECTIONS } from './rulesData'
 
 const row = (key: string, o: Partial<ListRow> = {}): ListRow => ({ key, kind: 'rules', name: key, facts: '', packId: 1, draft: false, edited: false, section: 'attacks', group: 'formula', order: 10, ...o })
 const none = { query: '', expanded: new Set<string>() }
 
 describe('Rules tab categories', () => {
-  it('lists every section once, plus actions and tags, in the combat page order', () => {
+  it('lists every section once, in the combat page order', () => {
     const keys = RULE_CATEGORIES.map((c) => c.key)
-    expect(keys).toHaveLength(SECTIONS.length + 2)
-    expect(new Set(keys)).toEqual(new Set([...SECTIONS.map((s) => s.id), 'actions', 'tags']))
-    expect(keys.slice(0, 5)).toEqual(['turn_steps', 'actions', 'tags', 'sizes', 'statuses'])
+    expect(keys).toHaveLength(SECTIONS.length)
+    expect(new Set(keys)).toEqual(new Set(SECTIONS.map((s) => s.id)))
+    expect(keys.slice(0, 3)).toEqual(['turn_steps', 'sizes', 'statuses'])
     expect(keys.slice(-2)).toEqual(['notes', 'numbers'])
   })
   it('gives no New button to the fixed sections', () => {
     expect(['notes', 'turn_steps', 'numbers'].some(canAdd)).toBe(false)
-    expect(['statuses', 'actions', 'tags'].every(canAdd)).toBe(true)
+    expect(canAdd('statuses')).toBe(true)
   })
 })
 
 describe('old links', () => {
-  it('sends ?cat=tags and ?cat=actions to Rules', () => {
-    expect(oldLink({ cat: 'tags', item: 'tg_ap' })).toEqual({ cat: 'rules', sec: 'tags' })
-    expect(oldLink({ cat: 'actions' })).toEqual({ cat: 'rules', sec: 'actions' })
-    expect(oldLink({ cat: 'weapons' })).toBeNull()
-    expect(tabOf('tags')).toBe('rules')
-    expect(tabOf('frames')).toBe('frames')
+  it('sends ?cat=rules&sec=tags and sec=actions to their own tabs', () => {
+    expect(oldLink({ cat: 'rules', sec: 'tags', item: 'tg_ap' })).toEqual({ cat: 'tags', sec: undefined })
+    expect(oldLink({ cat: 'rules', sec: 'actions' })).toEqual({ cat: 'actions', sec: undefined })
+    expect(oldLink({ cat: 'rules', sec: 'attacks' })).toBeNull()
+    expect(oldLink({ cat: 'tags' })).toBeNull()
+  })
+})
+
+describe('tab groups', () => {
+  it('hold every kind once, plus Definitions', () => {
+    const tabs = TAB_GROUPS.flatMap((g) => g.tabs)
+    expect(new Set(tabs)).toEqual(new Set([...KINDS.map((k) => k.key), 'definitions']))
+    expect(tabs).toHaveLength(KINDS.length + 1)
+  })
+  it('find the group of a ?cat=, the first when unknown', () => {
+    expect(groupOf('tags').label).toBe('Combat rules')
+    expect(groupOf('definitions').label).toBe('Combat rules')
+    expect(groupOf('talents').tabs[0]).toBe('pilot_gear')
+    expect(groupOf('commendations').label).toBe('Campaign')
+    expect(groupOf(undefined).label).toBe('Mech content')
   })
 })
 
 describe('the Rules list', () => {
   const rows = [
     row('b', { name: 'B', order: 20 }), row('a', { name: 'A', order: 20 }), row('c', { name: 'C', order: 5, group: 'result' }),
-    row('lost', { section: 'nope' }), row('act', { kind: 'actions', section: undefined, name: 'Skirmish' }), row('tg', { kind: 'tags', section: undefined, name: 'Accurate' }),
-    row('n', { section: 'notes', group: '', name: 'Stun note' }),
+    row('lost', { section: 'nope' }),     row('n', { section: 'notes', group: '', name: 'Stun note' }),
   ]
   it('boxes by category with sub-labels, sorted by group, order then name', () => {
     const boxes = ruleBoxes(rows, none)
     expect(boxes.map((b) => b.key)).toEqual([...RULE_CATEGORIES.map((c) => c.key), 'other'])
-    expect(boxes.filter((b) => b.total).map((b) => b.key)).toEqual(['actions', 'tags', 'attacks', 'notes', 'other'])
+    expect(boxes.filter((b) => b.total).map((b) => b.key)).toEqual(['attacks', 'notes', 'other'])
     const attacks = boxes.find((b) => b.key === 'attacks')!
     expect(attacks.parts.map((p) => p.label)).toEqual(['Attack formulas', 'Attack results'])
     expect(attacks.parts[0].rows.map((r) => r.key)).toEqual(['a', 'b'])
@@ -51,13 +65,13 @@ describe('the Rules list', () => {
     expect(ruleBoxes(rows, { ...none, query: 'stun' }).map((b) => b.key)).toEqual(['notes'])
   })
   it('limits a long box until it is expanded', () => {
-    const many = Array.from({ length: 50 }, (_, i) => row(`t${i}`, { kind: 'tags', section: undefined, name: `T${String(i).padStart(2, '0')}` }))
-    const box = ruleBoxes(many, { ...none, sec: 'tags' })[0]
+    const many = Array.from({ length: 50 }, (_, i) => row(`t${i}`, { section: 'sizes', group: undefined, name: `T${String(i).padStart(2, '0')}` }))
+    const box = ruleBoxes(many, { ...none, sec: 'sizes' })[0]
     expect([box.parts[0].rows.length, box.more]).toEqual([40, 10])
-    expect(ruleBoxes(many, { sec: 'tags', query: '', expanded: new Set(['tags']) })[0].more).toBe(0)
+    expect(ruleBoxes(many, { sec: 'sizes', query: '', expanded: new Set(['sizes']) })[0].more).toBe(0)
   })
   it('counts each category', () => {
-    expect(ruleCounts(rows)).toMatchObject({ attacks: 3, actions: 1, tags: 1, notes: 1, other: 1 })
+    expect(ruleCounts(rows)).toMatchObject({ attacks: 3, notes: 1, other: 1 })
   })
 })
 
@@ -71,8 +85,5 @@ describe('new rules', () => {
     expect((fresh as { group?: string }).group).toBe('')
     expect(problemsFor('rules', fresh, { id: 'hb_rule_x' } as never).map((p) => p.field)).toEqual(['group'])
     expect('group' in newRule('hb_rule_x', 'sizes', [])).toBe(false)
-  })
-  it('make an action or a tag when started from those boxes', () => {
-    expect([newKind('actions'), newKind('tags'), newKind('statuses'), newKind(undefined)]).toEqual(['actions', 'tags', 'rules', 'rules'])
   })
 })
