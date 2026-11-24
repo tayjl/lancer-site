@@ -9,6 +9,8 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 ## 0. Remaining objectives from the original plan (the developer wants ALL of this done)
 The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that every kind of content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Treat each as in scope. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (CLAUDE.md), and finish each with the reviewers, a browser pass and the docs.
 
+**Out of scope (the only exclusion, the developer, 2026-11-24):** entirely new mechanics, meaning a brand-new kind of calculation the engine has never done. The developer will hardcode those: a registry entry plus a code change in `mechData.ts` or the rules code is acceptable for them. Everything that only configures an existing mechanic stays in scope (a new damage type, status, mount, stat, skill, grant, requirement, action or effect built from what the engine can already count). When unsure, treat it as in scope and put the question in the report.
+
 **0.1 Finish the Phase 0 audit** (explorer, read-only; the first pass was partial)
 - Compare every column in `src/lib/database.types.ts` and every LANCER data field against the form field that edits it. Known gaps with no input: `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`.
 - Triage constants not yet looked at: `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts` (marked content or engine).
@@ -35,10 +37,10 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that every
 - Requirements on core systems: the engine must read `core_system.requires` first (for example when the frame is picked), then add the field.
 - Actions on biomods: migration for a column or table (`save_bionic`, `bionic_bonuses`), then the form field.
 - Add effects, grants, requirements and actions to tags, manufacturers, actions, rules, factions and commendations where it makes sense, or write down per kind why not.
-- New building blocks: grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, add a stat with its own sheet row, conditional effects with a shown reminder.
-- Registry: make an effect that changes anything other than a mech or personal stat work from a registry entry alone (today it needs code in `mechData.ts`). Add the missing pilot-side reminder for undeclared `pilot_*` effects (`src/gameData.ts`).
+- New building blocks built from existing mechanics: grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, add a stat with its own sheet row (a stat the engine already adds up, like a personal stat), conditional effects shown as a reminder. If one of these truly needs a new kind of calculation, skip it and say so in the report.
+- Registry: every effect the engine can already count must work from a registry entry alone, with no code change (check the list in `BONUS_REGISTRY` against what `mechData.ts` handles). An entirely new calculation is out of scope and may need code. Add the missing pilot-side reminder for undeclared `pilot_*` effects (`src/gameData.ts`).
 - Duplicate for manufacturers, rules and the site kinds; Used by that also scans biomods and reads sensibly for licences.
-- Done when: the capability matrix has no empty cell without a written reason, and a homebrew mechanic "never done before" can be built from the editor alone.
+- Done when: the capability matrix has no empty cell without a written reason, and a homebrew variation "never done before" (anything short of an entirely new calculation) can be built from the editor alone.
 
 **0.5 Phase 7 leftovers: nothing is out of reach**
 - Export every kind: Definitions, factions, commendations and biomods (not LCP kinds) so the campaign's content can be backed up and restored. Import them back.
