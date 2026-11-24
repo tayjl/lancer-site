@@ -12,13 +12,13 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 Everything is pushed (latest: Pithub image attachments, 2026-11-23). `/pithub` is its own one-terminal view (`src/views/PithubView.vue`). Not yet checked: the first-visit typing animation and reduced motion. Each release and its hosted migrations are in the completed-work log in [docs/claude/history.md](docs/claude/history.md).
 
 ## Pending hosted migrations
-None. Everything through `20261123120000_pithub_entry_image` is on the hosted project (applied 2026-11-23). The full list is in [docs/claude/history.md](docs/claude/history.md).
+`20261124100000_rule_number_limits` (balance number defaults and ranges in one table) and `20261124110000_content_editor_cleanup_data` (moves tag list rows to a tag flag, new seed wording, number groups; apply before pushing, in this order). Everything through `20261123120000_pithub_entry_image` is on the hosted project (applied 2026-11-23). The full list is in [docs/claude/history.md](docs/claude/history.md).
 
 ## Next steps
 - **Owner, once:** press 'Update core content' on the content page. It adds the base actions, the rules rows and the campaign wording for Overkill and Knockback. Check the preview counts first (hosted pack 'LANCER Core', 440 items).
 - **Check live, not browser-tested yet:** the combat page on phone and desktop in both modes (Pilot mode with real gear, Fight as Quick with a Sidearm, Overcharge gear, Prepare, the phone Preview tab), a reworded or hidden action in Pilot mode, the seeding itself.
 - **Check live after the 2026-11-22 usability pass:** a plain player login, the GM pilots row cards with real rows, the GM change page on phone, 320px. Known gaps: the archives header count wraps to its own line on phone, the content pack table clips a cell inside its scroll, the GM pilots cards drop table semantics for screen readers, the GM changes queue loads every pending sheet (fine now, grows with the queue), item and tab names under 44px elsewhere were not swept.
-- **Rules editor polish:** the content editor header shows 'Owner only' and import actions to non-owners above the access notice, tab counts read 0 for about 2.5s while loading, Discard is disabled on an untouched new rule, the 'Made from the name.' hint shows on Tags card rules, Repair cost shows 'Add number', number boxes stack one per line at 320. Low audit findings: a re-import bumps updated_at and blocks approvals once, a transaction-start race, deleted rows are not seen as stale.
+- **Rules editor polish:** Discard is disabled on an untouched new rule (needs a browser check). Low audit findings: a re-import bumps updated_at and blocks approvals once, a transaction-start race, deleted rows are not seen as stale.
 - **Known gaps:** loadout slot counts do not change the free starting gear (`settle_pilot_gear` is fixed), MAX_SKILL and the RequirementListField ranks are hardcoded.
 - **Waiting for the developer:** the pilot action set, how a pilot's own tech attack works (what it compares against, which stat; not yet in docs/rule-decisions.md), dice wording still in official text (Reliable, Recharge tags, a few weapons, many systems and talents), starting values for pilot stats and a new pilot's starting level.
 - Untested: the mech page, pilots with long names, Firefox (no `field-sizing` for the centred callsign field), the phone dialogs on a real phone.
@@ -65,6 +65,7 @@ Every doc file, by topic. Open one only when the task touches its area.
 - [docs/claude/lcp-import.md](docs/claude/lcp-import.md): LCP import and the owner content page.
 - [docs/claude/content-editor.md](docs/claude/content-editor.md): the owner content editor and how it saves.
 - [docs/claude/content-editor-forms.md](docs/claude/content-editor-forms.md): the editor forms per content kind, export.
+- [docs/content-editor-cleanup.md](docs/content-editor-cleanup.md): draft plan to clean up the content editor (duplicates, tabs, gaps).
 - [docs/claude/archives.md](docs/claude/archives.md): the archives page.
 ### Look and feel and pages
 - [docs/claude/ui-principles.md](docs/claude/ui-principles.md): redesign direction, colour jobs, alignment, density.
