@@ -9,6 +9,7 @@ import { damageTotals, radarAxes, reach } from '../mechOverview'
 import { frameRanges, mountSize, type Frame, type mechStats } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import Icon from './Icon.vue'
+import { defColour } from '../definitions'
 import ItemStats from './ItemStats.vue'
 import MechImage from './MechImage.vue'
 import RadarChart from './RadarChart.vue'
@@ -82,9 +83,8 @@ const damage = computed(() => damageTotals(equipped.value.map((entry) => entry.i
 const maxDamage = computed(() => Math.max(1, ...damage.value.map((entry) => entry.total)))
 const reaches = computed(() => reach(equipped.value.map((entry) => entry.item)))
 const maxReach = computed(() => Math.max(1, ...reaches.value.map((entry) => entry.max)))
-const DAMAGE_TYPES = ['kinetic', 'energy', 'explosive', 'burn', 'heat', 'variable']
-const tint = (type: string) => (DAMAGE_TYPES.includes(type) ? { color: `var(--dmg-${type})` } : undefined)
-const fill = (type: string, share: number) => ({ width: `${Math.round(share * 100)}%`, ...(DAMAGE_TYPES.includes(type) ? { background: `var(--dmg-${type})` } : {}) })
+const tint = (type: string) => { const color = defColour('damage_types', type); return color ? { color } : undefined }
+const fill = (type: string, share: number) => ({ width: `${Math.round(share * 100)}%`, ...(defColour('damage_types', type) ? { background: defColour('damage_types', type) } : {}) })
 
 const remaining = computed(() => (props.spTotal ?? 0) - props.spUsed)
 const summary = computed(() => `${props.baseFrame.name} build compared with every frame: ${axes.value.map((axis) => `${axis.label} ${axis.value}`).join(', ')}`)

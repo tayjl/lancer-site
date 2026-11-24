@@ -78,8 +78,8 @@ export const entryInfo = (entry: CombatEntry, kind: string): Info =>
 
 // Which kind of action an activation is: its chip colour, with Overcharge and a power with no chip (Core Power) as 'free'.
 export const actionKey = (activation?: string) => {
-  const colour = activationOf(activation)?.colour
-  return !colour || colour === 'overcharge' ? 'free' : colour
+  const colour = activationOf(activation)?.colour.replace(/^--act-/, '')
+  return !colour || colour.startsWith('--') || colour === 'overcharge' ? 'free' : colour
 }
 
 // One card of a turn step. "colour" is the card's activation colour key (quick, full, tech, protocol, overcharge, free,

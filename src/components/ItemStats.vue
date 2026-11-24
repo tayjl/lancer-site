@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { defColour } from '../definitions'
 import Icon from './Icon.vue'
 
 // An item's (or an action's) numbers in a row: each a symbol, the number in mono and a small word ("10 range",
@@ -6,8 +7,10 @@ import Icon from './Icon.vue'
 // rows) is smaller and drops the word when the symbol says it (it stays for screen readers and as a tooltip).
 type Stat = { kind?: string; label: string; value: string; icon?: string | null }
 defineProps<{ stats: Stat[]; compact?: boolean }>()
-const DAMAGE = ['kinetic', 'energy', 'explosive', 'burn', 'heat', 'variable']
-const colour = (stat: Stat) => (stat.kind === 'damage' && DAMAGE.includes(stat.label) ? { color: `var(--dmg-${stat.label})` } : undefined)
+const colour = (stat: Stat) => {
+  const color = stat.kind === 'damage' ? defColour('damage_types', stat.label) : undefined
+  return color ? { color } : undefined
+}
 </script>
 
 <template>

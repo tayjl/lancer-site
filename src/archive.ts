@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue'
 import { loadKind } from './catalogue'
+import { defIds } from './definitions'
 import type { Bionic, CoreBonus, Item, Talent } from './gameData'
 import { flatDamageText } from './damage'
 import { bionicInfo, modPoints, coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
@@ -149,7 +150,7 @@ export const makerLogo = (maker?: Manufacturer) => LOGOS[`./assets/logos/${maker
 // by their best match, with one section each.
 export type ArchiveSection = { licence: string; entries: ArchiveEntry[] }
 export type ArchiveGroup = { key: string; title: string; colour: string; logo: string | null; entries: ArchiveEntry[]; sections: ArchiveSection[] }
-const GEAR_TYPES: Record<string, string> = { Armor: 'Pilot armour', Weapon: 'Pilot weapons', Gear: 'Pilot gear' }
+const GEAR_TITLES: Record<string, string> = { Armor: 'Pilot armour', Weapon: 'Pilot weapons', Gear: 'Pilot gear' }
 const BY_LICENCE: ArchiveCategory[] = ['mech weapons', 'mech systems', 'weapon mods']
 const grouped = <T>(list: T[], keyOf: (item: T) => string) => {
   const groups = new Map<string, T[]>()
@@ -163,7 +164,7 @@ const grouped = <T>(list: T[], keyOf: (item: T) => string) => {
 }
 export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufacturer[], ranked = false): ArchiveGroup[] {
   const makers = new Map(manufacturers.map((m) => [m.id, m]))
-  const order = [...manufacturers.map((m) => m.id), ...Object.keys(GEAR_TYPES)]
+  const order = [...manufacturers.map((m) => m.id), ...defIds('gear_types', true)]
   const rank = (key: string) => (order.includes(key) ? order.indexOf(key) : key === 'other' ? order.length + 1 : key === EXOTIC ? order.length + 2 : order.length)
   const groups = grouped(ranked ? entries : [...entries].sort((a, b) => Number(a.exotic) - Number(b.exotic) || a.level - b.level), (entry) => entry.group)
   if (!ranked) groups.sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
@@ -172,7 +173,7 @@ export function archiveGroups(entries: ArchiveEntry[], manufacturers: Manufactur
     const sections = grouped(list, (entry) => (!ranked && BY_LICENCE.includes(entry.category) ? entry.licence : ''))
       .sort(([a], [b]) => Number(Boolean(a)) - Number(Boolean(b)) || a.localeCompare(b))
       .map(([licence, entries]) => ({ licence, entries }))
-    return { key, title: maker ? maker.id : GEAR_TYPES[key] ?? (key === 'other' ? 'Other' : key === EXOTIC ? EXOTIC_MAKER.name : key), colour: makerColour(maker), logo: makerLogo(maker), entries: list, sections }
+    return { key, title: maker ? maker.id : GEAR_TITLES[key] ?? (key === 'other' ? 'Other' : key === EXOTIC ? EXOTIC_MAKER.name : key), colour: makerColour(maker), logo: makerLogo(maker), entries: list, sections }
   })
 }
 

@@ -2,6 +2,7 @@ import { computed, shallowRef } from 'vue'
 import { cached, clearCatalogues, loadKind } from './catalogue'
 import { BASE_ACTIONS, baseActions, toBaseAction, type BaseAction } from './baseActions'
 import { rule, ruleItems, toRuleItem } from './rulesData'
+import { loadDefinitions } from './definitions'
 import { fetchAll, supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
 import hpIcon from './assets/icons/hp.svg'
@@ -363,6 +364,7 @@ export function useGameData() {
     loadTagNames()
     loadSources()
     loadRules()
+    loadDefinitions()
     const [gearRows, talentRows, coreRows, bionicRows, statRows] = await Promise.all([
       loadKind('pilot_gear'),
       loadKind('talents'),

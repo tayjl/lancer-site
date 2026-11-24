@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { DAMAGE_TYPES, RANGE_TYPES } from '../../contentEditor'
+import { computed } from 'vue'
+import { defIds, defLabel } from '../../definitions'
 import { flatDamage } from '../../damage'
 import Icon from '../Icon.vue'
 import FieldError from './FieldError.vue'
@@ -15,7 +16,7 @@ const props = defineProps<{ kind: 'damage' | 'range'; path?: string; noun?: stri
 const { invalid } = useProblems()
 const where = (index: number, key: string) => `${props.path ?? props.kind}.${index}.${key}`
 
-const types = props.kind === 'damage' ? DAMAGE_TYPES : RANGE_TYPES
+const types = computed(() => defIds(props.kind === 'damage' ? 'damage_types' : 'range_types'))
 const noun = props.noun ?? (props.kind === 'damage' ? 'Damage' : 'Range')
 const change = (index: number, changes: Partial<Entry>) => (model.value = model.value.map((entry, i) => (i === index ? { ...entry, ...changes } : entry)))
 const setValue = (index: number, text: string) => change(index, { val: /^\d+$/.test(text.trim()) ? Number(text) : text })
@@ -23,7 +24,7 @@ const flat = (val: string | number) => {
   const result = flatDamage(val)
   return typeof result === 'number' ? result : null
 }
-const add = () => (model.value = [...model.value, { type: types[0], val: props.kind === 'damage' ? '1d6' : 5 }])
+const add = () => (model.value = [...model.value, { type: types.value[0], val: props.kind === 'damage' ? '1d6' : 5 }])
 </script>
 
 <template>
@@ -32,7 +33,7 @@ const add = () => (model.value = [...model.value, { type: types[0], val: props.k
       <li v-for="(entry, index) in model" :key="index" class="entry" :class="{ plain: kind === 'range' }">
         <select :value="entry.type" :aria-label="`${noun} ${index + 1} type`" :aria-invalid="invalid(where(index, 'type')) || undefined" @change="change(index, { type: ($event.target as HTMLSelectElement).value })">
           <option v-if="!types.includes(entry.type)" :value="entry.type">{{ entry.type || 'Choose…' }}</option>
-          <option v-for="type in types" :key="type" :value="type">{{ type }}</option>
+          <option v-for="type in types" :key="type" :value="type">{{ defLabel(props.kind === 'damage' ? 'damage_types' : 'range_types', type) }}</option>
         </select>
         <input type="text" class="value" :value="entry.val" :aria-label="`${noun} ${index + 1} amount`" :aria-invalid="invalid(where(index, 'val')) || undefined" @input="setValue(index, ($event.target as HTMLInputElement).value)" />
         <span v-if="kind === 'damage'" class="flat dim">

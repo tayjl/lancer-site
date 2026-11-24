@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { WEAPON_MOUNTS, WEAPON_TYPES, lockedTags, setProfiles, splitProfiles, type BonusType, type Data } from '../../contentEditor'
+import { defIds, defList } from '../../definitions'
+import { lockedTags, setProfiles, splitProfiles, type BonusType, type Data } from '../../contentEditor'
 import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
@@ -42,8 +43,11 @@ const actions = f.list<Data>('actions')
 const deployables = f.list<Data>('deployables')
 const profiles = f.list<Data>('profiles')
 
-const mounts = computed(() => (WEAPON_MOUNTS.includes(mount.value) || !mount.value ? WEAPON_MOUNTS : [...WEAPON_MOUNTS, mount.value]).map((value) => ({ value, label: value })))
-const types = computed(() => (WEAPON_TYPES.includes(type.value) || !type.value ? WEAPON_TYPES : [...WEAPON_TYPES, type.value]))
+const mounts = computed(() => {
+  const list = defList('weapon_sizes').map((size) => ({ value: size.id, label: size.label }))
+  return list.some((size) => size.value === mount.value) || !mount.value ? list : [...list, { value: mount.value, label: mount.value }]
+})
+const types = computed(() => (defIds('weapon_types').includes(type.value) || !type.value ? defIds('weapon_types') : [...defIds('weapon_types'), type.value]))
 
 // A profile's own tags, rules and actions are left out while empty, so the weapon's own apply.
 const text = (value: unknown) => (value as string) || undefined

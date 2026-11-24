@@ -1,21 +1,10 @@
 import armourIcon from './assets/icons/armour.svg'
-import blastIcon from './assets/icons/blast.svg'
-import burnIcon from './assets/icons/burn.svg'
-import burstIcon from './assets/icons/burst.svg'
-import coneIcon from './assets/icons/cone.svg'
 import eDefIcon from './assets/icons/e_def.svg'
-import energyIcon from './assets/icons/energy.svg'
-import explosiveIcon from './assets/icons/explosive.svg'
-import heatIcon from './assets/icons/heat.svg'
 import hpIcon from './assets/icons/hp.svg'
-import kineticIcon from './assets/icons/kinetic.svg'
-import lineIcon from './assets/icons/line.svg'
-import rangeIcon from './assets/icons/range.svg'
 import systemPointIcon from './assets/icons/system_point.svg'
 import speedIcon from './assets/icons/speed.svg'
-import threatIcon from './assets/icons/threat.svg'
-import thrownIcon from './assets/icons/thrown.svg'
-import variableIcon from './assets/icons/variable.svg'
+import { defColour, defData, defIcon, defKnown } from './definitions'
+import { iconUrl } from './icons'
 import { hiddenTags, type Item } from './gameData'
 import { licenceNames } from './mechData'
 import { rankName } from './rules'
@@ -36,24 +25,12 @@ const BONUSES: Record<string, [string, string | null]> = {
   pilot_edef: ['E-defence', eDefIcon],
   pilot_speed: ['Speed', speedIcon],
 }
-// Weapon range and damage types, lower case.
-const ICONS: Record<string, string> = {
-  threat: threatIcon,
-  thrown: thrownIcon,
-  range: rangeIcon,
-  burst: burstIcon,
-  blast: blastIcon,
-  line: lineIcon,
-  cone: coneIcon,
-  kinetic: kineticIcon,
-  energy: energyIcon,
-  explosive: explosiveIcon,
-  burn: burnIcon,
-  heat: heatIcon,
-  variable: variableIcon,
+// The symbol for a range or damage type ("Range", "Kinetic"), or null. The row's icon first, then a symbol named like the
+// type (Thrown), else none.
+export const symbolOf = (type: string) => {
+  const icon = defIcon('damage_types', type) ?? defIcon('range_types', type) ?? type.toLowerCase()
+  return iconUrl(icon) ?? null
 }
-// The symbol for a range or damage type ("Range", "Kinetic"), or null.
-export const symbolOf = (type: string) => ICONS[type.toLowerCase()] ?? null
 // Tags that only repeat what the slot already says.
 const HIDDEN_TAGS = ['tg_gear', 'tg_pilot_weapon', 'tg_personal_armor']
 
@@ -65,7 +42,7 @@ const entryStats = (kind: 'range' | 'damage', entries: Entry[]): ItemStat[] =>
   entries.map((entry) => ({
     kind,
     label: String(entry.type ?? '').toLowerCase(),
-    icon: ICONS[String(entry.type ?? '').toLowerCase()] ?? null,
+    icon: symbolOf(String(entry.type ?? '')),
     value: String(kind === 'damage' ? flatDamage(entry.val) : entry.val),
   }))
 
@@ -118,20 +95,14 @@ export function itemFacts(item: Item): string[] {
   return [licence, item.mount ? `${item.mount} ${item.type}`.trim() : item.type === 'System' ? '' : item.type].filter(Boolean)
 }
 
-// LANCER's activations, for ActionChip.vue: each with its --act-* colour and its symbol. "None" (passive) and
-// anything unknown get no chip.
-const ACTIVATIONS: Record<string, { colour: string; icon: string }> = {
-  quick: { colour: 'quick', icon: 'activation_quick' },
-  full: { colour: 'full', icon: 'activation_full' },
-  reaction: { colour: 'reaction', icon: 'reaction' },
-  protocol: { colour: 'protocol', icon: 'protocol' },
-  free: { colour: 'free', icon: 'free_action' },
-  overcharge: { colour: 'overcharge', icon: 'overcharge' },
-  'quick tech': { colour: 'tech', icon: 'tech_quick' },
-  'full tech': { colour: 'tech', icon: 'tech_full' },
-  invade: { colour: 'tech', icon: 'tech_quick' },
+// An activation's chip look, for ActionChip.vue: its row's colour (a CSS variable name such as --act-quick) and symbol. "None"
+// (passive) and anything unknown get no chip. A row with a missing or unknown icon or colour gets a neutral one.
+export const activationOf = (value: unknown) => {
+  const word = String(value ?? '').trim()
+  if (!word || !defKnown('activations', word)) return null
+  const data = defData('activations', word)
+  return { colour: defColour('activations', word) ? String(data.colour) : '--text-dim', icon: defIcon('activations', word) ?? 'generic_item' }
 }
-export const activationOf = (value: unknown) => ACTIVATIONS[String(value ?? '').trim().toLowerCase()] ?? null
 
 // An item's extra rules (ItemDetails.vue's actions, and the full-information dialog): on attack, hit and crit
 // effects, actions with their trigger, and deployables with their stats and actions. Text stays formatted HTML for

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
-import { DAMAGE_TYPES, EFFECT_BONUS_TYPES, FRAME_MOUNTS, RANGE_TYPES, WEAPON_MOUNTS, WEAPON_TYPES, bonusCounted, type BonusFilter, type BonusType, type Data, type EffectBonusType } from '../../contentEditor'
+import { EFFECT_BONUS_TYPES, bonusCounted, type BonusFilter, type BonusType, type Data, type EffectBonusType } from '../../contentEditor'
+import { defIds, defList } from '../../definitions'
 import { hiddenTags, tagNames } from '../../gameData'
 import Icon from '../Icon.vue'
 import Field from './Field.vue'
@@ -37,12 +38,12 @@ const groups = computed(() => [
 const offered = computed(() => new Set(groups.value.flatMap((entry) => entry.types.map((type) => type.id))))
 const tags = computed(() => [...tagNames.value].filter(([id]) => !hiddenTags.value.has(id)).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)))
 
-const FILTER_LABELS: Record<BonusFilter, { label: string; options: string[] }> = {
-  weapon_types: { label: 'weapon types', options: WEAPON_TYPES },
-  weapon_sizes: { label: 'weapon sizes', options: WEAPON_MOUNTS },
-  range_types: { label: 'range types', options: RANGE_TYPES },
-  damage_types: { label: 'damage types', options: DAMAGE_TYPES },
-}
+const FILTER_LABELS = computed<Record<BonusFilter, { label: string; options: string[] }>>(() => ({
+  weapon_types: { label: 'weapon types', options: defIds('weapon_types') },
+  weapon_sizes: { label: 'weapon sizes', options: defIds('weapon_sizes') },
+  range_types: { label: 'range types', options: defIds('range_types') },
+  damage_types: { label: 'damage types', options: defIds('damage_types') },
+}))
 const filtersOf = (bonus: Data) => (effectOf(bonus)?.filters ?? []).filter((key) => key !== 'weapon_sizes')
 const isStat = (bonus: Data) => !effectOf(bonus)
 
@@ -100,7 +101,7 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
           </select>
           <select v-if="effectOf(bonus)?.value === 'mount'" :value="bonus.val ?? ''" class="value" :aria-label="`Effect ${index + 1} mount`" :aria-invalid="invalid(where(index, 'val')) || undefined" @change="change(index, { val: ($event.target as HTMLSelectElement).value })">
             <option value="" disabled>Choose…</option>
-            <option v-for="mount in FRAME_MOUNTS" :key="mount" :value="mount">{{ mount }}</option>
+            <option v-for="mount in defList('mount_types')" :key="mount.id" :value="mount.id">{{ mount.label }}</option>
           </select>
           <span v-else-if="effectOf(bonus) && ['none', 'tags', 'steps'].includes(effectOf(bonus)!.value)" class="value-gap"></span>
           <input v-else type="text" class="value" :value="bonus.val" :aria-label="`Effect ${index + 1} amount`" :placeholder="isStat(bonus) ? '2 or {systems}/2' : '2'" :aria-invalid="invalid(where(index, 'val')) || undefined" @input="setValue(index, ($event.target as HTMLInputElement).value)" />

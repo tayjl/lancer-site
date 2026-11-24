@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { FRAME_MOUNTS, FRAME_ROLES, FRAME_SIZES, FRAME_STATS, FRAME_USES, type BonusType, type Data } from '../../contentEditor'
+import { FRAME_STATS, type BonusType, type Data } from '../../contentEditor'
+import { defIds, defList, mountHint } from '../../definitions'
 import { frameArt } from '../../images'
 import { itemInfo } from '../../info'
-import { alternateOf, MOUNT_HINTS, toFrame, useMechData } from '../../mechData'
+import { alternateOf, toFrame, useMechData } from '../../mechData'
 import { plural } from '../../text'
 import MechImage from '../MechImage.vue'
 import Icon from '../Icon.vue'
@@ -49,7 +50,11 @@ const mechBonuses = computed(() => props.bonusTypes.filter((type) => type.group 
 
 const stats = computed(() => entry(model.value.stats))
 const setStat = (key: string, text: string) => (model.value = { ...model.value, stats: { ...stats.value, [key]: text.trim() === '' ? '' : Number(text) } })
-const sizes = computed(() => (FRAME_SIZES.includes(Number(stats.value.size)) || stats.value.size === undefined ? FRAME_SIZES : [...FRAME_SIZES, Number(stats.value.size)]))
+const sizes = computed(() => {
+  const list = defList('frame_sizes').map((size) => ({ value: Number(size.id), label: size.label }))
+  const own = Number(stats.value.size)
+  return list.some((size) => size.value === own) || stats.value.size === undefined ? list : [...list, { value: own, label: String(own) }]
+})
 
 const setMount = (index: number, value: string) => (mounts.value = mounts.value.map((mount, i) => (i === index ? value : mount)))
 const moveMount = (index: number, by: number) => {
@@ -121,7 +126,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
       <LicenceField v-model="model" />
     </div>
     <Field block label="Mech type" path="mechtype">
-      <ToggleChips v-model="roles" :options="FRAME_ROLES" label="Mech type" />
+      <ToggleChips v-model="roles" :options="defIds('frame_roles')" label="Mech type" />
     </Field>
     <Field block label="Image" path="image">
       <div class="art-edit">
@@ -138,7 +143,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     <div class="stats">
       <Field v-for="stat in FRAME_STATS" :key="stat.key" :label="stat.unused ? `${stat.label} (not used)` : stat.label" :path="`stats.${stat.key}`" :class="{ unused: stat.unused }">
         <select v-if="stat.key === 'size'" class="num" :value="String(stats.size ?? 1)" @change="setStat('size', input($event))">
-          <option v-for="size in sizes" :key="size" :value="size">{{ size === 0.5 ? '½' : size }}</option>
+          <option v-for="size in sizes" :key="size.value" :value="size.value">{{ size.label }}</option>
         </select>
         <input v-else class="num" type="number" step="1" :min="stat.key === 'tech_attack' ? undefined : 0" :value="stats[stat.key] ?? ''" @input="setStat(stat.key, input($event))" />
       </Field>
@@ -150,10 +155,10 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     <ol v-if="mounts.length" class="mounts">
       <li v-for="(mount, index) in mounts" :key="index">
         <select :value="mount" :aria-label="`Mount ${index + 1}`" :aria-invalid="invalid(`mounts.${index}`) || undefined" @change="setMount(index, input($event))">
-          <option v-if="!FRAME_MOUNTS.includes(mount)" :value="mount">{{ mount || 'Choose…' }}</option>
-          <option v-for="option in FRAME_MOUNTS" :key="option" :value="option">{{ option }}</option>
+          <option v-if="!defIds('mount_types').includes(mount)" :value="mount">{{ mount || 'Choose…' }}</option>
+          <option v-for="option in defList('mount_types')" :key="option.id" :value="option.id">{{ option.label }}</option>
         </select>
-        <span class="dim mount-hint">{{ MOUNT_HINTS[mount] ?? '' }}</span>
+        <span class="dim mount-hint">{{ mountHint(mount) ?? '' }}</span>
         <span class="tools">
           <button type="button" class="icon-btn" :disabled="index === 0" :aria-label="`Move mount ${index + 1} up`" @click="moveMount(index, -1)"><Icon name="chevron-up" /></button>
           <button type="button" class="icon-btn" :disabled="index === mounts.length - 1" :aria-label="`Move mount ${index + 1} down`" @click="moveMount(index, 1)"><Icon name="chevron-down" /></button>
@@ -177,8 +182,8 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
           <Field label="Use limit" >
             <select :value="String(item.use ?? '')" @change="change({ use: input($event) || undefined })">
               <option value="">None</option>
-              <option v-if="item.use && !FRAME_USES.includes(String(item.use))" :value="item.use">{{ item.use }}</option>
-              <option v-for="use in FRAME_USES" :key="use" :value="use">{{ use }}</option>
+              <option v-if="item.use && !defIds('uses').includes(String(item.use))" :value="item.use">{{ item.use }}</option>
+              <option v-for="use in defList('uses')" :key="use.id" :value="use.id">{{ use.label }}</option>
             </select>
           </Field>
         </div>

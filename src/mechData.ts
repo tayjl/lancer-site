@@ -24,6 +24,7 @@ import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES } from './coreRules'
 import { capitalise, sameName } from './text'
 import { activationOf } from './itemDetails'
+import { mountSlots } from './definitions'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
 // which weapons fit which mount, and the mech's stats. Mechs only store ids; everything else comes from here.
@@ -43,36 +44,14 @@ export type Frame = {
   raw?: Record<string, unknown>
 }
 
-// Which weapon sizes each place on a mount takes. Most mounts hold one weapon; Flex, Main/Aux and Aux/Aux hold two.
-const MOUNT_SLOTS: Record<string, string[][]> = {
-  Auxiliary: [['Auxiliary']],
-  'Integrated Auxiliary': [['Auxiliary']],
-  Main: [['Main', 'Auxiliary']],
-  // A Superheavy weapon also needs a second, empty mount: see bracingMount() in src/rules.ts.
-  Superheavy: [['Superheavy']],
-  Heavy: [['Superheavy', 'Heavy', 'Main', 'Auxiliary']],
-  Flex: [['Main', 'Auxiliary'], ['Auxiliary']],
-  'Main/Aux': [['Main', 'Auxiliary'], ['Auxiliary']],
-  'Aux/Aux': [['Auxiliary'], ['Auxiliary']],
-}
-
-// What a mount takes, in words (the loadout's empty states, the frame form).
-export const MOUNT_HINTS: Record<string, string> = {
-  Main: 'Takes one Main or Auxiliary weapon.',
-  Heavy: 'Takes one weapon of any size.',
-  Superheavy: 'Takes one Superheavy weapon.',
-  Flex: 'Takes one Main or two Auxiliary weapons.',
-  'Main/Aux': 'Takes one Main and one Auxiliary weapon.',
-  'Aux/Aux': 'Takes two Auxiliary weapons.',
-}
-
+// Which weapon sizes each place on a mount takes comes from the mount type's row (mountSlots in src/definitions.ts).
 // How many weapons a mount holds.
-export const mountSize = (mount: string) => MOUNT_SLOTS[mount]?.length ?? 1
+export const mountSize = (mount: string) => mountSlots(mount)?.length ?? 1
 
 // The weapon sizes place "index" on a mount takes, given the sizes already on it (null where empty).
 // A Flex mount holds one Main weapon or two Auxiliary ones, so a Main weapon closes its second place.
 export function allowedSizes(mount: string, index: number, sizesOnMount: (string | null)[]) {
-  const allowed = MOUNT_SLOTS[mount]?.[index] ?? []
+  const allowed = mountSlots(mount)?.[index] ?? []
   if (mount !== 'Flex') return allowed
   if (index === 0) return sizesOnMount[1] ? ['Auxiliary'] : allowed
   return sizesOnMount[0] === 'Main' ? [] : allowed
@@ -165,7 +144,7 @@ export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick
 export const choiceKey = (key: string, n: number) => (n ? `${key}#${n}` : key)
 // The mount changes a mech's bonuses offer: the mount each replaces is chosen by the player (mech.core_mounts[key]).
 export const mountReplacements = (bonuses: NamedBonus[]) => bonuses.flatMap(({ source, bonus, key }) =>
-  bonus.id === 'replace_mount' && key && permanentBonus(bonus) && Object.hasOwn(MOUNT_SLOTS, String(bonus.val)) ? [{ key, name: source, type: String(bonus.val) }] : [])
+  bonus.id === 'replace_mount' && key && permanentBonus(bonus) && mountSlots(bonus.val) ? [{ key, name: source, type: String(bonus.val) }] : [])
 
 // "core.integrated" (the integrated catalogue) tells weapons from systems, for a core bonus that replaces the frame's integrated weapons.
 export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet, talents: Talent[], bonuses: NamedBonus[] = [], core: { coreBonuses?: CoreBonus[]; integrated?: Map<string, Item>; equipped?: { raw?: Record<string, unknown> }[] } = {}): Frame | null {
@@ -182,7 +161,7 @@ export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet,
   for (const { bonus } of bonuses) {
     if (bonus.id !== 'add_mount' || !permanentBonus(bonus)) continue
     const type = String(bonus.val)
-    if (Object.hasOwn(MOUNT_SLOTS, type) && (!Number.isFinite(bonus.max) || counted() < Number(bonus.max)) && mounts.length < 20) mounts.push(type)
+    if (mountSlots(type) &&(!Number.isFinite(bonus.max) || counted() < Number(bonus.max)) && mounts.length < 20) mounts.push(type)
   }
   if (bonuses.some(({ bonus }) => bonus.id === 'superheavy_mounting' && permanentBonus(bonus)) && counted() < 3) mounts.push('Superheavy')
   for (const { key, type } of mountReplacements(bonuses)) {

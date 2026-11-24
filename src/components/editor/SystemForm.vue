@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { SYSTEM_TYPES, lockedTags, type BonusType, type Data } from '../../contentEditor'
+import { defIds } from '../../definitions'
+import { lockedTags, type BonusType, type Data } from '../../contentEditor'
 import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
@@ -36,8 +37,8 @@ const type = f.text('type')
   <ItemBasics v-model="model" :locked="locked" :manufacturers="manufacturers" :licences="licences">
     <Field label="Kind of system" path="type">
       <select :value="type || 'System'" @change="type = ($event.target as HTMLSelectElement).value">
-        <option v-if="type && !SYSTEM_TYPES.includes(type)" :value="type">{{ type }}</option>
-        <option v-for="option in SYSTEM_TYPES" :key="option" :value="option">{{ option === 'Armor' ? 'Armour' : option }}</option>
+        <option v-if="type && !defIds('system_types').includes(type)" :value="type">{{ type }}</option>
+        <option v-for="option in defIds('system_types')" :key="option" :value="option">{{ option === 'Armor' ? 'Armour' : option }}</option>
       </select>
     </Field>
   </ItemBasics>

@@ -2,6 +2,7 @@ import { capitalise, sameName } from './text'
 import { bonusValue } from './bonuses'
 import { ICON_CHOICES } from './commendations'
 import { flatDamage } from './damage'
+import { defIds } from './definitions'
 import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
 import { REQUIREMENT_KINDS } from './gameData'
@@ -37,6 +38,17 @@ export const KINDS: KindInfo[] = [
   kind('commendations', 'Commendations', 'commendation', 'medal', '', true),
 ]
 export const kindInfo = (key: EditorKind) => KINDS.find((k) => k.key === key)!
+
+// The editor's tab groups (the top tab row), each with its kinds in order. Definitions isn't a kind: it's a tab of its own.
+export const DEFINITIONS_TAB = 'definitions'
+export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
+  { label: 'Mech content', tabs: ['frames', 'weapons', 'systems', 'mods', 'core_bonuses', 'manufacturers'] },
+  { label: 'Pilot content', tabs: ['pilot_gear', 'talents'] },
+  { label: 'Combat rules', tabs: ['rules', 'actions', 'tags', DEFINITIONS_TAB] },
+  { label: 'Campaign', tabs: ['bionics', 'factions', 'commendations'] },
+]
+// The group a ?cat= belongs to (the first when it's unknown), and the first tab a group opens.
+export const groupOf = (cat: unknown) => TAB_GROUPS.find((g) => g.tabs.includes(String(cat))) ?? TAB_GROUPS[0]
 
 export type Data = Record<string, unknown>
 // Every item whose manufacturer is Exotic carries the Exotic Gear tag (rules.ts). The tag can't be removed while it is, and
@@ -107,20 +119,12 @@ export const usedBy = (pilots: string[]) =>
   pilots.length ? `Used by ${pilots.slice(0, 3).join(', ')}${pilots.length > 3 ? ` and ${pilots.length - 3} more` : ''}` : ''
 
 // What the form's pickers offer, and what validation accepts.
-export const GEAR_TYPES = ['Armor', 'Weapon', 'Gear']
-export const DAMAGE_TYPES = ['Kinetic', 'Energy', 'Explosive', 'Burn', 'Heat', 'Variable']
-export const RANGE_TYPES = ['Range', 'Threat', 'Line', 'Cone', 'Blast', 'Burst']
 // Weapon and system choices. The data also has a few values the form doesn't offer (a ship-class mount, a "Special" type):
 // they're accepted, and a form showing one keeps it.
-export const WEAPON_MOUNTS = ['Auxiliary', 'Main', 'Heavy', 'Superheavy']
-export const WEAPON_TYPES = ['Rifle', 'Cannon', 'CQB', 'Launcher', 'Melee', 'Nexus']
 const DATA_ONLY_MOUNTS = ['Ship-class']
 const DATA_ONLY_WEAPON_TYPES = ['Special', 'Spool Weapon', '???']
-export const SYSTEM_TYPES = ['System', 'AI', 'Shield', 'Deployable', 'Drone', 'Tech', 'Armor', 'Flight System', 'Integrated']
-export const DEPLOYABLE_TYPES = ['Deployable', 'Drone', 'Mine']
 export const RANK_NAMES = ['I', 'II', 'III']
 export const HEX = /^#[0-9a-f]{6}$/i
-export const ACTIVATIONS = ['Quick', 'Full', 'Reaction', 'Protocol', 'Free', 'Quick Tech', 'Full Tech', 'Invade', 'Overcharge']
 
 // The bonus ids the site's build maths counts (src/gameData.ts pilotVitals and sheetStats, src/mechData.ts
 // mechEffects): pilot gear's, personal stats (from the pilot_stats table, see personalBonusTypes) and the mech's own.
@@ -173,15 +177,15 @@ const effectType = (id: string) => EFFECT_BONUS_TYPES.find((type) => type.id ===
 const isWhole = (value: unknown) => isNumber(value) && Number.isInteger(Number(value)) && Number(value) >= 0
 // Why a value doesn't fit its effect bonus, or '' when it does.
 function effectValueProblem(type: EffectBonusType, row: Data): string {
-  if (type.value === 'mount' && !FRAME_MOUNTS.includes(String(row.val))) return 'needs a mount type.'
+  if (type.value === 'mount' && !defIds('mount_types', true).includes(String(row.val))) return 'needs a mount type.'
   if (type.value === 'number' && !isNumber(row.val)) return 'needs a number.'
   if (type.value === 'whole' && !isWhole(row.val)) return 'needs a whole number, 0 or more.'
   if (type.value === 'tags' && !(Array.isArray(row.val) && row.val.length && row.val.every((tag) => isObject(tag) && typeof tag.id === 'string' && tag.id && (tag.val === undefined || isNumber(tag.val) || typeof tag.val === 'string')))) return 'needs at least one tag.'
-  if (type.damageType && row.damage_type !== undefined && !DAMAGE_TYPES.includes(String(row.damage_type))) return 'has an unknown damage type.'
+  if (type.damageType && row.damage_type !== undefined && !defIds('damage_types', true).includes(String(row.damage_type))) return 'has an unknown damage type.'
   if (type.value === 'steps' && !(Array.isArray(row.val) && row.val.length === 4 && row.val.every((step) => typeof flatDamage(step as string | number) === 'number'))) return 'needs four overcharge steps, such as 1, 1d3, 1d6, 1d6+4.'
   if (type.max && row.max !== undefined && row.max !== '' && (!Number.isInteger(Number(row.max)) || Number(row.max) < 1)) return 'needs a whole number of mounts, 1 or more.'
   for (const key of type.filters ?? []) {
-    const allowed = key === 'weapon_types' ? [...WEAPON_TYPES, ...DATA_ONLY_WEAPON_TYPES] : key === 'weapon_sizes' ? [...WEAPON_MOUNTS, ...DATA_ONLY_MOUNTS] : key === 'damage_types' ? DAMAGE_TYPES : RANGE_TYPES
+    const allowed = key === 'weapon_types' ? [...defIds('weapon_types', true), ...DATA_ONLY_WEAPON_TYPES] : key === 'weapon_sizes' ? [...defIds('weapon_sizes', true), ...DATA_ONLY_MOUNTS] : defIds(key === 'damage_types' ? 'damage_types' : 'range_types', true)
     if (row[key] !== undefined && !(Array.isArray(row[key]) && (row[key] as unknown[]).every((value) => allowed.includes(String(value))))) return `has an unknown ${FILTER_NOUNS[key]}.`
   }
   return ''
@@ -196,10 +200,6 @@ export const bonusTypesFor = (kind: EditorKind, stats: { id: string; name: strin
 // is an alternate of another frame (an alternate Genghis), when license_id is the original's id and variant its name
 // (alternateOf() in mechData.ts reads it); license_level (0 for GMS, otherwise 2) is the rank that unlocks it. "unused" stats are game data the site's mech maths
 // leaves out (no grit, save target or sensors); the form still edits them.
-export const FRAME_ROLES = ['Balanced', 'Striker', 'Defender', 'Support', 'Controller', 'Artillery']
-export const FRAME_MOUNTS = ['Main', 'Heavy', 'Superheavy', 'Flex', 'Main/Aux', 'Aux/Aux', 'Auxiliary', 'Integrated Auxiliary']
-export const FRAME_USES = ['Turn', 'Next Turn', 'Round', 'Next Round', 'Scene', 'Encounter', 'Mission', 'Free']
-export const FRAME_SIZES = [0.5, 1, 2, 3]
 export const FRAME_STATS: { key: string; label: string; unused?: boolean }[] = [
   { key: 'size', label: 'Size' }, { key: 'structure', label: 'Structure' }, { key: 'stress', label: 'Stress' }, { key: 'hp', label: 'HP' },
   { key: 'armor', label: 'Armour' }, { key: 'evasion', label: 'Evasion' }, { key: 'edef', label: 'E-defence' }, { key: 'heatcap', label: 'Heat cap' },
@@ -242,7 +242,7 @@ const say = (who: string, text: string) => (who ? `${who}: ${capitalise(text)}` 
 
 // A list of range or damage entries: a type and a number (damage may be dice).
 function checkEntries(value: unknown, noun: 'range' | 'damage', label: string, at: string, who: string, out: Problem[]) {
-  const types = noun === 'range' ? RANGE_TYPES : DAMAGE_TYPES
+  const types = defIds(noun === 'range' ? 'range_types' : 'damage_types', true)
   for (const [index, item] of list(value).entries()) {
     const row = entry(item)
     const n = index + 1
@@ -285,7 +285,7 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
   for (const [index, action] of list(data.actions).entries()) {
     const row = entry(action)
     if (typeof row.name !== 'string' || !row.name.trim()) out.push(error(say(who, `action ${index + 1} needs a name.`), `${at}actions.${index}.name`))
-    if (row.activation !== undefined && !ACTIVATIONS.includes(String(row.activation))) out.push(warn(say(who, `action ${index + 1} has an unknown activation.`), `${at}actions.${index}.activation`))
+    if (row.activation !== undefined && !defIds('activations', true).includes(String(row.activation))) out.push(warn(say(who, `action ${index + 1} has an unknown activation.`), `${at}actions.${index}.activation`))
     // Cards and the information dialog only show an action that says what it does.
     if (typeof row.name === 'string' && row.name.trim() && !String(row.detail ?? '').trim()) out.push(warn(say(who, `action ${index + 1} has no rules text and won't show.`), `${at}actions.${index}.detail`))
   }
@@ -328,8 +328,8 @@ function checkRowName(value: unknown, noun: string, index: number, at: string, s
 }
 
 function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
-  if (!WEAPON_MOUNTS.concat(DATA_ONLY_MOUNTS).includes(String(data.mount))) out.push(error('Choose the mount size.', 'mount'))
-  if (!WEAPON_TYPES.concat(DATA_ONLY_WEAPON_TYPES).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
+  if (!defIds('weapon_sizes', true).concat(DATA_ONLY_MOUNTS).includes(String(data.mount))) out.push(error('Choose the mount size.', 'mount'))
+  if (!defIds('weapon_types', true).concat(DATA_ONLY_WEAPON_TYPES).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
   checkPoints(data, out)
   checkLicence(data, ctx, out)
   checkGrants(data, ctx, out)
@@ -346,7 +346,7 @@ function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
 }
 
 function checkSystem(data: Data, ctx: Context, out: Problem[]) {
-  if (data.type !== undefined && !SYSTEM_TYPES.includes(String(data.type))) out.push(error('Choose the kind of system.', 'type'))
+  if (data.type !== undefined && !defIds('system_types', true).includes(String(data.type))) out.push(error('Choose the kind of system.', 'type'))
   checkPoints(data, out)
   checkLicence(data, ctx, out)
   checkGrants(data, ctx, out)
@@ -427,14 +427,14 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
     if (unused && value === undefined) continue
     const field = `stats.${key}`
     if (!isNumber(value)) out.push(error(`${label} needs a number.`, field))
-    else if (key === 'size') { if (!FRAME_SIZES.includes(Number(value))) out.push(error('Size is ½, 1, 2 or 3.', field)) }
+    else if (key === 'size') { if (!defIds('frame_sizes', true).some((id) => Number(id) === Number(value))) out.push(error('Size is ½, 1, 2 or 3.', field)) }
     else if (!Number.isInteger(Number(value)) || (Number(value) < 0 && key !== 'tech_attack')) out.push(error(`${label} must be a whole number${key === 'tech_attack' ? '' : ', 0 or more'}.`, field))
   }
 
   const mounts = list(data.mounts)
   if (!mounts.length) out.push(error('A frame needs at least one weapon mount.', 'mounts'))
   for (const [index, mount] of mounts.entries()) {
-    if (!FRAME_MOUNTS.includes(String(mount))) out.push(error(`Mount ${index + 1} isn't a known mount.`, `mounts.${index}`))
+    if (!defIds('mount_types', true).includes(String(mount))) out.push(error(`Mount ${index + 1} isn't a known mount.`, `mounts.${index}`))
   }
 
   const seen = new Set<string>()
@@ -491,7 +491,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   const problems: Problem[] = []
   if (data.id !== ctx.id) problems.push(error(`The ID must stay "${ctx.id}".`, 'id'))
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
-  if (kind === 'pilot_gear' && !GEAR_TYPES.includes(String(data.type))) problems.push(error('Choose a gear type.', 'type'))
+  if (kind === 'pilot_gear' && !defIds('gear_types', true).includes(String(data.type))) problems.push(error('Choose a gear type.', 'type'))
   // Unset means the default price (rules.ts gearPriceDefault).
   if (kind === 'pilot_gear' && data.manna_cost != null && (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0)) problems.push(error('Manna cost must be a whole number, 0 or more.', 'manna_cost'))
   if (kind === 'core_bonuses' && typeof data.source !== 'string') problems.push(error('Choose a manufacturer.', 'source'))

@@ -11,7 +11,7 @@ const chip = computed(() => activationOf(props.activation))
 </script>
 
 <template>
-  <span v-if="chip" class="action-chip" :style="{ '--c': `var(--act-${chip.colour})` }"><Icon :name="chip.icon" />{{ activation }}</span>
+  <span v-if="chip" class="action-chip" :style="{ '--c': `var(${chip.colour})` }"><Icon :name="chip.icon" />{{ activation }}</span>
 </template>
 
 <style scoped>

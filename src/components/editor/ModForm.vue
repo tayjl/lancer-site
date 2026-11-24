@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { WEAPON_MOUNTS, WEAPON_TYPES, lockedTags, type BonusType, type Data } from '../../contentEditor'
+import { defIds } from '../../definitions'
+import { lockedTags, type BonusType, type Data } from '../../contentEditor'
 import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
@@ -46,16 +47,16 @@ const adds = computed(() => [plural(addedRange.value.length, 'range'), plural(ad
 
   <FoldPanel title="Which weapons it fits" :summary="fits" :paths="['allowed_types', 'allowed_sizes', 'restricted_types', 'restricted_sizes']">
     <Field block label="Only these types" hint="Leave all off to fit any type.">
-      <ToggleChips v-model="allowedTypes" :options="WEAPON_TYPES" label="Allowed weapon types" />
+      <ToggleChips v-model="allowedTypes" :options="defIds('weapon_types')" label="Allowed weapon types" />
     </Field>
     <Field block label="Only these sizes" hint="Leave all off to fit any size.">
-      <ToggleChips v-model="allowedSizes" :options="WEAPON_MOUNTS" label="Allowed weapon sizes" />
+      <ToggleChips v-model="allowedSizes" :options="defIds('weapon_sizes')" label="Allowed weapon sizes" />
     </Field>
     <Field block label="Never these types">
-      <ToggleChips v-model="restrictedTypes" :options="WEAPON_TYPES" label="Restricted weapon types" />
+      <ToggleChips v-model="restrictedTypes" :options="defIds('weapon_types')" label="Restricted weapon types" />
     </Field>
     <Field block label="Never these sizes">
-      <ToggleChips v-model="restrictedSizes" :options="WEAPON_MOUNTS" label="Restricted weapon sizes" />
+      <ToggleChips v-model="restrictedSizes" :options="defIds('weapon_sizes')" label="Restricted weapon sizes" />
     </Field>
   </FoldPanel>
 

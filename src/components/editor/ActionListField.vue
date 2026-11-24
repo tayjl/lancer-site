@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ACTIVATIONS, type Data } from '../../contentEditor'
+import { type Data } from '../../contentEditor'
+import { defIds, defList } from '../../definitions'
 import ActionChip from '../ActionChip.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import Field from './Field.vue'
@@ -29,8 +30,8 @@ const where = (index: number, key: string) => `${props.path}.${index}.${key}`
         <Field label="Activation" :path="where(index, 'activation')">
           <span class="activation">
             <select :value="item.activation" @change="change({ activation: input($event) })">
-              <option v-if="!ACTIVATIONS.includes(String(item.activation))" :value="item.activation">{{ item.activation ?? 'Passive' }}</option>
-              <option v-for="activation in ACTIVATIONS" :key="activation" :value="activation">{{ activation }}</option>
+              <option v-if="!defIds('activations').includes(String(item.activation))" :value="item.activation">{{ item.activation ?? 'Passive' }}</option>
+              <option v-for="activation in defList('activations')" :key="activation.id" :value="activation.id">{{ activation.label }}</option>
             </select>
             <ActionChip :activation="String(item.activation ?? '')" />
           </span>

@@ -22,8 +22,8 @@ describe('item cards', () => {
   })
 
   it('maps activations to their chips, and passive ones to none', () => {
-    expect(activationOf('Quick Tech')).toEqual({ colour: 'tech', icon: 'tech_quick' })
-    expect(activationOf('Free')).toEqual({ colour: 'free', icon: 'free_action' })
+    expect(activationOf('Quick Tech')).toEqual({ colour: '--act-tech', icon: 'tech_quick' })
+    expect(activationOf('Free')).toEqual({ colour: '--act-free', icon: 'free_action' })
     expect(activationOf('None')).toBeNull()
   })
 

@@ -7,7 +7,8 @@ import { itemInfo } from '../info'
 import { itemPick } from '../pickerRows'
 import { useManufacturers } from '../archive'
 import { modBlockedBy, modsRefused } from '../equipment'
-import { allowedSizes, fittedMods, MOUNT_HINTS, mountReplacements, mountSize, type Frame } from '../mechData'
+import { mountHint as mountHintOf } from '../definitions'
+import { allowedSizes, fittedMods, mountReplacements, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { bracingMount, isLicensed, licenceName, rankName, isExotic, requirementReason, restrictionOf, superheavyMount, unmetRequirements } from '../rules'
 import { useGmOverride, useRestriction } from '../restriction'
@@ -217,7 +218,7 @@ async function choose(id: string) {
 const placeLabel = (allowed: string[]) => (allowed.length >= 4 ? 'any weapon' : `${allowed.join(' or ').toLowerCase()} weapon`)
 // What an empty mount takes, in its empty state; one not listed says what its first place takes.
 const placeHint = (allowed: string[]) => `Takes ${allowed.length >= 4 ? 'a weapon of any size' : `one ${allowed.join(' or ')} weapon`}.`
-const mountHint = (mount: string, allowed: string[]) => (gmOverride.value ? placeHint(allowed) : (MOUNT_HINTS[mount] ?? placeHint(allowed)))
+const mountHint = (mount: string, allowed: string[]) => (gmOverride.value ? placeHint(allowed) : (mountHintOf(mount) ?? placeHint(allowed)))
 // The system points meter: how full, and what's left.
 const spNote = computed(() => {
   const left = (props.spTotal ?? 0) - spUsed.value

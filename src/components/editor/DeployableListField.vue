@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { DEPLOYABLE_TYPES, type Data } from '../../contentEditor'
+import { type Data } from '../../contentEditor'
+import { defIds, defList } from '../../definitions'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
 import Field from './Field.vue'
@@ -27,8 +28,8 @@ const number = (text: string) => (text.trim() === '' ? undefined : Number(text))
         </Field>
         <Field label="Kind">
           <select :value="item.type" @change="change({ type: input($event) })">
-            <option v-if="item.type && !DEPLOYABLE_TYPES.includes(String(item.type))" :value="item.type">{{ item.type }}</option>
-            <option v-for="type in DEPLOYABLE_TYPES" :key="type" :value="type">{{ type }}</option>
+            <option v-if="item.type && !defIds('deployable_types').includes(String(item.type))" :value="item.type">{{ item.type }}</option>
+            <option v-for="type in defList('deployable_types')" :key="type.id" :value="type.id">{{ type.label }}</option>
           </select>
         </Field>
       </div>

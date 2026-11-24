@@ -72,7 +72,7 @@ const key = (entry: CombatEntry, n: number) => `${entry.name ?? entry.value ?? e
             <span v-if="entry.mod || (entry.value && entry.name)" class="chip-pre">{{ entry.mod ? 'Mod' : entry.value }}</span>
             <span>{{ entry.name ?? entry.tag ?? entry.value }}</span>
             <span v-if="entry.heat" class="heat-cost"><Icon name="heat" />{{ entry.heat }}</span>
-            <span v-for="t in tags(entry)" :key="t.word" class="cost" :style="{ '--c': `var(--act-${t.colour})` }"><Icon :name="t.icon" />{{ t.word }}</span>
+            <span v-for="t in tags(entry)" :key="t.word" class="cost" :style="{ '--c': `var(${t.colour})` }"><Icon :name="t.icon" />{{ t.word }}</span>
           </button>
         </li>
       </ul>

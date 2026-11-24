@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ACTIVATIONS, type Data } from '../../contentEditor'
+import { type Data } from '../../contentEditor'
+import { defIds, defList } from '../../definitions'
 import RichTextEditor from '../RichTextEditor.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
@@ -34,8 +35,8 @@ const GROUPS = [['attack', 'Attack'], ['tech', 'Tech'], ['other', 'Other'], ['mo
       <Field label="Activation" path="activation">
         <select v-model="activation">
           <option value="">None</option>
-          <option v-if="activation && !ACTIVATIONS.includes(activation)" :value="activation">{{ activation }}</option>
-          <option v-for="word in ACTIVATIONS" :key="word" :value="word">{{ word }}</option>
+          <option v-if="activation && !defIds('activations').includes(activation)" :value="activation">{{ activation }}</option>
+          <option v-for="word in defList('activations')" :key="word.id" :value="word.id">{{ word.label }}</option>
         </select>
       </Field>
       <Field label="Frequency" path="frequency">

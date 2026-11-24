@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ACTIVATIONS, FRAME_USES, type BonusType, type Data } from '../../contentEditor'
+import { type BonusType, type Data } from '../../contentEditor'
+import { defIds, defList } from '../../definitions'
 import ActionChip from '../ActionChip.vue'
 import RichTextEditor from '../RichTextEditor.vue'
 import ActionListField from './ActionListField.vue'
@@ -47,8 +48,8 @@ const optional = (value: unknown) => (value as string) || undefined
     <Field label="Activation" path="core_system.activation">
       <span class="activation">
         <select :value="val('activation')" @change="set({ activation: input($event) })">
-          <option v-if="val('activation') && !ACTIVATIONS.includes(val('activation'))" :value="val('activation')">{{ val('activation') }}</option>
-          <option v-for="activation in ACTIVATIONS" :key="activation" :value="activation">{{ activation }}</option>
+          <option v-if="val('activation') && !defIds('activations').includes(val('activation'))" :value="val('activation')">{{ val('activation') }}</option>
+          <option v-for="activation in defList('activations')" :key="activation.id" :value="activation.id">{{ activation.label }}</option>
         </select>
         <ActionChip :activation="val('activation')" />
       </span>
@@ -56,15 +57,15 @@ const optional = (value: unknown) => (value as string) || undefined
     <Field label="Lasts for">
       <select :value="val('use')" @change="set({ use: optional(input($event)) })">
         <option value="">None</option>
-        <option v-if="val('use') && !FRAME_USES.includes(val('use'))" :value="val('use')">{{ val('use') }}</option>
-        <option v-for="use in FRAME_USES" :key="use" :value="use">{{ use }}</option>
+        <option v-if="val('use') && !defIds('uses').includes(val('use'))" :value="val('use')">{{ val('use') }}</option>
+        <option v-for="use in defList('uses')" :key="use.id" :value="use.id">{{ use.label }}</option>
       </select>
     </Field>
     <Field label="Switch off with">
       <select :value="val('deactivation')" @change="set({ deactivation: optional(input($event)) })">
         <option value="">None</option>
-        <option v-if="val('deactivation') && !ACTIVATIONS.includes(val('deactivation'))" :value="val('deactivation')">{{ val('deactivation') }}</option>
-        <option v-for="activation in ACTIVATIONS" :key="activation" :value="activation">{{ activation }}</option>
+        <option v-if="val('deactivation') && !defIds('activations').includes(val('deactivation'))" :value="val('deactivation')">{{ val('deactivation') }}</option>
+        <option v-for="activation in defList('activations')" :key="activation.id" :value="activation.id">{{ activation.label }}</option>
       </select>
     </Field>
   </div>
