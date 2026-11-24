@@ -1,4 +1,5 @@
 import { EXOTIC_MAKER, makerColour, makerId, makerLogo, itemMakerId } from './archive'
+import { bonusDef } from './bonuses'
 import type { Bonus, Item } from './gameData'
 import { frameArt, type FrameArt } from './images'
 import type { Info, Manufacturer } from './info'
@@ -134,11 +135,10 @@ export function framePick(frame: Frame, ranges: Map<string, { min: number; max: 
 
 // --- Core bonuses ---
 // Permanent numbers a core bonus adds, by the stat's own symbol (conditional or non-numeric ones stay in its rules).
-const BONUS_STATS: Record<string, string> = { hp: 'hp', armor: 'armour', edef: 'edef', evasion: 'evasion', speed: 'speed', heatcap: 'heat', sp: 'system_points', tech_attack: 'tech_attack', repcap: 'repair', structure: 'structure', stress: 'stress' }
 export function bonusStats(bonuses: Bonus[] = []): ItemStat[] {
   const stats = mechStats(null, undefined, [])
   return bonuses.flatMap((bonus) => {
-    const stat = stats.find((entry) => entry.id === BONUS_STATS[bonus.id])
+    const stat = stats.find((entry) => entry.id === (bonus.id === 'size' ? undefined : bonusDef(bonus.id)?.stat))
     const value = Number(bonus.val)
     return stat && typeof bonus.val !== 'object' && Number.isFinite(value) && value !== 0 && !bonus.condition && !bonus.detail && !bonus.replace
       ? [{ kind: 'bonus', label: stat.name, icon: stat.icon, value: `${value > 0 ? '+' : ''}${value}` }]

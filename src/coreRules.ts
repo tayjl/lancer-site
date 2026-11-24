@@ -16,3 +16,12 @@ export const CORE_CHECK_BONUSES: Record<string, Bonus[]> = {
   cb_the_lesson_of_disbelief: [{ id: 'systems', accuracy: 1, val: 0 }],
   cb_armory_sculpted_chassis: [{ id: 'engineering', accuracy: 1, val: 0 }],
 }
+
+// The check modifiers a frame's core power asks for. The frame's own core_system.check_bonuses wins (any frame, homebrew
+// included, and an empty list means none); official frames without the field keep the table above. Anything that isn't a
+// list of bonus objects is ignored.
+export function coreCheckBonuses(frameId: string, core?: Record<string, unknown>): Bonus[] {
+  const own = core?.check_bonuses
+  if (!Array.isArray(own)) return CORE_CHECK_BONUSES[frameId] ?? []
+  return own.filter((row): row is Bonus => !!row && typeof row === 'object' && typeof (row as Bonus).id === 'string')
+}

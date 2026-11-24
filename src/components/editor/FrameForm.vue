@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { FRAME_STATS, type BonusType, type Data } from '../../contentEditor'
+import { coreCheckBonuses } from '../../coreRules'
 import { defIds, defList, mountHint } from '../../definitions'
 import { frameArt } from '../../images'
 import { itemInfo } from '../../info'
@@ -46,7 +47,7 @@ const rank = computed(() => Number(model.value.license_level) || 0)
 
 const entry = (value: unknown): Data => (value && typeof value === 'object' && !Array.isArray(value) ? (value as Data) : {})
 // Bonuses on a frame can only be the mech's own.
-const mechBonuses = computed(() => props.bonusTypes.filter((type) => type.group === 'Mech'))
+const mechBonuses = computed(() => props.bonusTypes.filter((type) => type.scope === 'mech'))
 
 const stats = computed(() => entry(model.value.stats))
 const setStat = (key: string, text: string) => (model.value = { ...model.value, stats: { ...stats.value, [key]: text.trim() === '' ? '' : Number(text) } })
@@ -64,7 +65,14 @@ const moveMount = (index: number, by: number) => {
 }
 
 const core = computed(() => entry(model.value.core_system))
-const roman = (level: number) => ['None', 'I', 'II', 'III'][level] ?? String(level)
+// The checks a core power can change. A row is { id, accuracy, val: 0 }, the shape the sheet already reads. Official frames
+// show their built-in list until it is edited, which then writes the frame's own.
+const CHECKS = [['hull', 'Hull'], ['agility', 'Agility'], ['systems', 'Systems'], ['engineering', 'Engineering'], ['tech_attack', 'Tech attack']]
+const checks = computed(() => coreCheckBonuses(String(model.value.id ?? ''), core.value) as Data[])
+const setChecks = (rows: Data[]) => (model.value = { ...model.value, core_system: { ...core.value, check_bonuses: rows } })
+const changeCheck = (index: number, changes: Data) => setChecks(checks.value.map((row, i) => (i === index ? { ...row, ...changes } : row)))
+const checksSummary = computed(() => (checks.value.length ? plural(checks.value.length, 'check') : 'No checks'))
+const roman =(level: number) => ['None', 'I', 'II', 'III'][level] ?? String(level)
 
 const { frames, weapons, systems, mods } = useMechData()
 // An alternate frame (Worldkiller, an alternate Genghis) shares its original's licence: license_id is the original's id and
@@ -208,6 +216,26 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     <CoreSystemFields :model-value="core" :bonus-types="mechBonuses" @update:model-value="model = { ...model, core_system: $event }" />
   </FoldPanel>
 
+  <FoldPanel title="Core power checks" :summary="checksSummary" :paths="['core_system.check_bonuses']">
+    <FieldError path="core_system.check_bonuses" />
+    <ul v-if="checks.length" class="checks">
+      <li v-for="(row, index) in checks" :key="index">
+        <select :value="String(row.id)" :aria-label="`Check ${index + 1}`" :aria-invalid="invalid(`core_system.check_bonuses.${index}.id`) || undefined" @change="changeCheck(index, { id: input($event) })">
+          <option v-if="!CHECKS.some(([id]) => id === row.id)" :value="row.id">{{ row.id }}</option>
+          <option v-for="[id, label] in CHECKS" :key="id" :value="id">{{ label }}</option>
+        </select>
+        <select :value="String(row.accuracy ?? '')" :aria-label="`Check ${index + 1} accuracy`" :aria-invalid="invalid(`core_system.check_bonuses.${index}.accuracy`) || undefined" @change="changeCheck(index, { accuracy: Number(input($event)) })">
+          <option v-if="row.accuracy === undefined" value="">Choose…</option>
+          <option value="1">+1 accuracy</option>
+          <option value="-1">-1 accuracy</option>
+        </select>
+        <button type="button" class="icon-btn remove" :aria-label="`Remove check ${index + 1}`" @click="setChecks(checks.filter((_, i) => i !== index))"><Icon name="close" /></button>
+        <FieldError :path="`core_system.check_bonuses.${index}`" deep />
+      </li>
+    </ul>
+    <div><button type="button" class="small" @click="setChecks([...checks, { id: 'hull', accuracy: 1, val: 0 }])"><Icon name="plus" />Add check</button></div>
+  </FoldPanel>
+
   <FoldPanel title="Licence unlocks" :summary="unlockCount ? plural(unlockCount, 'item') : 'No unlocks'">
     <ul class="ranks">
       <li v-for="rung in unlocks" :key="rung.level">
@@ -237,6 +265,9 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
 .mounts li > :last-child:not(.tools) { grid-column: 1 / -1; }
 .mount-hint { font-size: var(--fs-s); }
 .tools { display: flex; }
+.checks { display: grid; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
+.checks li { display: grid; grid-template-columns: minmax(0, 12rem) minmax(0, 10rem) auto; gap: var(--space-s); align-items: center; }
+.checks li > :last-child:not(.icon-btn) { grid-column: 1 / -1; }
 .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-m); margin: 0; padding: 0; list-style: none; }
 .ranks > li { display: grid; align-content: start; gap: var(--space-xs); }
 .ranks p { margin: 0; }

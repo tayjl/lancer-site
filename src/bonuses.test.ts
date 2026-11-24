@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bonusValue, resolveBonuses } from './bonuses'
+import { BONUS_GROUPS, BONUS_REGISTRY, bonusDef, bonusReminder, bonusSummary, isPilotBonus, personalDef, personalStatIds, bonusValue, resolveBonuses } from './bonuses'
 
 describe('permanent bonus arithmetic', () => {
   it('calculates only supported arithmetic and explicit build variables', () => {
@@ -15,5 +15,42 @@ describe('permanent bonus arithmetic', () => {
     expect(fixed.value).toBe(2)
     expect(fixed.used.map(entry => entry.source)).toEqual(['fixed'])
     expect(fixed.usesBase).toBe(false)
+  })
+})
+
+describe('the effect registry', () => {
+  it('declares every type once with a label, a group and a summary', () => {
+    const ids = BONUS_REGISTRY.map((def) => def.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const def of BONUS_REGISTRY) {
+      expect(def.label).not.toBe('')
+      expect(BONUS_GROUPS).toContain(def.group)
+      expect(bonusSummary({ id: def.id, val: 2 }).length).toBeGreaterThan(0)
+      expect(def.counted === 'stat' ? !!def.stat : true).toBe(true)
+    }
+  })
+  it('says what a bonus does in one line', () => {
+    expect(bonusSummary({ id: 'speed', val: 2 })).toBe('Adds 2 to Speed')
+    expect(bonusSummary({ id: 'speed', val: -1 })).toBe('Takes 1 from Speed')
+    expect(bonusSummary({ id: 'speed', val: 6, replace: true })).toBe('Sets Speed to 6')
+    expect(bonusSummary({ id: 'add_mount', val: 'Main' })).toBe('Adds a mount: Main')
+    expect(bonusSummary({ id: 'superheavy_mounting' })).toBe('Superheavy mount')
+  })
+  it('counts stats, pilot stats and effects differently', () => {
+    expect(bonusDef('armor')).toMatchObject({ counted: 'stat', stat: 'armour', scope: 'mech' })
+    expect(bonusDef('pilot_hp')).toMatchObject({ counted: 'pilot', scope: 'pilot' })
+    expect(bonusDef('overcharge')?.counted).toBe('effect')
+  })
+  it('keeps an unknown id as a named reminder, never dropped', () => {
+    expect(bonusDef('mystery')).toBeUndefined()
+    expect(bonusSummary({ id: 'mystery_thing', val: 3 })).toBe('Adds 3 to mystery thing')
+    expect(bonusReminder({ id: 'mystery_thing', val: 3 }, 3)).toBe('+3 mystery thing.')
+  })
+  it('counts a stat the owner adds on the pilot, with no code', () => {
+    expect(personalDef({ id: 'grit', name: 'Grit' })).toMatchObject({ label: 'Grit', group: 'Personal stats', scope: 'pilot', value: 'formula' })
+    expect(isPilotBonus('grit')).toBe(false)
+    personalStatIds.value = new Set(['grit'])
+    expect(isPilotBonus('grit')).toBe(true)
+    personalStatIds.value = new Set()
   })
 })

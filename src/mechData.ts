@@ -18,10 +18,10 @@ import size3Icon from './assets/icons/size-3.svg'
 import { equippedGear, loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bionic, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
 import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
-import { bonusReminder, bonusValue, isPilotBonus, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
+import { bonusDef, bonusReminder, bonusValue, isPilotBonus, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
 import { flatDamage, flatDamageText } from './damage'
 import { selectWeaponProfile } from './equipment'
-import { CORE_CHECK_BONUSES } from './coreRules'
+import { CORE_CHECK_BONUSES, coreCheckBonuses } from './coreRules'
 import { capitalise, sameName } from './text'
 import { activationOf } from './itemDetails'
 import { mountSlots } from './definitions'
@@ -77,12 +77,6 @@ const MECH_STATS = [
 // Size's symbol shows the size itself.
 const SIZE_ICONS: Record<string, string> = { 0.5: sizeHalfIcon, 1: size1Icon, 2: size2Icon, 3: size3Icon }
 
-const BONUS_STATS: Record<string, string> = {
-  structure: 'structure', stress: 'stress', hp: 'hp', heatcap: 'heat', heat_cap: 'heat',
-  armor: 'armour', evasion: 'evasion', speed: 'speed', edef: 'edef',
-  tech_attack: 'tech_attack', repcap: 'repair', sp: 'system_points',
-  size: 'size', armor_max: 'armor_max', ai_cap: 'ai_cap', limited_bonus: 'limited_bonus',
-}
 // The weapon in a place on the mech ("mount:place", like weapon_options), or undefined when the frame has no such place
 // or it's empty.
 export function weaponAt(mech: MechPrivate, frame: Frame, key: string) {
@@ -299,7 +293,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   if (baseFrame?.raw) {
     const core = baseFrame.raw.core_system as Record<string, unknown> | undefined
     const have = [...listOf(baseFrame.raw.bonuses), ...(listOf(baseFrame.raw.traits) as Record<string, unknown>[]).flatMap(trait => listOf(trait?.bonuses)), ...listOf(core?.passive_bonuses)]
-    const extra = missingFrom(CORE_CHECK_BONUSES[baseFrame.id], have)
+    const extra = missingFrom(coreCheckBonuses(baseFrame.id, core), have)
     if (extra.length) sources.push({ name: baseFrame.name, bonuses: extra, origin: { kind: 'frame', name: baseFrame.name } })
   }
   // Pilot gear only counts for any mech bonuses it has (homebrew); its rules and pilot_* bonuses stay on the pilot.
@@ -357,7 +351,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
       // Pilot stats are the pilot's (src/gameData.ts), not the mech's.
       if (isPilotBonus(bonus.id)) continue
       bonuses.push({ source: source.name, bonus, key: source.key && bonus.id === 'replace_mount' ? choiceKey(source.key, replacing++) : source.key })
-      const stat = BONUS_STATS[bonus.id]
+      const stat = bonusDef(bonus.id)?.stat
       const calculated = bonusValue(bonus.val, variables)
       const numeric = calculated !== null
       const value = calculated ?? NaN
@@ -367,7 +361,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
         && (bonus.replace === undefined || typeof bonus.replace === 'boolean')
         && (bonus.overwrite === undefined || typeof bonus.overwrite === 'boolean'))
         modifiers.push({ stat, source: source.name, value, replace: !!bonus.replace, overwrite: !!bonus.overwrite })
-      else if (bonus.condition || bonus.detail || (!['range', 'damage', 'attack', 'threat', 'add_mount', 'replace_mount', 'add_tags', 'overcharge', 'cheap_struct', 'superheavy_mounting'].includes(bonus.id) && !/^(drone|deployable)_/.test(bonus.id) && bonus.accuracy === undefined)) reminders.push({ ...source.origin, source: source.name, text: bonusReminder(bonus, numeric ? value : null), uncounted: true })
+      else if (bonus.condition || bonus.detail || (bonusDef(bonus.id)?.counted !== 'effect' && bonus.accuracy === undefined)) reminders.push({ ...source.origin, source: source.name, text: bonusReminder(bonus, numeric ? value : null), uncounted: true })
     }
   }
   return { modifiers, bonuses, reminders, frame }

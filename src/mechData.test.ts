@@ -74,6 +74,18 @@ describe('mechStats', () => {
     ] }],
   }
 
+  it('reads a frame core power check from its own field, else the official default, and ignores a malformed one', () => {
+    const checks = (frame: Frame, raw: Record<string, unknown>) =>
+      mechEffects({ frame: frame.id }, {}, { ...catalogue, frames: [{ ...frame, raw }] }).bonuses.filter((entry) => entry.bonus.accuracy !== undefined).map((entry) => `${entry.bonus.id}:${entry.bonus.accuracy}`)
+    const home = { ...blackbeard, id: 'hb_home' }
+    expect(checks(home, { core_system: { name: 'C', check_bonuses: [{ id: 'hull', accuracy: 1, val: 0 }] } })).toEqual(['hull:1'])
+    expect(checks(home, { core_system: { name: 'C' } })).toEqual([])
+    expect(checks(blackbeard, { core_system: { name: 'C' } })).toEqual(['engineering:-1'])
+    expect(checks(blackbeard, { core_system: { name: 'C', check_bonuses: [] } })).toEqual([])
+    expect(checks(blackbeard, { core_system: { name: 'C', check_bonuses: 'junk' } })).toEqual(['engineering:-1'])
+    expect(checks(home, { core_system: { name: 'C', check_bonuses: [null, 5, { accuracy: 1 }, { id: 'agility', accuracy: -1, val: 0 }] } })).toEqual(['agility:-1'])
+  })
+
   it('stacks equipped bonuses, core bonuses and all purchased talent ranks, with named sources', () => {
     const sheet: Sheet = { mech_skills: { hull: 2 }, core_bonuses: ['reinforced', 'reinforced', 'superior'], talents: { test: 2 } }
     const effects = mechEffects({ systems: ['personal', 'personal', 'capacity'] }, sheet, catalogue)
