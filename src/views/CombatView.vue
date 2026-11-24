@@ -14,8 +14,8 @@ import ChoiceField from '../components/editor/ChoiceField.vue'
 import { searchWords } from '../archive'
 import { actionKey, firstSentence, rowEntry, rulesTopics, stepActions, type CombatEntry, type KitAction } from '../combatEntries'
 import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
-import { onFootRows, ruleRows, ruleTagIds, statusGroups, turnSteps } from '../rulesData'
-import { baseActionsLoaded, hiddenTags, loadBaseActions, loadRules, loadTagNames, rulesLoaded, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
+import { onFootRows, ruleRows, statusGroups, turnSteps } from '../rulesData'
+import { baseActionsLoaded, combatTags, hiddenTags, loadBaseActions, loadRules, loadTagNames, rulesLoaded, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
@@ -32,11 +32,10 @@ import { plainText } from '../rulesText'
 // looks through the current mode's rows: the bar gives way to the matching actions and every section with a match opens.
 const route = useRoute()
 const router = useRouter()
-loadBaseActions()
-loadRules()
-// The action, rule and tag wording is editable content: show nothing of it until all have loaded, not the seed.
+const loadContent = () => { loadBaseActions(); loadRules(); loadTagNames() }
+loadContent()
+// The action, rule and tag wording is editable content, only the database has it: show nothing of it until all have loaded.
 const contentReady = computed(() => baseActionsLoaded.value && rulesLoaded.value && tagNamesLoaded.value)
-loadTagNames()
 // Your living pilot as a GM approved it: what's in play, not a change still in draft.
 const { character, sheet, approved, loading, loadError, load, gm } = useMyPilot()
 const catalogue = useCatalogue()
@@ -159,7 +158,7 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
   const l = loadout.value
   const sizes = trim ? ruleRows('sizes').filter((row) => l!.sizes.has(row.value)) : ruleRows('sizes')
   // Tag wording comes from the content editor. Trimmed (always in Pilot mode): every visible tag on your gear, homebrew too.
-  const tagRows = (pilot || trim ? [...(pilot ? l?.gearTagIds ?? [] : l!.tagIds)].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b)) : ruleTagIds())
+  const tagRows = [...(pilot ? l?.gearTagIds ?? [] : trim ? l!.tagIds : combatTags.value)].sort((a, b) => (tagNames.value.get(a) ?? a).localeCompare(tagNames.value.get(b) ?? b))
     .filter((id) => tagNames.value.has(id) && !hiddenTags.value.has(id))
     .map((id) => ({ tag: tagNames.value.get(id)!.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(id) ?? '').replaceAll('{VAL}', 'X') }))
   const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame' || b.key === 'weapons' || b.key === 'gear', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
@@ -215,7 +214,7 @@ const clear = () => {
 <template>
   <main class="page">
     <PageHeader title="Combat" summary="What you can do on your turn, and the rules to look up." />
-    <CatalogueNotice />
+    <CatalogueNotice :retry="loadContent" />
     <div class="combat">
       <div class="tools">
         <div class="mode">

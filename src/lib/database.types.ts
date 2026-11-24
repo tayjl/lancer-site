@@ -898,6 +898,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rule_number_limits: {
+        Row: {
+          def: number
+          hi: number
+          key: string
+          lo: number
+        }
+        Insert: {
+          def: number
+          hi: number
+          key: string
+          lo: number
+        }
+        Update: {
+          def?: number
+          hi?: number
+          key?: string
+          lo?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1038,6 +1059,7 @@ export type Database = {
         Returns: undefined
       }
       remove_pack: { Args: { target_pack_id: number }; Returns: undefined }
+      rule_number: { Args: { rule_key: string }; Returns: number }
       save_bionic: {
         Args: {
           expected_updated_at?: string

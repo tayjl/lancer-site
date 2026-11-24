@@ -4,7 +4,7 @@ import { buildFrame, mechEffects, mechResources, mountReplacements, type EffectC
 import { equipmentDetails } from './equipment'
 import { problemsFor } from './contentEditor'
 import { mechProblems, modPointLimit, pilotProblems, requirementReason, unmetRequirements } from './rules'
-import type { NamedBonus } from './bonuses'
+import { personalStatIds, type NamedBonus } from './bonuses'
 
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
 
@@ -114,6 +114,7 @@ describe('bonuses on every source', () => {
     expect(stats.personal[0].contributors).toEqual(['Test: +2 physicality, only when wounded. Not counted.'])
   })
   it('keeps pilot and personal bonuses off the mech', () => {
+    personalStatIds.value = new Set(['physicality'])
     const talents = [{ id: 't', name: 'T', terse: '', ranks: [{ name: 'I', description: '', bonuses: [{ id: 'physicality', val: 1 }, { id: 'pilot_hp', val: 1 }] }] }] as Talent[]
     expect(mechEffects({ frame: 'mf_test' }, { talents: { t: 1 } }, catalogue({ talents })).reminders.filter(entry => entry.uncounted)).toEqual([])
   })

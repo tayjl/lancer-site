@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue'
 import type { Bonus } from './gameData'
 
 // Imported formulas are data, never JavaScript. Only arithmetic and known build variables are allowed.
@@ -43,9 +44,9 @@ export function bonusValue(value: unknown, variables: Record<string, number> = {
 
 // "key" is the stable id of where it came from (an item, core bonus or frame id), for choices a bonus asks the player to make.
 export type NamedBonus = { source: string; bonus: Bonus; key?: string }
-// The personal stats and pilot-only ids: counted on the pilot, never on the mech.
-export const PERSONAL_STATS = ['physicality', 'dexterity', 'perception', 'acuity', 'tech_fluency']
-export const isPilotBonus = (id: string) => id.startsWith('pilot_') || id === 'mod_points' || PERSONAL_STATS.includes(id)
+// The personal stat ids (the pilot_stats table, set by gameData.ts loadPilotStats) and pilot-only ids: counted on the pilot, never on the mech.
+export const personalStatIds = shallowRef(new Set<string>())
+export const isPilotBonus = (id: string) => id.startsWith('pilot_') || id === 'mod_points' || personalStatIds.value.has(id)
 // "+10 hp, only when exposed." Bonus ids and {braces} are data, not wording.
 export function bonusReminder(bonus: Bonus, value: number | null) {
   const what = `${value === null ? '' : `${value >= 0 ? '+' : ''}${value} `}${String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')}`

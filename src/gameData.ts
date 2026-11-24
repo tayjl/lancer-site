@@ -1,6 +1,6 @@
 import { computed, shallowRef } from 'vue'
 import { cached, clearCatalogues, loadKind } from './catalogue'
-import { BASE_ACTIONS, toBaseAction, type BaseAction } from './baseActions'
+import { BASE_ACTIONS, baseActions, toBaseAction, type BaseAction } from './baseActions'
 import { rule, ruleItems, toRuleItem } from './rulesData'
 import { fetchAll, supabase } from './lib/supabaseClient'
 import type { Sheet } from './myPilot'
@@ -18,7 +18,7 @@ import agilityIcon from './assets/icons/agility.svg'
 import systemsIcon from './assets/icons/systems.svg'
 import engineeringIcon from './assets/icons/engineering.svg'
 import { flatDamageText } from './damage'
-import { bonusValue, permanentBonus, resolveBonuses, uncountedLine, type NamedBonus } from './bonuses'
+import { bonusValue, permanentBonus, personalStatIds, resolveBonuses, uncountedLine, type NamedBonus } from './bonuses'
 
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
 // bionics, and the custom pilot stats. Characters only store ids; names and details come from here.
@@ -107,6 +107,8 @@ export async function loadSources() {
 }
 // Tags the data marks hidden: notes for the app (e.g. "Set Max Uses"), not something a player reads.
 export const hiddenTags = shallowRef(new Set<string>())
+// The tags marked "Show on combat page".
+export const combatTags = shallowRef<string[]>([])
 // What each tag means (e.g. "This weapon or system can only be used {VAL} times..."), for the full-information dialog.
 export const tagDescriptions = shallowRef(new Map<string, string>())
 let tagsLoading: Promise<void> | undefined
@@ -117,9 +119,9 @@ export const invalidateCatalogues = () => {
   actionsLoading = undefined
   rulesLoading = undefined
 }
-// The base actions the Combat page lists (hidden ones left out). The code's own list stands in when the load fails or no action rows exist.
-export const baseActions = shallowRef<BaseAction[]>(BASE_ACTIONS)
-// True once the load has settled (also when it failed), so a page can wait instead of flashing the seed's hidden actions.
+// Empty until loaded, and when the load fails (the catalogue notice says so).
+export { baseActions }
+// True once the load has settled (also when it failed), so a page can wait instead of flashing an empty list.
 export const baseActionsLoaded = shallowRef(false)
 let actionsLoading: Promise<void> | undefined
 export function loadBaseActions() {
@@ -127,7 +129,7 @@ export function loadBaseActions() {
     try {
       const { rows, error } = await loadKind('actions')
       if (error) actionsLoading = undefined // not kept, so the next page tries again
-      if (error || !rows?.length) return
+      if (error || !rows) return
       const order = new Map(BASE_ACTIONS.map((a, i) => [a.id, i]))
       const at = (id: string) => order.get(id) ?? Infinity // the seed's order first, then the campaign's own
       // Every row hidden gives an empty list, not the seed.
@@ -138,7 +140,7 @@ export function loadBaseActions() {
   })()
   return actionsLoading
 }
-// The combat rules (kind 'rules'). The seed in rulesData.ts stands in when the load fails or no rule rows exist.
+// The combat rules (kind 'rules'). Empty until loaded, and when the load fails.
 export const rulesLoaded = shallowRef(false)
 let rulesLoading: Promise<void> | undefined
 export function loadRules() {
@@ -146,8 +148,8 @@ export function loadRules() {
     try {
       const { rows, error } = await loadKind('rules')
       if (error) rulesLoading = undefined // not kept, so the next page tries again
-      if (error || !rows?.length) return
-      // Every row hidden gives no rules, not the seed.
+      if (error || !rows) return
+      // Every row hidden gives no rules.
       ruleItems.value = rows.map(({ id, data }) => toRuleItem(id, data)).filter((r): r is NonNullable<typeof r> => !!r)
     } finally {
       rulesLoaded.value = true
@@ -164,6 +166,7 @@ export function loadTagNames() {
       if (error) tagsLoading = undefined // not kept, so the next page tries again
       tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
       tagDescriptions.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { description?: unknown } | null)?.description ?? '')]))
+      combatTags.value = (data ?? []).filter(({ data }) => (data as { combat_page?: unknown } | null)?.combat_page === true).map(({ id }) => id)
       hiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hidden?: unknown } | null)?.hidden === true).map(({ id }) => id))
     } finally {
       tagNamesLoaded.value = true
@@ -194,6 +197,12 @@ export type Bionic = {
   requires?: unknown
 }
 export type PilotStat = { id: string; name: string }
+// The custom pilot stats. Also tells isPilotBonus which bonus ids are the pilot's.
+export const loadPilotStats = () =>
+  cached('pilot_stats', () => fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))).then((result) => {
+    personalStatIds.value = new Set(result.rows.map((stat) => stat.id))
+    return result
+  })
 // A talent: three ranks, each with a name and rules text (simple HTML). A core bonus: its manufacturer and
 // rules text. Both from the imported LANCER packs.
 export type TalentRank = { name: string; description: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; exclusive?: boolean; [key: string]: unknown }
@@ -359,7 +368,7 @@ export function useGameData() {
       loadKind('talents'),
       loadKind('core_bonuses'),
       cached('bionics', () => fetchAll((from, to) => supabase.from('bionics').select('*, bonuses:bionic_bonuses(stat_id, amount)').order('name').order('id').range(from, to))),
-      cached('pilot_stats', () => fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))),
+      loadPilotStats(),
     ])
     gear.value = gearRows.rows
       .map(({ id, data }) => toItem(id, data))

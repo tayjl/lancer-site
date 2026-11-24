@@ -8,6 +8,11 @@ import { stepActions } from './combatEntries'
 import { readLcp } from './lcp'
 
 describe('base actions', () => {
+  it('keep their ids when a name changes', () => {
+    // These ids are the database rows' keys: a change here orphans a row.
+    expect(BASE_ACTIONS.map(a => a.id)).toMatchSnapshot()
+  })
+
   it('have unique ids and are all in the core content', () => {
     const ids = BASE_ACTIONS.map(a => a.id)
     expect(new Set(ids).size).toBe(ids.length)
@@ -31,8 +36,9 @@ describe('base actions', () => {
     expect(toBaseAction('a', { name: 'Brace', detail: 'x', mech: true, group: 'nope' })).toMatchObject({ name: 'Brace', text: 'x', mech: true, pilot: false, group: undefined })
   })
 
-  it('fall back to the code lists when none are loaded', () => {
-    expect(baseActions.value).toBe(BASE_ACTIONS)
+  it('are empty until loaded, then read the loaded list', () => {
+    expect(baseActions.value).toEqual([])
+    baseActions.value = BASE_ACTIONS
     expect(stepActions('Reaction', [])[1].entries.map(e => e.name)).toContain('Brace')
     baseActions.value = BASE_ACTIONS.filter(a => a.name !== 'Brace')
     expect(stepActions('Reaction', [])[1].entries.map(e => e.name)).not.toContain('Brace')

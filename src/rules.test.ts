@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import rulesSql from '../supabase/migrations/20261122120000_editable_rule_numbers.sql?raw'
+import rulesSql from '../supabase/migrations/20261124100000_rule_number_limits.sql?raw'
 import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
 import { NUMBER_KEYS, rule, ruleItems, RULES_SEED, type NumberKey } from './rulesData'
@@ -390,14 +390,14 @@ describe('editable game numbers', () => {
   afterEach(() => { ruleItems.value = RULES_SEED })
 
   it('use the same fallbacks and ranges as the database', () => {
-    const calls = [...rulesSql.matchAll(/rule_number\('(\w+)', (\d+), (\d+), (\d+)\)/g)]
-    expect(calls.length).toBeGreaterThan(8)
-    for (const [, key, def, lo, hi] of calls) {
+    const rows = [...rulesSql.matchAll(/^\s*\('(\w+)', (\d+), (\d+), (\d+)\)[,;]$/gm)]
+    expect(rows.length).toBeGreaterThan(7)
+    for (const [, key, def, lo, hi] of rows) {
       const n = NUMBER_KEYS.find((k) => k.key === key)
       expect(n, key).toBeTruthy()
       expect([n!.def, n!.lo, n!.hi], key).toEqual([Number(def), Number(lo), Number(hi)])
     }
-    expect(new Set(calls.map((c) => c[1]))).toEqual(new Set(NUMBER_KEYS.filter((k) => k.db).map((k) => k.key)))
+    expect(new Set(rows.map((r) => r[1]))).toEqual(new Set(NUMBER_KEYS.filter((k) => k.db).map((k) => k.key)))
   })
 
   it('give the default for a missing, non-whole, out-of-range or non-number value', () => {

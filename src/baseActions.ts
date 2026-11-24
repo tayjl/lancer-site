@@ -1,24 +1,30 @@
+import { shallowRef } from 'vue'
 import { FIGHT, FULL_ACTIONS, IMPROVISED, JOCKEY, OVERCHARGE, PILOT_ACTIONS, PILOT_OVERWATCH, QUICK_ACTIONS, REACTIONS, SCENE_RESOURCES, type CombatAction } from './combatRules'
 
-// The base actions as editable content (content_items kind 'actions'). The combatRules.ts lists are their seed and their
-// fallback when none are installed. "mech" and "pilot" say which Combat page modes list them.
+// The base actions as editable content (content_items kind 'actions'). The combatRules.ts lists are their seed only. "mech" and "pilot" say which Combat page modes list them.
 export type BaseAction = CombatAction & { id: string; mech: boolean; pilot: boolean }
 
-const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
-// The activation is part of the id so the two "Activate" actions differ.
-const idOf = (a: CombatAction) => {
-  if (a === PILOT_OVERWATCH) return 'act_overwatch_pilot' // same name and activation as the mech one
-  const activation = a.activation ? slug(a.activation) : ''
-  return `act_${slug(a.name)}${activation && activation !== slug(a.name) ? `_${activation}` : ''}`
-}
+// Every id is written out, in BASE_ACTIONS order, so renaming an action never orphans its database row (baseActions.test.ts pins them).
+const ACTION_IDS = [
+  'act_lancer_s_edge', 'act_lancer_s_precision', 'act_skirmish_quick', 'act_boost_quick', 'act_reload_quick', 'act_invade', 'act_lock_on_quick_tech',
+  'act_bolster_quick_tech', 'act_hide_quick', 'act_search_quick', 'act_prepare_quick', 'act_ram_quick', 'act_grapple_quick', 'act_scan_quick_tech',
+  'act_activate_quick', 'act_skill_check_quick', 'act_shut_down_quick', 'act_eject_quick', 'act_self_destruct_quick', 'act_barrage_full',
+  'act_disengage_full', 'act_stabilize_full', 'act_boot_up_full', 'act_full_tech', 'act_activate_full', 'act_mount_or_dismount_full',
+  'act_core_power_rules', 'act_brace_reaction', 'act_overwatch_reaction', 'act_reaction_systems_reaction', 'act_overcharge',
+  'act_improvised_attack_full', 'act_fight_full', 'act_jockey_full', 'act_overwatch_pilot',
+]
 
-export const SCENE_RESOURCE_IDS = SCENE_RESOURCES.map(idOf)
+export const SCENE_RESOURCE_IDS = ACTION_IDS.slice(0, SCENE_RESOURCES.length)
 
 export const BASE_ACTIONS: BaseAction[] = [
   ...SCENE_RESOURCES.map((a) => ({ a, mech: false })), // read by the turn card, not the action lists
   ...[...QUICK_ACTIONS, ...FULL_ACTIONS, ...REACTIONS, OVERCHARGE, IMPROVISED].map((a) => ({ a, mech: true })),
   ...[FIGHT, JOCKEY, PILOT_OVERWATCH].map((a) => ({ a, mech: false })), // pilot only
-].map(({ a, mech }) => ({ ...a, id: idOf(a), mech, pilot: PILOT_ACTIONS.includes(a) }))
+].map(({ a, mech }, i) => ({ ...a, id: ACTION_IDS[i], mech, pilot: PILOT_ACTIONS.includes(a) }))
+
+// The base actions the Combat page lists (hidden ones left out). Empty until gameData.ts loadBaseActions() fills it. Here, not in
+// gameData.ts, so rulesData.ts can read action names for "{action:id}" without a cycle.
+export const baseActions = shallowRef<BaseAction[]>([])
 
 // The item data stored for a seed action. Empty fields are left out.
 export const actionData = ({ id, name, activation, frequency, gist, group, text, mech, pilot }: BaseAction) => ({

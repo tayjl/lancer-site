@@ -25,7 +25,7 @@ insert into public.character_sheets (character_id, sheet, manna) values (700, '{
 -- ---------------------------------------------------------------------
 -- No rows: the old numbers
 -- ---------------------------------------------------------------------
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'no row gives the fallback');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'no row gives the fallback');
 
 set local role authenticated;
 set local request.jwt.claim.sub = 'a1111111-1111-1111-1111-111111111111';
@@ -49,7 +49,7 @@ select lives_ok($$ insert into public.content_items (id, pack_id, kind, data) va
   ('rule_num_max_talent_rank', 9801, 'rules', '{"id": "rule_num_max_talent_rank", "name": "Top talent rank", "section": "numbers", "numbers": [3]}'),
   ('rule_num_mod_points_base', 9801, 'rules', '{"id": "rule_num_mod_points_base", "name": "Mod points", "section": "numbers", "numbers": [6]}') $$,
   'an owner adds the rows');
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'a row holding the default changes nothing');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'a row holding the default changes nothing');
 
 set local request.jwt.claim.sub = 'a1111111-1111-1111-1111-111111111111';
 select is((select count(*) from public.content_items where kind = 'rules'), 3::bigint, 'a player can read the rows');
@@ -57,12 +57,12 @@ select throws_ok($$ insert into public.content_items (id, pack_id, kind, data) v
   ('rule_num_starting_manna', 9801, 'rules', '{"numbers": [99999]}') $$, '42501', null, 'a player cannot add a row');
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": [0]}' where id = 'rule_num_licence_rank_price';
 update public.content_items set data = '{"numbers": [0]}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'a player cannot change a row');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'a player cannot change a row');
 
 set local request.jwt.claim.sub = 'c3333333-3333-3333-3333-333333333333';
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": [0]}' where id = 'rule_num_licence_rank_price';
 update public.content_items set data = '{"numbers": [0]}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'a GM cannot change a row');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'a GM cannot change a row');
 select throws_ok($$ insert into public.content_items (id, pack_id, kind, data) values
   ('rule_num_starting_manna', 9801, 'rules', '{"numbers": [99999]}') $$, '42501', null, 'a GM cannot add a row');
 
@@ -72,23 +72,23 @@ select throws_ok($$ insert into public.content_items (id, pack_id, kind, data) v
 set local request.jwt.claim.sub = 'd4444444-4444-4444-4444-444444444444';
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": [-5]}' where id = 'rule_num_licence_rank_price';
 select is((select edited -> 'numbers' ->> 0 from public.content_items where id = 'rule_num_licence_rank_price'), '-5', 'the owner can edit');
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'negative falls back');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'negative falls back');
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": ["400"]}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'text falls back');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'text falls back');
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": [1000000000]}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'huge falls back');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'huge falls back');
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": [12.5]}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'a fraction falls back');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'a fraction falls back');
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": []}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'an empty list falls back');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'an empty list falls back');
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x"}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 600::numeric, 'a missing list falls back');
+select is(public.rule_number('licence_rank_price'), 600::numeric, 'a missing list falls back');
 
 -- ---------------------------------------------------------------------
 -- A valid edit changes what a submit costs
 -- ---------------------------------------------------------------------
 update public.content_items set edited = '{"id": "rule_num_licence_rank_price", "name": "x", "numbers": [400]}' where id = 'rule_num_licence_rank_price';
-select is(public.rule_number('licence_rank_price', 600, 0, 10000), 400::numeric, 'a valid edit is used');
+select is(public.rule_number('licence_rank_price'), 400::numeric, 'a valid edit is used');
 
 reset role;
 set local role authenticated;
@@ -129,7 +129,7 @@ select throws_ok($$ update public.characters set submitted_at = now() where id =
 reset role;
 insert into public.content_items (id, pack_id, kind, data, draft) values
   ('rule_num_extra_mech_price', 9801, 'rules', '{"id": "rule_num_extra_mech_price", "name": "x", "numbers": [100]}', true);
-select is(public.rule_number('extra_mech_price', 500, 0, 10000), 500::numeric, 'a hidden row falls back');
+select is(public.rule_number('extra_mech_price'), 500::numeric, 'a hidden row falls back');
 
 -- ---------------------------------------------------------------------
 -- Work submitted before a number changed can't be approved
