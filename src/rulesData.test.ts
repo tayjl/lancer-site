@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { BASE_ACTIONS, baseActions } from './baseActions'
 import { coreContent } from './coreContent'
 import { stepActions, rulesTopics, turnEntries } from './combatEntries'
 import { blankItem, validateItem } from './contentEditor'
 import { mechResources } from './mechData'
-import { RULES_SEED, SECTIONS, onFootRows, ruleItems, ruleNote, ruleNumbers, ruleRows, ruleTagIds, statusGroups, toRuleItem, turnSteps, type RuleItem } from './rulesData'
+import { fill, RULES_SEED, SECTIONS, onFootRows, ruleItems, ruleNumbers, ruleRows, statusGroups, toRuleItem, turnSteps, type RuleItem } from './rulesData'
 import type { Sheet } from './myPilot'
 
 const topicText = (pilot = false) => rulesTopics(pilot).flatMap((c) => c.topics.map((t) => t.text)).join(' ')
@@ -11,6 +12,11 @@ const item = (over: Partial<RuleItem>): RuleItem => ({ id: 'hb_rule_x', name: 'X
 
 describe('rules seed', () => {
   afterEach(() => { ruleItems.value = RULES_SEED })
+
+  it('keeps every seed id when a name changes', () => {
+    // These ids are the database rows' keys: a change here orphans a row.
+    expect(RULES_SEED.map((r) => r.id)).toMatchSnapshot()
+  })
 
   it('has unique ids, valid sections and groups, and is in the core content', () => {
     const ids = RULES_SEED.map((r) => r.id)
@@ -27,10 +33,33 @@ describe('rules seed', () => {
 
   it('falls back to the seed numbers and keeps the page working', () => {
     expect(ruleNumbers('overcharge_heat')).toEqual([1, 2, 4, 6])
-    expect(ruleNote('overcharge_later')).toContain('stays at 6 Heat')
-    expect(ruleTagIds()).toContain('tg_accurate')
+    expect(turnSteps()[4].text).toContain('up to 6 a use')
     expect(statusGroups().map((g) => g.rows.length)).toEqual([6, 7, 7])
     expect(onFootRows().map((r) => r.value)).toEqual(['Down and out (pilot status)', 'Mech destroyed', 'Melt down'])
+  })
+
+  it('fills number and action placeholders and leaves unknown ones', () => {
+    baseActions.value = BASE_ACTIONS
+    expect(fill('{loadout_weapons} {loadout_armour} {loadout_gear}')).toBe('2 1 3')
+    expect(fill('{overcharge_heat} {repair_cost}')).toBe('6 2')
+    expect(fill('Use {action:act_invade}.')).toBe('Use Invade.')
+    expect(fill('Limited {VAL} {oops} {action}')).toBe('Limited {VAL} {oops} {action}')
+    ruleItems.value = [...RULES_SEED.filter((r) => r.id !== 'rule_num_loadout_gear'), item({ id: 'rule_num_loadout_gear', section: 'numbers', numbers: [5] })]
+    expect(fill('{loadout_gear}')).toBe('5')
+    baseActions.value = BASE_ACTIONS.filter((a) => a.id !== 'act_invade')
+    expect(fill('Use {action:act_invade}.')).toBe('Use .')
+    expect(fill('{action:act_nope}')).toBe('')
+    // A left-out action takes its comma with it.
+    expect(fill('Are {action:act_nope}, {action:act_invade}, {action:act_nope}, or more.')).toBe('Are or more.')
+    baseActions.value = []
+  })
+
+  it('has no number text and no repeated costs in the seed', () => {
+    const text = RULES_SEED.map((r) => r.text).join(' ')
+    expect(text).toContain('Up to {loadout_weapons} pilot weapons')
+    expect(text).not.toMatch(/\{HEAT\}|\{REPAIR\}/)
+    expect(RULES_SEED.some((r) => r.section === 'tag_list' || r.id === 'rule_notes_overcharge_later')).toBe(false)
+    expect(RULES_SEED.filter((r) => r.section === 'numbers').every((r) => r.group === (r.id.startsWith('rule_num_') ? 'economy' : 'combat'))).toBe(true)
   })
 
   it('drops hidden items and sorts by order', () => {
@@ -68,14 +97,14 @@ describe('rules seed', () => {
     expect(check({ section: 'nope' })).toEqual(['section'])
     expect(check({ section: 'statuses' })).toEqual(['group'])
     expect(check({ numbers: [1] })).toEqual(['numbers'])
-    expect(check({ section: 'numbers' })).toEqual(['numbers'])
-    expect(check({ section: 'numbers', numbers: [1, NaN] })).toEqual(['numbers'])
-    expect(check({ section: 'numbers', numbers: [1, 2] })).toEqual([])
+    expect(check({ section: 'numbers', group: 'combat' })).toEqual(['numbers'])
+    expect(check({ section: 'numbers', group: 'combat', numbers: [1, NaN] })).toEqual(['numbers'])
+    expect(check({ section: 'numbers', group: 'combat', numbers: [1, 2] })).toEqual([])
     expect(check({ order: 'x' })).toEqual(['order'])
   })
 
   it('checks track numbers are whole numbers inside their range, with one message each', () => {
-    const msgs = (id: string, numbers: unknown) => validateItem('rules', { ...blankItem('rules', id), name: 'N', section: 'numbers', numbers } as never, { id } as never).map((p) => p.text)
+    const msgs = (id: string, numbers: unknown) => validateItem('rules', { ...blankItem('rules', id), name: 'N', section: 'numbers', group: 'combat', numbers } as never, { id } as never).map((p) => p.text)
     const heat = 'rule_numbers_overcharge_heat', repair = 'rule_numbers_repair_cost'
     expect(msgs(heat, [1, 3, 5, 9])).toEqual([])
     expect(msgs(heat, [])).toEqual(['Add at least one number.'])

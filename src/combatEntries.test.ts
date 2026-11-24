@@ -1,10 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
+import { BASE_ACTIONS } from './baseActions'
+import { baseActions } from './gameData'
+import { RULES_SEED, fill, ruleItems } from './rulesData'
 import { actionKey, entryInfo, rulesTopics, stepActions, turnEntries, type CombatEntry, type KitAction } from './combatEntries'
 import {
   ATTACK_EXTRAS, ATTACK_FORMULAS, ATTACK_RESULTS, AREAS, AURAS, AURAS_NOTE, CHECK_FORMULAS, CHECK_RESULTS, CONVERSIONS_NOTE, COVER_NOTE, DAMAGE_FORMULAS, DEFENCES, DICE, DICE_NOTE, DRONES_NOTE, FIGHT, FOOT_RULES,
   FULL_ACTIONS, IMPROVISED, JOCKEY, KNOCKBACK, KNOCKBACK_NOTE, MOVEMENT_NOTE, OVERCHARGE, PILOT_ACTIONS, PILOT_CHECKS_NOTE, PILOT_DCS, PILOT_OVERWATCH, PUSHING_THROUGH, QUICK_ACTIONS, RANGE_BONUSES, RANGE_TALENTS, RANGE_TIERS, REACTIONS,
   RECHARGE, REPAIRS, RESOURCES_NOTE, RESULTS_NOTE, SCENE_RESOURCES, SENSORS, SENSORS_NOTE, SIZE_NOTE, SPEED_GATEWAYS, STRUCTURE_NOTE, STRUCTURE_STRESS, STRUCTURE_TRIGGERS, TECH_NOTE, TERRAIN, TURN_STEPS, type CombatRow,
 } from './combatRules'
+
+// The page reads the database's copy, which starts empty: these tests read the seed.
+beforeAll(() => { ruleItems.value = RULES_SEED; baseActions.value = BASE_ACTIONS })
 
 describe('PILOT_ACTIONS', () => {
   const names = PILOT_ACTIONS.map((a) => a.name)
@@ -138,7 +144,7 @@ describe('stepActions', () => {
   })
   it('gives Overcharge text and heat data and no chips', () => {
     const [how, heat] = stepActions('Overcharge', [])
-    expect(how.text).toMatch(/After the 4th use/)
+    expect(how.text).toMatch(/stays at 6 Heat/)
     expect(heat.heat).toEqual({ steps: ['1', '2', '4', '6'], custom: false })
     expect(stepActions('Overcharge', [], false, '1 → 2 → 3')[1].heat).toEqual({ steps: ['1', '2', '3'], custom: true })
     expect(stepActions('Overcharge', []).flatMap((g) => g.entries)).toEqual([])
@@ -200,7 +206,7 @@ describe('stepActions', () => {
     expect(stepActions('Free', [...mine, kit('Odd', 'Sometimes')]).flatMap((g) => g.entries.map((e) => e.name))).toContain('Odd')
   })
   it('explains Quick Tech and Full Tech on the Tech card', () => {
-    expect(stepActions('2 quick', []).find((g) => g.title === 'Tech')!.text).toBe(TECH_NOTE)
+    expect(stepActions('2 quick', []).find((g) => g.title === 'Tech')!.text).toBe(fill(TECH_NOTE))
     expect(stepActions('2 quick', []).find((g) => g.title === 'Attacks')!.text).toBeUndefined()
   })
   it('marks Scan, Lock on and Bolster as Quick Tech, and has one Invade', () => {
@@ -251,7 +257,7 @@ describe('rulesTopics', () => {
     const mech = text(false)
     const pilot = text(true)
     const lists: CombatRow[][] = [CHECK_RESULTS, ATTACK_EXTRAS, SPEED_GATEWAYS, TERRAIN, KNOCKBACK, AREAS, RANGE_TIERS, SENSORS, AURAS, RANGE_BONUSES, RANGE_TALENTS, REPAIRS, FOOT_RULES]
-    for (const r of lists.flat()) expect(mech, r.value).toContain(r.text.replace('{REPAIR}', '2'))
+    for (const r of lists.flat()) expect(mech, r.value).toContain(fill(r.text))
     for (const r of [...DICE, ...RECHARGE]) expect(mech, r.value).toContain(r.value)
     for (const r of [...PILOT_DCS, ...ATTACK_EXTRAS, FOOT_RULES[1], FOOT_RULES[2]]) expect(pilot, r.value).toContain(r.text)
     for (const f of [...CHECK_FORMULAS, ...ATTACK_FORMULAS, ...DAMAGE_FORMULAS]) expect(mech).toContain(f.example)

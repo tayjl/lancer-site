@@ -11,10 +11,10 @@ import NumberListField from './NumberListField.vue'
 import { filled, latest, useFields } from './useFields'
 
 // The form for a combat guide rule: where it sits (section and group), what it's called, the short value some tables show
-// before the name, and its text. Tags card entries pick a tag. The numbers section edits a list of numbers.
+// before the name, and its text. The numbers section edits a list of numbers.
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
-defineProps<{ locked: boolean; tags: { id: string; name: string }[] }>()
+defineProps<{ locked: boolean }>()
 const f = useFields(model)
 const name = f.text('name')
 const group = f.text('group')
@@ -37,20 +37,13 @@ const section = computed({
 const s = computed(() => ruleSection(section.value))
 const ICONS = ['burst', 'blast', 'cone', 'line', 'kinetic', 'explosive', 'energy', 'burn', 'heat', 'structure', 'reactor', 'shield', 'warning', 'info', 'speed', 'range', 'threat', 'melee']
 const sections = computed(() => SECTIONS.filter((x) => !FIXED_SECTIONS.includes(x.id) || x.id === section.value))
-const wordy = computed(() => !!s.value && s.value.shape !== 'tags' && s.value.shape !== 'numbers')
+const wordy = computed(() => !!s.value && s.value.shape !== 'numbers')
 </script>
 
 <template>
   <FoldPanel title="Basics" open :summary="hidden ? 'Hidden from players' : 'Shown to players'" :paths="['name', 'id', 'section', 'group', 'order']">
     <div class="grid">
-      <Field v-if="section === 'tag_list'" class="span2" label="Tag" path="name">
-        <select v-model="name">
-          <option value="">Choose…</option>
-          <option v-if="name && !tags.some((t) => t.id === name)" :value="name">{{ name }}</option>
-          <option v-for="t in tags" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
-      </Field>
-      <Field v-else class="span2" label="Name" path="name" :hint="section === 'turn_steps' ? 'Fixed for turn steps.' : undefined">
+      <Field class="span2" label="Name" path="name" :hint="section === 'turn_steps' ? 'Fixed for turn steps.' : undefined">
         <input v-model="name" type="text" autocomplete="off" :readonly="section === 'turn_steps'" :class="{ code: section === 'turn_steps' }" />
       </Field>
       <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
@@ -96,14 +89,14 @@ const wordy = computed(() => !!s.value && s.value.shape !== 'tags' && s.value.sh
     <Field v-if="section !== 'notes'" label="Short line" path="gist" hint="Shown under the name. Leave empty to use the first sentence.">
       <input v-model="gist" type="text" autocomplete="off" />
     </Field>
-    <Field block label="Rules text" path="text" :hint="text.includes('{HEAT}') ? '{HEAT} shows the last Overcharge cost.' : undefined">
+    <Field block label="Rules text" path="text" :hint="'Use {loadout_gear} for a number or {action:ID} for an action name.'">
       <RichTextEditor label="Rules text" html v-model="text" />
     </Field>
   </FoldPanel>
 
   <FoldPanel v-if="s?.shape === 'numbers'" title="Numbers" open :summary="numbers.join(', ')" :paths="['numbers', 'text']">
     <Field block label="Numbers" path="numbers" hint="One number per box, in order.">
-      <NumberListField v-model="numbers" label="Numbers" :max="numberKeyOf(String(model.id ?? ''))?.hi" />
+      <NumberListField v-model="numbers" label="Numbers" :single="!!numberKeyOf(String(model.id ?? '')) || model.id === 'rule_numbers_repair_cost'" :max="numberKeyOf(String(model.id ?? ''))?.hi" />
     </Field>
     <Field block label="Description"><RichTextEditor label="Description" html v-model="text" /></Field>
   </FoldPanel>

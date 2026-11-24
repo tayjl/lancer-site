@@ -7,7 +7,7 @@ import { SECTIONS } from './rulesData'
 
 // The kinds listed under the Rules tab, and the category order (the combat page's flow). Actions and tags are categories too.
 export const RULES_GROUP: EditorKind[] = ['rules', 'actions', 'tags']
-const ORDER = ['turn_steps', 'actions', 'tags', 'tag_list', 'sizes', 'statuses', 'checks', 'attacks', 'dice', 'movement', 'range', 'structure', 'foot', 'notes', 'numbers']
+const ORDER = ['turn_steps', 'actions', 'tags', 'sizes', 'statuses', 'checks', 'attacks', 'dice', 'movement', 'range', 'structure', 'foot', 'notes', 'numbers']
 export const RULE_CATEGORIES = ORDER.map((key) => ({ key, label: key === 'actions' ? 'Actions' : key === 'tags' ? 'Tags' : ruleSection(key)!.label }))
 export function ruleSection(key: string) { return SECTIONS.find((s) => s.id === key) }
 
@@ -17,7 +17,7 @@ export const canAdd = (key: string) => !FIXED_SECTIONS.includes(key)
 export const noun = (key: string) => (key === 'actions' ? 'action' : key === 'tags' ? 'tag' : 'rule')
 
 // The Preview's icon per section. Statuses use their card's icon instead.
-const ICONS: Record<string, string> = { turn_steps: 'list', statuses: 'warning', checks: 'star', attacks: 'crosshair', movement: 'speed', range: 'range', structure: 'structure', foot: 'pilot', sizes: 'weapon', dice: 'variable', tag_list: 'generic_item', notes: 'info', numbers: 'variable' }
+const ICONS: Record<string, string> = { turn_steps: 'list', statuses: 'warning', checks: 'star', attacks: 'crosshair', movement: 'speed', range: 'range', structure: 'structure', foot: 'pilot', sizes: 'weapon', dice: 'variable', notes: 'info', numbers: 'variable' }
 export const sectionIcon = (key: string) => ICONS[key] ?? 'info'
 // Table rows (but not statuses) have a short value column.
 export const hasValue = (key: string) => ruleSection(key)?.shape === 'table' && key !== 'statuses'

@@ -29,7 +29,7 @@ export const SENSORS_NOTE = 'Sensors set the reach of tech attacks, Lock on and 
 export const AURAS_NOTE = 'For anything that works within a range.'
 export const COVER_NOTE = 'Terrain cover gives no defence bonus in player vs player combat. Cover from deployables still counts. Screened, Barrier-protected and Obscured still apply.'
 export const CONVERSIONS_NOTE = 'For talents, traits and frames written for dice.'
-export const TECH_NOTE = "Quick Tech actions are Invade, Scan, Lock on, Bolster, or a system's own Quick Tech option. A Full Tech action is two Quick Tech actions (both may be Invade, at the same or different targets) or a system's own Full Tech option."
+export const TECH_NOTE = "Quick Tech actions are {action:act_invade}, {action:act_scan_quick_tech}, {action:act_lock_on_quick_tech}, {action:act_bolster_quick_tech}, or a system's own Quick Tech option. A Full Tech action is two Quick Tech actions (both may be {action:act_invade}, at the same or different targets) or a system's own Full Tech option."
 export const DICE_NOTE = 'Damage dice become flat damage, rounded up.'
 
 export const TURN_STEPS: (CombatAction & { activations: string[] })[] = [
@@ -37,9 +37,9 @@ export const TURN_STEPS: (CombatAction & { activations: string[] })[] = [
   { name: 'Movement', activations: [], text: "Move using your mech's Speed." },
   { name: '1 full', activations: ['Full'], text: "Take 1 full action instead of 2 quick actions. You can't take the same action twice in a turn, unless an ability or Overcharge lets you." },
   { name: '2 quick', activations: ['Quick'], text: "Take 2 quick actions instead of 1 full action. You can't take the same action twice in a turn, unless an ability or Overcharge lets you." },
-  { name: 'Overcharge', activations: ['Overcharge'], frequency: 'Optional, once a turn', text: 'A free action that gives you 1 extra quick action. It costs Heat, more each time.' },
+  { name: 'Overcharge', activations: ['Overcharge'], frequency: 'Optional, once a turn', text: 'Use {action:act_overcharge} for 1 extra quick action. It costs Heat, up to {overcharge_heat} a use.' },
   { name: 'Free', activations: ['Free'], text: 'Free actions cost no action. Core powers and some systems use them.' },
-  { name: 'Reaction', activations: ['Reaction'], frequency: 'End of your turn', text: 'Declare 1 reaction at the end of your turn. You commit to it in advance instead of interrupting another post.' },
+  { name: 'Reaction', activations: ['Reaction'], frequency: 'End of your turn', text: 'Declare 1 reaction at the end of your turn. You commit to it in advance instead of interrupting another post. See {action:act_brace_reaction} and {action:act_overwatch_reaction}.' },
 ]
 
 export const SCENE_RESOURCES: CombatAction[] = [
@@ -72,7 +72,7 @@ export const FULL_ACTIONS: CombatAction[] = [
   { name: 'Disengage', activation: 'Full', group: 'move', text: 'Move safely, without triggering Overwatch or Engagement penalties.' },
   { name: 'Stabilize', activation: 'Full', group: 'other', text: 'Cool down, reload and patch up. Choose one from each line:<ol><li>Clear all Heat to 0, or spend 1 Repair to heal to full HP.</li><li>Reload all Loading weapons, clear all Burn, or clear one condition (such as Impaired or Jammed) on yourself or an Engaged ally.</li></ol>' },
   { name: 'Boot up', activation: 'Full', group: 'other', text: "Turn your mech back on after Shutdown. It's the one full action you can still take while in Shutdown." },
-  { name: 'Full tech', activation: 'Full Tech', group: 'tech', text: "Two Quick Tech actions, which may both be Invade at the same or different targets, or a system's own Full Tech option." },
+  { name: 'Full tech', activation: 'Full Tech', group: 'tech', text: "Two Quick Tech actions, which may both be {action:act_invade} at the same or different targets, or a system's own Full Tech option." },
   { name: 'Activate', activation: 'Full', group: 'other', text: "Use a system with the Full tag. Overcharge's extra quick action can't pay for it." },
   { name: 'Mount or dismount', activation: 'Full', group: 'other', text: "Get into or out of a mech you're Engaged with. An empty mech can't act." },
   { name: 'Core power rules', frequency: 'Once a mission', text: 'Use the activation and duration the power gives. It returns at Full Repair. Passive core effects are always on.' },
@@ -82,13 +82,11 @@ export const OVERCHARGE: CombatAction = {
   name: 'Overcharge',
   activation: 'Overcharge',
   frequency: 'Once a turn',
-  text: 'Gain 1 extra quick action straight away. Each use costs more Heat, until your next Full Repair.',
+  text: 'Gain 1 extra quick action straight away. Each use costs more Heat, until your next Full Repair. After the last step, the cost stays at {overcharge_heat} Heat.',
 }
 // Balance numbers the mech page shares (mechResources). Change them here, and log the change in docs/rule-decisions.md.
 export const OVERCHARGE_HEAT = [1, 2, 4, 6]
 export const REPAIR_COST = 2 // Repairs to restore 1 Structure or 1 Stress at a Rest. Frames like the Everest lower it.
-// {HEAT} and {REPAIR} in rules text are filled from the numbers section (rulesData.ts).
-export const OVERCHARGE_LATER = 'After the 4th use, the cost stays at {HEAT} Heat until your next Full Repair.'
 
 export const REACTIONS: CombatAction[] = [
   { name: 'Brace', activation: 'Reaction', text: "The first damaging attack on you before your next turn deals half damage and half Heat. On your next turn you can't take reactions or move, and you can take only 1 quick action (no full actions or Overcharge)." },
@@ -162,16 +160,19 @@ export const STRUCTURE_STRESS: { n: number; structure: string; stress: string }[
 export const STRUCTURE_NOTE = "On Structure 2 with nothing left to destroy, you're Stunned until the end of your next turn instead. The defender chooses which weapon or system is destroyed."
 
 export const REPAIRS: CombatRow[] = [
-  { value: 'Rest', text: `A short break between scenes. Clear all Heat and statuses. Spend Repairs: 1 restores all HP, 1 fixes one destroyed weapon or system, and {REPAIR} restore 1 Structure or 1 Stress. Some frames cost less, as shown on your mech page.` },
+  { value: 'Rest', text: `A short break between scenes. Clear all Heat and statuses. Spend Repairs: 1 restores all HP, 1 fixes one destroyed weapon or system, and {repair_cost} restore 1 Structure or 1 Stress. Some frames cost less, as shown on your mech page.` },
   { value: 'Full Repair', text: 'Downtime between missions, when the GM calls it. Everything returns: HP, Structure, Stress, Repairs, Limited uses, destroyed parts and your Core Power. Overcharge goes back to 1 Heat.' },
 ]
+
+// Said once: the Engaged status and the Engaged range tier both use it.
+const ENGAGED_TEXT = "You're Engaged with anyone at Range 1. It ends when either of you moves away, is knocked back or Disengages. You can be Engaged with several enemies at once. While Engaged, Range 6+ attacks get −2 (1 Difficulty)."
 
 const STATUS_ROWS: CombatRow[] = [
   { value: 'Barrier-protected', text: "From a Shield. Ranged attacks against you get −2 (1 Difficulty). Melee isn't affected. It doesn't stack with Screened." },
   { value: 'Burn X', text: 'Take X burn damage at the end of your turn, ignoring armour. Then Burn goes down by 1 + half your Engineering (rounded down) until it reaches 0. Stabilize clears it at once.' },
   { value: 'Danger zone', text: "Your Heat is at least half your Heat cap. Danger zone tags work while you're in it." },
   { value: 'Down and out (pilot status)', text: "A pilot at 0 HP. You're Stunned and die if you take any more damage. An ally Engaged with you can use the second choice of Stabilize to bring you back to 1 HP." },
-  { value: 'Engaged', text: "You're Engaged with anyone at Range 1. It ends when either of you moves away, is knocked back or Disengages. You can be Engaged with several enemies at once." },
+  { value: 'Engaged', text: ENGAGED_TEXT },
   { value: 'Exposed', text: 'Kinetic, explosive and energy damage you take is doubled, until you clear it with Stabilize.' },
   { value: 'Hidden', text: "Enemies know your rough area, but can't target you with attacks. It ends when you attack, lose your cover or obscurement, or someone finds you with Search." },
   { value: 'Immobilized', text: "You can't move or Boost by choice, and you fail Agility checks and saves. Knockback can still move you." },
@@ -213,7 +214,7 @@ export const KNOCKBACK: CombatRow[] = [
 ]
 
 export const RANGE_TIERS: CombatRow[] = [
-  { value: '1', name: 'Engaged (melee)', text: 'You must close into melee Engagement with the target. While Engaged, Range 6+ attacks get −2 (1 Difficulty).' },
+  { value: '1', name: 'Engaged (melee)', text: ENGAGED_TEXT },
   { value: '2+', name: 'Close', text: 'Anyone in the brawl or nearby cover, without entering Engagement.' },
   { value: '6+', name: 'Medium', text: 'Anywhere across the central firefight with a clear sightline.' },
   { value: '11+', name: 'Far', text: 'Rear lines, ridges or distant targets along long sightlines.' },
@@ -251,7 +252,7 @@ export const FOOT_RULES: CombatRow[] = [
   { value: 'Attacks on a pilot', text: 'Compare the attack with a flat 10, plus any bonuses from gear or talents.' },
   { value: 'Mech destroyed', text: 'When your mech blows up, the pilot survives. They are thrown clear to Close range, Prone and Stunned until the end of their next turn.' },
   { value: 'Melt down', text: 'The reactor explodes at the end of your next turn, like Self-destruct. The pilot must Eject before then or dies.' },
-  { value: 'Pilot gear', text: 'Up to two pilot weapons, one armour and three gear.' },
+  { value: 'Pilot gear', text: 'Up to {loadout_weapons} pilot weapons, {loadout_armour} armour and {loadout_gear} gear.' },
 ]
 // The Statuses tab's "On foot" card (Pilot mode).
 export const ON_FOOT_ROWS: CombatRow[] = [...statuses('Down and out'), ...FOOT_RULES.filter((row) => ['Mech destroyed', 'Melt down'].includes(row.value))]
@@ -297,9 +298,6 @@ export const WEAPON_SIZES: CombatRow[] = [
   { value: 'Heavy', text: "High-impact weapons. They can't be fired with Overwatch unless a talent says so." },
   { value: 'Superheavy', text: "Takes up two mounts and needs a full action (Barrage) to fire. It can't be used with Skirmish or Overwatch." },
 ]
-// The tags the guide lists. Their names and wording come from the content editor.
-export const TAG_IDS = ['tg_accurate', 'tg_inaccurate', 'tg_ai', 'tg_ap', 'tg_arcing', 'tg_danger_zone', 'tg_heat_self', 'tg_heat_target', 'tg_knockback', 'tg_limited', 'tg_loading', 'tg_mod', 'tg_ordnance', 'tg_overkill', 'tg_overshield', 'tg_protocol', 'tg_reaction', 'tg_reliable', 'tg_seeking', 'tg_shield', 'tg_smart', 'tg_thrown', 'tg_unique', 'tg_sidearm', 'tg_archaic', 'tg_turn', 'tg_round', 'tg_unlimited', 'tg_grenade', 'tg_mine', 'tg_deployable', 'tg_drone', 'tg_pilot_weapon', 'tg_personal_armor', 'tg_gear']
-
 export const DICE: CombatRow[] = [
   { value: '1d3', text: '2 damage' },
   { value: '1d6', text: '4 damage' },

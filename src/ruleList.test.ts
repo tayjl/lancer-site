@@ -12,13 +12,12 @@ describe('Rules tab categories', () => {
     const keys = RULE_CATEGORIES.map((c) => c.key)
     expect(keys).toHaveLength(SECTIONS.length + 2)
     expect(new Set(keys)).toEqual(new Set([...SECTIONS.map((s) => s.id), 'actions', 'tags']))
-    expect(keys.slice(0, 6)).toEqual(['turn_steps', 'actions', 'tags', 'tag_list', 'sizes', 'statuses'])
+    expect(keys.slice(0, 5)).toEqual(['turn_steps', 'actions', 'tags', 'sizes', 'statuses'])
     expect(keys.slice(-2)).toEqual(['notes', 'numbers'])
-    expect(RULE_CATEGORIES.find((c) => c.key === 'tag_list')?.label).toBe('Tags card')
   })
   it('gives no New button to the fixed sections', () => {
     expect(['notes', 'turn_steps', 'numbers'].some(canAdd)).toBe(false)
-    expect(['statuses', 'actions', 'tags', 'tag_list'].every(canAdd)).toBe(true)
+    expect(['statuses', 'actions', 'tags'].every(canAdd)).toBe(true)
   })
 })
 

@@ -1,17 +1,18 @@
 import { shallowRef } from 'vue'
+import { baseActions } from './baseActions'
 import * as C from './combatRules'
 import type { CombatRow } from './combatRules'
 
-// The combat guide's rules as editable content (content_items kind 'rules'). The combatRules.ts constants are the seed, and
-// the fallback when the load fails or no rule rows exist. One item is one entry. Fields by section shape:
+// The combat guide's rules as editable content (content_items kind 'rules'). The combatRules.ts constants are the seed only, the
+// database is the live copy. One item is one entry. Fields by section shape:
 //   note: name, text. steps: name, value (the frequency), gist, text. table: name, value (the short value column, when the
-//   row has both), short, gist, text, icon, group. tags: name is a tag id. numbers: name, numbers.
-// "{HEAT}" and "{REPAIR}" in text are filled from the numbers section.
+//   row has both), short, gist, text, icon, group. numbers: name, group (combat or economy), numbers.
+// Placeholders in text (see fill): a number key like "{loadout_gear}" or "{overcharge_heat}", and "{action:<id>}" for an action's name.
 export type RuleItem = {
   id: string; name: string; section: string; group?: string; value?: string; short?: string; gist?: string
   text: string; icon?: string; order: number; numbers?: number[]; hidden?: boolean
 }
-export type RuleShape = 'note' | 'steps' | 'table' | 'tags' | 'numbers'
+export type RuleShape = 'note' | 'steps' | 'table' | 'numbers'
 export type RuleSection = { id: string; label: string; shape: RuleShape; groups?: { id: string; label: string }[] }
 
 const groups = (...pairs: [string, string][]) => pairs.map(([id, label]) => ({ id, label }))
@@ -30,17 +31,44 @@ export const SECTIONS: RuleSection[] = [
   { id: 'foot', label: 'Pilots on foot', shape: 'table', groups: groups(['stats', 'Pilot stats and gear'], ['attacks', 'Pilot attacks'], ['on_foot', 'On foot']) },
   { id: 'sizes', label: 'Weapon sizes', shape: 'table' },
   { id: 'dice', label: 'Dice conversions', shape: 'table', groups: groups(['dice', 'Dice'], ['recharge', 'Recharge']) },
-  { id: 'tag_list', label: 'Tags card', shape: 'tags' },
-  { id: 'numbers', label: 'Numbers', shape: 'numbers' },
+  { id: 'numbers', label: 'Numbers', shape: 'numbers', groups: groups(['combat', 'Combat numbers'], ['economy', 'Economy and levelling']) },
 ]
 
 // ---- the seed ----
-const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
+// Every seed id is written out, in the order add() is called below, so renaming a seed entry never orphans its database row.
+// rules.test.ts pins the list: a new entry takes a new id, placed where its add() call reaches it.
+const SEED_IDS = [
+  'rule_turn_steps_protocol', 'rule_turn_steps_movement', 'rule_turn_steps_1_full', 'rule_turn_steps_2_quick', 'rule_turn_steps_overcharge',
+  'rule_turn_steps_free', 'rule_turn_steps_reaction', 'rule_statuses_barrier_protected', 'rule_statuses_screened', 'rule_statuses_obscured',
+  'rule_statuses_hidden', 'rule_statuses_invisible', 'rule_statuses_intangible', 'rule_statuses_immobilized', 'rule_statuses_impaired',
+  'rule_statuses_jammed', 'rule_statuses_lock_on', 'rule_statuses_shredded', 'rule_statuses_slowed', 'rule_statuses_stunned', 'rule_statuses_burn_x',
+  'rule_statuses_danger_zone', 'rule_statuses_down_and_out_pilot_status', 'rule_statuses_engaged', 'rule_statuses_exposed', 'rule_statuses_prone',
+  'rule_statuses_shutdown', 'rule_checks_check_or_save_10_hull_agility_systems_or_engineering', 'rule_checks_over_the_dc',
+  'rule_checks_under_the_dc', 'rule_checks_equal_to_the_dc', 'rule_checks_dc_12', 'rule_checks_dc_14', 'rule_checks_dc_16',
+  'rule_attacks_attack_10_grit_or_npc_bonus_accuracy_difficulty', 'rule_attacks_tech_attack_10_tech_attack_accuracy_difficulty',
+  'rule_attacks_1_accuracy_2_1_difficulty_2', 'rule_attacks_3_or_more_over', 'rule_attacks_equal_up_to_2_over', 'rule_attacks_1_to_3_under',
+  'rule_attacks_4_or_more_under', 'rule_attacks_critical_hit_weapon_damage_flat_bonuses_1_25_rounded_up',
+  'rule_attacks_grazing_hit_damage_2_rounded_up', 'rule_attacks_damage_taken_damage_armour', 'rule_attacks_grit', 'rule_attacks_bonus_damage',
+  'rule_attacks_damage_resistance', 'rule_attacks_heat_as_damage', 'rule_attacks_kinetic', 'rule_attacks_explosive', 'rule_attacks_energy',
+  'rule_attacks_burn', 'rule_attacks_light_or_nimble', 'rule_attacks_medium_or_standard', 'rule_attacks_heavy_or_superheavy',
+  'rule_movement_standard_repositioning', 'rule_movement_cross_field_maneuver', 'rule_movement_extreme_dash', 'rule_movement_difficult_terrain',
+  'rule_movement_dangerous_terrain', 'rule_movement_knockback_1', 'rule_movement_knockback_2', 'rule_movement_knockback_3',
+  'rule_range_engaged_melee', 'rule_range_close', 'rule_range_medium', 'rule_range_far', 'rule_range_extreme', 'rule_range_burst',
+  'rule_range_blast', 'rule_range_cone', 'rule_range_line', 'rule_range_1_to_4_range', 'rule_range_5_range_or_more', 'rule_range_1_to_2_threat',
+  'rule_range_short_range', 'rule_range_tactical', 'rule_range_battlefield_wide', 'rule_range_aura_1_2', 'rule_range_aura_3_7', 'rule_range_aura_8',
+  'rule_range_within_range_3', 'rule_range_beyond_range_5_or_8', 'rule_structure_structure', 'rule_structure_stress', 'rule_structure_step_1',
+  'rule_structure_step_2', 'rule_structure_step_3', 'rule_structure_step_4', 'rule_structure_rest', 'rule_structure_full_repair',
+  'rule_foot_pilot_stats', 'rule_foot_pilot_attacks', 'rule_foot_attacks_on_a_pilot', 'rule_foot_mech_destroyed', 'rule_foot_melt_down',
+  'rule_foot_pilot_gear', 'rule_sizes_auxiliary', 'rule_sizes_main', 'rule_sizes_heavy', 'rule_sizes_superheavy', 'rule_dice_1d3', 'rule_dice_1d6',
+  'rule_dice_2d6', 'rule_dice_3d6', 'rule_dice_recharge_4_or_50', 'rule_dice_recharge_5', 'rule_dice_recharge_6',
+  'rule_numbers_overcharge_heat', 'rule_numbers_repair_cost',
+]
+let seeded = 0
 const count: Record<string, number> = {}
 const seed: RuleItem[] = []
 const add = (section: string, group: string | undefined, rows: Omit<RuleItem, 'id' | 'section' | 'group' | 'order'>[]) => {
   for (const row of rows) {
-    const item = { id: `rule_${section}_${slug(row.name)}`, section, group, ...row, order: (count[section] = (count[section] ?? 0) + 10) }
+    const item = { id: SEED_IDS[seeded++], section, group, ...row, order: (count[section] = (count[section] ?? 0) + 10) }
     seed.push(Object.fromEntries(Object.entries(item).filter(([, v]) => v !== undefined)) as RuleItem)
   }
 }
@@ -54,7 +82,7 @@ const NOTES: [string, string, string][] = [
   ['pilot_checks', 'Pilot checks', C.PILOT_CHECKS_NOTE], ['pushing', 'Pushing through', C.PUSHING_THROUGH], ['movement', 'Movement', C.MOVEMENT_NOTE],
   ['knockback', 'Knockback', C.KNOCKBACK_NOTE], ['sensors', 'Sensors', C.SENSORS_NOTE], ['auras', 'Auras', C.AURAS_NOTE], ['cover', 'Cover', C.COVER_NOTE],
   ['conversions', 'Dice conversions', C.CONVERSIONS_NOTE], ['tech', 'Tech actions', C.TECH_NOTE], ['dice', 'Dice', C.DICE_NOTE], ['structure', 'Structure', C.STRUCTURE_NOTE],
-  ['drones', 'Drones', C.DRONES_NOTE], ['size', 'Size', C.SIZE_NOTE], ['overcharge_later', 'Overcharge later uses', C.OVERCHARGE_LATER],
+  ['drones', 'Drones', C.DRONES_NOTE], ['size', 'Size', C.SIZE_NOTE],
   ['movement_how', 'Movement step', 'Move up to your Speed.'], ['movement_pilot', 'Movement step on foot', 'Move using your Speed.'],
   ['free_pilot', 'Free actions on foot', 'Free actions cost no action. Some gear uses them.'], ['sidearm_needed', 'Sidearm Fight', 'Needs a Sidearm weapon.'],
 ]
@@ -62,7 +90,7 @@ for (const [key, name, text] of NOTES) seed.push({ id: `rule_notes_${key}`, name
 
 add('turn_steps', undefined, C.TURN_STEPS.map((s) => ({ name: s.name, value: s.frequency, gist: s.gist, text: s.text })))
 // What a turn step lists is fixed in code, by the step's id.
-const STEP_FIXED = new Map(C.TURN_STEPS.map((s) => [`rule_turn_steps_${slug(s.name)}`, { key: s.name, activations: s.activations }]))
+const STEP_FIXED = new Map(seed.filter((r) => r.section === 'turn_steps').map((r, i) => [r.id, { key: C.TURN_STEPS[i].name, activations: C.TURN_STEPS[i].activations }]))
 
 C.STATUS_GROUPS.forEach((g, i) => add('statuses', STATUS_CARDS[i].id, rows(g.rows)))
 const downAndOut = seed.find((r) => r.id === 'rule_statuses_down_and_out_pilot_status')!
@@ -93,15 +121,14 @@ for (const r of C.FOOT_RULES) add('foot', FOOT_GROUP[r.value] ?? 'on_foot', rows
 add('sizes', undefined, rows(C.WEAPON_SIZES))
 add('dice', 'dice', rows(C.DICE))
 add('dice', 'recharge', rows(C.RECHARGE))
-add('tag_list', undefined, C.TAG_IDS.map((id) => ({ name: id, text: '' })))
 const SEED_NUMBERS = { overcharge_heat: C.OVERCHARGE_HEAT, repair_cost: [C.REPAIR_COST] }
-add('numbers', undefined, [
+add('numbers', 'combat', [
   { name: 'Overcharge heat', text: 'Heat for each Overcharge use. The last number repeats.', numbers: SEED_NUMBERS.overcharge_heat },
   { name: 'Repair cost', text: 'Repairs to restore 1 Structure or 1 Stress at a Rest.', numbers: SEED_NUMBERS.repair_cost },
 ])
 
 // The game-balance numbers owners can edit, one 'rules' row each (id rule_num_<key>, numbers [value]). The database reads the same
-// rows with public.rule_number(key, def, lo, hi) (migration 20261122120000), so def/lo/hi here must equal its literals
+// rows with public.rule_number(key), whose def/lo/hi live in the table rule_number_limits (migration 20261124100000), so they must equal its rows
 // (rules.test.ts checks). All are whole numbers. "db" is false for the ones only the site uses.
 export type NumberKey = (typeof NUMBER_KEYS)[number]['key']
 export const NUMBER_KEYS = [
@@ -123,7 +150,7 @@ export const NUMBER_KEYS = [
 ] as const
 export const numberKeyOf = (id: string) => NUMBER_KEYS.find((n) => id === `rule_num_${n.key}`)
 for (const n of NUMBER_KEYS)
-  seed.push({ id: `rule_num_${n.key}`, name: n.label, section: 'numbers', text: n.hint, numbers: [n.def], order: (count.numbers = (count.numbers ?? 0) + 10) })
+  seed.push({ id: `rule_num_${n.key}`, name: n.label, section: 'numbers', group: 'economy', text: n.hint, numbers: [n.def], order: (count.numbers = (count.numbers ?? 0) + 10) })
 
 export const RULES_SEED: RuleItem[] = seed
 // The item data stored for a seed rule.
@@ -142,8 +169,8 @@ export function toRuleItem(id: string, data: unknown): RuleItem | null {
   }
 }
 
-// What the page reads. gameData.ts loadRules() replaces the seed.
-export const ruleItems = shallowRef<RuleItem[]>(RULES_SEED)
+// What the page reads. Empty until gameData.ts loadRules() fills it from the database.
+export const ruleItems = shallowRef<RuleItem[]>([])
 
 const live = (section: string, group?: string) =>
   ruleItems.value.filter((i) => !i.hidden && i.section === section && (!group || i.group === group)).sort((a, b) => a.order - b.order || (a.id < b.id ? -1 : 1))
@@ -167,7 +194,14 @@ export const rule = (key: NumberKey): number => {
   }
   return stored(n)
 }
-export const fill =(text: string) => text.replaceAll('{HEAT}', String(ruleNumbers('overcharge_heat').at(-1))).replaceAll('{REPAIR}', String(ruleNumbers('repair_cost')[0]))
+// Fills the placeholders in rule text. A missing or hidden action is left out with its comma. Any other unknown placeholder (a typo, {VAL}) stays as written.
+export const fill = (text: string) => text.replace(/(, )?\{action:([\w-]+)\}(, )?/g, (whole, _before, id: string) => (baseActions.value.some((a) => a.id === id) ? whole : '')).replace(/\{(action:[\w-]+|\w+)\}/g, (whole, key: string) => {
+  if (key.startsWith('action:')) return baseActions.value.find((a) => a.id === key.slice(7))?.name ?? ''
+  if (key === 'overcharge_heat') return String(ruleNumbers('overcharge_heat').at(-1))
+  if (key === 'repair_cost') return String(ruleNumbers('repair_cost')[0])
+  const n = NUMBER_KEYS.find((k) => k.key === key)
+  return n ? String(rule(n.key)) : whole
+})
 export const ruleNote = (key: string) => fill(live('notes').find((i) => i.id === `rule_notes_${key}`)?.text ?? '')
 
 // A table row in the shape the page uses: a row with only a name has it as its value.
@@ -179,7 +213,6 @@ export type TurnStep = { id: string; key: string; name: string; activations: str
 export const turnSteps = (): TurnStep[] => live('turn_steps').map((i) => ({ id: i.id, name: i.name, key: STEP_FIXED.get(i.id)?.key ?? i.id, activations: STEP_FIXED.get(i.id)?.activations ?? [], frequency: i.value, gist: i.gist, text: fill(i.text) }))
 export const turnStepText = (key: string) => turnSteps().find((s) => s.key === key)?.text ?? ''
 
-export const ruleTagIds = () => live('tag_list').map((i) => i.name)
 export const statusGroups = () => STATUS_CARDS.map((g) => ({ ...g, rows: live('statuses').filter((i) => i.group === g.id || (g.id === 'other' && i.group === 'pilot')).map(asRow) }))
 // The Statuses tab's "On foot" card (Pilot mode).
 export const onFootRows = (): RuleRow[] => [...ruleRows('statuses', 'pilot'), ...ruleRows('foot', 'on_foot')]

@@ -1,10 +1,9 @@
 import type { Info, InfoCard } from './info'
 import { activationOf, type ItemStat } from './itemDetails'
 import type { CombatAction, CombatRow } from './combatRules'
-import { onFootRows, ruleNote, ruleNumbers, ruleRows, turnStepText, turnSteps, type TurnStep } from './rulesData'
+import { fill, onFootRows, ruleNote, ruleNumbers, ruleRows, turnStepText, turnSteps, type TurnStep } from './rulesData'
 import { plainText } from './rulesText'
-import { SCENE_RESOURCE_IDS } from './baseActions'
-import { baseActions } from './gameData'
+import { SCENE_RESOURCE_IDS, baseActions, type BaseAction } from './baseActions'
 
 // One row of a combat guide card (CombatGroup.vue). With "info" it's a button that opens the full information; "plain"
 // shows short text as it is; otherwise it's a row that opens in place to show "text".
@@ -47,7 +46,9 @@ export const rowEntry = (row: CombatRow, options: { column?: boolean; gist?: boo
 
 export const plainEntry = (text: string, value?: string): CombatEntry => ({ plain: true, value, text })
 
-const sceneResources = () => baseActions.value.filter((a) => SCENE_RESOURCE_IDS.includes(a.id))
+// An action with its placeholders filled in (another action's name, a number).
+const filled = (a: BaseAction): BaseAction => ({ ...a, text: fill(a.text) })
+const sceneResources = () => baseActions.value.filter((a) => SCENE_RESOURCE_IDS.includes(a.id)).map(filled)
 
 // "Your turn" and "Scene resources". The overcharge cost and the Speed come from your mech when it has a frame.
 // A pilot on foot has no protocol or overcharge, so those two steps are left out.
@@ -102,7 +103,7 @@ const defaultHeat = () => ruleNumbers('overcharge_heat').join(' → ')
 // when it has a frame. Empty cards stay, with their "empty" line. An unknown step has none.
 // "sidearm": the pilot has a Sidearm weapon equipped, so Fight is a Quick action too.
 export function stepActions(stepName: string, kitActions: KitAction[], pilot = false, overcharge: string | null = null, sidearm = false): StepGroup[] {
-  const general: CombatAction[] = baseActions.value.filter((a) => (pilot ? a.pilot : a.mech))
+  const general: CombatAction[] = baseActions.value.filter((a) => (pilot ? a.pilot : a.mech)).map(filled)
   const fight = pilot && sidearm ? general.find((a) => a.name === 'Fight') : undefined
   if (fight) general.push({ ...fight, activation: 'Quick', group: 'attack', gist: undefined, text: `${fight.text}<br>${ruleNote('sidearm_needed')}` })
   // A pilot on foot only has the actions on their gear.
@@ -138,7 +139,7 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
       if (pilot) return []
       const track = overcharge ?? defaultHeat()
       return [
-        how(`${general.find((a) => a.activation === 'Overcharge')?.text ?? ''}<br>${ruleNote('overcharge_later')}`, 'overcharge'),
+        how(general.find((a) => a.activation === 'Overcharge')?.text ?? '', 'overcharge'),
         { title: 'Heat', colour: 'overcharge', entries: kit((e) => activation(e) === 'overcharge'), heat: { steps: track.split(' → '), custom: track !== defaultHeat() } },
       ]
     }
@@ -165,7 +166,7 @@ const topics = (rows: CombatRow[]) => rows.map((r) => topic(r.value, rowCards([r
 
 // "pilot" trims it to what a pilot on foot uses. "repairLine" is the mech's own Repair cost line, when it has one.
 export function rulesTopics(pilot: boolean, repairLine?: string): TopicCard[] {
-  const core = baseActions.value.find((a) => a.id === 'act_core_power_rules')
+  const core = baseActions.value.map(filled).find((a) => a.id === 'act_core_power_rules')
   const rows = ruleRows
   return [
     { title: 'Checks and resources', icon: 'star', topics: [

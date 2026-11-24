@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import type { Data } from '../../contentEditor'
 import { firstSentence, rowEntry, type CombatEntry } from '../../combatEntries'
-import { tagDescriptions, tagNames } from '../../gameData'
 import { hasValue, ruleSection, sectionIcon } from '../../ruleList'
 import { fill, statusGroups } from '../../rulesData'
 import { plainText } from '../../rulesText'
@@ -15,7 +14,7 @@ const str = (key: string) => String(props.data[key] ?? '')
 const section = computed(() => ruleSection(str('section')))
 const numbers = computed(() => (Array.isArray(props.data.numbers) ? props.data.numbers : []))
 
-type Card = { title: string; icon: string; note?: string; entries?: CombatEntry[]; chips?: boolean; gist?: boolean }
+type Card = { title: string; icon: string; note?: string; entries?: CombatEntry[]; gist?: boolean }
 const card = computed<Card | null>(() => {
   const s = section.value
   if (!s || s.shape === 'numbers') return null
@@ -23,10 +22,6 @@ const card = computed<Card | null>(() => {
   const text = fill(str('text'))
   if (s.id === 'notes') return { title: name || 'Unnamed', icon: 'info', note: plainText(text) }
   if (s.shape === 'steps') return { title: 'Your turn', icon: 'list', gist: true, entries: [{ name, frequency: str('value') || undefined, gist: str('gist') || firstSentence(text), text, open: true }] }
-  if (s.shape === 'tags') {
-    const tag = tagNames.value.get(name)
-    return { title: 'Tags', icon: 'generic_item', chips: true, entries: tag ? [{ tag: tag.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(name) ?? '').replaceAll('{VAL}', 'X'), gist: firstSentence(tagDescriptions.value.get(name) ?? '') }] : [] }
-  }
   const value = str('value')
   // No value, no value column (no empty gutter).
   const column = hasValue(s.id) && !!value
@@ -45,9 +40,8 @@ const card = computed<Card | null>(() => {
       <RulesText :html="str('text')" />
     </template>
     <p v-else-if="!card" class="notice warn" role="alert">Preview failed: Choose a section.</p>
-    <p v-else-if="section?.shape === 'tags' && !card.entries?.length" class="dim note">No tag chosen.</p>
     <p v-else-if="!str('name')" class="dim note">Add a name to see the preview.</p>
-    <CombatGroup v-else :title="card.title" :icon="card.icon" :note="card.note" :entries="card.entries" :chips="card.chips" :gist="card.gist" />
+    <CombatGroup v-else :title="card.title" :icon="card.icon" :note="card.note" :entries="card.entries" :gist="card.gist" />
   </div>
 </template>
 
