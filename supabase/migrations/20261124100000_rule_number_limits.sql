@@ -26,7 +26,7 @@ insert into public.rule_number_limits (key, def, lo, hi) values
 -- Invoker rights, like the old version: it reads only content_items and the limits, which every logged-in user can read.
 create function public.rule_number(rule_key text) returns numeric
 language plpgsql stable set search_path = ''
-as $
+as $$
 declare
   l public.rule_number_limits;
   n numeric;
@@ -39,7 +39,7 @@ begin
         from public.content_items i where i.id = 'rule_num_' || rule_key and i.kind = 'rules' and not i.draft) x;
   return case when n % 1 = 0 and n between l.lo and l.hi then n else l.def end;
 end;
-$;
+$$;
 revoke execute on function public.rule_number(text) from public, anon;
 grant execute on function public.rule_number(text) to authenticated;
 
