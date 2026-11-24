@@ -34,13 +34,13 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that every
 
 **0.4 Phase 4: every kind carries every building block**
 - Grants on mods and pilot gear: the sheet (`src/mechData.ts`, pilot code) must read them first (today only weapons and systems are read), then add the form field.
-- Requirements on core systems: the engine must read `core_system.requires` first (for example when the frame is picked), then add the field.
-- Actions on biomods: migration for a column or table (`save_bionic`, `bionic_bonuses`), then the form field.
-- Add effects, grants, requirements and actions to tags, manufacturers, actions, rules, factions and commendations where it makes sense, or write down per kind why not.
+- Requirements on core systems: not needed (decided by the developer, 2026-11-24). A core system comes with its mech, and the frame's own `requires` already gates both.
+- Actions on biomods: required (decided by the developer). Needs a migration for the storage (`bionics` has no actions column; see `save_bionic`, `bionic_bonuses`), the form field (the existing ActionListField), and the sheet reading biomod actions the way it reads actions on other kinds. Update the database types, tests and the security review.
+- Tags, manufacturers, actions, rules, factions and commendations stay simple (decided by the developer, 2026-11-24): they are labels or small text, and they don't need effects, grants, requirements or actions. Leave them as they are.
 - New building blocks built from existing mechanics: grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, add a stat with its own sheet row (a stat the engine already adds up, like a personal stat), conditional effects shown as a reminder. If one of these truly needs a new kind of calculation, skip it and say so in the report.
 - Registry: every effect the engine can already count must work from a registry entry alone, with no code change (check the list in `BONUS_REGISTRY` against what `mechData.ts` handles). An entirely new calculation is out of scope and may need code. Add the missing pilot-side reminder for undeclared `pilot_*` effects (`src/gameData.ts`).
 - Duplicate for manufacturers, rules and the site kinds; Used by that also scans biomods and reads sensibly for licences.
-- Done when: the capability matrix has no empty cell without a written reason, and a homebrew variation "never done before" (anything short of an entirely new calculation) can be built from the editor alone.
+- Done when: the capability matrix's empty cells are only the ones the developer ruled out (core system requirements; every block on tags, manufacturers, actions, rules, factions and commendations), and a homebrew variation "never done before" (anything short of an entirely new calculation) can be built from the editor alone.
 
 **0.5 Phase 7 leftovers: nothing is out of reach**
 - Export every kind: Definitions, factions, commendations and biomods (not LCP kinds) so the campaign's content can be backed up and restored. Import them back.
@@ -106,8 +106,8 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 ## 3. Not built (decided or offered, left out)
 - **Phase 4 building blocks:** grant a pilot weapon or gear, grant a talent rank or licence, change a pilot or mech skill, a new stat with its own sheet row, conditional effects with a shown reminder. Need engine code.
 - **Grants on mods and pilot gear:** the sheet never reads them (equipped grants cover weapons and systems only). Needs engine support first.
-- **Actions on biomods:** the `bionics` table has no actions column. Needs a migration.
-- **Requirements on core systems:** the engine never reads `core_system.requires`; the frame's own `requires` already gates both. Needs engine support first if wanted.
+- **Actions on biomods:** required, see 0.4.
+- **Requirements on core systems:** not needed (developer decision, 2026-11-24).
 - **Mech skills (HASE) and personal stats as Definitions** (decided: allowed, not urgent). `MAX_SKILL` and the RequirementListField ranks are still hardcoded.
 - **Definitions leftovers in code on purpose:** the `Flex` rule in `allowedSizes`, `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`, the `Integrated Auxiliary`/`Main/Aux`/`Superheavy` ids in `mechData.ts`, `bracingMount()` in `src/rules.ts`. `weapon_mounts` is an allowed kind with no rows (the code uses one list for sizes and mounts, seeded as `weapon_sizes`). Data-only values (`Ship-class`, `Special`, `Spool Weapon`, `???`) are not seeded.
 - **Fields with no editor input** (audit): `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`. The audit also did not compare `database.types.ts` column by column against the forms, and did not triage `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts:123` constants.
