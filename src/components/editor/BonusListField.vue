@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId } from 'vue'
-import { EFFECT_BONUS_TYPES, bonusCounted, type BonusFilter, type BonusType, type Data, type EffectBonusType } from '../../contentEditor'
+import { BONUS_GROUPS, bonusDef, bonusSummary, type BonusDef, type BonusFilter } from '../../bonuses'
+import { bonusCounted, type BonusType, type Data } from '../../contentEditor'
 import { defIds, defList } from '../../definitions'
 import { hiddenTags, tagNames } from '../../gameData'
 import Icon from '../Icon.vue'
@@ -10,7 +11,7 @@ import TagListField from './TagListField.vue'
 import ToggleChips from './ToggleChips.vue'
 import { latest, useProblems, useRowKeys } from './useFields'
 
-// An item's effects: a type (a stat the build maths counts, see BONUS_TYPES, or one of the effects in EFFECT_BONUS_TYPES), a
+// An item's effects: a type (one declared in BONUS_REGISTRY, src/bonuses.ts, plus the personal stats), a
 // value that fits the type, and under Options the weapons it aims at, a mount limit and whether it sets the base. Only what
 // lasts out of combat and shows on the sheet is edited here (the rest is rules text). A row with other fields (a condition,
 // weapon sizes, a damage type; nothing official or local uses them) keeps them; one whose type isn't in the list stays and shows its id.
@@ -22,20 +23,17 @@ const { keyOf, removed } = useRowKeys()
 const uid = useId()
 const where = (index: number, key: string) => `${props.path}.${index}.${key}`
 
-const effects = new Map(EFFECT_BONUS_TYPES.map((type) => [type.id, type]))
-const effectOf = (bonus: Data): EffectBonusType | undefined => effects.get(String(bonus.id))
-const STAT_GROUPS: Record<BonusType['group'], string> = { Mech: 'Mech stats', Pilot: 'Pilot stats', 'Personal stat': 'Personal stats' }
-const EFFECT_GROUPS: [string, string[]][] = [
-  ['Mounts', ['add_mount', 'replace_mount', 'superheavy_mounting']],
-  ['Weapons', ['range', 'threat', 'damage', 'add_tags']],
-  ['Resources', ['cheap_struct', 'overcharge']],
-  ['Drones & deployables', EFFECT_BONUS_TYPES.filter((type) => /^(drone|deployable)_/.test(type.id)).map((type) => type.id)],
-]
-const groups = computed(() => [
-  ...(Object.keys(STAT_GROUPS) as BonusType['group'][]).map((group) => ({ group: STAT_GROUPS[group], types: props.types.filter((type) => type.group === group) })),
-  ...EFFECT_GROUPS.map(([group, ids]) => ({ group, types: ids.map((id) => effects.get(id)!) })),
-].filter((entry) => entry.types.length))
+// Stats take a number or formula; the other types have their own value.
+const effectOf = (bonus: Data): BonusDef | undefined => { const def = bonusDef(String(bonus.id)); return def && def.value !== 'formula' ? def : undefined }
+const groups = computed(() => BONUS_GROUPS.map((group) => ({ group, types: props.types.filter((type) => type.group === group) })).filter((entry) => entry.types.length))
 const offered = computed(() => new Set(groups.value.flatMap((entry) => entry.types.map((type) => type.id))))
+// Typing in the search narrows the types every row offers (a row keeps its own).
+const find = ref('')
+const words = computed(() => find.value.toLowerCase().split(/\s+/).filter(Boolean))
+const fits = (type: BonusType) => words.value.every((word) => `${type.label} ${type.group} ${type.id}`.toLowerCase().includes(word))
+const groupsFor = (current: unknown) => groups.value.map((entry) => ({ group: entry.group, types: entry.types.filter((type) => type.id === current || fits(type)) })).filter((entry) => entry.types.length)
+const matching = computed(() => groups.value.reduce((n, entry) => n + entry.types.filter(fits).length, 0))
+const total = computed(() => offered.value.size)
 const tags = computed(() => [...tagNames.value].filter(([id]) => !hiddenTags.value.has(id)).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)))
 
 const FILTER_LABELS = computed<Record<BonusFilter, { label: string; options: string[] }>>(() => ({
@@ -50,11 +48,11 @@ const isStat = (bonus: Data) => !effectOf(bonus)
 const change = (index: number, changes: Data) => (model.value = model.value.map((bonus, i) => (i === index ? { ...bonus, ...changes } : bonus)))
 // A plain number stays a number; anything else (a formula) stays text.
 const setValue = (index: number, text: string) => change(index, { val: /^-?\d+(\.\d+)?$/.test(text.trim()) ? Number(text) : text })
-const startValue = (type?: EffectBonusType) => (!type || type.value === 'number' || type.value === 'whole' ? 1 : type.value === 'steps' ? ['', '', '', ''] : type.value === 'tags' ? [] : undefined)
+const startValue = (type?: BonusDef) => (!type || type.value === 'number' || type.value === 'whole' ? 1 : type.value === 'steps' ? ['', '', '', ''] : type.value === 'tags' ? [] : undefined)
 // A new type starts from its own value and keeps only the options it allows; a condition stays.
 function setType(index: number, id: string) {
   const old = model.value[index]
-  const type = effects.get(id)
+  const type = bonusDef(id)?.value === 'formula' ? undefined : bonusDef(id)
   const keep: Data = {}
   for (const key of type?.filters ?? []) if (old[key] !== undefined) keep[key] = old[key]
   if (type?.max && old.max !== undefined) keep.max = old.max
@@ -62,7 +60,8 @@ function setType(index: number, id: string) {
   if (!type && old.replace) keep.replace = old.replace
   model.value = model.value.map((bonus, i) => (i === index ? { id, ...(startValue(type) === undefined ? {} : { val: startValue(type) }), ...keep, ...(old.condition !== undefined ? { condition: old.condition } : {}) } : bonus))
 }
-const add = () => (model.value = [...model.value, { id: groups.value[0]?.types[0]?.id ?? '', val: 1 }])
+// Add starts from the first type the search leaves.
+const add = () => (model.value = [...model.value, { id: groupsFor(undefined)[0]?.types[0]?.id ?? '', val: 1 }])
 
 // Options: what's set in them. They start open when anything is set, and can't be folded over a problem.
 const setCount = (bonus: Data) => {
@@ -93,9 +92,9 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
     <ul v-if="model.length" class="rows">
       <li v-for="(bonus, index) in model" :key="keyOf(index)" class="entry">
         <div class="line">
-          <select :value="bonus.id" :aria-label="`Effect ${index + 1} type`" :aria-invalid="invalid(where(index, 'id')) || undefined" @change="setType(index, ($event.target as HTMLSelectElement).value)">
+          <select :value="bonus.id" :aria-label="`Effect ${index + 1} type`" :title="bonus.id ? bonusSummary(bonus) : undefined" :aria-invalid="invalid(where(index, 'id')) || undefined" @change="setType(index, ($event.target as HTMLSelectElement).value)">
             <option v-if="!offered.has(String(bonus.id))" :value="bonus.id">{{ bonus.id ? (bonusCounted(bonus) ? bonus.id : `${bonus.id} (not counted)`) : 'Choose…' }}</option>
-            <optgroup v-for="group in groups" :key="group.group" :label="group.group">
+            <optgroup v-for="group in groupsFor(bonus.id)" :key="group.group" :label="group.group">
               <option v-for="type in group.types" :key="type.id" :value="type.id">{{ type.label }}</option>
             </optgroup>
           </select>
@@ -110,6 +109,7 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
           </button>
           <button type="button" class="icon-btn remove" :aria-label="`Remove effect ${index + 1}`" @click="remove(index)"><Icon name="close" /></button>
         </div>
+        <p v-if="bonus.id" class="hint summary wide">{{ bonusSummary(bonus) }}</p>
         <TagListField v-if="effectOf(bonus)?.value === 'tags'" class="wide" :model-value="Array.isArray(bonus.val) ? bonus.val : []" :tags="tags" :label="`Effect ${index + 1} tags`" :path="where(index, 'val')" @update:model-value="change(index, { val: $event })" />
         <div v-if="effectOf(bonus)?.value === 'steps'" class="steps wide" role="group" :aria-label="`Effect ${index + 1} overcharge steps`">
           <input v-for="(example, step) in ['1', '1d3', '1d6', '1d6+4']" :key="step" type="text" class="value" :value="(Array.isArray(bonus.val) ? bonus.val[step] : '') ?? ''" :aria-label="`Overcharge step ${step + 1}`" :placeholder="example" :aria-invalid="invalid(where(index, 'val')) || undefined" @input="setSteps(index, step, ($event.target as HTMLInputElement).value)" />
@@ -127,7 +127,11 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
         <FieldError :path="`${path}.${index}`" deep />
       </li>
     </ul>
-    <div><button type="button" class="small" @click="add"><Icon name="plus" />Add effect</button></div>
+    <div class="add-row">
+      <input v-if="model.length || find" v-model="find" type="search" class="find" aria-label="Search effect types" placeholder="Search effect types" autocomplete="off" />
+      <span v-if="find" class="dim count" role="status">{{ matching }} of {{ total }}</span>
+      <button type="button" class="small" @click="add"><Icon name="plus" />Add effect</button>
+    </div>
   </div>
 </template>
 
@@ -139,6 +143,9 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
 .value { font-family: var(--mono); }
 .check { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: var(--fs-s); }
 .opts { justify-self: start; min-height: var(--tap); }
+.summary { margin: 0; }
+.add-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-s); }
+.find { flex: 1 1 12rem; min-width: 0; min-height: var(--tap); }
 .opts .chev { width: 14px; height: 14px; margin-left: 4px; transition: transform 0.15s; }
 .opts[aria-expanded='true'] .chev { transform: rotate(180deg); }
 .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-s); }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { confirmAction } from '../../confirm'
-import { bonusTypesFor, errorsOf, kindInfo, newId, problemsFor, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
+import { loadKind } from '../../catalogue'
+import { DUPLICABLE, REFERRING_KINDS, bonusTypesFor, duplicateItem, errorsOf, kindInfo, newId, problemsFor, referencesTo, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
 import { createItem, deleteItem, homebrewPack, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
 import { invalidateCatalogues, useGameData } from '../../gameData'
 import { alternateOf, licensedFrames, useMechData } from '../../mechData'
@@ -49,7 +50,7 @@ const props = defineProps<{
   blank: Data
   wide: boolean
 }>()
-const emit = defineEmits<{ created: [key: string]; changed: []; deleted: [] }>()
+const emit = defineEmits<{ created: [key: string]; changed: []; deleted: []; duplicate: [data: Data] }>()
 
 const info = kindInfo(props.kind)
 const isNew = props.item === null
@@ -133,6 +134,13 @@ onMounted(async () => {
   const result = await usageOf(props.kind, props.item.key)
   pilots.value = result.pilots
   usageError.value = !!result.error
+})
+// Which other items point at this one (read from the loaded content, so there's no extra request).
+const references = ref<string[]>([])
+onMounted(async () => {
+  if (!props.item || info.site || props.kind === 'rules') return
+  const loaded = await Promise.all(REFERRING_KINDS.map(loadKind))
+  references.value = referencesTo(props.item.key, loaded.flatMap((result) => result.rows))
 })
 
 const status = useSaveStatus()
@@ -235,6 +243,7 @@ defineExpose({ dirty })
       <span v-if="dirty && !busy" class="dim status">Unsaved changes</span>
       <SaveStatus :saving="busy" :saved="status.saved.value && !dirty" :error="status.error.value" :can-retry="!conflict" @retry="save" />
       <div class="btn-row">
+        <button v-if="!isNew && DUPLICABLE.includes(kind)" type="button" class="quiet small" @click="emit('duplicate', duplicateItem(kind, working, takenIds))">Duplicate</button>
         <button type="button" class="quiet small" :disabled="!dirty || busy" @click="discard">Discard changes</button>
         <template v-if="draft">
           <span v-if="dirty" class="blocked">
@@ -262,6 +271,7 @@ defineExpose({ dirty })
         </div>
         <p v-if="pilots.length" class="notice" role="status">{{ usedBy(pilots) }}. Saving changes their sheets.</p>
         <p v-else-if="usageError" class="dim hint">Couldn't check who uses this.</p>
+        <p v-if="references.length" class="dim hint">{{ usedBy(references) }}.</p>
         <div v-if="shown.length" class="notice" :class="{ warn: errorCount }" :role="errorCount ? 'alert' : 'status'">
           <p class="notice-title">{{ errorCount ? `Fix ${plural(errorCount, 'problem')} before saving` : plural(shown.length, 'warning') }}</p>
           <ul class="problems">

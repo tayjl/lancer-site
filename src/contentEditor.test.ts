@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blankItem, bonusTypesFor, errorsOf, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, validateFaction, withExoticTag, type Context } from './contentEditor'
+import { blankItem, bonusTypesFor, duplicateItem, errorsOf, referencesTo, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, validateFaction, withExoticTag, type Context } from './contentEditor'
 
 const ctx: Context = {
   id: 'hb_pg_vest',
@@ -66,7 +66,7 @@ describe('item checks', () => {
   it('checks bonus numbers and formulas, and warns about bonuses the build maths ignores', () => {
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 2 }, { id: 'physicality', val: '1' }, { id: 'sp', val: '{systems}/2' }] })).toEqual([])
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 'lots' }, { val: 1 }] })).toEqual(['Effect 1 needs a number, or a formula such as {systems}/2.', 'Effect 2 needs a type.'])
-    expect(texts({ ...vest, bonuses: [{ id: 'mystery', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Effect "mystery" isn\'t counted in the stats.'])
+    expect(texts({ ...vest, bonuses: [{ id: 'mystery', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Effect "mystery" is shown on the sheet but not counted.'])
   })
   it('accepts dice for damage and shows a missing number', () => {
     expect(texts({ ...vest, damage: [{ type: 'Kinetic', val: '2d6+1' }, { type: 'Energy', val: 3 }] })).toEqual([])
@@ -130,6 +130,37 @@ describe('used by', () => {
     expect(usedBy(['WARDEN'])).toBe('Used by WARDEN')
     expect(usedBy(['A', 'B', 'C'])).toBe('Used by A, B, C')
     expect(usedBy(['A', 'B', 'C', 'D', 'E'])).toBe('Used by A, B, C and 2 more')
+  })
+})
+
+describe('duplicate and references', () => {
+  it('copies into a new id and "Copy of" name without sharing data', () => {
+    const lance = { id: 'hb_mw_lance', name: 'Lance', tags: [{ id: 'tg_x' }] }
+    const copy = duplicateItem('weapons', lance, ['hb_mw_lance'])
+    expect(copy).toMatchObject({ id: 'hb_mw_copy_of_lance', name: 'Copy of Lance', tags: [{ id: 'tg_x' }] })
+    expect(copy.tags).not.toBe(lance.tags)
+    expect(duplicateItem('weapons', lance, ['hb_mw_copy_of_lance']).id).toBe('hb_mw_copy_of_lance_2')
+  })
+  it('makes a frame its own licence again', () => {
+    expect(duplicateItem('frames', { id: 'hb_mf_a', name: 'A', license_id: 'hb_mf_a' }, []).license_id).toBe('hb_mf_copy_of_a')
+    expect(duplicateItem('frames', { id: 'hb_mf_b', name: 'B', license_id: 'hb_mf_a', variant: 'B' }, []).license_id).toBe('hb_mf_a')
+  })
+  it('finds what points at an id, except its own id and name', () => {
+    const rows = [
+      { id: 'w1', data: { id: 'w1', name: 'Zed', source: 'IPS-N', tags: [{ id: 'tg_x' }] } },
+      { id: 'w2', data: { id: 'w2', name: 'Alpha', integrated: ['w1'], requires: [{ kind: 'item', id: 'IPS-N' }] } },
+      { id: 'IPS-N', data: { id: 'IPS-N', name: 'IPS-N' } },
+      { id: 'w3', data: { id: 'w3', name: 'IPS-N' } },
+    ]
+    expect(referencesTo('IPS-N', rows)).toEqual(['Alpha', 'Zed'])
+    expect(referencesTo('w1', rows)).toEqual(['Alpha'])
+    expect(referencesTo('tg_x', rows)).toEqual(['Zed'])
+    expect(referencesTo('nothing', rows)).toEqual([])
+  })
+  it('checks a weapon grants real items', () => {
+    const weapon = { id: 'hb_mw_w', name: 'W', mount: 'Main', type: 'Rifle', source: 'GMS', license: 'GMS', license_id: '', license_level: 0, sp: 1, range: [], damage: [], tags: [], integrated: ['nope'] }
+    const found = problemsFor('weapons', weapon, { ...ctx, id: 'hb_mw_w', known: new Set(['hb_mw_w']) }).map((p) => p.text)
+    expect(found).toContain('Item "nope" doesn\'t exist.')
   })
 })
 
@@ -208,6 +239,20 @@ describe('effect bonuses and core bonus equipment', () => {
   })
 })
 
+describe('frame core power checks', () => {
+  const frame = { id: 'hb_f', name: 'F', source: 'GMS', license_level: 0, license_id: 'hb_f', stats: { structure: 4, stress: 4, armor: 0, hp: 10, evasion: 8, heatcap: 5, repcap: 5, sp: 5, speed: 4, edef: 8, tech_attack: 0, save: 10, size: 1 }, mounts: ['Main'] }
+  const checks = (check_bonuses: unknown) => problemsFor('frames', { ...frame, core_system: { name: 'Core', check_bonuses } }, ctx).map((p) => p.text).filter((text) => text.startsWith('Core power'))
+  it('accepts accuracy rows, an empty list and no field', () => {
+    expect(checks([{ id: 'hull', accuracy: 1, val: 0 }, { id: 'attack', val: 1 }])).toEqual([])
+    expect(checks([])).toEqual([])
+    expect(checks(undefined)).toEqual([])
+  })
+  it('rejects a field that is not a list, and rows with no type or accuracy', () => {
+    expect(checks('hull')).toEqual(['Core power checks must be a list.'])
+    expect(checks([{ id: 'hull', accuracy: 0, val: 0 }, { id: '', accuracy: 1 }, { id: 'hull' }]).length).toBe(4)
+  })
+})
+
 describe('the "not counted" warning', () => {
   const warns = (...list: Record<string, unknown>[]) => texts({ id: 'hb_pg_vest', name: 'X', source: 'GMS', effect: '', bonuses: list }, 'core_bonuses', 'warn')
   it('stays quiet for every bonus the code applies', () => {
@@ -215,6 +260,6 @@ describe('the "not counted" warning', () => {
       { id: 'attack', accuracy: 1 }, { id: 'engineering', accuracy: -1 }, { id: 'pilot_hp', val: 2 }, { id: 'physicality', val: 1 })).toEqual([])
   })
   it('still warns for an id nothing reads', () => {
-    expect(warns({ id: 'mystery', val: 1 })).toEqual(['Effect "mystery" isn\'t counted in the stats.'])
+    expect(warns({ id: 'mystery', val: 1 })).toEqual(['Effect "mystery" is shown on the sheet but not counted.'])
   })
 })

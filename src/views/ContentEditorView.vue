@@ -10,7 +10,7 @@ import PageHeader from '../components/PageHeader.vue'
 import SheetTabs from '../components/SheetTabs.vue'
 import { EXOTIC_MAKER, archiveGroups, makerId, useManufacturers, type ArchiveEntry } from '../archive'
 import { confirmAction } from '../confirm'
-import { DEFINITIONS_TAB, HOMEBREW_PACK, KINDS, TAB_GROUPS, blankItem, groupOf, kindInfo, newId, type EditorKind } from '../contentEditor'
+import { DEFINITIONS_TAB, HOMEBREW_PACK, KINDS, TAB_GROUPS, blankItem, groupOf, kindInfo, newId, type Data, type EditorKind } from '../contentEditor'
 import { RULE_CATEGORIES, newRule, oldLink, ruleBoxes, ruleCounts } from '../ruleList'
 import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, type ListRow, type Loaded, type Pack } from '../editorStore'
 import { hiddenTags, loadBaseActions, loadRules, loadTagNames, tagNames } from '../gameData'
@@ -115,7 +115,16 @@ watch([tab, itemKey, inDefs], async ([k, key, defs]) => {
 const otherNames = computed(() => rows.value.filter((row) => row.key !== loaded.value?.key).map((row) => row.name))
 const taken = computed(() => takenIds.value ?? new Set<string>())
 const kind = tab
+// Duplicate opens a new item that starts from a copy.
+const copy = shallowRef<Data | null>(null)
+async function duplicate(data: Data) {
+  if (!(await leave())) return
+  copy.value = data
+  setQuery({ item: 'new' })
+}
+watch([tab, itemKey], ([, key]) => { if (key !== 'new') copy.value = null })
 const blank = computed(() => {
+  if (isNewItem.value && copy.value) return copy.value
   const id = newId(kind.value, '', taken.value)
   return kind.value === 'rules' ? newRule(id, sec.value ?? '', rows.value) : blankItem(kind.value, id)
 })
@@ -365,6 +374,7 @@ async function exportLcp() {
             :wide="wide"
             @changed="changed"
             @deleted="deleted"
+            @duplicate="duplicate"
           />
           <EditorPane
             v-else-if="isNewItem"

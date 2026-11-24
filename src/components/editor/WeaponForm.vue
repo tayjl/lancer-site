@@ -11,6 +11,7 @@ import DamageField from './DamageField.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
+import GrantFields from './GrantFields.vue'
 import RequirementListField from './RequirementListField.vue'
 import ItemBasics from './ItemBasics.vue'
 import RepeatList from './RepeatList.vue'
@@ -42,6 +43,7 @@ const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id
 const actions = f.list<Data>('actions')
 const deployables = f.list<Data>('deployables')
 const profiles = f.list<Data>('profiles')
+const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 
 const mounts = computed(() => {
   const list = defList('weapon_sizes').map((size) => ({ value: size.id, label: size.label }))
@@ -122,6 +124,10 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
 
   <FoldPanel title="Tags" :summary="plural(tagList.length, 'tag')" :paths="['tags']">
     <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
+  </FoldPanel>
+
+  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+    <GrantFields :data="model" owner="Weapon" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 
   <FoldPanel title="Effects when equipped" :summary="bonuses.length ? plural(bonuses.length, 'effect') : 'Empty'" :paths="['bonuses']">
