@@ -1,13 +1,16 @@
 import { strToU8, unzip, zipSync } from 'fflate'
 import type { Json, Tables } from './lib/database.types'
+import { errorsOf, validateItem } from './contentEditor'
 
 export const LCP_KINDS = {
   frames: 'Frames', weapons: 'Mech weapons', systems: 'Mech systems', mods: 'Weapon mods', pilot_gear: 'Pilot gear',
   talents: 'Talents', core_bonuses: 'Core bonuses', tags: 'Tags', manufacturers: 'Manufacturers', actions: 'Actions', rules: 'Rules',
 } as const
 export type LcpKind = keyof typeof LCP_KINDS
-// Base actions and rules are the campaign's own wording, so a pack file's actions.json and rules.json are ignored on import.
-const IMPORTED_KINDS = (Object.keys(LCP_KINDS) as LcpKind[]).filter(kind => kind !== 'actions' && kind !== 'rules')
+const IMPORTED_KINDS = Object.keys(LCP_KINDS) as LcpKind[]
+// The campaign's own wording: an official action or rule keeps its seed id, so a pack can only add its own (hb_ ids), and a bad row is skipped, not fatal.
+const HOMEBREW_ONLY: LcpKind[] = ['actions', 'rules']
+export const HOMEBREW_ID_PREFIX = 'hb_'
 export type LcpManifest = { name: string; author: string; version: string; description: string } & Record<string, Json>
 export type LcpItem = { id: string; kind: LcpKind; data: Record<string, Json> }
 export type LcpPack = { manifest: LcpManifest; items: LcpItem[]; ignored: string[]; warnings: string[] }
@@ -50,6 +53,14 @@ export function withoutActiveEffects<T>(value: T): T {
 
 export const plainPackText = (value: string) => value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 
+// Why an actions.json or rules.json row can't be imported, using the editor's own checks. Warnings (not errors) pass.
+function homebrewRowProblem(kind: LcpKind, value: unknown): string | null {
+  if (!object(value) || typeof value.id !== 'string' || !value.id.trim()) return 'it has no ID.'
+  if (!value.id.startsWith(HOMEBREW_ID_PREFIX)) return `${value.id} isn't a homebrew ID. IDs here start with ${HOMEBREW_ID_PREFIX}.`
+  const first = errorsOf(validateItem(kind, withoutActiveEffects(value), { id: value.id, tags: new Map(), statIds: [] }))[0]
+  return first ? `${value.id}: ${first.text}` : null
+}
+
 // Read only the root files used by this character manager. Never extract files onto disk.
 export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
   if (bytes.length > MAX_LCP_BYTES) throw new LcpError('That file is over 15 MB.')
@@ -90,6 +101,7 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
   if (!/^\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?$/.test(String(raw.version))) throw new LcpError('The pack version should look like 1.0.0.')
   const manifest = { ...raw, name: String(raw.name).trim(), author: String(raw.author).trim(), version: String(raw.version).trim() } as LcpManifest
   const items: LcpItem[] = []
+  const warnings: string[] = []
   const ids = new Set<string>()
   for (const kind of IMPORTED_KINDS) {
     const filename = `${kind}.json`
@@ -97,6 +109,10 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
     const values = read(filename)
     if (!Array.isArray(values)) throw new LcpError(`${filename} must contain a list of items.`)
     for (const value of values) {
+      if (HOMEBREW_ONLY.includes(kind)) {
+        const why = homebrewRowProblem(kind, value)
+        if (why) { warnings.push(`Skipped a row in ${filename}: ${why}`); continue }
+      }
       if (!object(value) || typeof value.id !== 'string' || !value.id.trim() || value.id !== value.id.trim() || value.id.length > 300)
         throw new LcpError(`Every item in ${filename} needs an ID.`)
       if (typeof value.name !== 'string' || !value.name.trim()) throw new LcpError(`Item ${value.id} in ${filename} needs a name.`)
@@ -107,7 +123,6 @@ export async function readLcp(bytes: Uint8Array): Promise<LcpPack> {
     }
   }
   if (!items.length) throw new LcpError('This pack has no content the site uses.')
-  const warnings: string[] = []
   if (raw.v3 === true) warnings.push("This is a COMP/CON v3 pack. Some advanced effects aren't shown.")
   if (Array.isArray(raw.dependencies) && raw.dependencies.length) warnings.push('This pack needs other packs. Check they are imported.')
   return { manifest, items, ignored, warnings }

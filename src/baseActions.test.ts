@@ -52,7 +52,7 @@ describe('base actions', () => {
     baseActions.value = BASE_ACTIONS
   })
 
-  it('are ignored in an imported pack', async () => {
+  it('without a homebrew ID are skipped in an imported pack', async () => {
     const files = {
       'lcp_manifest.json': strToU8(JSON.stringify({ name: 'x', author: 'y', version: '1.0.0', description: '' })),
       'tags.json': strToU8(JSON.stringify([{ id: 't', name: 'T' }])),
@@ -60,6 +60,6 @@ describe('base actions', () => {
     }
     const pack = await readLcp(zipSync(files))
     expect(pack.items.map(i => i.kind)).toEqual(['tags'])
-    expect(pack.ignored).toContain('actions.json')
+    expect(pack.warnings.join(' ')).toContain('actions.json')
   })
 })

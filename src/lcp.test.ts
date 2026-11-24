@@ -89,6 +89,33 @@ describe('writeLcp', () => {
   })
 })
 
+describe('actions and rules in a pack', () => {
+  const action = { id: 'hb_act_flare', name: 'Flare', activation: 'Quick', terse: 'Light it up.', detail: 'Fire a flare.', mech: true }
+  const rule = { id: 'hb_rule_dusk', name: 'Dusk', section: 'notes', text: 'It gets dark.', order: 1000 }
+
+  it('round-trips one action and one rule', async () => {
+    const items = [{ kind: 'actions' as const, data: action }, { kind: 'rules' as const, data: rule }]
+    const pack = await readLcp(writeLcp(manifest, items))
+    expect(pack.items.map(({ kind, data }) => ({ kind, data }))).toEqual(items)
+    expect(pack.warnings).toEqual([])
+  })
+
+  it('skips a row the editor would refuse and imports the rest', async () => {
+    const pack = await readLcp(archive({ 'actions.json': [action, { ...action, id: 'hb_act_nameless', name: '' }], 'rules.json': [{ ...rule, section: 'nowhere' }] }))
+    expect(pack.items.map(item => item.id)).toEqual(['test_frame', 'hb_act_flare'])
+    expect(pack.warnings).toHaveLength(2)
+    expect(pack.warnings[0]).toContain('hb_act_nameless')
+    expect(pack.warnings[1]).toContain('Choose a section')
+  })
+
+  it('skips an ID that is not homebrew, so a seed ID is never overwritten', async () => {
+    const pack = await readLcp(archive({ 'actions.json': [{ ...action, id: 'act_overcharge' }], 'rules.json': [{ ...rule, id: 'rule_numbers_repair_cost' }] }))
+    expect(pack.items.map(item => item.id)).toEqual(['test_frame'])
+    expect(pack.warnings.join(' ')).toContain('act_overcharge')
+    expect(pack.warnings.join(' ')).toContain('rule_numbers_repair_cost')
+  })
+})
+
 describe('withoutActiveEffects', () => {
   it('drops active_effects at any depth and keeps siblings', () => {
     const input = { id: 'a', active_effects: [1], traits: [{ name: 't', active_effects: [{ x: 1 }], keep: 1 }], core_system: { name: 'c', active_effects: [], deep: { active_effects: 1, ok: true } } }
