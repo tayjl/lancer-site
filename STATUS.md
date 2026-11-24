@@ -65,7 +65,8 @@ Every doc file, by topic. Open one only when the task touches its area.
 - [docs/claude/lcp-import.md](docs/claude/lcp-import.md): LCP import and the owner content page.
 - [docs/claude/content-editor.md](docs/claude/content-editor.md): the owner content editor and how it saves.
 - [docs/claude/content-editor-forms.md](docs/claude/content-editor-forms.md): the editor forms per content kind, export.
-- [docs/content-editor-cleanup.md](docs/content-editor-cleanup.md): draft plan to clean up the content editor (duplicates, tabs, gaps).
+- [docs/content-editor-cleanup.md](docs/content-editor-cleanup.md): plan to clean up the content editor (duplicates, tabs, gaps). Phases 0 to 7 built 2026-11-24.
+- [docs/content-editor-handoff.md](docs/content-editor-handoff.md): what the cleanup left undone, unchecked or unreviewed. Read before pushing.
 - [docs/claude/archives.md](docs/claude/archives.md): the archives page.
 ### Look and feel and pages
 - [docs/claude/ui-principles.md](docs/claude/ui-principles.md): redesign direction, colour jobs, alignment, density.
