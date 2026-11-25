@@ -5,6 +5,7 @@ import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountS
 import type { MechPrivate, Sheet } from './myPilot'
 import { equipmentDetails } from './equipment'
 import { bracingMount } from './rules'
+import { mountIs } from './definitions'
 import { capitalise } from './text'
 
 // What a pilot can use in a fight, for the combat guide's "Your loadout": the chosen mech's weapons and systems, the
@@ -137,7 +138,7 @@ export function weaponGroups(rows: LoadoutRow[], frame: Frame | null) {
   frame.mounts.forEach((type, k) => {
     const here = weapons.filter(row => row.mount!.index === k)
     if (!here.length) return
-    const brace = here.some(row => row.item?.mount === 'Superheavy') ? bracingMount(frame.mounts, held.map((h, j) => (j === k ? h : [])), k) : -1
+    const brace = here.some(row => mountIs(row.item?.mount, 'superheavy')) ? bracingMount(frame.mounts, held.map((h, j) => (j === k ? h : [])), k) : -1
     groups.push({ title: brace < 0 ? `Mount ${k + 1}` : `Mounts ${Math.min(k, brace) + 1} and ${Math.max(k, brace) + 1}`, sub: type || undefined, rows: here })
   })
   const built = weapons.filter(row => row.mount!.index === null)

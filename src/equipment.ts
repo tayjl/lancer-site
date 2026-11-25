@@ -1,6 +1,7 @@
 import { bonusValue, resolveBonuses, uncountedLine, type NamedBonus } from './bonuses'
 import { flatDamage } from './damage'
 import { tagNames, toItem, type Item } from './gameData'
+import { mountIs } from './definitions'
 import type { MechPrivate, Sheet } from './myPilot'
 
 export function selectWeaponProfile(item: Item, index = 0): Item {
@@ -19,7 +20,7 @@ export const variableDamage = (item: Item) => !item.id.startsWith('mw_prototype_
 // Weapon mods (lancer-data's mods.json, docs/lancer-rules.md): one per weapon, never on a weapon that refuses mods or sits
 // in an integrated mount. Why a weapon takes no mod at all ("" when it does).
 export const modsRefused = (weapon: Item, mount: string) =>
-  mount === 'Integrated Auxiliary' ? "An integrated mount can't be modified" : weapon.raw?.no_mods ? `${weapon.name} can't take mods` : ''
+  mountIs(mount, 'integrated') ? "An integrated mount can't be modified" : weapon.raw?.no_mods ? `${weapon.name} can't take mods` : ''
 
 // Why this mod can't go on this weapon ("" when it can): the weapon refuses mods, or its type or size isn't one the mod
 // allows (a list left empty allows everything). A Prototype weapon counts as the type its player chose.

@@ -25,7 +25,7 @@ import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES, coreCheckBonuses } from './coreRules'
 import { capitalise, sameName } from './text'
 import { activationOf } from './itemDetails'
-import { mountSlots } from './definitions'
+import { mountIs, mountSlots, mountsWith } from './definitions'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
 // which weapons fit which mount, and the mech's stats. Mechs only store ids; everything else comes from here.
@@ -154,18 +154,18 @@ export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet,
     if (Number.isInteger(index) && index! >= 0 && index! < mounts.length) mounts[index!] = 'Main/Aux'
   }
   // Integrated mounts don't count towards a bonus's "fewer than N mounts".
-  const counted = () => mounts.filter(mount => mount !== 'Integrated Auxiliary').length
+  const counted = () => mounts.filter(mount => !mountIs(mount, 'integrated')).length
   for (const { bonus } of bonuses) {
     if (bonus.id !== 'add_mount' || !permanentBonus(bonus)) continue
     const type = String(bonus.val)
     if (mountSlots(type) &&(!Number.isFinite(bonus.max) || counted() < Number(bonus.max)) && mounts.length < 20) mounts.push(type)
   }
-  if (bonuses.some(({ bonus }) => bonus.id === 'superheavy_mounting' && permanentBonus(bonus)) && counted() < 3) mounts.push('Superheavy')
+  if (bonuses.some(({ bonus }) => bonus.id === 'superheavy_mounting' && permanentBonus(bonus)) && counted() < 3) mounts.push(...mountsWith('superheavy').slice(0, 1))
   for (const { key, type } of mountReplacements(bonuses)) {
     const index = mech.core_mounts?.[key] ?? -1
-    if (Number.isInteger(index) && index >= 0 && index < mounts.length && mounts[index] !== 'Integrated Auxiliary') mounts[index] = type
+    if (Number.isInteger(index) && index >= 0 && index < mounts.length && !mountIs(mounts[index], 'integrated')) mounts[index] = type
   }
-  if (taken.has('cb_integrated_weapon')) mounts.push('Integrated Auxiliary')
+  if (taken.has('cb_integrated_weapon')) mounts.push(...mountsWith('integrated').slice(0, 1))
   const grants = talentGrants(sheet, talents, core.coreBonuses, core.equipped)
   const isWeapon = (id: string) => !!core.integrated?.get(id)?.mount
   const replaces = grants.replace.some(isWeapon)

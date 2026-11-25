@@ -13,7 +13,9 @@ export type DefKind = 'damage_types' | 'range_types' | 'activations' | 'uses' | 
 
 // Exception to "the database is the only live copy": these lists stay in code as the built-in default, used while loading
 // and when the load fails or returns no rows, so the mech sheet never breaks. The migration's seed must equal them (definitions.test.ts).
-const def = (id: string, data: DefData = {}): Definition => ({ id, label: id, data, hidden: false })
+const def = (id: string, data: DefData = {}, hidden = false): Definition => ({ id, label: id, data, hidden })
+// Values the data has but no picker offers (a Ship-class weapon, a Special type): hidden, so an item that has one still passes.
+const dataOnly = (id: string) => def(id, { dataOnly: true }, true)
 export const DEFAULT_DEFINITIONS: Record<DefKind, Definition[]> = {
   damage_types: ['Kinetic', 'Energy', 'Explosive', 'Burn', 'Heat', 'Variable'].map((id) => def(id, { icon: id.toLowerCase(), colour: `--dmg-${id.toLowerCase()}` })),
   range_types: ['Range', 'Threat', 'Line', 'Cone', 'Blast', 'Burst'].map((id) => def(id, { icon: id.toLowerCase() })),
@@ -32,21 +34,21 @@ export const DEFAULT_DEFINITIONS: Record<DefKind, Definition[]> = {
   frame_roles: ['Balanced', 'Striker', 'Defender', 'Support', 'Controller', 'Artillery'].map((id) => def(id)),
   // Ids are the numbers items store, as text.
   frame_sizes: ['0.5', '1', '2', '3'].map((id) => ({ ...def(id), label: id === '0.5' ? '½' : id })),
-  weapon_types: ['Rifle', 'Cannon', 'CQB', 'Launcher', 'Melee', 'Nexus'].map((id) => def(id)),
-  // Weapon sizes and the sizes a mount takes are one list ("weapon_mounts" in the table's check is not used).
-  weapon_sizes: ['Auxiliary', 'Main', 'Heavy', 'Superheavy'].map((id) => def(id)),
+  weapon_types: ['Rifle', 'Cannon', 'CQB', 'Launcher', 'Melee', 'Nexus'].map((id) => def(id)).concat(['Special', 'Spool Weapon', '???'].map(dataOnly)),
+  // Weapon sizes and the sizes a mount takes are one list.
+  weapon_sizes: ['Auxiliary', 'Main', 'Heavy', 'Superheavy'].map((id) => def(id)).concat(dataOnly('Ship-class')),
   // slots: the weapon sizes each place on the mount takes. Most mounts hold one weapon; Flex, Main/Aux and Aux/Aux hold two.
   mount_types: [
     ['Main', [['Main', 'Auxiliary']], 'Takes one Main or Auxiliary weapon.'],
     ['Heavy', [['Superheavy', 'Heavy', 'Main', 'Auxiliary']], 'Takes one weapon of any size.'],
     // A Superheavy weapon also needs a second, empty mount: see bracingMount() in src/rules.ts.
-    ['Superheavy', [['Superheavy']], 'Takes one Superheavy weapon.'],
+    ['Superheavy', [['Superheavy']], 'Takes one Superheavy weapon.', { superheavy: true }],
     ['Flex', [['Main', 'Auxiliary'], ['Auxiliary']], 'Takes one Main or two Auxiliary weapons.'],
     ['Main/Aux', [['Main', 'Auxiliary'], ['Auxiliary']], 'Takes one Main and one Auxiliary weapon.'],
     ['Aux/Aux', [['Auxiliary'], ['Auxiliary']], 'Takes two Auxiliary weapons.'],
     ['Auxiliary', [['Auxiliary']]],
-    ['Integrated Auxiliary', [['Auxiliary']]],
-  ].map(([id, slots, hint]) => def(id as string, hint ? { slots, hint } : { slots })),
+    ['Integrated Auxiliary', [['Auxiliary']], '', { integrated: true }],
+  ].map(([id, slots, hint, flag]) => def(id as string, { slots, ...(hint ? { hint } : {}), ...(flag as object) })),
   gear_types: ['Armor', 'Weapon', 'Gear'].map((id) => def(id)),
   system_types: ['System', 'AI', 'Shield', 'Deployable', 'Drone', 'Tech', 'Armor', 'Flight System', 'Integrated'].map((id) => def(id)),
   deployable_types: ['Deployable', 'Drone', 'Mine'].map((id) => def(id)),
@@ -107,6 +109,10 @@ export const mountSlots = (mount: unknown): string[][] | undefined => {
   const slots = defData('mount_types', mount).slots
   return Array.isArray(slots) && slots.every(Array.isArray) ? (slots as string[][]) : undefined
 }
+// Flags on a mount type's row: integrated (no mod, no core bonus) and superheavy (the mount a Superheavy weapon brings).
+export const mountsWith = (flag: 'integrated' | 'superheavy') => rowsOf('mount_types').filter((row) => row.data[flag] === true).map((row) => row.id)
+// Weapon sizes and mount types share ids, so this also works on a weapon size. Unflagging a mount type changes bracing.
+export const mountIs = (mount: unknown, flag: 'integrated' | 'superheavy') => defData('mount_types', mount)[flag] === true
 export const mountHint = (mount: unknown) => {
   const hint = defData('mount_types', mount).hint
   return typeof hint === 'string' ? hint : undefined

@@ -8,7 +8,7 @@ import { itemInfo } from '../info'
 import { itemPick } from '../pickerRows'
 import { useManufacturers } from '../archive'
 import { modBlockedBy, modsRefused } from '../equipment'
-import { mountHint as mountHintOf } from '../definitions'
+import { defIds, mountHint as mountHintOf, mountIs } from '../definitions'
 import { allowedSizes, fittedMods, mountReplacements, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
 import { bracingMount, isLicensed, licenceName, rankName, isExotic, requirementReason, restrictionOf, superheavyMount, unmetRequirements } from '../rules'
@@ -54,7 +54,6 @@ const find = (byId: Map<string, Item>, id: string) => byId.get(id) ?? props.inte
 
 // A GM's edit mode: any weapon in any place, and every limit below is ignored (the rule check still lists what breaks).
 const gmOverride = useGmOverride()
-const ANY_SIZE = ['Auxiliary', 'Main', 'Heavy', 'Superheavy']
 
 // A Superheavy weapon's mount, and the empty mount it braces against (-1 when there's none).
 const sizeOf = (id: string) => weaponsById.value.get(id)?.mount
@@ -73,7 +72,7 @@ const mountCards = computed(() =>
     const places =
       m === braced.value
         ? []
-        : ids.map((id, i) => ({ index: i, id, allowed: gmOverride.value ? ANY_SIZE : allowedSizes(mount, i, sizes) })).filter((place) => place.id || place.allowed.length)
+        : ids.map((id, i) => ({ index: i, id, allowed: gmOverride.value ? defIds('weapon_sizes') : allowedSizes(mount, i, sizes) })).filter((place) => place.id || place.allowed.length)
     return { mount, m, places, bracing: m === braced.value }
   }),
 )
@@ -166,7 +165,7 @@ const options = computed(() => {
     if (t.kind === 'mod') { const why = modBlockedBy(item, t.weapon, props.frame?.mounts[t.m] ?? '', props.details.weapon_options?.[key]); if (why) return why }
     if (has('tg_unique') && onMech.includes(item.id)) return 'Already on this mech'
     if (has('tg_ai') && aiCount >= capacity.ai) return 'Not enough AI capacity'
-    if (item.mount === 'Superheavy' && t.kind === 'weapon' && !canBrace(t.m)) return 'Needs an empty mount'
+    if (mountIs(item.mount, 'superheavy') && t.kind === 'weapon' && !canBrace(t.m)) return 'Needs an empty mount'
     if (spUsed.value - swapped + item.sp > capacity.sp) return 'Not enough system points'
     return ''
   }
@@ -235,7 +234,7 @@ const coreChoices = computed(() => [
 function targets(id: string) {
   return (props.frame?.mounts ?? []).flatMap((mount, m) => id === 'cb_overpower_caliber'
     ? (props.mounts[m] ?? []).flatMap((weapon, i) => weapon ? [{ value: m * 2 + i, name: `Mount ${m + 1} · ${find(weaponsById.value, weapon).name}` }] : [])
-    : mount === 'Integrated Auxiliary' ? [] : [{ value: m, name: `Mount ${m + 1} · ${mount}` }])
+    : mountIs(mount, 'integrated') ? [] : [{ value: m, name: `Mount ${m + 1} · ${mount}` }])
 }
 async function setCore(id: string, event: Event) {
   const value = Number((event.target as HTMLSelectElement).value)
@@ -305,7 +304,7 @@ const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((moun
                 :details="details"
                 :bonuses="bonuses"
                 :item-key="`${card.m}:${place.index}`"
-                :location="{ mount: card.m, position: place.index, integrated: card.mount === 'Integrated Auxiliary' }"
+                :location="{ mount: card.m, position: place.index, integrated: mountIs(card.mount, 'integrated') }"
                 :editable="editable"
                 :save="save"
                 moddable

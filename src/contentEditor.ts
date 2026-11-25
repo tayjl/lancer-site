@@ -154,9 +154,7 @@ export function referencesTo(id: string, rows: { id: string; data: unknown }[]):
 
 // What the form's pickers offer, and what validation accepts.
 // Weapon and system choices. The data also has a few values the form doesn't offer (a ship-class mount, a "Special" type):
-// they're accepted, and a form showing one keeps it.
-const DATA_ONLY_MOUNTS = ['Ship-class']
-const DATA_ONLY_WEAPON_TYPES = ['Special', 'Spool Weapon', '???']
+// they're hidden Definitions rows, so they're accepted, and a form showing one keeps it.
 export const RANK_NAMES = ['I', 'II', 'III']
 export const HEX = /^#[0-9a-f]{6}$/i
 
@@ -182,7 +180,7 @@ function effectValueProblem(type: BonusDef, row: Data): string {
   if (type.value === 'steps' && !(Array.isArray(row.val) && row.val.length === 4 && row.val.every((step) => typeof flatDamage(step as string | number) === 'number'))) return 'needs four overcharge steps, such as 1, 1d3, 1d6, 1d6+4.'
   if (type.max && row.max !== undefined && row.max !== '' && (!Number.isInteger(Number(row.max)) || Number(row.max) < 1)) return 'needs a whole number of mounts, 1 or more.'
   for (const key of type.filters ?? []) {
-    const allowed = key === 'weapon_types' ? [...defIds('weapon_types', true), ...DATA_ONLY_WEAPON_TYPES] : key === 'weapon_sizes' ? [...defIds('weapon_sizes', true), ...DATA_ONLY_MOUNTS] : defIds(key === 'damage_types' ? 'damage_types' : 'range_types', true)
+    const allowed = defIds(key, true)
     if (row[key] !== undefined && !(Array.isArray(row[key]) && (row[key] as unknown[]).every((value) => allowed.includes(String(value))))) return `has an unknown ${FILTER_NOUNS[key]}.`
   }
   return ''
@@ -328,8 +326,8 @@ function checkRowName(value: unknown, noun: string, index: number, at: string, s
 }
 
 function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
-  if (!defIds('weapon_sizes', true).concat(DATA_ONLY_MOUNTS).includes(String(data.mount))) out.push(error('Choose the mount size.', 'mount'))
-  if (!defIds('weapon_types', true).concat(DATA_ONLY_WEAPON_TYPES).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
+  if (!defIds('weapon_sizes', true).includes(String(data.mount))) out.push(error('Choose the mount size.', 'mount'))
+  if (!defIds('weapon_types', true).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
   checkPoints(data, out)
   if (data.no_mods !== undefined && typeof data.no_mods !== 'boolean') out.push(error('Choose whether the weapon takes mods.', 'no_mods'))
   checkLicence(data, ctx, out)

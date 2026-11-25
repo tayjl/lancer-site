@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { definitionRows } from './definitions'
+import { defIds, definitionRows } from './definitions'
 import { FRAME_STATS, blankItem, problemsFor, setProfiles, splitProfiles, type Context, type EditorKind } from './contentEditor'
 
 // The checks behind the forms for weapons, systems, weapon mods, talents and manufacturers (src/components/editor/).
@@ -29,6 +29,7 @@ describe('weapon checks', () => {
   it("accepts a complete weapon, and the data's own unusual values", () => {
     expect(found('weapons', weapon)).toEqual([])
     expect(found('weapons', { ...weapon, mount: 'Ship-class', type: 'Spool Weapon' })).toEqual([])
+    expect(defIds('weapon_sizes')).not.toContain('Ship-class')
   })
   it('names the field each problem belongs to', () => {
     const broken = { ...weapon, name: '', mount: 'Huge', type: 'Spoon', sp: -1, license_level: 4, range: [{ type: 'Range', val: '' }], damage: [{ type: 'Kinetic', val: 'lots' }] }

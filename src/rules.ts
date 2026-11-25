@@ -6,6 +6,7 @@ import { bonusValue, resolveBonuses } from './bonuses'
 import type { MechPrivate, OwnedGear, Sheet } from './myPilot'
 import { capitalise } from './text'
 import { rule } from './rulesData'
+import { mountIs } from './definitions'
 
 // LANCER's character rules with this campaign's homebrew, as plain functions the pages use to block choices
 // and to list what's wrong. docs/lancer-rules.md lists every rule, what's enforced and what's left to GMs.
@@ -250,13 +251,13 @@ export function frameBlockedBy(frame: Frame, frames: Frame[], sheet: Pick<Sheet,
 
 // Which mount holds a Superheavy weapon, or -1.
 export const superheavyMount = (mounts: (string | null)[][], sizeOf: (id: string) => string | undefined) =>
-  mounts.findIndex((places) => places.some((id) => id && sizeOf(id) === 'Superheavy'))
+  mounts.findIndex((places) => places.some((id) => id && mountIs(sizeOf(id), 'superheavy')))
 
 // The mount bracing it, or -1 if there's none. A Superheavy mount must brace on the frame's Heavy mount when it has one;
 // any other Superheavy weapon takes the first other mount with nothing on it.
 export const bracingMount = (frameMounts: string[], mounts: (string | null)[][], superheavyAt: number) => {
-  const mustBeHeavy = frameMounts[superheavyAt] === 'Superheavy' && frameMounts.includes('Heavy')
-  return frameMounts.findIndex((mount, k) => mount !== 'Integrated Auxiliary' && k !== superheavyAt && (!mustBeHeavy || mount === 'Heavy') && !(mounts[k] ?? []).some(Boolean))
+  const mustBeHeavy = mountIs(frameMounts[superheavyAt], 'superheavy') && frameMounts.includes('Heavy')
+  return frameMounts.findIndex((mount, k) => !mountIs(mount, 'integrated') && k !== superheavyAt && (!mustBeHeavy || mount === 'Heavy') && !(mounts[k] ?? []).some(Boolean))
 }
 
 // --- The rule check ---
@@ -342,7 +343,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   const choices = [...['cb_mount_retrofitting', 'cb_auto_stabilizing_hardpoints'].filter(id => sheet.core_bonuses?.includes(id)).map(id => ({ key: id, name: catalogue.coreBonuses?.find(bonus => bonus.id === id)?.name ?? id })), ...mountReplacements(effects.bonuses)]
   for (const { key, name } of choices) {
     const index = mech.core_mounts?.[key]
-    if (!Number.isInteger(index) || index! < 0 || index! >= frame.mounts.length || frame.mounts[index!] === 'Integrated Auxiliary') problems.push(`${name} needs a normal mount.`)
+    if (!Number.isInteger(index) || index! < 0 || index! >= frame.mounts.length || mountIs(frame.mounts[index!], 'integrated')) problems.push(`${name} needs a normal mount.`)
   }
   if (sheet.core_bonuses?.includes('cb_overpower_caliber')) {
     const target = mech.core_mounts?.cb_overpower_caliber

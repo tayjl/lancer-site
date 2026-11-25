@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import definitionsSql from '../supabase/migrations/20261124120000_game_definitions.sql?raw'
 import cleanup4aSql from '../supabase/migrations/20261125110000_content_cleanup_4a.sql?raw'
 import { DEFAULT_DEFINITIONS, defColour, defData, defIcon, defIds, defLabel, defList, definitionRows, loadDefinitions, type DefKind } from './definitions'
-import { mountHint, mountSlots } from './definitions'
+import { mountHint, mountIs, mountSlots, mountsWith } from './definitions'
+import cleanup4bSql from '../supabase/migrations/20261125120000_content_cleanup_4b.sql?raw'
 import { allowedSizes, mountSize } from './mechData'
 import { activationOf, symbolOf } from './itemDetails'
 import { actionKey } from './combatEntries'
@@ -10,10 +11,13 @@ import { actionKey } from './combatEntries'
 const fetched = vi.hoisted(() => ({ result: { rows: [] as unknown[], error: null as string | null } }))
 vi.mock('./lib/supabaseClient', () => ({ supabase: { from: () => ({}) }, fetchAll: async () => fetched.result }))
 
-// The seed's rows, as the migrations write them: the first file's and the status groups of the 4a one.
-const seedRow = /^\s*\('(\w+)', '([^']*)', '([^']*)', '(\{.*?\})', (\d+)\)[,;]?$/gm
-const seed = [...definitionsSql.matchAll(seedRow), ...cleanup4aSql.matchAll(seedRow)]
-  .map(([, kind, id, label, data, sort]) => ({ kind, id, label, data: JSON.parse(data), sort: Number(sort) }))
+// The seed's rows, as the migrations write them: the first file's, the status groups of the 4a one, and the hidden data-only
+// rows of the 4b one, whose mount flags are then applied.
+const seedRow = /^\s*\('(\w+)', '([^']*)', '([^']*)', '(\{.*?\})', (\d+)(, true)?\)[,;]?$/gm
+const flagRow = /set data = data \|\| '(\{.*?\})' where kind = '(\w+)' and id = '([^']*)'/g
+const seed = [...definitionsSql.matchAll(seedRow), ...cleanup4aSql.matchAll(seedRow), ...cleanup4bSql.matchAll(seedRow)]
+  .map(([, kind, id, label, data, sort, hidden]) => ({ kind, id, label, data: JSON.parse(data), sort: Number(sort), hidden: !!hidden }))
+for (const [, flag, kind, id] of cleanup4bSql.matchAll(flagRow)) Object.assign(seed.find((r) => r.kind === kind && r.id === id)!.data, JSON.parse(flag))
 const row = (kind: string, id: string, extra: object = {}) => ({ kind, id, label: id, data: {}, sort: 0, hidden: false, ...extra })
 
 describe('built-in definitions', () => {
@@ -21,7 +25,7 @@ describe('built-in definitions', () => {
     expect(seed.length).toBeGreaterThan(60)
     for (const kind of Object.keys(DEFAULT_DEFINITIONS) as DefKind[]) {
       const rows = seed.filter((r) => r.kind === kind).sort((a, b) => a.sort - b.sort)
-      expect(DEFAULT_DEFINITIONS[kind].map((d) => ({ id: d.id, label: d.label, data: d.data })), kind).toEqual(rows.map((r) => ({ id: r.id, label: r.label, data: r.data })))
+      expect(DEFAULT_DEFINITIONS[kind].map((d) => ({ id: d.id, label: d.label, data: d.data, hidden: d.hidden })), kind).toEqual(rows.map((r) => ({ id: r.id, label: r.label, data: r.data, hidden: r.hidden })))
     }
   })
 
@@ -49,6 +53,18 @@ describe('mount types', () => {
     expect(mountHint('Main')).toBe('Takes one Main or Auxiliary weapon.')
     expect(mountHint('Auxiliary')).toBeUndefined()
     expect(mountSlots('Nope')).toBeUndefined()
+  })
+
+  it('find the mounts with a flag, from the built-in list and from loaded rows', () => {
+    expect(mountsWith('integrated')).toEqual(['Integrated Auxiliary'])
+    expect(mountsWith('superheavy')).toEqual(['Superheavy'])
+    expect(mountIs('Superheavy', 'superheavy')).toBe(true)
+    expect(mountIs('Heavy', 'superheavy')).toBe(false)
+    expect(mountIs(undefined, 'integrated')).toBe(false)
+    definitionRows.value = [row('mount_types', 'Hidden bay', { data: { integrated: true, slots: [['Auxiliary']] } }), row('mount_types', 'Main')]
+    expect(mountsWith('integrated')).toEqual(['Hidden bay'])
+    expect(mountsWith('superheavy')).toEqual([])
+    expect(mountIs('hidden bay', 'integrated')).toBe(true)
   })
 
   it('take the places of an owner-added mount from its row, and survive bad data', () => {
