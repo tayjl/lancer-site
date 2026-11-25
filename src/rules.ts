@@ -335,12 +335,12 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   }
   for (const bonus of catalogue.coreBonuses ?? []) grantsFrom(bonus.name, bonus)
   for (const talent of catalogue.talents ?? []) talent.ranks.forEach((rank, index) => grantsFrom(`${talent.name} ${rankName(index + 1)}`, rank))
-  for (const item of [...catalogue.weapons.values(), ...catalogue.systems.values()]) grantsFrom(item.name, item.raw)
+  for (const item of [...catalogue.weapons.values(), ...catalogue.systems.values(), ...(catalogue.mods?.values() ?? []), ...(catalogue.gear ?? [])]) grantsFrom(item.name, item.raw)
   for (const bionic of catalogue.bionics ?? []) grantsFrom(bionic.name, bionic)
   for (const id of [...(mech.systems ?? []), ...(mech.mounts ?? []).flat().filter((id): id is string => !!id)]) {
     const item = catalogue.weapons.get(id) ?? catalogue.systems.get(id) ?? catalogue.integrated.get(id)
     const source = grantedBy.get(id)
-    if ((source || item?.raw?.talent_item) && !unlocked.has(id)) problems.push(`${item?.name ?? id} needs ${source ? [...new Set(source)].join(' or ') : 'its talent rank'}.`)
+    if ((source || item?.raw?.talent_item) && !unlocked.has(id)) problems.push(`${item?.name ?? id} needs ${source ? [...new Set(source)].sort((a, b) => a.localeCompare(b)).join(' or ') : 'its talent rank'}.`)
     if (frame.integrated.includes(id)) problems.push(`${item?.name ?? id} is integrated and can't also take a normal slot.`)
   }
   if ((mech.mounts ?? []).slice(frame.mounts.length).some(places => places.some(Boolean))) problems.push("Some weapons are on mounts the frame doesn't have.")
@@ -429,6 +429,10 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, commendations: catalogue.commendations, awarded: catalogue.awarded, itemName: (id: string) => lookup(catalogue.weapons, id)?.name ?? lookup(catalogue.systems, id)?.name ?? catalogue.mods?.get(id)?.name }
   for (const [name, data] of [[`The ${frame.name} frame`, baseFrame.raw], ...known.map(item => [item.name, item.raw] as const)] as const)
     for (const thing of unmetRequirements(data, sheet, onMech, names)) problems.push(`${name} needs ${thing}.`)
+  // A stray mod (no weapon in its place) grants nothing, but its requirements are still checked.
+  const placedMods = fittedMods(mech, frame)
+  const strays = Object.entries(mech.weapon_mods ?? {}).filter(([key]) => !placedMods.some(([placed]) => placed === key)).flatMap(([, id]) => catalogue.mods?.get(id) ?? [])
+  for (const mod of strays) for (const thing of unmetRequirements(mod.raw, sheet, onMech, names)) problems.push(`${mod.name} needs ${thing}.`)
   for (const item of new Set(known.filter(isUnique)))
     if (known.filter((other) => other.id === item.id).length > 1) problems.push(`${item.name} is Unique. Only one allowed per mech.`)
   const aiCap = Math.max(0, resolveBonuses(1, effects.modifiers.filter(entry => entry.stat === 'ai_cap')).value)

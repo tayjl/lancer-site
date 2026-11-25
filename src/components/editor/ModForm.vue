@@ -11,9 +11,10 @@ import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
 import RequirementListField from './RequirementListField.vue'
 import ItemBasics from './ItemBasics.vue'
+import GrantFields from './GrantFields.vue'
 import TagListField from './TagListField.vue'
 import ToggleChips from './ToggleChips.vue'
-import { filled, latest, useFields } from './useFields'
+import { filled, latest, list, useFields } from './useFields'
 
 // The form for a weapon mod: the basics, which weapons it fits (src/equipment.ts modBlockedBy: a list left empty fits
 // everything), what it adds to its weapon (range and tags count in the weapon's card; damage doesn't, as it's
@@ -30,6 +31,7 @@ const tagList = f.list<TagEntry>('tags')
 const bonuses = f.list<Data>('bonuses')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const actions = f.list<Data>('actions')
+const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 const allowedTypes = f.list<string>('allowed_types')
 const allowedSizes = f.list<string>('allowed_sizes')
 const restrictedTypes = f.list<string>('restricted_types')
@@ -85,6 +87,10 @@ const adds = computed(() => [plural(addedRange.value.length, 'range'), plural(ad
 
   <FoldPanel title="Effects when equipped" :summary="bonuses.length ? plural(bonuses.length, 'effect') : 'Empty'" :paths="['bonuses']">
     <BonusListField v-model="bonuses" :types="bonusTypes" />
+  </FoldPanel>
+
+  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+    <GrantFields :data="model" owner="Mod" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 
   <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">

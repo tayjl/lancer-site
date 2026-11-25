@@ -21,6 +21,7 @@ Rules will keep changing. To change one:
 | One frame, weapon, system or talent | Not code: owners edit it in the content editor (Content tab) |
 
 ## 2026-11-25
+- **Weapon mods grant equipment only while attached to an equipped weapon; pilot gear only while equipped; commendation requirements count hidden commendations.** (Developer: a mod grants nothing on an unequipped weapon. This overrides plan question 5.)
 - **Biomod stat effects resolve like any other effect.** They are in the biomod's effect list and go through the same maths as gear and talents, so a "sets the base" effect from gear can cap them. Before, they were added after everything else.
 - **Overcharge is "Once a turn".** The Overcharge action (`act_overcharge`) is the only source of its text. The turn step links to it.
 - **"Reliable X" reads "Always deals at least X damage, even on a miss."** No dice or "roll" wording.

@@ -167,6 +167,14 @@ describe('duplicate and references', () => {
     expect(referencesTo('mf_a', rows)).toEqual([])
     expect(referencesTo('w1', rows)).toEqual(['Arm'])
   })
+  it('checks a mod and a pilot gear row grant real items', () => {
+    const known = { ...ctx, known: new Set(['mw_gl']) }
+    const mod = { id: 'hb_mod', name: 'M', source: 'GMS', sp: 1, integrated: ['nope'], replace_integrated: 'yes' }
+    expect(problemsFor('mods', mod, known).map((p) => p.text)).toEqual(expect.arrayContaining(['Item "nope" doesn\'t exist.', 'Replace integrated must be yes or no.']))
+    expect(problemsFor('mods', { ...mod, integrated: ['mw_gl'], replace_integrated: true }, known).map((p) => p.text)).not.toContain('Item "mw_gl" doesn\'t exist.')
+    expect(problemsFor('pilot_gear', { ...vest, special_equipment: ['nada'] }, known).map((p) => p.text)).toContain('Item "nada" doesn\'t exist.')
+    expect(problemsFor('pilot_gear', { ...vest, special_equipment: ['mw_gl'], replace_integrated: false }, known).map((p) => p.text)).toEqual([])
+  })
   it('checks a weapon grants real items', () => {
     const weapon = { id: 'hb_mw_w', name: 'W', mount: 'Main', type: 'Rifle', source: 'GMS', license: 'GMS', license_id: '', license_level: 0, sp: 1, range: [], damage: [], tags: [], integrated: ['nope'] }
     const found = problemsFor('weapons', weapon, { ...ctx, id: 'hb_mw_w', known: new Set(['hb_mw_w']) }).map((p) => p.text)

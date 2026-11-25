@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { toItem, pilotVitals, sheetStats, type Bionic, type CoreBonus, type Talent } from './gameData'
-import { buildFrame, mechEffects, mechResources, mountReplacements, type EffectCatalogue, type Frame } from './mechData'
+import { buildFrame, grantingSources, mechEffects, mechResources, mountReplacements, type EffectCatalogue, type Frame } from './mechData'
 import { equipmentDetails } from './equipment'
 import { problemsFor, bonusCounted } from './contentEditor'
 import { mechProblems, modPointLimit, pilotProblems, requirementReason, unmetRequirements } from './rules'
@@ -52,7 +52,60 @@ describe('grants from equipped items and biomods', () => {
   it('lets an installed biomod grant equipment', () => {
     const bionic = { id: 7, name: 'Implant', special_equipment: ['ms_extra'] } as unknown as Bionic
     expect(mechProblems({ frame: 'mf_test', systems: ['ms_extra'] }, { bionics: [7] }, cat([bionic]))).not.toContain('ms_extra needs Implant.')
-    expect(mechProblems({ frame: 'mf_test', systems: ['ms_extra'] }, { bionics: [] }, cat([bionic]))).toContain('ms_extra needs ms_grantor or Implant.')
+    expect(mechProblems({ frame: 'mf_test', systems: ['ms_extra'] }, { bionics: [] }, cat([bionic]))).toContain('ms_extra needs Implant or ms_grantor.')
+  })
+  const gun = item('mw_gun')
+  const onGun = (c: ReturnType<typeof cat>) => ({ ...c, weapons: new Map([[gun.id, gun]]) })
+  const extraNeed = (problems: string[]) => problems.some(problem => problem.startsWith('ms_extra needs'))
+  it('lets a mod fitted on an equipped weapon grant equipment, and a mod on no weapon grants nothing', () => {
+    const lock = item('wm_lock', { type: 'Mod', name: 'Mod Locked', special_equipment: ['ms_extra'] })
+    const withMod = onGun({ ...cat(), mods: new Map([[lock.id, lock]]) })
+    const base = { frame: 'mf_test', systems: ['ms_extra'] }
+    expect(mechProblems({ ...base, mounts: [['mw_gun']], weapon_mods: { '0:0': 'wm_lock' } }, {}, withMod)).not.toContain('ms_extra needs Mod Locked or ms_grantor.')
+    expect(extraNeed(mechProblems({ ...base, mounts: [['mw_gun']], weapon_mods: { '0:0': 'wm_lock' } }, {}, withMod))).toBe(false)
+    expect(mechProblems({ ...base, weapon_mods: { '2:0': 'wm_lock' } }, {}, withMod)).toContain('ms_extra needs Mod Locked or ms_grantor.')
+    expect(mechProblems(base, {}, withMod)).toContain('ms_extra needs Mod Locked or ms_grantor.')
+  })
+  it('grants nothing from a junk key or a mod whose weapon was removed from its place', () => {
+    const lock = item('wm_lock', { type: 'Mod', name: 'Mod Locked', special_equipment: ['ms_extra'] })
+    const withMod = onGun({ ...cat(), mods: new Map([[lock.id, lock]]) })
+    const granted = (mech: Record<string, unknown>) => grantingSources(mech, {}, withMod).map(source => source.raw).includes(lock.raw)
+    expect(granted({ mounts: [['mw_gun']], weapon_mods: { '0:0': 'wm_lock' } })).toBe(true)
+    for (const key of ['junk', '0:', '0:0:0', 'a:0', '12345:0', '0:-1', ' 0:0', '0:0\n']) expect(granted({ mounts: [['mw_gun']], weapon_mods: { [key]: 'wm_lock' } })).toBe(false)
+    expect(granted({ mounts: [[null]], weapon_mods: { '0:0': 'wm_lock' } })).toBe(false)
+    expect(granted({ mounts: [['mw_gone']], weapon_mods: { '0:0': 'wm_lock' } })).toBe(false)
+    expect(granted({ mounts: [], weapon_mods: { '0:0': 'wm_lock' } })).toBe(false)
+  })
+  it('lets a mod grant only with its requirements met, and checks a stray mod too', () => {
+    const gated = item('wm_gated', { type: 'Mod', name: 'Gated Mod', special_equipment: ['ms_extra'], requires: [{ kind: 'licence', id: 'mf_gmt', rank: 3 }] })
+    const withMod = onGun({ ...cat(), mods: new Map([[gated.id, gated]]) })
+    const mech = { frame: 'mf_test', systems: ['ms_extra'], mounts: [['mw_gun']], weapon_mods: { '0:0': 'wm_gated' } }
+    expect(mechProblems(mech, {}, withMod)).toContain('ms_extra needs Gated Mod or ms_grantor.')
+    expect(mechProblems(mech, {}, withMod).filter(problem => problem.startsWith('Gated Mod needs'))).toHaveLength(1)
+    const met = mechProblems(mech, { licences: { mf_gmt: 3 } }, withMod)
+    expect(met.some(problem => problem.startsWith('ms_extra needs') || problem.startsWith('Gated Mod needs'))).toBe(false)
+    // A stray mod with its licence met no longer grants, but its own requirements are still reported.
+    const stray = { frame: 'mf_test', systems: ['ms_extra'], weapon_mods: { '2:0': 'wm_gated' } }
+    expect(mechProblems(stray, { licences: { mf_gmt: 3 } }, withMod)).toContain('ms_extra needs Gated Mod or ms_grantor.')
+    expect(mechProblems(stray, {}, withMod).filter(problem => problem.startsWith('Gated Mod needs'))).toHaveLength(1)
+  })
+  it('lets a commendation-gated mod grant only once the commendation is awarded', () => {
+    const gated = item('wm_medal', { type: 'Mod', name: 'Medal Mod', special_equipment: ['ms_extra'], requires: [{ kind: 'commendation', id: 'c1' }] })
+    const withMod = onGun({ ...cat(), mods: new Map([[gated.id, gated]]), commendations: [{ id: 'c1', name: 'Medal' }] })
+    const mech = { frame: 'mf_test', systems: ['ms_extra'], mounts: [['mw_gun']], weapon_mods: { '0:0': 'wm_medal' } }
+    expect(grantingSources(mech, {}, { ...withMod, awarded: ['c1'] }).map(source => source.raw)).toContain(gated.raw)
+    expect(grantingSources(mech, {}, withMod).map(source => source.raw)).not.toContain(gated.raw)
+    expect(extraNeed(mechProblems(mech, {}, { ...withMod, awarded: ['c1'] }))).toBe(false)
+  })
+  it('lets only equipped pilot gear grant equipment', () => {
+    const rig = item('g_rig', { type: 'Gear', name: 'Rig', integrated: ['mw_gift'], special_equipment: ['ms_extra'] })
+    const withGear = { ...cat(), gear: [rig] }
+    const owned = [{ key: 'k', id: 'g_rig' }]
+    const mech = { frame: 'mf_test', systems: ['ms_extra'] }
+    expect(mechEffects(mech, { owned_gear: owned, equipped_gear: ['k'] }, withGear).frame!.integrated).toContain('mw_gift')
+    expect(mechProblems(mech, { owned_gear: owned, equipped_gear: ['k'] }, withGear).some(problem => problem.startsWith('ms_extra needs'))).toBe(false)
+    expect(mechProblems(mech, { owned_gear: owned, equipped_gear: [] }, withGear)).toContain('ms_extra needs ms_grantor or Rig.')
+    expect(mechEffects(mech, { owned_gear: owned }, withGear).frame!.integrated).not.toContain('mw_gift')
   })
 })
 

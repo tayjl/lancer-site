@@ -358,6 +358,7 @@ function checkSystem(data: Data, ctx: Context, out: Problem[]) {
 function checkMod(data: Data, ctx: Context, out: Problem[]) {
   checkPoints(data, out)
   checkLicence(data, ctx, out)
+  checkGrants(data, ctx, out)
   checkParts(data, '', '', ctx, out, false)
   checkEntries(data.added_range, 'range', 'Added range', 'added_range', '', out)
   checkEntries(data.added_damage, 'damage', 'Added damage', 'added_damage', '', out)
@@ -517,7 +518,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   else if (kind === 'rules') checkRule(data, problems)
   else checkParts(data, '', '', ctx, problems)
   if (kind === 'pilot_gear') checkDeployables(data.deployables, ctx, problems)
-  if (kind === 'core_bonuses') checkGrants(data, ctx, problems)
+  if (kind === 'core_bonuses' || kind === 'pilot_gear') checkGrants(data, ctx, problems)
   if (['weapons', 'systems', 'mods', 'pilot_gear', 'core_bonuses', 'talents', 'frames'].includes(kind)) checkRequires(data, ctx, problems)
   return problems
 }

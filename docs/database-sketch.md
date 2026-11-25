@@ -8,7 +8,7 @@ The tables fall into four groups:
 
 1. **People:** `profiles`
 2. **Characters:** `characters` (the public card), `character_sheets` (the private details) and `pending_changes` (edits waiting for a GM, which also form the history)
-3. **Game content:** `content_packs` and `content_items` (LANCER data and homebrew LCPs), plus `pilot_stats`, `bionics` and `bionic_bonuses` (the site's own content)
+3. **Game content:** `content_packs` and `content_items` (LANCER data and homebrew LCPs), plus `pilot_stats` and `bionics` (the site's own content)
 4. **GM-only:** `organisations`, `reputation_levels` and `reputation`
 
 ```mermaid
@@ -18,8 +18,6 @@ erDiagram
   characters ||--o{ pending_changes : "proposed edits"
   profiles ||--o{ pending_changes : "submits / reviews"
   content_packs ||--o{ content_items : "contains"
-  bionics ||--o{ bionic_bonuses : "gives"
-  pilot_stats ||--o{ bionic_bonuses : "raised by"
   characters ||--o{ reputation : "standing"
   organisations ||--o{ reputation : "with"
   reputation_levels ||--o{ reputation : "at level"
@@ -198,9 +196,7 @@ It starts with five rows: physicality, dexterity, perception, acuity and tech-fl
 - **Add / change:** owners.
 - **Delete:** nobody, because sheets refer to it. Rename a stat instead.
 
-### `bionics` and `bionic_bonuses`
-
-`bionics`:
+### `bionics`: biomods
 
 | Column | Type | Notes |
 |---|---|---|
@@ -208,19 +204,13 @@ It starts with five rows: physicality, dexterity, perception, acuity and tech-fl
 | `name`, `description` | text | |
 | `manna_cost` | number, 0 or more | |
 | `mod_point_cost` | number, 0 or more | |
-| `retired` | yes / no | Used instead of deleting. Hides the bionic from new choices. |
-
-`bionic_bonuses`, with one row for each stat a bionic raises:
-
-| Column | Type | Notes |
-|---|---|---|
-| `bionic_id` | → `bionics` | |
-| `stat_id` | → `pilot_stats` | The database rejects a stat that doesn't exist. |
-| `amount` | number | |
+| `retired` | yes / no | Hides the biomod from new choices. |
+| `effect_bonuses` | JSON list | The biomod's effects, one list like other kinds. Stat bonuses are `{id, val}`, where `id` is a `pilot_stats` ID (not enforced). Stat bonuses moved here from `bionic_bonuses` (`20261125170000`). |
+| `actions` | JSON list | The biomod's actions, up to 50 (`20261125170000`). |
 
 - **See:** every logged-in user. It's a catalogue that players pick from. Which bionics a character *has* stays private, in their sheet.
-- **Add / change:** owners. Owners can also delete a bonus row.
-- **Delete a bionic:** nobody. Retire it instead.
+- **Add / change:** owners, through `save_bionic`.
+- **Delete:** owners can delete a biomod that no pilot owns (`delete_bionic`). Otherwise retire it.
 
 ### `organisations`, `reputation_levels` and `reputation`: GM-only
 
@@ -303,7 +293,7 @@ There are also three small helpers:
 Not drawn above. Each has its own topic file in the topic docs under `docs/`; the SQL is in `supabase/migrations/`.
 
 - **Tables:** `lore_entries` ([pages.md](pages.md#home-pilot-lists-and-lore)); `pilot_progress` (GM-only experience) and `pilot_reward_log` ([pilots.md](pilots.md#levelling-and-manna)); `pilot_public_backstory` ([pilots.md](pilots.md#backstory)); `pilot_profiles` ([pilots.md](pilots.md#pilot-profile)); `pilot_timeline`, `commendations` and `pilot_commendations` ([pilots.md](pilots.md#service-record-and-commendations)).
-- **Functions:** `approve_pilot`, `send_back_pilot`, `award`, `level_up`, `set_backstory_public`, `pilot_sheet` and `pilot_card` (public, read-only views of a pilot), `equip_pilot_gear` and `settle_pilot_gear` ([pilots.md](pilots.md#pilot-inventory)), `item_usage`, `delete_content_item`, `save_bionic`, `pack_usage`, `remove_pack`, `dismiss_approval_note`.
+- **Functions:** `approve_pilot`, `send_back_pilot`, `award`, `level_up`, `set_backstory_public`, `pilot_sheet` and `pilot_card` (public, read-only views of a pilot), `equip_pilot_gear` and `settle_pilot_gear` ([pilots.md](pilots.md#pilot-inventory)), `item_usage`, `delete_content_item`, `save_bionic`, `delete_bionic`, `pack_usage`, `remove_pack`, `dismiss_approval_note`.
 - **Inside the sheet JSON:** `owned_gear`, `equipped_gear` and `misc_items` replaced the old `pilot_gear` and `pilot_gear_notes`.
 - **Storage:** the `character-images` bucket (public read, see [pilot-and-mech-pages.md](pilot-and-mech-pages.md#images)).
 
@@ -316,7 +306,7 @@ These are assumptions made while drafting. Each one is easy to change now and ha
 3. **Withdrawing a pending change deletes it.** It isn't kept in the history.
 4. **The organisations list is hidden from players too**, not just reputation.
 5. **The bionics and stats catalogue is visible to every logged-in user**, so players can choose from it. What a character has stays private.
-6. **Packs, items, bionics and stats are never deleted.** They're switched off or retired instead.
+6. **Packs, items and stats are never deleted.** They're switched off or retired instead. An owner can delete a biomod that no pilot owns.
 7. **The whole site needs a login.**
 8. **A pending change stores a full copy of the proposed sheet**, not just the differences. The GM page works out the differences when it shows them.
 9. **The Discord name is copied once, at sign-up.** It doesn't follow later name changes.

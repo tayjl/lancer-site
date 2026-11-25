@@ -10,10 +10,11 @@ import DamageField from './DamageField.vue'
 import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
+import GrantFields from './GrantFields.vue'
 import RequirementListField from './RequirementListField.vue'
 import TagListField from './TagListField.vue'
 import RichTextEditor from '../RichTextEditor.vue'
-import { filled, latest, useFields } from './useFields'
+import { filled, latest, list, useFields } from './useFields'
 
 // The form for a piece of pilot gear (armour, a pilot weapon, or gear): what it is, its rules, a weapon's range and
 // damage, its bonuses, tags and actions.
@@ -32,6 +33,7 @@ const deployables = f.list<Data>('deployables')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const tagList = f.list<{ id: string; val?: string | number }>('tags')
 const actions = f.list<Data>('actions')
+const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 // Its price in manna. Emptying the box takes the key off, so the item costs the default (rules.ts gearPriceDefault).
 const price = computed({
   get: () => String(model.value.manna_cost ?? ''),
@@ -85,6 +87,10 @@ const price = computed({
 
   <FoldPanel title="Deployables" :summary="plural(deployables.length, 'deployable')" :paths="['deployables']">
     <DeployableListField v-model="deployables" />
+  </FoldPanel>
+
+  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+    <GrantFields :data="model" owner="Gear" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 
   <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">

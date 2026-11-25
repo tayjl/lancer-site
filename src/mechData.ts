@@ -25,6 +25,7 @@ import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES, coreCheckBonuses } from './coreRules'
 import { capitalise, sameName } from './text'
 import { activationOf } from './itemDetails'
+import { unmetRequirements } from './rules'
 import { mountIs, mountSlots, mountsWith } from './definitions'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
@@ -101,6 +102,8 @@ export type EffectCatalogue = {
   coreBonuses?: CoreBonus[]
   gear?: Item[]
   bionics?: Bionic[]
+  commendations?: { id: string; name: string }[]
+  awarded?: Iterable<string>
 }
 
 // What taken talent ranks and core bonuses, and the equipped weapons and systems, build in (integrated) or unlock as
@@ -133,9 +136,23 @@ export function equippedItems(mech: MechPrivate, catalogue: Pick<EffectCatalogue
     .filter((item): item is Item => !!item)
 }
 
-// Everything on the mech that can grant equipment: equipped weapons and systems, and the pilot's installed biomods.
-export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated' | 'bionics'>) =>
-  [...equippedItems(mech, catalogue), ...(catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id)).map(bionic => ({ raw: bionic as unknown as Record<string, unknown> }))]
+// Everything on the mech that can grant equipment: equipped weapons and systems, the mods fitted on it, the pilot's equipped
+// gear and installed biomods. Mirrors "granting" in sheet_rule_problems.
+export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated' | 'bionics' | 'mods' | 'gear' | 'commendations' | 'awarded'>) => {
+  // A mod grants only when it sits on an equipped weapon ("mount:place" read from the sheet's own mounts, as the database
+  // does, because this runs before the frame is built) and its own requirements are met by the systems, weapons and mods
+  // on the mech (built-in items don't count).
+  const fitted = Object.values(mech.weapon_mods ?? {})
+  const owned = [...(mech.systems ?? []), ...(mech.mounts ?? []).flat().filter((id): id is string => !!id), ...fitted]
+  const onWeapon = Object.entries(mech.weapon_mods ?? {}).filter(([key]) => {
+    const [, m, i] = /^(\d{1,4}):(\d{1,4})$/.exec(key) ?? []
+    const weapon = m === undefined ? undefined : mech.mounts?.[Number(m)]?.[Number(i)]
+    return !!weapon && catalogue.weapons.has(weapon)
+  }).map(([, id]) => id)
+  const mods = onWeapon.flatMap(id => catalogue.mods?.get(id) ?? []).filter(mod => !unmetRequirements(mod.raw, sheet, owned, { commendations: catalogue.commendations, awarded: catalogue.awarded }).length)
+  const gear = equippedGear(sheet).flatMap(owned => catalogue.gear?.find(item => item.id === owned.id) ?? [])
+  return [...equippedItems(mech, catalogue), ...mods, ...gear, ...(catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id)).map(bionic => ({ raw: bionic as unknown as Record<string, unknown> }))]
+}
 
 // A source's second replace_mount gets "#1" on its key, so each has its own choice.
 export const choiceKey = (key: string, n: number) => (n ? `${key}#${n}` : key)
@@ -519,7 +536,7 @@ export function useMechData() {
   async function load() {
     loadTagNames()
     loadSources()
-    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'mods', 'talents', 'core_bonuses'].map(loadKind))).flatMap((result) => result.rows)
+    const rows = (await Promise.all(['frames', 'weapons', 'systems', 'mods', 'pilot_gear', 'talents', 'core_bonuses'].map(loadKind))).flatMap((result) => result.rows)
     const frameRows = rows.filter((row) => row.kind === 'frames')
     // Built-in and talent-only items can't be picked: they come with a frame or a talent.
     const talentEquipment = rows.filter(row => row.kind === 'talents').flatMap(row => {
@@ -528,7 +545,7 @@ export function useMechData() {
     })
     // Core bonuses, weapons and systems can grant equipment too (built in or optional): it comes with them, so it isn't picked.
     // shortcut: biomods' grants live in the bionics table and aren't read here, so a biomod-only item stays pickable; load bionics here if that matters.
-    const grantedEquipment = rows.filter(row => ['core_bonuses', 'weapons', 'systems'].includes(row.kind)).flatMap(row => {
+    const grantedEquipment = rows.filter(row => ['core_bonuses', 'weapons', 'systems', 'mods', 'pilot_gear'].includes(row.kind)).flatMap(row => {
       const data = (row.data ?? {}) as { integrated?: unknown; special_equipment?: unknown }
       return [data.integrated, data.special_equipment].flatMap(list => (Array.isArray(list) ? list.map(String) : []))
     })
