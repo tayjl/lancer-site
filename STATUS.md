@@ -1,18 +1,18 @@
 # Status
 
-Short handoff note. Update at the end of each feature or milestone. Finished work moves to the dated log in [docs/claude/history.md](docs/claude/history.md).
+Short handoff note. Update at the end of each feature or milestone. Finished work moves to the dated log in [docs/history.md](docs/history.md).
 
 ## Current state
 - Vue + Vite + TypeScript app with Supabase; Discord login works; the new-pilot loop, pending changes, GM review, death and memorial, owner content page (LCP import) and content editor, archives, lore and reputation are built (check `git log` for the latest).
-- The pilot page is a "dossier": one scrolling file with a cover header, numbered sections (02 to the end collapsible) and a file index ([dossier-page.md](docs/claude/dossier-page.md)). Pilot inventory, Variable damage types, full-screen dialogs on phones and the grouped Buy picker are live (log: 2026-11-20).
-- Discord link previews: `/registry/<id>` runs a small Worker (`worker/`, `wrangler.jsonc` `main` and `run_worker_first`) that adds og tags for approved and dead pilots ([id-card.md](docs/claude/id-card.md)). Local test: `npm run build`, then `npx wrangler dev --local` with the git-ignored `.dev.vars`.
+- The pilot page is a "dossier": one scrolling file with a cover header, numbered sections (02 to the end collapsible) and a file index ([pilot-and-mech-pages.md](docs/pilot-and-mech-pages.md#pilot-page-dossier)). Pilot inventory, Variable damage types, full-screen dialogs on phones and the grouped Buy picker are live (log: 2026-11-20).
+- Discord link previews: `/registry/<id>` runs a small Worker (`worker/`, `wrangler.jsonc` `main` and `run_worker_first`) that adds og tags for approved and dead pilots ([pilots.md](docs/pilots.md#id-cards-and-link-previews)). Local test: `npm run build`, then `npx wrangler dev --local` with the git-ignored `.dev.vars`.
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Latest release
-Pushed 2026-11-24 (`e92c73f`): the content editor cleanup (database is the only copy of rules, actions and numbers; Definitions tab; tab groups; effect registry; Hidden from players on every kind; Saved by; actions and rules in LCP packs). Its four migrations were applied to hosted before the push. Details in the completed-work log in [docs/claude/history.md](docs/claude/history.md); what is left in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
+Pushed 2026-11-24 (`e92c73f`): the content editor cleanup (database is the only copy of rules, actions and numbers; Definitions tab; tab groups; effect registry; Hidden from players on every kind; Saved by; actions and rules in LCP packs). Its four migrations were applied to hosted before the push. Details in the completed-work log in [docs/history.md](docs/history.md); what is left in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 
 ## Pending hosted migrations
-None. Everything through `20261124130000_hidden_and_last_save` is on the hosted project (applied 2026-11-24). The full list is in [docs/claude/history.md](docs/claude/history.md).
+None. Everything through `20261124130000_hidden_and_last_save` is on the hosted project (applied 2026-11-24). The full list is in [docs/history.md](docs/history.md).
 
 ## Next steps
 - **Check live first (2026-11-24 deploy):** the combat page (Tags card lists 35 tags, no raw `{...}` text, Overcharge and Reaction read once), the content editor as owner (tab groups, Definitions, Hidden from players, Saved by), a player login (hidden items gone from pickers, owned items still show). The checklist is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
@@ -30,54 +30,24 @@ None. Everything through `20261124130000_hidden_and_last_save` is on the hosted 
 Every doc file, by topic. Open one only when the task touches its area.
 
 ### Rules and design
-- [CLAUDE.md](CLAUDE.md): the project rules, roles and security rules every session follows.
+- [.hermes.md](.hermes.md): the project rules, roles and security rules every session follows.
 - [README.md](README.md): running the site locally, credits and licences.
 - [docs/testing-locally.md](docs/testing-locally.md): start the local site and sign in with the seed accounts.
 - [docs/lancer-rules.md](docs/lancer-rules.md): the LANCER rules the site follows and how each is enforced.
 - [docs/rule-decisions.md](docs/rule-decisions.md): the developer's rule decisions. Check it first for any game rule.
 - [docs/combat-handbook.md](docs/combat-handbook.md): the homebrew combat rules the combat page follows.
-- [.claude/rules/site-text.md](.claude/rules/site-text.md): the wording rules for every site string.
+- [docs/site-text.md](docs/site-text.md): the wording rules for every site string.
 - [docs/database-sketch.md](docs/database-sketch.md): the original database design, plus what was built since.
-### Pilots
-- [docs/claude/pilots.md](docs/claude/pilots.md): the three tabs, who sees what, death, field list.
-- [docs/claude/pilot-profile.md](docs/claude/pilot-profile.md): colour, motto, banner and gallery (saved live).
-- [docs/claude/service-record.md](docs/claude/service-record.md): the service record timeline and commendations.
-- [docs/claude/id-card.md](docs/claude/id-card.md): the Union ID card, PNG download and Discord link previews.
-- [docs/claude/stats.md](docs/claude/stats.md): pilot stats, mech stats, build effects, rules text, no dice.
-- [docs/claude/levelling-and-manna.md](docs/claude/levelling-and-manna.md): levelling, manna, licences, core bonuses, experience, reward log.
-- [docs/claude/biomods.md](docs/claude/biomods.md): biomods (bionics).
-- [docs/claude/backstory.md](docs/claude/backstory.md): the private or public backstory.
-- [docs/claude/reputation.md](docs/claude/reputation.md): GM-only reputation and factions.
-- [docs/claude/pilot-inventory.md](docs/claude/pilot-inventory.md): pilot gear, Buy item, View inventory, Variable damage types.
-### Pilot and mech pages
-- [docs/claude/dossier-page.md](docs/claude/dossier-page.md): the pilot page: cover, sections, identity, editing, shared pieces.
-- [docs/claude/dossier-sections.md](docs/claude/dossier-sections.md): capabilities, qualifications, rule check, bionics.
-- [docs/claude/item-cards.md](docs/claude/item-cards.md): item cards, symbols, tag names.
-- [docs/claude/pickers-and-info.md](docs/claude/pickers-and-info.md): pickers, dialogs, full information, frame pickers.
-- [docs/claude/mech-page.md](docs/claude/mech-page.md): mechs, hangar and the mech page.
-- [docs/claude/mech-loadout.md](docs/claude/mech-loadout.md): the mech loadout and weapon mods.
-- [docs/claude/images.md](docs/claude/images.md): portraits, mech images, uploads, bundled frame art.
-### Approval and security
-- [docs/claude/approval.md](docs/claude/approval.md): drafts, submission, GM review, saving, optimistic locking.
-- [docs/claude/security.md](docs/claude/security.md): roles, RLS rules, submit-time checks, GM-only tables.
-### Game content
-- [docs/claude/game-data.md](docs/claude/game-data.md): game data sources, licences, storage decisions.
-- [docs/claude/lcp-import.md](docs/claude/lcp-import.md): LCP import and the owner content page.
-- [docs/claude/content-editor.md](docs/claude/content-editor.md): the owner content editor and how it saves.
-- [docs/claude/content-editor-forms.md](docs/claude/content-editor-forms.md): the editor forms per content kind, export.
+### Topic docs
+- [docs/pilots.md](docs/pilots.md): pilot basics, profile, service record, ID cards and link previews, stats, levelling and manna, biomods, backstory, reputation, inventory.
+- [docs/pilot-and-mech-pages.md](docs/pilot-and-mech-pages.md): the pilot page (dossier), item cards, pickers, the mech page and loadout, images.
+- [docs/approval-and-security.md](docs/approval-and-security.md): drafts, submission, GM review, saving, roles, RLS rules, GM-only tables.
+- [docs/game-content.md](docs/game-content.md): game data, LCP import, the owner content editor and its forms, archives.
 - [docs/content-editor-cleanup.md](docs/content-editor-cleanup.md): plan to clean up the content editor (duplicates, tabs, gaps). Phases 0 to 7 built 2026-11-24.
 - [docs/content-editor-handoff.md](docs/content-editor-handoff.md): what the cleanup left undone, unchecked or unreviewed. Read before pushing.
-- [docs/claude/archives.md](docs/claude/archives.md): the archives page.
-### Look and feel and pages
-- [docs/claude/ui-principles.md](docs/claude/ui-principles.md): redesign direction, colour jobs, alignment, density.
-- [docs/claude/colours-and-type.md](docs/claude/colours-and-type.md): the terminal look, colour variables, fonts, sharp text.
-- [docs/claude/buttons-and-dialogs.md](docs/claude/buttons-and-dialogs.md): shared CSS pieces, buttons, the Are you sure? dialog.
-- [docs/claude/layout-and-nav.md](docs/claude/layout-and-nav.md): app layout, top bar, routes, breadcrumbs.
-- [docs/claude/pages-home-lore.md](docs/claude/pages-home-lore.md): home, my pilot, pending, memorial, lore, GM page list.
-- [docs/claude/registry.md](docs/claude/registry.md): the registry, pilot cards, opening a record, GM edit mode.
-- [docs/claude/gm-pages.md](docs/claude/gm-pages.md): gm: pilots, GM review and controls, danger zone, death.
-- [docs/claude/login-boot.md](docs/claude/login-boot.md): the login boot scrawl.
+- [docs/look-and-feel.md](docs/look-and-feel.md): redesign direction, colours and type, buttons and dialogs, layout and navigation.
+- [docs/pages.md](docs/pages.md): home, pilot lists, lore, registry, GM pages, login boot.
 ### History and references
-- [docs/claude/history.md](docs/claude/history.md): hosting setup, gotchas, local test accounts, completed-work log, hosted migrations.
+- [docs/history.md](docs/history.md): hosting setup, gotchas, local test accounts, completed-work log, hosted migrations.
 - [docs/archive/copy/text-audit.md](docs/archive/copy/text-audit.md) and [docs/archive/copy/changes.md](docs/archive/copy/changes.md): the site text audit and its changes.
 - [docs/redesign/prototype/index.html](docs/redesign/prototype/index.html): the approved UI reference (open via the dev server at `/docs/redesign/prototype/index.html`). Mockups: [dossier](docs/redesign/dossier/index.html) (pilot page), [editor](docs/redesign/editor/index.html) (content editor), [lore](docs/redesign/lore/index.html).

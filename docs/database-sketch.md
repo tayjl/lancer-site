@@ -1,6 +1,6 @@
 # Database sketch
 
-**Status: agreed and built; this is the original design.** The SQL started in `supabase/migrations/20261028052810_initial_schema.sql`; later migrations are listed in [claude/history.md](claude/history.md). "Built since this sketch" below lists what the sketch does not show. `supabase/tests/security.test.sql` checks every rule (run it with `supabase test db`).
+**Status: agreed and built; this is the original design.** The SQL started in `supabase/migrations/20261028052810_initial_schema.sql`; later migrations are listed in [history.md](history.md). "Built since this sketch" below lists what the sketch does not show. `supabase/tests/security.test.sql` checks every rule (run it with `supabase test db`).
 
 ## The big picture
 
@@ -280,7 +280,7 @@ There are also three small helpers:
 - **New character:**
   1. The player creates a pending character (the card and the sheet).
   2. Everyone sees its card in the Pending tab, and the player can keep editing it.
-  3. A GM approves it with `approve_pilot`, or sends it back with `send_back_pilot`. A new pilot stays a draft until the player submits it (see [claude/approval.md](claude/approval.md)).
+  3. A GM approves it with `approve_pilot`, or sends it back with `send_back_pilot`. A new pilot stays a draft until the player submits it (see [approval-and-security.md#approval](approval-and-security.md#approval)).
   4. If it isn't ready, the GM writes a `review_note` and the player fixes it.
 - **Editing an approved character:**
   1. The editor starts from the current version.
@@ -300,12 +300,12 @@ There are also three small helpers:
 
 ## Built since this sketch
 
-Not drawn above. Each has its own topic file in `docs/claude/`; the SQL is in `supabase/migrations/`.
+Not drawn above. Each has its own topic file in the topic docs under `docs/`; the SQL is in `supabase/migrations/`.
 
-- **Tables:** `lore_entries` ([pages-home-lore.md](claude/pages-home-lore.md)); `pilot_progress` (GM-only experience) and `pilot_reward_log` ([levelling-and-manna.md](claude/levelling-and-manna.md)); `pilot_public_backstory` ([backstory.md](claude/backstory.md)); `pilot_profiles` ([pilot-profile.md](claude/pilot-profile.md)); `pilot_timeline`, `commendations` and `pilot_commendations` ([service-record.md](claude/service-record.md)).
-- **Functions:** `approve_pilot`, `send_back_pilot`, `award`, `level_up`, `set_backstory_public`, `pilot_sheet` and `pilot_card` (public, read-only views of a pilot), `equip_pilot_gear` and `settle_pilot_gear` ([pilot-inventory.md](claude/pilot-inventory.md)), `item_usage`, `delete_content_item`, `save_bionic`, `pack_usage`, `remove_pack`, `dismiss_approval_note`.
+- **Tables:** `lore_entries` ([pages.md](pages.md#home-pilot-lists-and-lore)); `pilot_progress` (GM-only experience) and `pilot_reward_log` ([pilots.md](pilots.md#levelling-and-manna)); `pilot_public_backstory` ([pilots.md](pilots.md#backstory)); `pilot_profiles` ([pilots.md](pilots.md#pilot-profile)); `pilot_timeline`, `commendations` and `pilot_commendations` ([pilots.md](pilots.md#service-record-and-commendations)).
+- **Functions:** `approve_pilot`, `send_back_pilot`, `award`, `level_up`, `set_backstory_public`, `pilot_sheet` and `pilot_card` (public, read-only views of a pilot), `equip_pilot_gear` and `settle_pilot_gear` ([pilots.md](pilots.md#pilot-inventory)), `item_usage`, `delete_content_item`, `save_bionic`, `pack_usage`, `remove_pack`, `dismiss_approval_note`.
 - **Inside the sheet JSON:** `owned_gear`, `equipped_gear` and `misc_items` replaced the old `pilot_gear` and `pilot_gear_notes`.
-- **Storage:** the `character-images` bucket (public read, see [images.md](claude/images.md)).
+- **Storage:** the `character-images` bucket (public read, see [pilot-and-mech-pages.md](pilot-and-mech-pages.md#images)).
 
 ## Choices to check
 

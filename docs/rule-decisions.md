@@ -28,7 +28,7 @@ Rules will keep changing. To change one:
 - **Rest: 2 Repairs restore 1 Structure or 1 Stress.** 1 Repair restores all HP or fixes one destroyed part. Frames like the Everest lower the Structure cost (`cheap_struct`).
 - **Pegasus-specific rules aren't in the handbook.** The developer balances those items on their own content pages.
 - **Lock On and Bolster are Quick actions**, as the handbook says.
-- **Section 9 of the handbook** (core-book rules adapted by Claude at the developer's request) is adopted. Balance calls made there that the developer hasn't confirmed: the defender picks which part Structure 2 destroys, Obscured gives −2 only beyond Close, and Self-Destruct allows a DC 14 Agility save for half.
+- **Section 9 of the handbook** (core-book rules adapted by the AI assistant at the developer's request) is adopted. Balance calls made there that the developer hasn't confirmed: the defender picks which part Structure 2 destroys, Obscured gives −2 only beyond Close, and Self-Destruct allows a DC 14 Agility save for half.
 - **Grit** is half the licence level, rounded up. It's used in attack totals (handbook formula). Mech stats still don't add it.
 - **Attacks against a pilot on foot are compared with a flat 10**, plus bonuses from gear or talents. **10 is the base DC for everything**, changed by stats and bonuses where they apply.
 
@@ -51,4 +51,4 @@ Rules will keep changing. To change one:
 - **Players have one living character at a time.** GMs and owners can have several.
 
 ## Still open
-- Starting pilot stats and starting level (CLAUDE.md, Open questions).
+- Starting pilot stats and starting level (STATUS.md, Waiting for the developer).

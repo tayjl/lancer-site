@@ -1,7 +1,7 @@
 # LANCER rules the site follows
 
 The character rules from the LANCER core book that the site needs, how each one is handled, and where in the code.
-House rules from CLAUDE.md win where they differ (no grit in mech stats, custom pilot stats, bionics, no skill triggers and so on). Every developer rule decision, dated: [rule-decisions.md](rule-decisions.md).
+House rules from .hermes.md win where they differ (no grit in mech stats, custom pilot stats, bionics, no skill triggers and so on). Every developer rule decision, dated: [rule-decisions.md](rule-decisions.md).
 
 **Status key:**
 - **Enforced:** the page won't let you break it. The pickers and buttons block it, and the rule check flags it if it breaks anyway (for example, a GM lowers your licence level).
@@ -9,7 +9,7 @@ House rules from CLAUDE.md win where they differ (no grit in mech stats, custom 
 - **GM:** left to GMs when approving.
 - **Not built:** the feature isn't on the site yet. The rule is noted for when it is.
 
-All of this is checked by the page, not the database. The private sheet is one JSON column that the database can't validate (see CLAUDE.md). A player who edits their sheet with developer tools can break any of these rules. The rule check in the GM review is there to catch that before approval.
+All of this is checked by the page, not the database. The private sheet is one JSON column that the database can't validate (see .hermes.md). A player who edits their sheet with developer tools can break any of these rules. The rule check in the GM review is there to catch that before approval.
 
 The rules live in `src/rules.ts` (pure functions, tested in `src/rules.test.ts`) and `src/mechData.ts` (mount rules and mech stats).
 
@@ -27,7 +27,7 @@ This campaign replaces LANCER's licence level with two things, decided by the de
 | **GMS gear** is free to print. **Licensed gear** (frames, weapons, systems) is free once you hold the licence rank. | Enforced |
 | Manna spent outside the sheet (bribes, repairs, anything narrative) isn't tracked. GMs lower "manna received" for it. | GM |
 | **New pilots start with 2000 manna received** (the column default; existing pilots keep what they have). | Enforced by the database default; the GM-only trigger accepts it on a player's first sheet insert and refuses any other value |
-| Starting level for a new pilot. | GM (entered by hand; open question in CLAUDE.md) |
+| Starting level for a new pilot. | GM (entered by hand; open question in STATUS.md) |
 
 Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything already bought, because spending is worked out, not stored.
 
@@ -78,7 +78,7 @@ Prices are `PRICES` in `src/rules.ts`. Changing them re-prices everything alread
 | Rule | Status |
 |---|---|
 | **1 armour, 2 weapons, 3 gear equipped.** Only LANCER pilot gear, no free text (a GM can add free-text misc items). | Enforced |
-| Gear is **owned** once bought, and equipping owned gear needs no approval. Buying costs manna, with no refunds for players. | Enforced (database function `equip_pilot_gear`; see `docs/claude/pilot-inventory.md`) |
+| Gear is **owned** once bought, and equipping owned gear needs no approval. Buying costs manna, with no refunds for players. | Enforced (database function `equip_pilot_gear`; see `docs/pilots.md#pilot-inventory`) |
 | A **Variable** damage weapon needs a chosen damage type, equipped or stowed. | Rule check |
 | Each slot only takes its kind of item. | Enforced |
 
