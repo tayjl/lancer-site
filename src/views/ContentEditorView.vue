@@ -185,6 +185,8 @@ const groups = computed<{ key: string; id: number; name: string; rows: ListRow[]
   })
 })
 const byMaker = computed(() => BY_MAKER.includes(kind.value))
+// One-box lists keep New above the box, so it shows even when the list is empty.
+const newAbove = computed(() => byMaker.value || kind.value === 'factions' || kind.value === 'commendations')
 // Rules: a box per category. {VAL} (where a tag's number goes) shows as X.
 const ruleRows = computed(() => rows.value.map((row) => ({ ...row, name: row.name.replaceAll('{VAL}', 'X') })))
 const boxes = computed(() => ruleBoxes(ruleRows.value, { sec: sec.value, query: query.value, expanded: expanded.value }))
@@ -323,8 +325,8 @@ async function exportLcp() {
             <p v-if="query.trim() && !boxes.length" class="empty">Nothing matches that search.</p>
           </template>
           <template v-else>
-            <button v-if="byMaker" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
-            <p v-if="byMaker && !groups.length" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+            <button v-if="newAbove" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
+            <p v-if="newAbove && !groups.length" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
             <section v-for="group in groups" :key="group.key" class="group" :class="{ branded: group.logo || (group.colour && group.colour !== 'var(--lilac)') }" :style="group.colour ? { '--mf': group.colour } : undefined">
               <GroupHead :title="group.name" :count="group.total" :logo="group.logo">
                 <button v-if="group.add" type="button" class="small" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>

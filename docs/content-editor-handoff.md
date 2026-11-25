@@ -14,17 +14,17 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - **Step 4c is pushed** (`origin/main` `5f3f1ef`, 2026-11-25). Migration `20261125130000_content_cleanup_4c` is on hosted (applied before the push). Tests, reviewer and browser checks passed (see the 4c block, 0.3).
 - **Batch 2026-11-25 (steps 2 to 8 and 12, 4b check, 0.3 close-out): pushed as `c5c79c1`.** Migrations `140000` to `170000` were applied to hosted before the push. See the batch block under 0.3.
 - **Steps 9 and 10: pushed as `b1071df`.** Migrations `180000`, `190000` and `200000` were applied to hosted before the push. Cloudflare build and CI passed. See 'Steps 9 to 11' under 0.3.
-- **Step 11: shipped (`0c7d1cf`).** Migration `20261125210000` is on hosted.
+- **Step 11: shipped (`0c7d1cf`, docs `8df78c0`).** Migration `20261125210000` is on hosted.
+- **Step 13 (audit and browser sweep): done 2026-11-25.** Its one bug fix (a New button for factions and commendations) is built, pending commit. Results are in 0.7.
 - Check live (STATUS.md) stays open.
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
 
 ## Next session: start here
-State 2026-11-25. Steps 2 to 10 and 12 are pushed (`origin/main` `b1071df`, batch `c5c79c1`). Step 11 is built and reviewed, not committed. Run these in order.
-1. Check the dev server: `npm run local` (port 5174, background). Start it if it is down.
-2. Step 11: apply `20261125210000_grants_on_mods_and_gear.sql` to hosted (`npx supabase migration up --remote --yes`), then commit and push. Ask first for both. Known limits are in 'Steps 9 to 11'.
-3. Step 13: 0.7 security audit and browser jobs (section 0.7 and section 4). Narrow jobs, report by turn 45.
-4. 0.4 and 0.5 leftovers: the items in section 0.4 and 0.5 not marked done.
-5. Developer questions: what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority); the plan question about phantom mounts.
+State 2026-11-25. Steps 2 to 12 are live (`origin/main` `0c7d1cf`, docs `8df78c0`; migration `20261125210000` on hosted). Step 13 (audit and browser sweep) is done. Remaining, in order:
+1. Commit and ship the New button for factions and commendations (`src/views/ContentEditorView.vue`, built, pending commit). Ask first before pushing.
+2. Developer decisions: what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on all functions in schema `private` (see 0.7).
+
+Nothing else is in the plan.
 
 Not fixed (minor, record only): rich-text toolbar buttons in `RichTextEditor.vue` are 34px wide on mobile (under 44). Mount flags `integrated` and `superheavy` have no editor control; keep them on save. The Armour-type system row is unchecked because no Armor-type system exists in local data. 4c: reverting one of the three tags to pack drops the hide flag; pack text changes to those three tags are shadowed by `edited`; `pilotCard` has no editor control; the player check covered pilot gear only, not mech items.
 
@@ -96,7 +96,7 @@ Left from 0.2 (for later):
 - `content_editor.test.sql` fails locally on leftover row `hb_tg_ux_probe_tag` in pack 7. Clean the local data first.
 
 ### 0.3 Statuses, conditions and the remaining Definitions
-**Resume here: 'Steps 9 to 11' and the batch block below, then 'Next session: start here' at the top.** Steps 3 (0.2), 4a to 4c, the batch, and steps 9 and 10 are pushed (`b1071df`). Step 11 is built, not committed. See the 4c, 4b and 4a blocks below.
+**Resume here: 'Next session: start here' at the top.** Steps 2 to 12 are live (step 11 shipped as `0c7d1cf`). See the 4c, 4b and 4a blocks below.
 
 **Batch 2026-11-25: steps 2 to 8 and 12, the 4b check and the 0.3 close-out (pushed as `c5c79c1`, 2026-11-25).** Built and checked locally. Reviewer pass: steps 6, 7, 8, 9, 10, 11 and 12; steps 2 to 5 were tested only.
 - **4b browser check: pass.** Integrated and superheavy flags on a real mech (flag on and off, bracing), the mount type picker, data-only rows hidden from pickers, `weapon_mounts` gone. Minor, judged intended: the Mount types slot chips offer the hidden Ship-class size (`DefinitionPane.vue:49`, `defIds(...,true)`). Mount flags `integrated` and `superheavy` and `pilotCard` have no editor control (kept on save).
@@ -117,7 +117,7 @@ Left from 0.2 (for later):
 - **Deploy window (closed 2026-11-25):** after `20261125170000` and before the Cloudflare build finishes, live biomod bonuses count twice and owner biomod saves fail. Migrated and pushed back to back, after backing up hosted `bionics` and `bionic_bonuses` (scratch: `hosted-bionics-backup-20261125.json`, `hosted-pre-step9-10-20261125.json`, and a `-functions-` file from the same date).
 - **Checks:** `npm test` 570 (47 files), `npx supabase test db` 1090 (39 files), `npm run build` clean.
 - **Known minor, not fixed:**
-  - No 'New' button for factions and commendations in the editor (`ContentEditorView.vue:165` `add: false`). `?cat=...&item=new` works.
+  - (done, step 13) No 'New' button for factions and commendations. Built (`newAbove` in `ContentEditorView.vue`), pending commit. `?cat=...&item=new` worked before.
   - Biomod rich text toolbar buttons are 34px wide on mobile (existing note).
   - The pane header icon is stale until save after changing a commendation icon.
   - `bionicStats` shows replace and overwrite effects as a plain +n.
@@ -126,11 +126,11 @@ Left from 0.2 (for later):
 - **Skipped, ask the developer:** what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority). Pilot gear grants were decided in step 11.
 
 #### Steps 9 to 11 (2026-11-25)
-**Steps 9 and 10 pushed as `b1071df`. Step 11 built, reviewed and browser-checked, not committed.** Steps 9 and 10 passed the deploy checks (Cloudflare build succeeded, CI green). Scratch backups (may be gone): `hosted-bionics-backup-20261125.json`, `hosted-pre-step9-10-20261125.json` and a `-functions-` file from the same date.
+**Steps 9 and 10 pushed as `b1071df`. Step 11 shipped as `0c7d1cf`** (reviewed and browser-checked before the push). Steps 9 and 10 passed the deploy checks (Cloudflare build succeeded, CI green). Scratch backups (may be gone): `hosted-bionics-backup-20261125.json`, `hosted-pre-step9-10-20261125.json` and a `-functions-` file from the same date.
 
 - **Step 9:** `20261125180000_drop_bionic_bonuses.sql` drops `bionic_bonuses`. The site has read biomod stat bonuses from `bionics.effect_bonuses` since `20261125170000`.
 - **Step 10:** commendation requirements. `20261125190000_commendation_requirements.sql` extends `unmet_requirements` and `guard_submit_rules`. Awards come from `pilot_commendations`, so hidden commendations count. Client: `'commendation'` in `REQUIREMENT_KINDS`, a picker in `RequirementListField.vue`, validation in `src/contentEditor.ts`. A pilot who loses a commendation keeps the item and gets a `Needs {name}.` rule problem on the sheet; unrelated saves are not blocked. `20261125200000_block_required_commendation.sql` refuses to delete a commendation that an item or biomod requires (hide it instead).
-- **Step 11:** `20261125210000_grants_on_mods_and_gear.sql` (on hosted). `sheet_rule_problems`: equipped pilot gear grants its equipment. A fitted weapon mod grants only if it is attached to an equipped weapon (its key place has a non-draft weapon in `mech.mounts`) and its own requirements are met. `granted_by` names mods and gear. Client mirror: `grantingSources` in `src/mechData.ts` and `src/rules.ts`. Editor: an 'Equipment' fold (GrantFields: integrated, special_equipment, replace_integrated) on `ModForm.vue` and `GearForm.vue`, validated by `checkGrants`. Developer decision: mods grant nothing unless on an equipped weapon (overrides plan question 5). Checks: `npm test` 578, `npx supabase test db` 1130 (42 files). Reviewer and browser check passed.
+- **Step 11:** `20261125210000_grants_on_mods_and_gear.sql` (on hosted; shipped `0c7d1cf`). `sheet_rule_problems`: equipped pilot gear grants its equipment. A fitted weapon mod grants only if it is attached to an equipped weapon (its key place has a non-draft weapon in `mech.mounts`) and its own requirements are met. `granted_by` names mods and gear. Client mirror: `grantingSources` in `src/mechData.ts` and `src/rules.ts`. Editor: an 'Equipment' fold (GrantFields: integrated, special_equipment, replace_integrated) on `ModForm.vue` and `GearForm.vue`, validated by `checkGrants`. Developer decision: mods grant nothing unless on an equipped weapon (overrides plan question 5). Checks: `npm test` 578, `npx supabase test db` 1130 (42 files). Reviewer and browser check passed.
 - **Step 11 known limits (not fixed):**
   - Weapon places are not checked against the built frame on the server. A hand-built sheet can put a weapon in a place the frame lacks and hang a granting mod on it. This was already true for weapon grants; sizes and places are client-only.
   - The combat view (`src/combatLoadout.ts`, `src/views/CombatView.vue:40`) catalogue lacks `awarded`, so a commendation-gated mod's grants are not shown there.
@@ -223,8 +223,17 @@ Open items from the audits (`content-audit/constants-and-matrix.md`, `content-au
 - (done) Retry button on every page's load-error notice, not only Combat.
 
 ### 0.7 Verify everything that was never opened in a browser
-- Work through section 4 below. Run each UX review as a narrow job with a report-by-turn-45 limit.
-- Security-audit what was skipped: the final `game_definitions` migration after its last hardening round, the front-end hide filters, and any new migration (biomod actions and effects, statuses, commendation requirements).
+- **Done 2026-11-25 (step 13).**
+  - Browser sweep passed at 360 for every Campaign and Mech category, Definitions, and the Weapon, Mod, Biomod and Faction forms. A bug was found and fixed: no New button for factions and commendations (built, pending commit).
+  - Security audit by the reviewer: no Critical or Security issues. Local suite 1130 pgTAP tests. Hosted: 80 edited rows all valid, every security definer function has a fixed `search_path`, `weapon_mounts` empty, `bionic_bonuses` dropped.
+  - Not covered: the commendation form in a browser before the fix; player-role checks of pilot gear, talents, tags, actions and rules tabs; `profile.update` `checkWrite`.
+- **Nits, recorded, not fixed:**
+  - `src/hidden.test.ts` pattern `offered\(|\.hidden` is loose. Hand-filtered pickers are outside the guard: `RankPanel.vue:136`, `CoreBonusPanel.vue:68`, `ReputationPanel.vue:30`.
+  - Faction name has no length limit (commendations do).
+  - `game_definitions_freeze_id()` is executable by `anon` and `authenticated` (harmless).
+  - Several `private.*` security definer functions are executable by `anon` through default grants, and schema usage blocks them. A blanket `revoke execute on all functions in schema private` would remove that dependence (open developer decision).
+  - `private.add_exotic_tag` and `private.backfill_exotic_tag` have no fixed `search_path` (cosmetic).
+  - `sheet_rule_problems` is callable by any logged-in user, with size caps.
 
 ## 1. Deployed (2026-11-24): what was done and what to check live
 Done, in this order:
@@ -255,8 +264,8 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 - (done) **Frame size error text is fixed** ("Size is ½, 1, 2 or 3.") and goes stale if the owner adds a size. Now built from the `frame_sizes` Definition rows (`contentEditor.ts`), so an added size shows up.
 - **Duplicate carries built-in core checks** for official frames (fixed, tested) but the first edit of an official frame's core checks writes a full copy that no longer follows `CORE_CHECK_BONUSES`. Never confirmed that the first edit saves its own copy (the reviewer could not tell).
 - (done) **Hidden official value shows its raw id** in an item's picker (for example "Heat") instead of its label.
-- **Used by** matches exact strings, so a manufacturer code can match a weapon's `license` text. Fixed in the batch (step 5): it scans biomods and ignores licence keys. "Used by" reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
-- **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decided 2026-11-25 and built in the batch (step 7).
+- (done, step 5) **Used by** matched exact strings, so a manufacturer code could match a weapon's `license` text. It now scans biomods and ignores licence keys. "Used by" still reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
+- (done, step 7) **Delete of a faction or commendation in use** is blocked (before-delete triggers). Before this, it cascaded to pilot reputation and awarded commendations.
 - A very long faction name is accepted (only unique, no length check).
 - **Phase 2 leftovers:** the Full Repair text still says "Overcharge goes back to 1 Heat" (no placeholder for the first step), and `REACTIONS_NOTE` still repeats the Reaction step's general rule: both are in scope (0.2). The combat guide's damage type rows still come from `DAMAGE_TYPES` in `src/combatRules.ts` and do not follow Definitions: in scope (0.3). The Engaged status is being removed by the developer, so its duplicate row and doubled-parentheses title need no work.
 - (done) Tag preview shows the "Show on combat page" flag.
@@ -284,6 +293,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - "What changed" history beyond the last save (decided: last save only).
 
 ## 4. Never browser-checked (code and tests only)
+Step 13 (2026-11-25) passed the browser sweep for every Campaign and Mech category, Definitions, and the Weapon, Mod, Biomod and Faction forms at 360 (see 0.7). The items below that it covers are checked; the rest are not.
 - Phase 4c (pushed 2026-11-25): owner and player browser checks and the tag chip rerun passed (see the 4c block). Not yet covered: mech items in the player check, and `hideOnCard` alone without the hidden flag (unit test only).
 - Commendations on the shared pane: create, edit, icon picker, medal preview, delete.
 - Faction delete confirm and faction preview tab; duplicate-name error.
