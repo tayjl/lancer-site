@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BONUS_GROUPS, BONUS_REGISTRY, bonusDef, bonusReminder, bonusSummary, isPilotBonus, personalDef, personalStatIds, bonusValue, resolveBonuses } from './bonuses'
+import { BONUS_GROUPS, BONUS_REGISTRY, bonusDef, bonusReminder, bonusSummary, isPilotBonus, personalDef, personalStatIds, talentNames, bonusValue, resolveBonuses } from './bonuses'
 
 describe('permanent bonus arithmetic', () => {
   it('calculates only supported arithmetic and explicit build variables', () => {
@@ -35,6 +35,14 @@ describe('the effect registry', () => {
     expect(bonusSummary({ id: 'speed', val: 6, replace: true })).toBe('Sets Speed to 6')
     expect(bonusSummary({ id: 'add_mount', val: 'Main' })).toBe('Adds a mount: Main')
     expect(bonusSummary({ id: 'superheavy_mounting' })).toBe('Superheavy mount')
+  })
+  it('words a free talent rank with the talent name, or its id when unknown', () => {
+    expect(bonusSummary({ id: 'talent_rank', talent: 'brawler', val: 1 })).toBe('Gives 1 rank of brawler')
+    talentNames.value = new Map([['brawler', 'Brawler']])
+    expect(bonusSummary({ id: 'talent_rank', talent: 'brawler', val: 1 })).toBe('Gives 1 rank of Brawler')
+    expect(bonusSummary({ id: 'talent_rank', talent: 'brawler', val: 2 })).toBe('Gives 2 ranks of Brawler')
+    talentNames.value = new Map()
+    expect(isPilotBonus('talent_rank')).toBe(true)
   })
   it('counts stats, pilot stats and effects differently', () => {
     expect(bonusDef('armor')).toMatchObject({ counted: 'stat', stat: 'armour', scope: 'mech' })

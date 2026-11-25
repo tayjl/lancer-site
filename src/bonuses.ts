@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue'
 import type { Bonus } from './gameData'
+import { plural } from './text'
 
 // Imported formulas are data, never JavaScript. Only arithmetic and known build variables are allowed.
 export function bonusValue(value: unknown, variables: Record<string, number> = {}): number | null {
@@ -54,7 +55,7 @@ export type BonusFilter = 'weapon_types' | 'weapon_sizes' | 'range_types' | 'dam
 export type BonusGroup = 'Mech stats' | 'Pilot stats' | 'Personal stats' | 'Mounts' | 'Weapons' | 'Resources' | 'Drones & deployables'
 export type BonusDef = {
   id: string; label: string; group: BonusGroup; scope: 'pilot' | 'mech'
-  value: 'formula' | 'none' | 'number' | 'whole' | 'mount' | 'steps' | 'tags'
+  value: 'formula' | 'none' | 'number' | 'whole' | 'mount' | 'steps' | 'tags' | 'talent'
   counted: 'stat' | 'pilot' | 'effect'; stat?: string
   filters?: BonusFilter[]; max?: boolean; damageType?: boolean; hidden?: boolean
 }
@@ -71,6 +72,7 @@ export const BONUS_REGISTRY: BonusDef[] = [
   mechStat('heat_cap', 'Heat cap', 'heat', true),
   pilotStat('pilot_hp', 'Pilot HP'), pilotStat('pilot_armor', 'Pilot armour'), pilotStat('pilot_speed', 'Pilot speed'),
   pilotStat('pilot_edef', 'Pilot E-defence'), pilotStat('mod_points', 'Mod points'),
+  { id: 'talent_rank', label: 'Talent ranks', group: 'Pilot stats', scope: 'pilot', value: 'talent', counted: 'effect' },
   effect('Mounts', 'add_mount', 'Adds a mount', 'mount', { max: true }),
   effect('Mounts', 'replace_mount', 'Replaces a mount', 'mount'),
   effect('Mounts', 'superheavy_mounting', 'Superheavy mount', 'none'),
@@ -92,9 +94,10 @@ export const bonusDef = (id: string) => byId.get(id)
 // A personal stat (the pilot_stats table) needs no code: it's counted on the pilot's sheet.
 export const personalDef = (stat: { id: string; name: string }): BonusDef => ({ id: stat.id, label: stat.name, group: 'Personal stats', scope: 'pilot', value: 'formula', counted: 'pilot' })
 // "Adds 2 to Speed", "Sets Speed to 2", "Adds a mount: Main". An id nobody declared is named by its id.
-export function bonusSummary(bonus: { id?: unknown; val?: unknown; replace?: unknown }, def: BonusDef | undefined = bonusDef(String(bonus.id))) {
+export function bonusSummary(bonus: { id?: unknown; val?: unknown; replace?: unknown; talent?: unknown }, def: BonusDef | undefined = bonusDef(String(bonus.id))) {
   const name = def?.label ?? String(bonus.id ?? '').replaceAll('_', ' ')
   const val = Array.isArray(bonus.val) ? bonus.val.map((part) => (typeof part === 'object' && part ? String((part as { id?: unknown }).id ?? '') : String(part))).join(', ') : bonus.val === undefined ? '' : String(bonus.val)
+  if (bonus.id === 'talent_rank') { const talent = String(bonus.talent ?? ''); return `Gives ${plural(Number(val), 'rank')} of ${talentNames.value.get(talent) ?? talent}` }
   if (!val || def?.value === 'none') return name
   if (def && def.value !== 'formula') return `${name}: ${val}`
   if (bonus.replace) return `Sets ${name} to ${val}`
@@ -104,6 +107,8 @@ export function bonusSummary(bonus: { id?: unknown; val?: unknown; replace?: unk
 
 // The personal stat ids (the pilot_stats table, set by gameData.ts loadPilotStats) and pilot-only ids: counted on the pilot, never on the mech.
 export const personalStatIds = shallowRef(new Set<string>())
+// Talent id to name (set by gameData.ts with the talents), for the summary of a talent_rank bonus.
+export const talentNames = shallowRef(new Map<string, string>())
 export const isPilotBonus = (id: string) => id.startsWith('pilot_') || bonusDef(id)?.scope === 'pilot' || personalStatIds.value.has(id)
 // "+10 hp, only when exposed." A minimum or a set value reads as what it means: "Threat range is at least 3.", "Sets speed to 4."
 // Bonus ids and {braces} are data, not wording.

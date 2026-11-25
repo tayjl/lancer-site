@@ -302,3 +302,27 @@ describe('the tag form flags', () => {
     expect(useFields(ref<Record<string, unknown>>({ id: 'tg_x' })).flag('hideOnCard').value).toBe(false)
   })
 })
+
+describe('free talent ranks', () => {
+  const talents = { ...ctx, talents: new Set(['t_brawler']) }
+  const grant = (extra: Record<string, unknown> = {}) => ({ ...vest, bonuses: [{ id: 'talent_rank', talent: 't_brawler', val: 1, ...extra }] })
+  const run = (data: Record<string, unknown>, kind: Parameters<typeof problemsFor>[0] = 'pilot_gear') => problemsFor(kind, data, talents).map(p => `${p.level}: ${p.text}`)
+  it('offers talent ranks only for gear, core bonuses and biomods', () => {
+    for (const kind of ['pilot_gear', 'core_bonuses', 'bionics'] as const) expect(bonusTypesFor(kind, []).map(type => type.id)).toContain('talent_rank')
+    for (const kind of ['weapons', 'systems', 'mods', 'talents', 'frames'] as const) expect(bonusTypesFor(kind, []).map(type => type.id)).not.toContain('talent_rank')
+  })
+  it('accepts a valid row on gear, a core bonus and a biomod', () => {
+    expect(run(grant())).toEqual([])
+    expect(run({ id: 'hb_pg_vest', name: 'X', source: 'GMS', bonuses: grant().bonuses }, 'core_bonuses')).toEqual([])
+    expect(run({ id: '', name: 'Arm', slot: 'Arm', source: 'GMS', manna_cost: 500, mod_point_cost: 1, effect_bonuses: grant().bonuses } as never, 'bionics')).toEqual([])
+  })
+  it('says what is wrong with the talent, the number and a condition', () => {
+    expect(run(grant({ talent: 't_nope' }))).toEqual(['error: Effect 1 needs a talent.'])
+    expect(run(grant({ talent: undefined }))).toEqual(['error: Effect 1 needs a talent.'])
+    for (const val of [0, 4, 1.5, '1', undefined]) expect(run(grant({ val }))).toEqual(['error: Effect 1 needs a whole number from 1 to 3.'])
+    expect(run(grant({ condition: '{exposed}' }))).toEqual(["error: Effect 1 can't have a condition."])
+  })
+  it('warns on a kind that ignores talent ranks', () => {
+    expect(run({ ...grant(), id: 'mw_x', mount: 'Main' }, 'systems')).toContain('warn: Talent ranks only count on pilot gear, core bonuses and biomods.')
+  })
+})

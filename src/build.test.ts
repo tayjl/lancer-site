@@ -6,6 +6,7 @@ import { equipmentDetails, modBlockedBy, modsRefused, selectWeaponProfile } from
 import type { Sheet } from './myPilot'
 import type { NamedBonus } from './bonuses'
 import { mechProblems } from './rules'
+import { RULES_SEED, ruleItems } from './rulesData'
 
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
 const data = (id: string) => coreContent.items.find(item => item.id === id)!.data as Record<string, unknown>
@@ -230,5 +231,34 @@ describe('superheavy mounting, core equipment and mount counting', () => {
     expect(built(bigGun)).toEqual(['sys', 'gl'])
     expect(talentGrants(sheetWith('cb_big'), [], [bigGun])).toEqual({ integrated: ['gl'], optional: ['sys'], replace: ['gl'] })
     expect(buildFrame(own, {}, {}, [], [], { coreBonuses: [bigGun], integrated })!.integrated).toEqual(['old', 'sys'])
+  })
+})
+
+describe('free talent ranks on the mech', () => {
+  const arm = (talent: string, val: number) => ({ id: 1, name: 'Arm', effect: '', effect_bonuses: [{ id: 'talent_rank', talent, val }] }) as never
+  const ranked = (sheet: Sheet, ...bionics: unknown[]) => ({ sheet: { ...sheet, bionics: [1] }, cat: { ...catalogue, bionics } as EffectCatalogue & { frames: Frame[] } })
+
+  it("unlocks a talent's equipment from a free rank, and stops counting at the highest rank", () => {
+    const free = ranked({}, arm('t_engineer', 1))
+    expect(mechEffects({ frame: frame().id }, free.sheet, free.cat).frame!.integrated).toContain('mw_prototype_1')
+    const over = ranked({ talents: { t_engineer: 3 } }, arm('t_engineer', 1))
+    const integrated = mechEffects({ frame: frame().id }, over.sheet, over.cat).frame!.integrated
+    expect(integrated).toContain('mw_prototype_3')
+    expect(integrated).not.toContain('mw_prototype_4')
+  })
+  it("doesn't change the sheet it is given", () => {
+    const free = ranked({ talents: { t_engineer: 1 } }, arm('t_engineer', 1))
+    mechEffects({ frame: frame().id }, free.sheet, free.cat)
+    mechProblems({ frame: frame().id }, free.sheet, free.cat)
+    expect(free.sheet.talents).toEqual({ t_engineer: 1 })
+  })
+  it('counts rank 4 when the highest rank is raised', () => {
+    const four = { id: 't_four', name: 'Four', terse: '', ranks: [1, 2, 3, 4].map(n => ({ name: `R${n}`, description: '', bonuses: [{ id: 'hp', val: n }] })) } as Talent
+    const cat = { ...catalogue, talents: [four], bionics: [arm('t_four', 1)] } as EffectCatalogue & { frames: Frame[] }
+    const hp = () => mechEffects({ frame: frame().id }, { talents: { t_four: 3 }, bionics: [1] }, cat).modifiers.filter(entry => entry.stat === 'hp').length
+    expect(hp()).toBe(3)
+    ruleItems.value = [{ id: 'rule_num_max_talent_rank', name: 'x', section: 'numbers', text: '', order: 1, numbers: [4] }]
+    expect(hp()).toBe(4)
+    ruleItems.value = RULES_SEED
   })
 })

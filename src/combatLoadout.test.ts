@@ -149,3 +149,15 @@ describe('chosen damage type', () => {
     expect(typesFor()).toEqual(['Variable'])
   })
 })
+
+describe('free talent ranks', () => {
+  it("shows Hunter II's thrown range from a free rank", () => {
+    const blade: Item = { ...weapons.get('mw_assault_rifle')!, id: 'blade', name: 'Blade', type: 'Melee', mount: 'Auxiliary', range: [{ type: 'Threat', val: 1 }] }
+    const arm = { id: 1, name: 'Arm', effect: '', effect_bonuses: [{ id: 'talent_rank', talent: 't_hunter', val: 2 }] } as unknown as Bionic
+    const mounts = everest.mounts.map(mount => (mount === 'Flex' ? ['blade'] : []))
+    const cat = { ...catalogue, weapons: new Map([['blade', blade]]), integrated: new Map([['blade', blade]]), bionics: [arm] }
+    const thrown = (sheet: object) => combatLoadout({ frame: everest.id, mounts }, sheet, cat, tagNames).rows.find(row => row.name === 'Blade')?.stats.find(stat => stat.label === 'thrown')?.value
+    expect(thrown({ bionics: [1] })).toBe('5')
+    expect(thrown({})).toBeUndefined()
+  })
+})

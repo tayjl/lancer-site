@@ -1,5 +1,5 @@
 import { ruleNumbers } from './rulesData'
-import { equippedGear, LOADOUT, type Item } from './gameData'
+import { equippedGear, LOADOUT, rankedSheet, type Item } from './gameData'
 import { cardRules, itemDetails, type ItemRule, type ItemStat } from './itemDetails'
 import { EFFECT_KINDS, fittedMods, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type ReminderKind } from './mechData'
 import type { MechPrivate, Sheet } from './myPilot'
@@ -31,6 +31,7 @@ export type LoadoutRow = {
 const BLOCK_OF: Partial<Record<string, LoadoutBlock>> = { frame: 'frame', trait: 'frame', core: 'frame', 'core-power': 'frame', talent: 'talents', biomod: 'biomods', 'core-bonus': 'core-bonuses' }
 
 export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: EffectCatalogue, tagNames: Map<string, string>) {
+  sheet = rankedSheet(sheet, catalogue)
   const effects = mechEffects(details, sheet, catalogue)
   const frame: Frame | null = effects.frame
   const resources = mechResources(sheet, effects)

@@ -1,6 +1,6 @@
 import { shallowRef, watch } from 'vue'
 import { reloads } from './catalogue'
-import { ruleNumbers } from './rulesData'
+import { rule, ruleNumbers } from './rulesData'
 import armourIcon from './assets/icons/armour.svg'
 import evasionIcon from './assets/icons/evasion.svg'
 import eDefIcon from './assets/icons/e_def.svg'
@@ -16,7 +16,7 @@ import sizeHalfIcon from './assets/icons/size-half.svg'
 import size1Icon from './assets/icons/size-1.svg'
 import size2Icon from './assets/icons/size-2.svg'
 import size3Icon from './assets/icons/size-3.svg'
-import { equippedGear, loadoutSlots, loadSources, loadTagNames, toItem, toMod, type Bionic, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
+import { equippedGear, loadoutSlots, loadSources, rankedSheet, loadTagNames, toItem, toMod, type Bionic, type Bonus, type CoreBonus, type Item, type Talent } from './gameData'
 import { loadKind } from './catalogue'
 import type { MechPrivate, Sheet } from './myPilot'
 import { bonusDef, bonusReminder, bonusValue, isPilotBonus, permanentBonus, resolveBonuses, type NamedBonus } from './bonuses'
@@ -25,7 +25,7 @@ import { selectWeaponProfile } from './equipment'
 import { CORE_CHECK_BONUSES, coreCheckBonuses } from './coreRules'
 import { capitalise, sameName } from './text'
 import { activationOf } from './itemDetails'
-import { unmetRequirements } from './rules'
+import { rankName, unmetRequirements } from './rules'
 import { mountIs, mountSlots, mountsWith } from './definitions'
 
 // The mech page's catalogues (frames, mech weapons, systems, from the imported LANCER packs) and its rules:
@@ -121,7 +121,7 @@ export function talentGrants(sheet: Sheet, talents: Talent[], coreBonuses: CoreB
   for (const item of equipped) take(item.raw ?? {})
   for (const talent of talents) {
     const rank = sheet.talents?.[talent.id] ?? 0
-    const ranks = talent.ranks.slice(0, Number.isInteger(rank) ? Math.max(0, Math.min(3, rank)) : 0)
+    const ranks = talent.ranks.slice(0, Number.isInteger(rank) ? Math.max(0, Math.min(rule('max_talent_rank'), rank)) : 0)
     const exclusive = ranks.reduce((last, entry, index) => entry.exclusive ? index : last, -1)
     ranks.forEach((entry, index) => {
       if (!entry.exclusive || index === exclusive) take(entry)
@@ -140,7 +140,7 @@ export function mountBonusesOf(mech: MechPrivate, sheet: Sheet, catalogue: Pick<
   const traitList = (Array.isArray(baseFrame?.raw?.traits) ? baseFrame!.raw!.traits : []) as Record<string, unknown>[]
   const mountSources: { key: string; name: string; bonuses: unknown }[] = [
     ...(catalogue.coreBonuses ?? []).filter(bonus => sheet.core_bonuses?.includes(bonus.id)).map(bonus => ({ key: bonus.id, name: bonus.name, bonuses: bonus.bonuses })),
-    ...(catalogue.talents ?? []).flatMap(talent => talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).map((rank, index) => ({ key: `${talent.id}:${index + 1}`, name: `${talent.name} ${index + 1}`, bonuses: rank.bonuses }))),
+    ...(catalogue.talents ?? []).flatMap(talent => talent.ranks.slice(0, Math.min(rule('max_talent_rank'), Math.max(0, sheet.talents?.[talent.id] ?? 0))).map((rank, index) => ({ key: `${talent.id}:${index + 1}`, name: `${talent.name} ${index + 1}`, bonuses: rank.bonuses }))),
     ...(mech.systems ?? []).flatMap(id => { const item = catalogue.systems.get(id) ?? catalogue.integrated.get(id); return item ? [{ key: id, name: item.name, bonuses: item.bonuses }] : [] }),
     ...(baseFrame?.raw ? [{ key: baseFrame.id, name: baseFrame.name, bonuses: baseFrame.raw.bonuses }, ...traitList.map((trait, index) => ({ key: `${baseFrame.id}:trait:${index}`, name: `${baseFrame.name} · ${trait.name ?? 'trait'}`, bonuses: trait.bonuses }))] : []),
     ...(baseFrame?.raw?.core_system ? [{ key: `${baseFrame.id}:core`, name: String((baseFrame.raw.core_system as Record<string, unknown>).name ?? 'Core system'), bonuses: (baseFrame.raw.core_system as Record<string, unknown>).passive_bonuses }] : []),
@@ -260,6 +260,7 @@ const missingFrom = (extra: Bonus[] | undefined, have: Bonus[]) =>
 // unsupported bonuses remain explicit reminders: guessing whether a conditional effect is active would give
 // misleading totals. Equipped items' rules aren't repeated: their own loadout cards already show them.
 export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCatalogue) {
+  sheet = rankedSheet(sheet, catalogue)
   const sources: { name: string; bonuses: Bonus[]; origin: Origin; key?: string }[] = []
   const reminders: Reminder[] = []
   const addItem = (id: string, items: Map<string, Item>, key = id) => {
@@ -378,8 +379,8 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     if (!Number.isInteger(rank) || rank <= 0) continue
     const talent = catalogue.talents?.find(talent => talent.id === id)
     if (!talent) reminders.push({ kind: 'missing', name: id, source: id, text: "Missing talent. Its bonuses aren't counted." })
-    talent?.ranks.slice(0, Math.min(rank, 3)).forEach((entry, index) => {
-      addRaw(`${talent.name} ${index + 1}: ${entry.name}`, entry.description, entry, { kind: 'talent', name: entry.name, from: `${talent.name} ${['I', 'II', 'III'][index]}` }, true, `${talent.id}:${index + 1}`)
+    talent?.ranks.slice(0, Math.min(rank, rule('max_talent_rank'))).forEach((entry, index) => {
+      addRaw(`${talent.name} ${index + 1}: ${entry.name}`, entry.description, entry, { kind: 'talent', name: entry.name, from: `${talent.name} ${rankName(index + 1)}` }, true, `${talent.id}:${index + 1}`)
     })
   }
   // Installed biomods' bonuses count like any other source's (pilot ones are the pilot's).

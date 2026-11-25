@@ -30,7 +30,7 @@ import SheetField from '../components/SheetField.vue'
 import StatRow from '../components/StatRow.vue'
 import type { Json } from '../lib/database.types'
 import { offered } from '../catalogue'
-import { useGameData } from '../gameData'
+import { rankedSheet, useGameData } from '../gameData'
 import { EFFECT_KINDS, fittedMods, grantingSources, frameRanges, mechEffects, mechResources, mechStats, talentGrants, useMechData, type Reminder } from '../mechData'
 import { mechProblem, useMyPilot, type MechPrivate } from '../myPilot'
 import type { PublicMech } from '../pilots'
@@ -95,7 +95,9 @@ const makerStyle = computed(() => {
 })
 // With no image of its own the mech shows its frame's.
 const fallbackArt = computed(() => (baseFrame.value ? frameArt(baseFrame.value, frames.value) : null))
-const grants = computed(() => talentGrants(sheet.value, talents.value, coreBonuses.value, grantingSources(details.value, sheet.value, catalogue.value)))
+// Free talent ranks added, for reading only: never saved.
+const ranked = computed(() => rankedSheet(sheet.value, catalogue.value))
+const grants = computed(() => talentGrants(ranked.value, talents.value, coreBonuses.value, grantingSources(details.value, ranked.value, catalogue.value)))
 const optional = computed(() => grants.value.optional.map(id => integrated.value.get(id)).filter(item => !!item))
 const availableWeapons = computed(() => [...weapons.value, ...optional.value.filter(item => !!item.mount)])
 const availableSystems = computed(() => [...systems.value, ...optional.value.filter(item => !item.mount)])
@@ -213,7 +215,7 @@ const frameOptions = computed(() => {
     name: f.name,
     ...framePick(f, ranges, manufacturers.value, frames.value),
     exotic: isExotic(f),
-    blocked: reasonFor(restrictionOf(f)) || (gmEditing.value ? '' : frameBlockedBy(f, frames.value, sheet.value) || requirementReason(unmetRequirements(f.raw, sheet.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, ...needs.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name }))),
+    blocked: reasonFor(restrictionOf(f)) || (gmEditing.value ? '' : frameBlockedBy(f, frames.value, ranked.value) || requirementReason(unmetRequirements(f.raw, ranked.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, ...needs.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name }))),
     info: () => frameInfo(f, frames.value),
   }))
 })
@@ -355,7 +357,7 @@ async function scrap() {
         :image="mech.image"
         :name="mech.name"
         :stats="stats"
-        :sheet="sheet"
+        :sheet="ranked"
         :details="details"
         :bonuses="effects.bonuses"
         :weapons="availableWeapons"
@@ -423,7 +425,7 @@ async function scrap() {
               :weapons="availableWeapons"
               :systems="availableSystems"
               :mods="mods"
-              :sheet="sheet"
+              :sheet="ranked"
               :details="details"
               :bonuses="effects.bonuses"
               :capacity-for="capacityFor"

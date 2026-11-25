@@ -3,7 +3,8 @@ import { computed, ref, useId } from 'vue'
 import { BONUS_GROUPS, bonusDef, bonusSummary, type BonusDef, type BonusFilter } from '../../bonuses'
 import { bonusCounted, type BonusType, type Data } from '../../contentEditor'
 import { defIds, defList } from '../../definitions'
-import { hiddenTags, tagNames } from '../../gameData'
+import { hiddenTags, tagNames, useGameData } from '../../gameData'
+import { maxTalentRank } from '../../rules'
 import Icon from '../Icon.vue'
 import Field from './Field.vue'
 import FieldError from './FieldError.vue'
@@ -21,6 +22,8 @@ const props = withDefaults(defineProps<{ types: BonusType[]; path?: string }>(),
 const { invalid, at } = useProblems()
 const { keyOf, removed } = useRowKeys()
 const uid = useId()
+const { talents } = useGameData()
+const talentList = computed(() => [...talents.value].sort((a, b) => a.name.localeCompare(b.name)))
 const where = (index: number, key: string) => `${props.path}.${index}.${key}`
 
 // Stats take a number or formula; the other types have their own value.
@@ -48,7 +51,7 @@ const isStat = (bonus: Data) => !effectOf(bonus)
 const change = (index: number, changes: Data) => (model.value = model.value.map((bonus, i) => (i === index ? { ...bonus, ...changes } : bonus)))
 // A plain number stays a number; anything else (a formula) stays text.
 const setValue = (index: number, text: string) => change(index, { val: /^-?\d+(\.\d+)?$/.test(text.trim()) ? Number(text) : text })
-const startValue = (type?: BonusDef) => (!type || type.value === 'number' || type.value === 'whole' ? 1 : type.value === 'steps' ? ['', '', '', ''] : type.value === 'tags' ? [] : undefined)
+const startValue = (type?: BonusDef) => (!type || type.value === 'number' || type.value === 'whole' || type.value === 'talent' ? 1 : type.value === 'steps' ? ['', '', '', ''] : type.value === 'tags' ? [] : undefined)
 // A new type starts from its own value and keeps only the options it allows; a condition stays.
 function setType(index: number, id: string) {
   const old = model.value[index]
@@ -91,7 +94,7 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
   <div class="rows-in">
     <ul v-if="model.length" class="rows">
       <li v-for="(bonus, index) in model" :key="keyOf(index)" class="entry">
-        <div class="line">
+        <div class="line" :class="{ talent: effectOf(bonus)?.value === 'talent' }">
           <select :value="bonus.id" :aria-label="`Effect ${index + 1} type`" :title="bonus.id ? bonusSummary(bonus) : undefined" :aria-invalid="invalid(where(index, 'id')) || undefined" @change="setType(index, ($event.target as HTMLSelectElement).value)">
             <option v-if="!offered.has(String(bonus.id))" :value="bonus.id">{{ bonus.id ? (bonusCounted(bonus) ? bonus.id : `${bonus.id} (not counted)`) : 'Choose…' }}</option>
             <optgroup v-for="group in groupsFor(bonus.id)" :key="group.group" :label="group.group">
@@ -102,6 +105,13 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
             <option value="" disabled>Choose…</option>
             <option v-for="mount in defList('mount_types')" :key="mount.id" :value="mount.id">{{ mount.label }}</option>
           </select>
+          <template v-else-if="effectOf(bonus)?.value === 'talent'">
+            <select :value="bonus.talent ?? ''" class="value" :aria-label="`Effect ${index + 1} talent`" :aria-invalid="invalid(where(index, 'talent')) || undefined" @change="change(index, { talent: ($event.target as HTMLSelectElement).value })">
+              <option value="" disabled>Choose…</option>
+              <option v-for="talent in talentList" :key="talent.id" :value="talent.id">{{ talent.name }}</option>
+            </select>
+            <input type="number" min="1" :max="maxTalentRank()" step="1" class="value" :value="bonus.val" :aria-label="`Effect ${index + 1} ranks`" :aria-invalid="invalid(where(index, 'val')) || undefined" @input="setValue(index, ($event.target as HTMLInputElement).value)" />
+          </template>
           <span v-else-if="effectOf(bonus) && ['none', 'tags', 'steps'].includes(effectOf(bonus)!.value)" class="value-gap"></span>
           <input v-else type="text" class="value" :value="bonus.val" :aria-label="`Effect ${index + 1} amount`" :placeholder="isStat(bonus) ? '2 or {systems}/2' : '2'" :aria-invalid="invalid(where(index, 'val')) || undefined" @input="setValue(index, ($event.target as HTMLInputElement).value)" />
           <button type="button" class="small quiet opts" :aria-expanded="isOpen(index)" :aria-controls="optionsId(index)" @click="toggle(index)">
@@ -144,6 +154,7 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
 .entry { display: grid; gap: var(--space-s); }
 .line { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 9rem) auto auto; gap: var(--space-s); align-items: center; }
 .value { font-family: var(--mono); }
+.line.talent { grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) 6rem auto auto; }
 .check { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: var(--fs-s); }
 .opts { justify-self: start; min-height: var(--tap); }
 .summary { margin: 0; }
@@ -161,6 +172,8 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
   .line .icon-btn { grid-column: 3; grid-row: 1; }
   .line .value, .line .value-gap { grid-column: 1; grid-row: 2; }
   .line .opts { grid-column: 2 / 4; grid-row: 2; }
+  .line.talent { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .line.talent .value + .value { grid-row: 3; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { .opts .chev { transition: none; } }

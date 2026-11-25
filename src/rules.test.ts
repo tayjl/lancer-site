@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import limitsSql from '../supabase/migrations/20261124100000_rule_number_limits.sql?raw'
 import loadoutSql from '../supabase/migrations/20261125100000_content_cleanup_3b.sql?raw'
 import { equipmentDetails } from './equipment'
-import { toItem, type Item } from './gameData'
+import { toItem, type Bionic, type Item } from './gameData'
 import { NUMBER_KEYS, rule, ruleItems, RULES_SEED, type NumberKey } from './rulesData'
 import type { Frame } from './mechData'
 import { adjustGrants, bracingMount, freeGear, gearPrice, coreBonusPicks, gmOnly, isExotic, restrictionOf, restrictionReason, coreBonusProblems, isLicensed, mannaSpent, mechCount, mechProblems, nextMechPrice, personalPoints, personalStatProblems, pilotProblems, maxLicenceRank, maxTalentRank, personalStatMax, personalStatMin, rankName, skillPoints, modLimit, startingManna, superheavyMount, type Catalogue } from './rules'
@@ -470,5 +470,50 @@ describe('GM grants', () => {
     expect(removed).toEqual({ gear: { knife: 1 } })
     expect(adjustGrants({}, { talents: { t_ace: 2 } }, {}, 3, 1)).toEqual({})
     expect(adjustGrants({ gear: { knife: 1 } }, {}, {}, 0, 0)).toEqual({ gear: { knife: 1 } })
+  })
+})
+
+describe('free talent ranks', () => {
+  const grant = (talent: string, val = 1) => ({ id: 'talent_rank', talent, val })
+  const brawler = { id: 'brawler', name: 'Brawler', terse: '', ranks: [1, 2, 3, 4].map(n => ({ name: `R${n}`, description: '', bonuses: [{ id: 'pilot_hp', val: n }] })) }
+  const arm = { id: 3, name: 'Arm', effect: '', effect_bonuses: [grant('brawler')] } as unknown as Bionic
+  const needy = item('needy', { requires: [{ kind: 'talent', id: 'brawler', rank: 2 }] })
+  const withArm: Catalogue = { ...catalogue, talents: [brawler], bionics: [arm], bionicCosts: new Map([[3, 0]]), bionicPrices: new Map([[3, 0]]), systems: new Map([...catalogue.systems, ['needy', needy]]) }
+  const mech = { frame: 'everest', systems: ['needy'] }
+  const gm = { manna: 100000, level: 10 } as never
+
+  it('meets a mech requirement with bought plus free ranks, and loses it with the biomod', () => {
+    expect(mechProblems(mech, { talents: { brawler: 1 }, bionics: [3] }, withArm)).toEqual([])
+    expect(mechProblems(mech, { talents: { brawler: 1 } }, withArm)).toEqual(['needy needs Brawler II.'])
+  })
+  it("doesn't let a source meet its own requirement", () => {
+    const selfish = { ...arm, requires: [{ kind: 'talent', id: 'brawler', rank: 2 }] } as Bionic
+    const problems = pilotProblems({ talents: { brawler: 1 }, bionics: [3] }, gm, { ...withArm, bionics: [selfish] }, {}, null)
+    expect(problems).toContain('Arm needs Brawler II.')
+  })
+  it('skips the requirements of a talent held only through free ranks', () => {
+    const picky = { ...brawler, requires: [{ kind: 'licence', id: 'blackbeard', rank: 3 }] }
+    const cat = { ...withArm, talents: [picky] }
+    expect(pilotProblems({ bionics: [3] }, gm, cat, {}, null)).toEqual([])
+    expect(pilotProblems({ talents: { brawler: 1 }, bionics: [3] }, gm, cat, {}, null)).toEqual(['Brawler needs IPS-N blackbeard III.'])
+  })
+  it('reports a total over the highest rank and stops counting there', () => {
+    const sheet = { talents: { brawler: 3 }, bionics: [3] }
+    expect(pilotProblems(sheet, gm, withArm, {}, null)).toEqual(['Brawler is rank IV with free ranks, but the highest is III.'])
+    expect(pilotProblems({ talents: { brawler: 5 }, bionics: [3] }, gm, withArm, {}, null)).toEqual(['Talent brawler must be a whole rank from 0 to III.'])
+    expect(pilotProblems({ talents: { brawler: 2 }, bionics: [3] }, gm, withArm, {}, null)).toEqual([])
+  })
+  it('lets rank 4 count when the highest rank is raised', () => {
+    ruleItems.value = [{ id: 'rule_num_max_talent_rank', name: 'x', section: 'numbers', text: '', order: 1, numbers: [4] }]
+    expect(pilotProblems({ talents: { brawler: 3 }, bionics: [3] }, gm, withArm, {}, null)).toEqual([])
+    ruleItems.value = RULES_SEED
+  })
+  it('charges no manna for a free rank, and never changes the sheet it reads', () => {
+    const bought = { talents: { brawler: 1 } }
+    const prices = new Map([[3, 0]])
+    expect(mannaSpent({ ...bought, bionics: [3] }, prices, 0, [], null, {})).toBe(mannaSpent(bought, prices, 0, [], null, {}))
+    const sheet = { talents: { brawler: 1 }, bionics: [3] }
+    pilotProblems(sheet, gm, withArm, {}, null)
+    expect(sheet.talents).toEqual({ brawler: 1 })
   })
 })

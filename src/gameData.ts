@@ -19,7 +19,7 @@ import agilityIcon from './assets/icons/agility.svg'
 import systemsIcon from './assets/icons/systems.svg'
 import engineeringIcon from './assets/icons/engineering.svg'
 import { flatDamageText } from './damage'
-import { bonusValue, permanentBonus, personalStatIds, resolveBonuses, uncountedLine, type NamedBonus } from './bonuses'
+import { bonusValue, permanentBonus, personalStatIds, resolveBonuses, talentNames, uncountedLine, type NamedBonus } from './bonuses'
 
 // The catalogues the pilot sheet picks from: pilot gear (from the imported LANCER packs), the site's own
 // bionics, and the custom pilot stats. Characters only store ids; names and details come from here.
@@ -292,12 +292,48 @@ export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], extraBonuses: 
 }
 
 // Only equipped slots count; an old overflowing loadout must not stack several suits of armour.
-export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = [], bionics: Bionic[] = []): NamedBonus[] {
+const equippedItems = (sheet: Sheet, gear: Item[]) => {
   const byId = new Map(gear.map(item => [item.id, item]))
   const layout = loadoutSlots(equippedGear(sheet).map(owned => owned.id), id => byId.get(id)?.type)
-  const sources = layout.slots.flatMap(slot => slot.id && byId.has(slot.id) ? [byId.get(slot.id)!] : [])
-  const result = sources.flatMap(item => item.bonuses.map(bonus => ({ source: item.name, bonus })))
-  for (const talent of talents) talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).forEach((rank, index) =>
+  return layout.slots.flatMap(slot => slot.id && byId.has(slot.id) ? [byId.get(slot.id)!] : [])
+}
+
+// Free talent ranks from installed biomods, taken core bonuses and equipped gear (slot-fitted, like pilotBonuses).
+// Several sources for one talent add up. Never stored: total = bought + free.
+export function talentRanks(sheet: Sheet, sources: { gear?: Item[]; coreBonuses?: CoreBonus[]; bionics?: Bionic[] }):
+  { total: Record<string, number>; free: Record<string, { ranks: number; sources: string[] }> } {
+  const free: Record<string, { ranks: number; sources: string[] }> = {}
+  const add = (name: string, bonuses: Bonus[] | undefined) => {
+    for (const bonus of bonuses ?? []) {
+      const { id, talent, val, condition } = bonus
+      if (id !== 'talent_rank' || typeof talent !== 'string' || condition || typeof val !== 'number' || !Number.isInteger(val) || val < 1) continue
+      const entry = free[talent] ??= { ranks: 0, sources: [] }
+      entry.ranks += val
+      if (!entry.sources.includes(name)) entry.sources.push(name)
+    }
+  }
+  for (const item of equippedItems(sheet, sources.gear ?? [])) add(item.name, item.bonuses)
+  for (const core of sources.coreBonuses ?? []) if (sheet.core_bonuses?.includes(core.id)) add(core.name, core.bonuses)
+  for (const bionic of sources.bionics ?? []) if (sheet.bionics?.includes(bionic.id)) add(bionic.name, bionic.effect_bonuses)
+  const total: Record<string, number> = {}
+  for (const [id, bought] of Object.entries(sheet.talents ?? {})) if (Number.isInteger(bought) && bought >= 0) total[id] = bought
+  for (const [id, entry] of Object.entries(free)) total[id] = (total[id] ?? 0) + entry.ranks
+  return { total, free }
+}
+
+// A ranked sheet is for reading only: never save it, or free ranks become bought ones and are charged.
+const ranked = new WeakSet<Sheet>()
+export function rankedSheet(sheet: Sheet, sources: Parameters<typeof talentRanks>[1]): Sheet {
+  if (ranked.has(sheet)) return sheet
+  const result = { ...sheet, talents: talentRanks(sheet, sources).total }
+  ranked.add(result)
+  return result
+}
+
+export function pilotBonuses(sheet: Sheet, gear: Item[], talents: Talent[] = [], coreBonuses: CoreBonus[] = [], bionics: Bionic[] = []): NamedBonus[] {
+  sheet = rankedSheet(sheet, { gear, coreBonuses, bionics })
+  const result = equippedItems(sheet, gear).flatMap(item => item.bonuses.map(bonus => ({ source: item.name, bonus })))
+  for (const talent of talents) talent.ranks.slice(0, Math.min(rule('max_talent_rank'), Math.max(0, sheet.talents?.[talent.id] ?? 0))).forEach((rank, index) =>
     result.push(...(rank.bonuses ?? []).map(bonus => ({ source: `${talent.name} ${index + 1}`, bonus }))))
   for (const core of coreBonuses) if (sheet.core_bonuses?.includes(core.id)) result.push(...(core.bonuses ?? []).map(bonus => ({ source: core.name, bonus })))
   for (const bionic of bionics) if (sheet.bionics?.includes(bionic.id)) result.push(...(bionic.effect_bonuses ?? []).map(bonus => ({ source: bionic.name, bonus })))
@@ -389,6 +425,7 @@ export function useGameData() {
     bionics.value = bionicRows.rows.map((row) => ({ ...row, effect_bonuses: row.effect_bonuses as Bonus[], actions: row.actions as unknown[] }))
     pilotStats.value = statRows.rows
     talents.value = talentRows.rows.map(({ id, data }) => toTalent(id, data)).sort((a, b) => a.name.localeCompare(b.name))
+    talentNames.value = new Map(talents.value.map(talent => [talent.id, talent.name]))
     coreBonuses.value = coreRows.rows
       .map(({ id, data }) => toCoreBonus(id, data))
       .sort((a, b) => a.source.localeCompare(b.source) || a.name.localeCompare(b.name))

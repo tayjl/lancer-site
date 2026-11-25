@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { sourceOf } from '../gameData'
-import { maxLicenceRank, rankName } from '../rules'
+import { maxLicenceRank, maxTalentRank, rankName } from '../rules'
 import { useGmOverride, useRestriction } from '../restriction'
 import { framePick } from '../pickerRows'
 import { frameRanges } from '../mechData'
@@ -45,6 +45,8 @@ const props = defineProps<{
   balance: number
   // Ranks a GM gave free, per id (the sheet's grants): marked with a GM grant badge and dashed pips.
   granted?: Record<string, number>
+  // Talents only: ranks free from a biomod, core bonus or gear item, on top of the bought ones in "held".
+  free?: Record<string, { ranks: number; sources: string[] }>
   editable: boolean
   save: (next: Record<string, number>) => Promise<string | null>
   // Saves the frame chosen for a licence (RankStep.choice); resolves to an error message or null.
@@ -53,10 +55,15 @@ const props = defineProps<{
 
 const optionOf = (id: string) => props.options.find((option) => option.id === id)
 const nameOf = (id: string) => optionOf(id)?.name ?? id
-const ranks = computed(() => Object.entries(props.held).filter(([, rank]) => rank > 0))
+const max = computed(() => (props.columns ? maxLicenceRank() : maxTalentRank()))
+const freeOf = (id: string) => props.free?.[id]?.ranks ?? 0
+// Each id held or free, with its bought and free ranks.
+const ranks = computed(() => [...new Set([...Object.keys(props.held), ...Object.keys(props.free ?? {})])]
+  .map((id) => ({ id, bought: props.held[id] ?? 0, free: freeOf(id) }))
+  .filter(({ bought, free }) => bought > 0 || free > 0))
 const gmOverride = useGmOverride()
 const grantedOf = (id: string) => Math.min(props.granted?.[id] ?? 0, props.held[id] ?? 0)
-const rankLabel = (id: string, rank: number) => `Rank ${rankName(rank)} of ${rankName(maxLicenceRank())}${grantedOf(id) ? `, ${plural(grantedOf(id), 'rank')} a GM grant` : ''}`
+const rankLabel = (id: string, rank: number) => `Rank ${rankName(rank + freeOf(id))} of ${rankName(max.value)}${freeOf(id) ? `, ${plural(freeOf(id), 'rank')} free` : ''}${grantedOf(id) ? `, ${plural(grantedOf(id), 'rank')} a GM grant` : ''}`
 const affordable = computed(() => gmOverride.value || props.balance >= props.price)
 const reasonFor = useRestriction()
 const restricted = (id: string) => reasonFor(optionOf(id) ?? {})
@@ -108,7 +115,7 @@ const { frames } = useMechData()
 const manufacturers = useManufacturers()
 const ranges = computed(() => frameRanges(frames.value))
 // --- Rows: what a licence unlocks across its three ranks, and its maker ---
-const stepsOf = computed(() => Object.fromEntries(ranks.value.map(([id]) => [id, props.details(id)])))
+const stepsOf = computed(() => Object.fromEntries(ranks.value.map(({ id }) => [id, props.details(id)])))
 const choiceOf = (id: string) => stepsOf.value[id]?.find((step) => step.choice)?.choice
 const NOUNS = { frame: 'frame', weapon: 'weapon', system: 'system', mod: 'mod' } as const
 const unlockLine = (id: string) => {
@@ -133,13 +140,13 @@ const licenceArt = (id: string) => {
 const licenceLogo = (id: string) => makerLogo(manufacturers.value.find((m) => m.id === frames.value.find((f) => f.id === id)?.source))
 const offered = computed(() =>
   props.options
-    .filter((option) => !props.held[option.id] && !option.stale && !option.hidden)
+    .filter((option) => !props.held[option.id] && !freeOf(option.id) && !option.stale && !option.hidden)
     .map((option) => {
       const frame = props.columns ? frames.value.find((f) => f.id === option.id) : undefined
       const blocked = restricted(option.id) || (gmOverride.value ? '' : option.needs) || (affordable.value ? '' : 'Not enough manna')
       return frame
         ? { ...option, name: option.name.startsWith(`${frame.source} `) ? option.name.slice(frame.source.length + 1) : option.name, ...framePick(frame, ranges.value, manufacturers.value, frames.value), meta: undefined, blocked }
-        : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${maxLicenceRank()} ranks` }], blocked }
+        : { ...option, look: { type: 'talent' as const, icon: 'talent' }, chips: [{ label: `${max.value} ranks` }], blocked }
     })
     .sort((a, b) => Number(!!optionOf(a.id)?.exotic) - Number(!!optionOf(b.id)?.exotic) || Number(!!restricted(a.id)) - Number(!!restricted(b.id))),
 )
@@ -168,7 +175,7 @@ async function buy(id: string) {
     </header>
 
     <ul v-if="ranks.length && rows" class="rows">
-      <li v-for="[id, rank] in ranks" :key="id" class="row" :class="columns ? 'lic' : 'tal'" :style="columns ? { '--mf': makerColour(makerOf(id)) } : undefined">
+      <li v-for="{ id, bought: rank, free } in ranks" :key="id" class="row" :class="columns ? 'lic' : 'tal'" :style="columns ? { '--mf': makerColour(makerOf(id)) } : undefined">
         <MechImage v-if="columns" class="thumb" size="pick" :art="licenceArt(id)" :logo="licenceLogo(id)" :art-alt="`${nameOf(id)} frame`" />
         <span v-else class="tile"><Icon name="talent" /></span>
         <div class="about">
@@ -176,9 +183,11 @@ async function buy(id: string) {
             <InfoButton v-if="optionOf(id)?.info" :label="nameOf(id)" :info="optionOf(id)!.info" />
             <template v-else>{{ nameOf(id) }}</template>
             <span v-if="columns && makerOf(id)" class="mf-code"><Icon v-if="makerLogo(makerOf(id))" :src="makerLogo(makerOf(id))!" />{{ makerOf(id)!.id }}</span>
+            <span v-if="free" class="badge">Free</span>
             <span v-if="grantedOf(id)" class="badge grant">GM grant</span>
           </p>
           <p class="row-sub">{{ columns ? unlockLine(id) : optionOf(id)?.meta }}</p>
+          <p v-if="free" class="row-sub">{{ plural(free, 'rank') }} free from {{ props.free![id].sources.join(', ') }}.</p>
           <fieldset v-if="editable && choiceOf(id)" class="frame-choice">
             <legend class="label">Frame</legend>
             <label v-for="option in choiceOf(id)!.options" :key="option.value" class="frame-option">
@@ -192,11 +201,11 @@ async function buy(id: string) {
           </p>
         </div>
         <span class="rankpips" role="img" :aria-label="rankLabel(id, rank)">
-          <span v-for="n in maxLicenceRank()" :key="n" class="rp" :class="{ held: n <= rank, granted: n <= rank && n > rank - grantedOf(id) }">{{ rankName(n) }}</span>
+          <span v-for="n in max" :key="n" class="rp" :class="{ free: n <= free, held: n > free && n <= rank + free, granted: n > free && n <= rank + free && n > rank + free - grantedOf(id) }">{{ rankName(n) }}</span>
         </span>
-        <div v-if="editable" class="row-actions">
-          <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
-          <span v-if="rank < maxLicenceRank()" class="blocked">
+        <div v-if="editable && (rank > 0 || free + rank < max)" class="row-actions">
+          <button v-if="rank > 0" type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 || free ? 'Lower rank' : `Remove ${noun}` }}</button>
+          <span v-if="rank + free < max" class="blocked">
             <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
               Raise rank<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
             </button>
@@ -206,12 +215,12 @@ async function buy(id: string) {
       </li>
     </ul>
     <div v-else-if="ranks.length" class="list">
-      <ItemCard v-for="[id, rank] in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
+      <ItemCard v-for="{ id, bought: rank } in ranks" :key="id" :type="look.type" :icon="look.icon" :name="nameOf(id)" :info="optionOf(id)?.info" :source="sourceOf(id)">
         <template #meta>Rank {{ rankName(rank) }}<span v-if="grantedOf(id)" class="badge grant">GM grant</span></template>
         <div class="rank-wrap" :class="{ 'with-art': columns }">
           <MechImage v-if="columns" size="licence" :art="licenceArt(id)" :logo="licenceLogo(id)" :art-alt="`${nameOf(id)} frame`" />
           <ol :class="columns ? 'ladder' : 'tiers'">
-            <li v-for="(step, i) in details(id).slice(0, maxLicenceRank())" :key="i" class="rank" :class="{ locked: i >= rank }">
+            <li v-for="(step, i) in details(id).slice(0, max)" :key="i" class="rank" :class="{ locked: i >= rank }">
               <span class="numeral">{{ rankName(i + 1) }}</span>
               <div class="rank-body">
                 <p v-if="step.name || status(i, rank)" class="rank-head">
@@ -240,7 +249,7 @@ async function buy(id: string) {
         </div>
         <template v-if="editable" #foot>
           <button type="button" class="small" :disabled="saving" @click="setRank(id, rank - 1)">{{ rank > 1 ? 'Lower rank' : `Remove ${noun}` }}</button>
-          <span v-if="rank < maxLicenceRank()" class="blocked">
+          <span v-if="rank + freeOf(id) < max" class="blocked">
             <button type="button" class="small" :disabled="saving || !affordable" :aria-describedby="affordable ? undefined : `${id}-why`" @click="setRank(id, rank + 1)">
               Raise rank<template v-if="!gmOverride"> · <span class="num">{{ price }}</span></template>
             </button>
@@ -568,6 +577,12 @@ async function buy(id: string) {
 .rp.granted {
   outline: 1px dashed var(--gm);
   outline-offset: 2px;
+}
+
+/* A free rank: outlined, not filled, so it never relies on colour. */
+.rp.free {
+  border: 1px dashed var(--text);
+  color: var(--text);
 }
 
 .rp.held {

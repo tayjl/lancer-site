@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { equippedGear, loadoutSlots, pilotBonuses, requirementsOf, useGameData, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
+import { equippedGear, loadoutSlots, pilotBonuses, rankedSheet, requirementsOf, useGameData, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { allowedSizes, alternateOf, chosenFrame, fittedMods, grantingSources, idList, isId, mechEffects, mechStats, mountReplacements, mountSize, placedWeapons, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
 import { DAMAGE_CHOICES, modBlockedBy, variableDamage } from './equipment'
 import { bonusValue, resolveBonuses } from './bonuses'
@@ -316,7 +316,8 @@ const isUnique = (item: Item) => item.tags.some((tag) => tag.id === 'tg_unique')
 const isAi = (item: Item) => item.tags.some((tag) => tag.id === 'tg_ai')
 
 // Everything wrong with one mech, as short sentences. Empty when it's legal (or has no frame yet).
-export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalogue): string[] {
+export function mechProblems(mech: MechPrivate, bought: Sheet, catalogue: Catalogue): string[] {
+  const sheet = rankedSheet(bought, catalogue) // reads only, never saved
   if (!mech.frame) return []
   const baseFrame = catalogue.frames.find((f) => f.id === mech.frame)
   if (!baseFrame) return ["Frame isn't in any loaded pack."]
@@ -451,6 +452,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 // "live" is the pilot's approved sheet (null for a never-approved pilot), for the gear that's free.
 export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>, live: Sheet | null, grants: Grants = {}): string[] {
   const problems = personalStatProblems(sheet.pilot_stats)
+  const ranked = rankedSheet(sheet, catalogue) // reads only, never saved
   const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, commendations: catalogue.commendations, awarded: catalogue.awarded, itemName: id => catalogue.gear?.find(gear => gear.id === id)?.name }
   const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length, catalogue.gear ?? [], live, grants)
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
@@ -477,8 +479,14 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
     else if (rank > 0) {
       const talent = catalogue.talents?.find(talent => talent.id === id)
       if (!talent) problems.push(`Talent ${id} isn't in any loaded pack.`)
-      else for (const thing of unmetRequirements(talent, sheet, [], names)) problems.push(`${talent.name} needs ${thing}.`)
+      else for (const thing of unmetRequirements(talent, ranked, [], names)) problems.push(`${talent.name} needs ${thing}.`)
     }
+  // Free ranks can take a talent past the highest rank (only where the bought rank itself is fine).
+  for (const [id, total] of Object.entries(ranked.talents ?? {})) {
+    const bought = sheet.talents?.[id]
+    if (total > maxTalentRank() && (bought === undefined || (Number.isInteger(bought) && bought >= 0 && bought <= maxTalentRank())))
+      problems.push(`${catalogue.talents?.find(talent => talent.id === id)?.name ?? id} is rank ${rankName(total)} with free ranks, but the highest is ${rankName(maxTalentRank())}.`)
+  }
   if (catalogue.gear) {
     const gearIds = (sheet.owned_gear ?? []).map(owned => owned.id)
     for (const id of new Set(gearIds)) {

@@ -40,7 +40,7 @@ import { useRequirementAwards, usePilotAwards } from '../commendations'
 import { displayColour } from '../pilotColour'
 import { useServiceRecord } from '../serviceRecord'
 import { BANNER_CENTRED, MOTTO_MAX, usePilotProfile, type BannerPosition, type ProfileFields } from '../pilotProfile'
-import { bionicItems, pilotBonuses, pilotVitals, sheetStats, useGameData } from '../gameData'
+import { bionicItems, pilotBonuses, pilotVitals, rankedSheet, sheetStats, talentRanks, useGameData } from '../gameData'
 import type { Json } from '../lib/database.types'
 import { chosenFrame, licenceFrames, licensedFrames, useMechData, type Frame } from '../mechData'
 import { bionicInfo, frameInfo, licenceUnlocks, talentInfo } from '../info'
@@ -307,7 +307,7 @@ const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) 
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
 // can be lowered or removed; the rule check says why.
 // What an item, talent, core bonus or frame still needs of this pilot, as a picker's blocked reason ("Needs Brawler II").
-const needsOf = (data: unknown) => requirementReason(unmetRequirements(data, sheet.value, (sheet.value.owned_gear ?? []).map((owned) => owned.id), { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, ...needs.value, itemName: (id) => gear.value.find((item) => item.id === id)?.name }))
+const needsOf = (data: unknown, of: Sheet = sheet.value) => requirementReason(unmetRequirements(data, of, (sheet.value.owned_gear ?? []).map((owned) => owned.id), { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, ...needs.value, itemName: (id) => gear.value.find((item) => item.id === id)?.name }))
 const licenceOptions = computed(() => {
   const option = (frame: Frame, stale = false) => ({ id: frame.id, needs: needsOf(frame.raw), name: licenceName(frames.value, frame.id), hidden: frame.hidden, meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), ...restrictionOf(frame), stale })
   const originals = licensedFrames(frames.value)
@@ -332,7 +332,10 @@ const saveMechs = (list: PublicMech[]) => updateCharacter({ mechs: list })
 const saveLicences = (licences: Record<string, number>) => track(updateSheet({ licences }))
 
 // Talents: each rank's name and rules.
-const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, needs: needsOf(t), name: t.name, hidden: t.hidden, meta: t.terse, info: () => talentInfo(t), ...restrictionOf(t) })))
+// Free ranks count towards a talent's own requirements (shown here, never saved).
+const rankSources = computed(() => ({ gear: gear.value, coreBonuses: coreBonuses.value, bionics: bionics.value }))
+const free = computed(() => talentRanks(sheet.value, rankSources.value).free)
+const talentOptions = computed(() => talents.value.map((t) => ({ id: t.id, needs: needsOf(t, rankedSheet(sheet.value, rankSources.value)), name: t.name, hidden: t.hidden, meta: t.terse, info: () => talentInfo(t), ...restrictionOf(t) })))
 const talentDetails = (id: string): RankStep[] =>
   (talents.value.find((t) => t.id === id)?.ranks ?? []).map((r) => ({ name: r.name, html: r.description }))
 const saveTalents = (talentRanks: Record<string, number>) => track(updateSheet({ talents: talentRanks }))
@@ -662,6 +665,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
                 noun="talent"
                 :options="talentOptions"
                 :held="sheet.talents ?? {}"
+                :free="free"
                 :details="talentDetails"
                 tiers
                 rows
@@ -676,7 +680,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
                 :options="coreBonuses"
                 :licences="sheet.licences ?? {}"
                 :talents="sheet.talents ?? {}"
-                :needs="needsOf"
+                :needs="(data) => needsOf(data)"
                 :frames="frames"
                 :taken="sheet.core_bonuses ?? []"
                 :picks="coreBonusPicks(sheet)"

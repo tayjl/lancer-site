@@ -8,7 +8,7 @@ import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
 import { REQUIREMENT_KINDS } from './gameData'
 import { EXOTIC, EXOTIC_TAG } from './rules'
-import { numberKeyOf, SECTIONS } from './rulesData'
+import { numberKeyOf, rule, SECTIONS } from './rulesData'
 
 // The content editor's rules (ContentEditorView.vue): the kinds it edits, new ids, and what makes an item's data
 // acceptable to save. Pure, so it's tested without a database (src/contentEditor.test.ts).
@@ -171,7 +171,13 @@ export const bonusCounted = (row: Data, statIds: string[] = []) => {
 const effectType = (id: string) => { const def = bonusDef(id); return def && def.value !== 'formula' ? def : undefined }
 const isWhole = (value: unknown) => isNumber(value) && Number.isInteger(Number(value)) && Number(value) >= 0
 // Why a value doesn't fit its effect bonus, or '' when it does.
-function effectValueProblem(type: BonusDef, row: Data): string {
+function effectValueProblem(type: BonusDef, row: Data, ctx: Context): string {
+  if (type.value === 'talent') {
+    const max = rule('max_talent_rank')
+    if (typeof row.talent !== 'string' || (ctx.talents && !ctx.talents.has(row.talent))) return 'needs a talent.'
+    if (typeof row.val !== 'number' || !Number.isInteger(row.val) || row.val < 1 || row.val > max) return `needs a whole number from 1 to ${max}.`
+    if (row.condition !== undefined) return "can't have a condition."
+  }
   if (type.value === 'mount' && !defIds('mount_types', true).includes(String(row.val))) return 'needs a mount type.'
   if (type.value === 'number' && !isNumber(row.val)) return 'needs a number.'
   if (type.value === 'whole' && !isWhole(row.val)) return 'needs a whole number, 0 or more.'
@@ -187,8 +193,10 @@ function effectValueProblem(type: BonusDef, row: Data): string {
 }
 export const personalBonusTypes = (stats: { id: string; name: string }[]): BonusType[] => stats.map(personalDef)
 // Any kind can carry any effect; the personal stats only make sense on what a pilot has (gear, core bonuses, talents, biomods).
+// Free talent ranks only count from gear, core bonuses and biomods.
+const GRANTS_TALENT_RANKS = ['pilot_gear', 'core_bonuses', 'bionics']
 export const bonusTypesFor = (kind: EditorKind, stats: { id: string; name: string }[]) =>
-  [...BONUS_REGISTRY.filter((type) => !type.hidden), ...(['pilot_gear', 'core_bonuses', 'talents', 'bionics'].includes(kind) ? personalBonusTypes(stats) : [])]
+  [...BONUS_REGISTRY.filter((type) => !type.hidden && (type.id !== 'talent_rank' || GRANTS_TALENT_RANKS.includes(kind))), ...(['pilot_gear', 'core_bonuses', 'talents', 'bionics'].includes(kind) ? personalBonusTypes(stats) : [])]
 
 // The frame form's choices (src/components/editor/FrameForm.vue). A frame is its own licence: license_id is its id, unless it
 // is an alternate of another frame (an alternate Genghis), when license_id is the original's id and variant its name
@@ -250,7 +258,7 @@ function checkEntries(value: unknown, noun: 'range' | 'damage', label: string, a
 
 // The lists every part of an item can have (the item itself, a weapon's profile, a talent's rank): tags, bonuses and
 // actions, and (where "numbers") range and damage. "at" is the path in front of each ("profiles.1."), "who" what to call it.
-function checkParts(data: Data, at: string, who: string, ctx: Context, out: Problem[], numbers = true) {
+function checkParts(data: Data, at: string, who: string, ctx: Context, out: Problem[], numbers = true, talentRanks = false) {
   for (const [index, tag] of list(data.tags).entries()) {
     const row = entry(tag)
     const id = String(row.id ?? '')
@@ -268,8 +276,9 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
     else if (!bonusCounted(row, ctx.statIds)) out.push(warn(say(who, `Effect "${id}" is shown on the sheet but not counted.`), `${at}bonuses.${index}.id`))
     const effect = effectType(id)
     if (row.condition !== undefined && !(typeof row.condition === 'string' && row.condition.length >= 1 && row.condition.length <= 120)) out.push(error(say(who, `effect ${index + 1}: "Only when" must be 120 characters or fewer.`), `${at}bonuses.${index}.condition`))
-    const why = effect && effectValueProblem(effect, row)
-    if (why) out.push(error(say(who, `effect ${index + 1} ${why}`), `${at}bonuses.${index}.val`))
+    if (id === 'talent_rank' && !talentRanks) out.push(warn(say(who, 'Talent ranks only count on pilot gear, core bonuses and biomods.'), `${at}bonuses.${index}.id`))
+    const why = effect && effectValueProblem(effect, row, ctx)
+    if (why) out.push(error(say(who, `effect ${index + 1} ${why}`), `${at}bonuses.${index}.${why === 'needs a talent.' ? 'talent' : 'val'}`))
     // A bonus the build maths doesn't count (an accuracy bonus has no "val") is kept as it is, not evaluated.
     else if (!effect && known.has(id) && bonusValue(row.val, FORMULA_VARIABLES) === null) out.push(error(say(who, `effect ${index + 1} needs a number, or a formula such as {systems}/2.`), `${at}bonuses.${index}.val`))
   }
@@ -516,7 +525,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   else if (kind === 'frames') checkFrame(data, ctx, problems)
   else if (kind === 'manufacturers') checkManufacturer(data, problems)
   else if (kind === 'rules') checkRule(data, problems)
-  else checkParts(data, '', '', ctx, problems)
+  else checkParts(data, '', '', ctx, problems, true, kind === 'pilot_gear' || kind === 'core_bonuses')
   if (kind === 'pilot_gear') checkDeployables(data.deployables, ctx, problems)
   if (kind === 'core_bonuses' || kind === 'pilot_gear') checkGrants(data, ctx, problems)
   if (['weapons', 'systems', 'mods', 'pilot_gear', 'core_bonuses', 'talents', 'frames'].includes(kind)) checkRequires(data, ctx, problems)
@@ -530,7 +539,7 @@ export const BIONIC_SLOTS = ['Head', 'Eyes', 'Ears', 'Brain', 'Spine', 'Torso', 
 export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Partial<Context>): Problem[] {
   const problems: Problem[] = []
   const full: Context = { id: '', tags: new Map(), ...ctx }
-  checkParts({ bonuses: data.effect_bonuses }, 'effect_', '', full, problems, false)
+  checkParts({ bonuses: data.effect_bonuses }, 'effect_', '', full, problems, false, true)
   checkParts({ actions: data.actions }, '', '', full, problems, false)
   checkGrants(data, full, problems)
   checkRequires(data, full, problems)
