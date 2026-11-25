@@ -1,4 +1,4 @@
--- Pending changes for approved pilots (CLAUDE.md, "Pending approval workflow").
+-- Pending changes for approved pilots (docs/approval-and-security.md, "Pending approval workflow").
 -- A change starts as a draft the player edits (submitted_at is null); submitting puts it in the GM queue,
 -- oldest submission first. Players can take it back to a draft or withdraw it until a GM reviews it.
 alter table public.pending_changes add column submitted_at timestamptz;

@@ -1,5 +1,5 @@
 # Weekly encrypted backup of the hosted Supabase database (Actions > Back up database > Run workflow does it by hand).
-# Setup and restore steps: docs/claude/history.md, "Backups".
+# Setup and restore steps: docs/history.md, "Backups".
 # Needs two repository SECRETS (Settings > Secrets and variables > Actions > Secrets):
 #   SUPABASE_DB_URL     the Session pooler connection string, with the password filled in
 #   BACKUP_PASSPHRASE   the passphrase used to encrypt the backup

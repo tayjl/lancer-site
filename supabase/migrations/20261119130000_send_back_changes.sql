@@ -1,4 +1,4 @@
--- A GM rejecting a change never loses the player's work (CLAUDE.md, "Pending approval workflow"). reject_change now
+-- A GM rejecting a change never loses the player's work (docs/approval-and-security.md, "Pending approval workflow"). reject_change now
 -- marks the change rejected (the history row, as before) and also gives the player their proposal back as a new
 -- draft: the same card and sheet, based_on stamped with the pilot's last change right now (the GM has just reviewed the
 -- change against the pilot as it is, so a GM edit made before sending back must not leave the draft stale forever; an

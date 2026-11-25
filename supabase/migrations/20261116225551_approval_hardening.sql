@@ -1,4 +1,4 @@
--- Hardens the approval workflow (CLAUDE.md, "Pending approval workflow"): the database, not the page,
+-- Hardens the approval workflow (docs/approval-and-security.md, "Pending approval workflow"): the database, not the page,
 -- now decides who can change what once a change is submitted, how a pilot or change is approved or
 -- rejected, and who can delete characters.
 

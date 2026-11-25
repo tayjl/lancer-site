@@ -2,12 +2,12 @@
 
 Covers: everything left undone, unchecked or unreviewed after the 2026-11-24 session that built phases 0 to 7 of [content-editor-cleanup.md](content-editor-cleanup.md). Work through it top to bottom. Everything is pushed and the four migrations are on the hosted project (section 1).
 
-State at the end of the session: all commits are on `origin/main` (`e92c73f` plus a docs commit), `npm run build` clean, `npm test` 532 passing, the full pgTAP suite passes on a clean database. `CLAUDE.md` still has the developer's own uncommitted change: leave it alone.
+State at the end of the session: all commits are on `origin/main` (`e92c73f` plus a docs commit), `npm run build` clean, `npm test` 532 passing, the full pgTAP suite passes on a clean database.
 
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
 ## 0. Remaining objectives from the original plan (the developer wants this done)
-The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (CLAUDE.md), and finish each with the reviewers, a browser pass and the docs.
+The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (`.hermes.md`, Team routing), and finish each with the reviewers, a browser pass and the docs.
 
 ### Scope decisions (the developer, 2026-11-24)
 **Out of scope**
@@ -159,7 +159,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - Ids differing only by case or whitespace are distinct definition rows; lookups are case-insensitive, so a mount `main` counts as `Main`.
 
 ## 6. Housekeeping
-- Update `STATUS.md` and [claude/content-editor.md](claude/content-editor.md) after the next round (STATUS and history.md were updated at deploy). The agents added an entry per phase to content-editor.md; read it once for contradictions and merge the per-phase entries into one description.
+- Update `STATUS.md` and [game-content.md#content-editor](game-content.md#content-editor) after the next round (STATUS and history.md were updated at deploy). The agents added an entry per phase to content-editor.md; read it once for contradictions and merge the per-phase entries into one description.
 - Delete `docs/content-editor-cleanup.md` sections that are now history, or mark phases done.
 - Types: regenerated against hosted after the migrations; identical to the hand-edited file.
 - Untracked `.playwright-cli/` is gitignored. Reviewers left test pilots, rows and stamps locally; the leftover `content_saves` row for `mf_drake` pre-dates them.

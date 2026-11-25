@@ -1,7 +1,7 @@
 # Content editor cleanup (draft plan)
 
 Covers: What was wrong with the owner content editor, and the phases to fix it. **Phases 0 to 7 were built and deployed on 2026-11-24** (order used: 0, 5a, 1, 2, 6, 3, 4, 5b, 7). What is left, unchecked or deferred: [content-editor-handoff.md](content-editor-handoff.md). The text below is the original plan, kept for the reasons behind each phase.
-See also: [claude/content-editor.md](claude/content-editor.md), [claude/content-editor-forms.md](claude/content-editor-forms.md), [claude/lcp-import.md](claude/lcp-import.md).
+See also: [game-content.md#content-editor](game-content.md#content-editor), [game-content.md#content-editor-forms](game-content.md#content-editor-forms), [game-content.md#lcp-import](game-content.md#lcp-import).
 
 Drafted 2026-11-24 from a read of the code. The editor is for GMs and owners to control site content, not player characters. Lore, archives, pithub and personal stats keep their own pages and are out of scope.
 
@@ -50,7 +50,7 @@ Found 2026-11-24 by reading the code. File:line is where the limit lives.
 **C. The same thing shown twice on one screen**
 - The sticky bar's badge (Official / Edited) and the "From {pack}." / "Edited from {pack}." line say the same thing, and both offer `Revert to original` (`EditorPane.vue:221-224, 250-251`).
 - "Published" uses the green `approved` colour, but it isn't an approval (`EditorPane.vue:222`).
-- The form and `Advanced: raw data` edit the same object. Keep it as an escape hatch, but tuck it behind the danger zone. Site kinds don't get it, which contradicts the doc (`EditorPane.vue:277` vs `docs/claude/content-editor.md`).
+- The form and `Advanced: raw data` edit the same object. Keep it as an escape hatch, but tuck it behind the danger zone. Site kinds don't get it, which contradicts the doc (`EditorPane.vue:277` vs `docs/game-content.md#content-editor`).
 - The fallback "No form for {kind} yet" is dead code now (`EditorPane.vue:274-276`).
 - The "Original failed" notice repeats the Original tab (`EditorPreview.vue:87`).
 
@@ -64,7 +64,7 @@ Found 2026-11-24 by reading the code. File:line is where the limit lives.
 - Actions and rules from an LCP are ignored (`IMPORTED_KINDS`, `src/lcp.ts:10`), so a homebrew pack can't ship them.
 - Official items can't be hidden (only reverted). Homebrew can be deleted but not unpublished. Biomods can't be deleted (retire only). Check which kinds have no way to take content out of play.
 - Mech skills (HASE) are hardcoded (`src/gameData.ts:235`). That's fine, they're fixed by the game. Write it down as intentional.
-- Who edits: the editor is owner-only today. CLAUDE.md says GMs do "everything except LCP content". Decide whether GMs may edit rules, actions, factions and commendations.
+- Who edits: the editor is owner-only today. The project rules say GMs do "everything except LCP content". Decide whether GMs may edit rules, actions, factions and commendations.
 - Known open polish (STATUS.md "Rules editor polish"): the "Owner only" pill shows to non-owners, tab counts read 0 while loading, Discard is enabled on an untouched new rule, a stray hint on Tags card rules, "Add number" on Repair cost, number boxes at 320.
 
 ## Plan, in phases (each phase is a shippable step)
@@ -121,15 +121,15 @@ Found 2026-11-24 by reading the code. File:line is where the limit lives.
 - Every kind can be **added, edited, hidden from players and restored**. Official items get "Hide from players" (like rules and actions already have) instead of only Revert. Homebrew deletes stay refused while in use.
 - LCP import accepts `actions` and `rules`, so homebrew packs can carry them.
 - A short "What changed" list per item (who saved and when, from `updated_at` and the profile), if cheap. Optional.
-- Export (already in content-editor-forms.md) covers every kind, so the campaign's content can be backed up.
+- Export (already in [game-content.md](game-content.md#content-editor-forms)) covers every kind, so the campaign's content can be backed up.
 
 ## Rules for every phase
-- Site text follows `.claude/rules/site-text.md`. Colours come from `src/style.css` only. Every write ends in `.select()` and goes through `checkWrite()`. `invalidateCatalogues()` runs after writes.
+- Site text follows `docs/site-text.md`. Colours come from `src/style.css` only. Every write ends in `.select()` and goes through `checkWrite()`. `invalidateCatalogues()` runs after writes.
 - New migrations go to the hosted database before pushing. Run `npx supabase test db` after any database or RLS change. The security auditor reviews database changes, and the UX reviewer reviews screen changes.
-- Update `docs/claude/content-editor.md` and STATUS.md at the end of each phase.
+- Update `docs/game-content.md#content-editor` and STATUS.md at the end of each phase.
 
 ## Decisions (2026-11-24)
-- **Owner only, period.** The whole content editor, including rules, actions, factions, commendations and Definitions, is for owners. GMs get no editor access. (This settles the earlier question about GMs. CLAUDE.md's "GM: everything except LCP content" stays true for pilots, but not for the editor.)
+- **Owner only, period.** The whole content editor, including rules, actions, factions, commendations and Definitions, is for owners. GMs get no editor access. (This settles the earlier question about GMs. `.hermes.md`'s roles, "GM: everything except LCP content", stay true for pilots, but not for the editor.)
 - **Skills and stats can be added.** Owners may add new mech skills (HASE) and personal stats if they want to. It's not urgent, so it goes in phase 3 or 4 after the audit and doesn't block anything else.
 - **A small code entry is fine.** A rule that needs a brand-new kind of calculation can need a code entry in the registry. The developer writes those. The editor and the registry cover everything else.
 

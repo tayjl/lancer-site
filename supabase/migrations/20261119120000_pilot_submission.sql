@@ -1,4 +1,4 @@
--- New pilots get the same draft -> submit flow as changes (CLAUDE.md, "Pending approval workflow"): a pilot is a
+-- New pilots get the same draft -> submit flow as changes (docs/approval-and-security.md, "Pending approval workflow"): a pilot is a
 -- draft until its player submits it, and only submitted pilots reach the GM queue and the public Pending tab.
 -- characters.submitted_at is null while it's a draft. Sending a pilot back makes it a draft again, with the GM's note.
 
