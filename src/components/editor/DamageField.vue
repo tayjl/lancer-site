@@ -4,11 +4,10 @@ import { defIds, defLabel } from '../../definitions'
 import { flatDamage } from '../../damage'
 import Icon from '../Icon.vue'
 import FieldError from './FieldError.vue'
-import { latest, useProblems } from './useFields'
+import { latest, useProblems, type Entry } from './useFields'
 
 // A weapon's range or damage: a type and a number. Damage may be written as dice (1d6+2, the way LANCER's data has
 // it); the flat number players see is shown beside it, since this homebrew has no dice ("Players see 6 flat").
-type Entry = { type: string; val: string | number }
 const modelProp = defineModel<Entry[]>({ required: true })
 const model = latest(modelProp)
 // "path" is where the list sits in the item ("range", "profiles.0.damage"), so problems land on the right input.
@@ -32,7 +31,7 @@ const add = () => (model.value = [...model.value, { type: types.value[0], val: p
     <ul v-if="model.length" class="rows">
       <li v-for="(entry, index) in model" :key="index" class="entry" :class="{ plain: kind === 'range' }">
         <select :value="entry.type" :aria-label="`${noun} ${index + 1} type`" :aria-invalid="invalid(where(index, 'type')) || undefined" @change="change(index, { type: ($event.target as HTMLSelectElement).value })">
-          <option v-if="!types.includes(entry.type)" :value="entry.type">{{ entry.type || 'Choose…' }}</option>
+          <option v-if="!types.includes(entry.type)" :value="entry.type">{{ entry.type ? defLabel(props.kind === 'damage' ? 'damage_types' : 'range_types', entry.type) : 'Choose…' }}</option>
           <option v-for="type in types" :key="type" :value="type">{{ defLabel(props.kind === 'damage' ? 'damage_types' : 'range_types', type) }}</option>
         </select>
         <input type="text" class="value" :value="entry.val" :aria-label="`${noun} ${index + 1} amount`" :aria-invalid="invalid(where(index, 'val')) || undefined" @input="setValue(index, ($event.target as HTMLInputElement).value)" />
@@ -57,7 +56,10 @@ const add = () => (model.value = [...model.value, { type: types.value[0], val: p
 .flat { font-size: var(--fs-s); }
 .flat .num { color: var(--text); font-weight: 700; }
 @media (max-width: 40rem) {
-  .entry, .entry.plain { grid-template-columns: minmax(0, 1fr) 7rem auto; }
-  .entry .flat { grid-column: 1 / -1; grid-row: 2; }
+  /* Type and remove on one row, the number under them, so a nested list's selects keep their width. */
+  .entry, .entry.plain { grid-template-columns: minmax(0, 1fr) auto; }
+  .entry .value { grid-column: 1 / -1; grid-row: 2; }
+  .entry .remove { grid-column: 2; grid-row: 1; }
+  .entry .flat { grid-column: 1 / -1; grid-row: 3; }
 }
 </style>

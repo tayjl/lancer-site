@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { definitionRows } from './definitions'
 import { FRAME_STATS, blankItem, problemsFor, setProfiles, splitProfiles, type Context, type EditorKind } from './contentEditor'
 
 // The checks behind the forms for weapons, systems, weapon mods, talents and manufacturers (src/components/editor/).
@@ -59,6 +60,24 @@ describe('weapon checks', () => {
   it("checks a deployable's name and numbers", () => {
     expect(found('weapons', { ...weapon, deployables: [{ name: 'Turret', type: 'Drone', hp: 5, size: 0.5, evasion: '' }] })).toEqual([])
     expect(fields('weapons', { ...weapon, deployables: [{ name: '', hp: -3, edef: 'x', actions: [{ name: '' }] }] })).toEqual(['deployables.0.name', 'deployables.0.hp', 'deployables.0.edef', 'deployables.0.actions.0.name'])
+  })
+  it("checks an action's range and damage, and a deployable's activation and range", () => {
+    const action = { name: 'Zap', detail: 'Hits.', range: [{ type: 'Range', val: 5 }], damage: [{ type: 'Kinetic', val: '1d6' }] }
+    expect(found('weapons', { ...weapon, actions: [action], deployables: [{ name: 'Turret', activation: 'Quick', range: [{ type: 'Range', val: 3 }] }] })).toEqual([])
+    expect(fields('weapons', { ...weapon, actions: [{ ...action, range: [{ type: 'Nope', val: 'x' }], damage: [{ type: 'Kinetic', val: 'lots' }] }] }))
+      .toEqual(['actions.0.range.0.type', 'actions.0.range.0.val', 'actions.0.damage.0.val'])
+    expect(fields('weapons', { ...weapon, deployables: [{ name: 'T', actions: [{ ...action, damage: [{ type: 'Bad', val: 1 }] }] }] })).toEqual(['deployables.0.actions.0.damage.0.type'])
+    expect(fields('weapons', { ...weapon, deployables: [{ name: 'T', activation: 'Whenever', range: [{ type: 'Range' }] }] })).toEqual(['deployables.0.range.0.val'])
+    expect(problemsFor('weapons', { ...weapon, deployables: [{ name: 'T', activation: 'Whenever' }] }, ctx).filter((p) => p.level === 'warn').map((p) => p.field)).toContain('deployables.0.activation')
+  })
+  it('checks pilot gear deployables like system ones', () => {
+    const gear = { id: 'hb_mw_x', name: 'Beacon', type: 'Gear' }
+    expect(found('pilot_gear', { ...gear, deployables: [{ name: 'Flare', activation: 'Quick', hp: 1 }] })).toEqual([])
+    expect(fields('pilot_gear', { ...gear, deployables: [{ name: '', hp: -1, activation: 'Whenever' }] })).toEqual(['deployables.0.name', 'deployables.0.hp'])
+  })
+  it('wants no_mods to be true or false', () => {
+    expect(found('weapons', { ...weapon, no_mods: true })).toEqual([])
+    expect(fields('weapons', { ...weapon, no_mods: 'yes' })).toEqual(['no_mods'])
   })
   it('splits into profiles and folds one back up', () => {
     const split = splitProfiles({ ...weapon, on_hit: 'Stun.', effect: 'Shared.' })
@@ -149,6 +168,14 @@ describe('frame checks', () => {
     expect(frameFields({ ...frame, stats: { ...stats, hp: '', structure: -1, speed: 2.5, size: 4, tech_attack: -2 } })).toEqual(['stats.size', 'stats.structure', 'stats.hp', 'stats.speed'])
     expect(frameFields({ ...frame, stats: { ...stats, size: 0.5 } })).toEqual([])
     expect(frameFields({ ...frame, stats: {} })).toEqual(FRAME_STATS.filter((s) => !s.unused).map((s) => `stats.${s.key}`))
+  })
+  it('lists the sizes the owner has defined in the size error', () => {
+    const text = (size: number) => found('frames', { ...frame, stats: { ...(frame.stats as Data), size } }, frameCtx).find((p) => p.field === 'stats.size')?.text
+    expect(text(4)).toBe('Size is ½, 1, 2 or 3.')
+    definitionRows.value = [{ kind: 'frame_sizes', id: '5', label: '5', data: {}, hidden: false, sort: 0 }]
+    try {
+      expect(text(4)).toBe('Size is 5.')
+    } finally { definitionRows.value = null }
   })
   it('needs a manufacturer, a licence rank of 0 to 3 and at least one known mount', () => {
     expect(frameFields({ ...frame, source: '', license_level: 4 })).toEqual(['source', 'license_level'])

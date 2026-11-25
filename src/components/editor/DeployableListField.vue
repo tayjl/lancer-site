@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { type Data } from '../../contentEditor'
-import { defIds, defList } from '../../definitions'
+import { defIds, defLabel, defList } from '../../definitions'
+import ActionChip from '../ActionChip.vue'
 import RichTextEditor from '../RichTextEditor.vue'
+import DamageField from './DamageField.vue'
 import ActionListField from './ActionListField.vue'
 import Field from './Field.vue'
 import RepeatList from './RepeatList.vue'
-import { input, latest } from './useFields'
+import { clean, input, latest, list, type Entry } from './useFields'
 
 // The drones, mines and turrets an item places: a name, a kind, its numbers (size, HP, evasion, e-defence, armour; an
-// empty box leaves the number out), its rules and its own actions. Other fields on a deployable are kept as they are.
+// empty box leaves the number out), its activation, range, rules and its own actions. Other fields on a deployable are kept as they are.
 const modelProp = defineModel<Data[]>({ required: true })
 const model = latest(modelProp)
 withDefaults(defineProps<{ path?: string }>(), { path: 'deployables' })
@@ -38,6 +40,19 @@ const number = (text: string) => (text.trim() === '' ? undefined : Number(text))
           <input type="number" min="0" :step="step" :value="item[key] ?? ''" @input="change({ [key]: number(input($event)) })" />
         </Field>
       </div>
+      <Field label="Activation" :path="`${path}.${index}.activation`">
+        <span class="activation">
+          <select :value="item.activation ?? ''" @change="change({ activation: input($event) || undefined })">
+            <option value="">None</option>
+            <option v-if="item.activation && !defIds('activations').includes(String(item.activation))" :value="item.activation">{{ defLabel('activations', String(item.activation)) }}</option>
+            <option v-for="activation in defList('activations')" :key="activation.id" :value="activation.id">{{ activation.label }}</option>
+          </select>
+          <ActionChip :activation="String(item.activation ?? '')" />
+        </span>
+      </Field>
+      <Field block label="Range">
+        <DamageField :model-value="list<Entry>(item.range)" kind="range" :path="`${path}.${index}.range`" noun="Deployable range" @update:model-value="change({ range: clean($event) })" />
+      </Field>
       <Field block label="Rules">
         <RichTextEditor :label="`Deployable ${index + 1} rules`" html :model-value="String(item.detail ?? '')" @update:model-value="change({ detail: $event })" />
       </Field>
@@ -51,5 +66,7 @@ const number = (text: string) => (text.trim() === '' ? undefined : Number(text))
 <style scoped>
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--space-m); }
 .nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr)); gap: var(--space-m); }
+.activation { display: flex; align-items: center; gap: var(--space-s); }
+.activation select { flex: 1; min-width: 0; }
 .nums input { font-family: var(--mono); }
 </style>

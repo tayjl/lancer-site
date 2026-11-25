@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { useManufacturers } from '../archive'
+import { catalogueLoading } from '../catalogue'
 import type { Info } from '../info'
 import { makerGroup, type PickOption } from '../pickerRows'
 import { plainText } from '../rulesText'
@@ -38,7 +39,7 @@ const saving = ref(false)
 
 const byId = computed(() => new Map(props.items.map((item) => [item.id, item])))
 const chosenItems = computed(() =>
-  props.chosen.map((id) => byId.value.get(id) ?? { id, name: `Unknown item (${id})` }),
+  props.chosen.flatMap((id) => byId.value.get(id) ?? (catalogueLoading.value ? [] : { id, name: `Unknown item (${id})` })),
 )
 const used = computed(() => chosenItems.value.reduce((sum, item) => sum + (item.cost ?? 0), 0))
 
@@ -120,7 +121,7 @@ function open() {
         </ItemCard>
       </li>
     </ul>
-    <p v-else class="empty">No {{ title.toLowerCase() }} yet.</p>
+    <p v-else-if="!catalogueLoading" class="empty">No {{ title.toLowerCase() }} yet.</p>
 
     <dialog ref="dialog" class="dialog" :aria-label="`Choose ${title.toLowerCase()}`">
       <header class="dialog-head">

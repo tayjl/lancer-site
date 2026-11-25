@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { FRAME_STATS, type BonusType, type Data } from '../../contentEditor'
 import { coreCheckBonuses } from '../../coreRules'
-import { defIds, defList, mountHint } from '../../definitions'
+import { defIds, defLabel, defList, mountHint } from '../../definitions'
 import { frameArt } from '../../images'
 import { itemInfo } from '../../info'
 import { alternateOf, toFrame, useMechData } from '../../mechData'
@@ -163,7 +163,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
     <ol v-if="mounts.length" class="mounts">
       <li v-for="(mount, index) in mounts" :key="index">
         <select :value="mount" :aria-label="`Mount ${index + 1}`" :aria-invalid="invalid(`mounts.${index}`) || undefined" @change="setMount(index, input($event))">
-          <option v-if="!defIds('mount_types').includes(mount)" :value="mount">{{ mount || 'Choose…' }}</option>
+          <option v-if="!defIds('mount_types').includes(mount)" :value="mount">{{ mount ? defLabel('mount_types', mount) : 'Choose…' }}</option>
           <option v-for="option in defList('mount_types')" :key="option.id" :value="option.id">{{ option.label }}</option>
         </select>
         <span class="dim mount-hint">{{ mountHint(mount) ?? '' }}</span>
@@ -190,7 +190,7 @@ const mountsSummary = computed(() => mounts.value.join(', ') || 'No mounts yet')
           <Field label="Use limit" >
             <select :value="String(item.use ?? '')" @change="change({ use: input($event) || undefined })">
               <option value="">None</option>
-              <option v-if="item.use && !defIds('uses').includes(String(item.use))" :value="item.use">{{ item.use }}</option>
+              <option v-if="item.use && !defIds('uses').includes(String(item.use))" :value="item.use">{{ defLabel('uses', String(item.use)) }}</option>
               <option v-for="use in defList('uses')" :key="use.id" :value="use.id">{{ use.label }}</option>
             </select>
           </Field>

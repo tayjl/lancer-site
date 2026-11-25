@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
 import { confirmAction } from '../confirm'
-import { offered } from '../catalogue'
+import { catalogueLoading, offered } from '../catalogue'
 import { tagNames, toItem, useGameData, type Item } from '../gameData'
 import type { NamedBonus } from '../bonuses'
 import { itemInfo } from '../info'
@@ -243,8 +243,9 @@ async function setCore(id: string, event: Event) {
   await store({ core_mounts: { ...props.details.core_mounts, [id]: value } })
 }
 // Mods whose weapon is gone (the rule check says so too): they count for nothing, and can be cleared like unfitted weapons.
-const strayMods = computed(() => Object.entries(props.details.weapon_mods ?? {}).filter(([key]) => !(key in liveMods.value)))
-const orphaned = computed(() => props.mounts.flatMap((places, index) => places.slice(props.frame?.mounts[index] ? mountSize(props.frame.mounts[index]) : 0)).filter((id): id is string => !!id))
+// Nothing is listed as unfitted while the content is still loading: the frame and weapons aren't known yet.
+const strayMods = computed(() => catalogueLoading.value ? [] : Object.entries(props.details.weapon_mods ?? {}).filter(([key]) => !(key in liveMods.value)))
+const orphaned = computed(() => catalogueLoading.value ? [] : props.mounts.flatMap((places, index) => places.slice(props.frame?.mounts[index] ? mountSize(props.frame.mounts[index]) : 0)).filter((id): id is string => !!id))
 const clearOrphans = () => store({ mounts: (props.frame?.mounts ?? []).map((mount, index) => (props.mounts[index] ?? []).slice(0, mountSize(mount))), weapon_mods: liveMods.value })
 </script>
 

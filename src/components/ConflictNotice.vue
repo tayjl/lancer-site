@@ -1,7 +1,9 @@
 <script setup lang="ts">
 // Shown under a page's header when a save found the row had been saved somewhere else (another tab, a GM). The page
 // has stopped saving. Reloading shows the newer version; what was typed since is lost, as the text says.
-const reload = () => window.location.reload()
+// "reload" fires first so a page's tab-close prompt can step aside for it.
+const emit = defineEmits<{ reload: [] }>()
+const reload = () => { emit('reload'); window.location.reload() }
 </script>
 
 <template>

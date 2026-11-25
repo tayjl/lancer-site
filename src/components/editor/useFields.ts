@@ -5,6 +5,8 @@ import { useMechData } from '../../mechData'
 // Small helpers the forms share: an input's value, an array field's value (or [] if it isn't one), and an empty
 // array left out of the data.
 export const input = (event: Event) => (event.target as HTMLInputElement | HTMLSelectElement).value
+// A range or damage entry (DamageField.vue).
+export type Entry = { type: string; val: string | number }
 export const list = <T,>(value: unknown) => (Array.isArray(value) ? (value as T[]) : [])
 export const clean = <T,>(value: T[]) => (value.length ? value : undefined)
 // A folded text section's summary: the labels of the fields with something in them (rules text is HTML, so tags don't count).

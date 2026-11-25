@@ -1,5 +1,5 @@
-import { shallowRef } from 'vue'
-import { loadKind, offered } from './catalogue'
+import { shallowRef, watch } from 'vue'
+import { loadKind, offered, reloads } from './catalogue'
 import { defIds } from './definitions'
 import type { Bionic, CoreBonus, Item, Talent } from './gameData'
 import { flatDamageText } from './damage'
@@ -215,7 +215,9 @@ export function parseItem(value: unknown): { category: ArchiveCategory; id: stri
 // can't load), which just leaves pages in their neutral lilac.
 export function useManufacturers() {
   const manufacturers = shallowRef<Manufacturer[]>([])
-  loadManufacturers().then((list) => (manufacturers.value = list))
+  const load = () => loadManufacturers().then((list) => (manufacturers.value = list))
+  load()
+  watch(reloads, load)
   return manufacturers
 }
 

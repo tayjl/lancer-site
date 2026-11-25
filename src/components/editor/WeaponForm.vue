@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { defIds, defList } from '../../definitions'
+import { defIds, defLabel, defList } from '../../definitions'
 import { lockedTags, setProfiles, splitProfiles, type BonusType, type Data } from '../../contentEditor'
 import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
@@ -21,7 +21,7 @@ import { clean, filled, input, latest, list, useFields } from './useFields'
 // The form for a mech weapon. A weapon has one set of range, damage and rules, or several "profiles" (modes the pilot
 // chooses between, each with its own range and damage and optionally its own tags, rules and actions). With profiles
 // the weapon's own tags, rules text and actions are shared: a profile's own replace them while it's in use
-// (src/equipment.ts selectWeaponProfile). Fields with no input here (skirmish, no_mods, and so on) stay as they are.
+// (src/equipment.ts selectWeaponProfile). Fields with no input here (skirmish and so on) stay as they are.
 const modelProp = defineModel<Data>({ required: true })
 const model = latest(modelProp)
 defineProps<{ tags: { id: string; name: string }[]; bonusTypes: BonusType[]; locked: boolean; manufacturers: { id: string; name: string }[]; licences: { id: string; name: string; source: string }[] }>()
@@ -42,12 +42,13 @@ const bonuses = f.list<Data>('bonuses')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const actions = f.list<Data>('actions')
 const deployables = f.list<Data>('deployables')
+const noMods = f.flag('no_mods')
 const profiles = f.list<Data>('profiles')
 const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 
 const mounts = computed(() => {
   const list = defList('weapon_sizes').map((size) => ({ value: size.id, label: size.label }))
-  return list.some((size) => size.value === mount.value) || !mount.value ? list : [...list, { value: mount.value, label: mount.value }]
+  return list.some((size) => size.value === mount.value) || !mount.value ? list : [...list, { value: mount.value, label: defLabel('weapon_sizes', mount.value) }]
 })
 const types = computed(() => (defIds('weapon_types').includes(type.value) || !type.value ? defIds('weapon_types') : [...defIds('weapon_types'), type.value]))
 
@@ -65,9 +66,10 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
     <Field label="Weapon type" path="type">
       <select v-model="type">
         <option value="" disabled>Choose…</option>
-        <option v-for="option in types" :key="option" :value="option">{{ option }}</option>
+        <option v-for="option in types" :key="option" :value="option">{{ defLabel('weapon_types', option) }}</option>
       </select>
     </Field>
+    <label class="check span2"><input v-model="noMods" type="checkbox" />Can't take mods</label>
   </ItemBasics>
 
   <FoldPanel v-if="!profiles.length" title="Range and damage" open :summary="summary(model) || 'Empty'" :paths="['range', 'damage']">

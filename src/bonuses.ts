@@ -105,9 +105,17 @@ export function bonusSummary(bonus: { id?: unknown; val?: unknown; replace?: unk
 // The personal stat ids (the pilot_stats table, set by gameData.ts loadPilotStats) and pilot-only ids: counted on the pilot, never on the mech.
 export const personalStatIds = shallowRef(new Set<string>())
 export const isPilotBonus = (id: string) => id.startsWith('pilot_') || bonusDef(id)?.scope === 'pilot' || personalStatIds.value.has(id)
-// "+10 hp, only when exposed." Bonus ids and {braces} are data, not wording.
+// "+10 hp, only when exposed." A minimum or a set value reads as what it means: "Threat range is at least 3.", "Sets speed to 4."
+// Bonus ids and {braces} are data, not wording.
 export function bonusReminder(bonus: Bonus, value: number | null) {
-  const what = `${value === null ? '' : `${value >= 0 ? '+' : ''}${value} `}${String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')}`
+  const name = String(bonus.id ?? 'unknown bonus').replaceAll('_', ' ')
+  const types = Array.isArray(bonus.range_types) ? bonus.range_types.map(String) : []
+  // It applies to each listed type: "Threat range is at least 3.", "Threat and Range are at least 2."
+  const minimum = types.length > 1 ? `${types.join(' and ')}${types.includes('Range') ? ' are' : ' ranges are'}` : `${types[0] && types[0] !== 'Range' ? `${types[0]} range` : 'Range'} is`
+  const what = value === null ? name
+    : bonus.id === 'min_range' ? `${minimum} at least ${value}`
+    : bonus.replace ? `Sets ${name} to ${value}`
+    : `${value >= 0 ? '+' : ''}${value} ${name}`
   const when = bonus.condition ? `, only when ${String(bonus.condition).replace(/[{}]/g, '')}` : ''
   return `${what}${when}.${bonus.detail ? ` ${bonus.detail}` : ''}`
 }

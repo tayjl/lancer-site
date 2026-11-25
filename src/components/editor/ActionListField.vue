@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { type Data } from '../../contentEditor'
-import { defIds, defList } from '../../definitions'
+import { defIds, defLabel, defList } from '../../definitions'
 import ActionChip from '../ActionChip.vue'
 import RichTextEditor from '../RichTextEditor.vue'
+import DamageField from './DamageField.vue'
 import Field from './Field.vue'
 import RepeatList from './RepeatList.vue'
-import { input, latest } from './useFields'
+import { clean as cleanList, input, latest, list, type Entry } from './useFields'
 
 // An item's actions: a name, how it's activated (the chip beside the choice is what players see), how often, what
-// triggers it, and its rules text. Other fields on an action are kept as they are. "path" is where the list sits in the
+// triggers it, its own range and damage, and its rules text. Other fields on an action are kept as they are. "path" is where the list sits in the
 // item ("actions", "profiles.0.actions"), so problems land on the right input.
 const modelProp = defineModel<Data[]>({ required: true })
 const model = latest(modelProp)
@@ -30,7 +31,7 @@ const where = (index: number, key: string) => `${props.path}.${index}.${key}`
         <Field label="Activation" :path="where(index, 'activation')">
           <span class="activation">
             <select :value="item.activation" @change="change({ activation: input($event) })">
-              <option v-if="!defIds('activations').includes(String(item.activation))" :value="item.activation">{{ item.activation ?? 'Passive' }}</option>
+              <option v-if="!defIds('activations').includes(String(item.activation))" :value="item.activation">{{ item.activation ? defLabel('activations', String(item.activation)) : 'Passive' }}</option>
               <option v-for="activation in defList('activations')" :key="activation.id" :value="activation.id">{{ activation.label }}</option>
             </select>
             <ActionChip :activation="String(item.activation ?? '')" />
@@ -43,6 +44,12 @@ const where = (index: number, key: string) => `${props.path}.${index}.${key}`
           <input type="text" :value="item.trigger ?? ''" placeholder="Reactions only" @input="change({ trigger: clean(input($event)) })" />
         </Field>
       </div>
+      <Field block label="Range">
+        <DamageField :model-value="list<Entry>(item.range)" kind="range" :path="where(index, 'range')" :noun="`${label ?? 'Action'} range`" @update:model-value="change({ range: cleanList($event) })" />
+      </Field>
+      <Field block label="Damage">
+        <DamageField :model-value="list<Entry>(item.damage)" kind="damage" :path="where(index, 'damage')" :noun="`${label ?? 'Action'} damage`" @update:model-value="change({ damage: cleanList($event) })" />
+      </Field>
       <Field block label="Rules">
         <RichTextEditor :label="`${label ?? 'Action'} ${index + 1} rules`" html :model-value="String(item.detail ?? '')" @update:model-value="change({ detail: $event })" />
       </Field>

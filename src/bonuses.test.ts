@@ -46,6 +46,16 @@ describe('the effect registry', () => {
     expect(bonusSummary({ id: 'mystery_thing', val: 3 })).toBe('Adds 3 to mystery thing')
     expect(bonusReminder({ id: 'mystery_thing', val: 3 }, 3)).toBe('+3 mystery thing.')
   })
+  it('words a minimum or a set value as what it means, not as a plus', () => {
+    expect(bonusReminder({ id: 'min_range', val: 3, range_types: ['Threat'] }, 3)).toBe('Threat range is at least 3.')
+    expect(bonusReminder({ id: 'min_range', val: 2, range_types: ['Threat', 'Range'] }, 2)).toBe('Threat and Range are at least 2.')
+    expect(bonusReminder({ id: 'min_range', val: 2, range_types: ['Threat', 'Blast'] }, 2)).toBe('Threat and Blast ranges are at least 2.')
+    expect(bonusReminder({ id: 'min_range', val: 3, range_types: ['Range'] }, 3)).toBe('Range is at least 3.')
+    expect(bonusReminder({ id: 'min_range', val: 3 }, 3)).toBe('Range is at least 3.')
+    expect(bonusReminder({ id: 'min_range', val: 3, condition: '{overcharged}' }, 3)).toBe('Range is at least 3, only when overcharged.')
+    expect(bonusReminder({ id: 'speed', val: 4, replace: true }, 4)).toBe('Sets speed to 4.')
+    expect(bonusReminder({ id: 'speed', val: 4 }, 4)).toBe('+4 speed.')
+  })
   it('counts a stat the owner adds on the pilot, with no code', () => {
     expect(personalDef({ id: 'grit', name: 'Grit' })).toMatchObject({ label: 'Grit', group: 'Personal stats', scope: 'pilot', value: 'formula' })
     expect(isPilotBonus('grit')).toBe(false)

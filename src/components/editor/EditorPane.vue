@@ -237,8 +237,9 @@ async function remove() {
   }
 }
 
-// Closing the tab with unsaved changes asks first.
-const warnLeaving = (event: BeforeUnloadEvent) => { if (dirty.value) event.preventDefault() }
+// Closing the tab with unsaved changes asks first. A conflict's Reload throws the edits away on purpose, so it doesn't ask.
+const reloading = ref(false)
+const warnLeaving = (event: BeforeUnloadEvent) => { if (dirty.value && !reloading.value) event.preventDefault() }
 onMounted(() => window.addEventListener('beforeunload', warnLeaving))
 onUnmounted(() => window.removeEventListener('beforeunload', warnLeaving))
 defineExpose({ dirty })
@@ -255,7 +256,7 @@ defineExpose({ dirty })
       <span v-else-if="hasEdit" class="badge">Edited</span>
       <span v-else-if="imported" class="badge">Official</span>
       <span v-if="dirty && !busy" class="dim status">Unsaved changes</span>
-      <SaveStatus :saving="busy" :saved="status.saved.value && !dirty" :error="status.error.value" :can-retry="!conflict" @retry="save" />
+      <SaveStatus :saving="busy" :saved="status.saved.value && !dirty" :error="conflict ? '' : status.error.value" :can-retry="!conflict" @retry="save" />
       <div class="btn-row">
         <button v-if="!isNew && DUPLICABLE.includes(kind)" type="button" class="quiet small" @click="emit('duplicate', duplicateItem(kind, working, takenIds))">Duplicate</button>
         <button type="button" class="quiet small" :disabled="!dirty || busy" @click="discard">Discard changes</button>
@@ -274,7 +275,7 @@ defineExpose({ dirty })
       </div>
     </div>
 
-    <ConflictNotice v-if="conflict" />
+    <ConflictNotice v-if="conflict" @reload="reloading = true" />
 
     <div class="cols">
       <div v-show="showForm" :key="resetKey" class="ed-form">

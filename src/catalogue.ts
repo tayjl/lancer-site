@@ -1,4 +1,4 @@
-import { computed, reactive } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import type { Json } from './lib/database.types'
 import { fetchAll, supabase } from './lib/supabaseClient'
 
@@ -11,9 +11,25 @@ const failures = reactive(new Map<string, string>())
 // Why game content didn't load, or '' when it did. Pages show it once, as <CatalogueNotice />.
 export const catalogueError = computed(() => [...failures.values()][0] ?? '')
 
+// Retry: every composable that reads game content watches `reloads` and reads again. `retrying` holds until the reads settle.
+export const reloads = ref(0)
+export const retrying = ref(false)
+// Reads still in flight. Pages hold back "unknown item" problems until it's 0, then show them next to the notice if a read failed.
+const pending = ref(0)
+export const catalogueLoading = computed(() => pending.value > 0)
+export async function retryCatalogues() {
+  retrying.value = true
+  failures.clear() // a failure from a page we left would stay forever; the watchers re-add any real one
+  reloads.value++
+  await nextTick() // the watchers have started their reads
+  if (!pending.value) retrying.value = false
+}
+
 export function cached<T>(key: string, load: () => Promise<Loaded<T>>): Promise<Loaded<T>> {
   const hit = cache.get(key) as Promise<Loaded<T>> | undefined
   if (hit) return hit
+  pending.value++
+  // A load that throws instead of returning an error is a failure too: it must not leave the page on "Loading…".
   const own: Promise<Loaded<T>> = load().then((result) => {
     if (!result.error) failures.delete(key)
     else {
@@ -21,6 +37,11 @@ export function cached<T>(key: string, load: () => Promise<Loaded<T>>): Promise<
       if (cache.get(key) === own) cache.delete(key)
     }
     return result
+  }, (error) => {
+    if (cache.get(key) === own) cache.delete(key)
+    throw error
+  }).finally(() => {
+    if (!--pending.value) retrying.value = false
   })
   cache.set(key, own as Promise<Loaded<never>>)
   return own

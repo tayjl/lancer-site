@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, type Ref } from 'vue'
 import { confirmAction } from '../confirm'
-import { offered } from '../catalogue'
+import { catalogueLoading, offered } from '../catalogue'
 import { equippedGear, loadoutSlots, tagNames, type Item, type Slot } from '../gameData'
 import { itemInfo, showInfo } from '../info'
 import { DAMAGE_CHOICES, equipmentDetails, variableDamage } from '../equipment'
@@ -85,7 +85,7 @@ const stowedGroups = computed(() =>
   CATEGORIES.map((category) => ({ ...category, entries: stowed.value.filter((entry) => categoryOf(entry) === category.type) })).filter((group) => group.entries.length),
 )
 const iconOf = (entry: OwnedGear) => (byId.value.has(entry.id) ? itemCard(byId.value.get(entry.id)!).icon : 'generic_item')
-const rowName = (entry: OwnedGear) => byId.value.get(entry.id)?.name ?? `Unknown item (${entry.id})`
+const rowName = (entry: OwnedGear) => byId.value.get(entry.id)?.name ?? (catalogueLoading.value ? '' : `Unknown item (${entry.id})`)
 // The dim text after a row's name: a bought item's price, else its description.
 const rowHint = (entry: OwnedGear) => (bought(entry) && priceText(entry) ? `Bought in this change · ${priceText(entry)}` : entry.notes ? `"${entry.notes}"` : '')
 

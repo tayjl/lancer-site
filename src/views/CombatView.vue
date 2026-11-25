@@ -2,7 +2,7 @@
 import { computed, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import gritIcon from '../assets/icons/skill.svg'
-import { catalogueError } from '../catalogue'
+import { catalogueError, catalogueLoading } from '../catalogue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
 import CombatGroup from '../components/CombatGroup.vue'
 import CombatStrip from '../components/CombatStrip.vue'
@@ -15,7 +15,7 @@ import { searchWords } from '../archive'
 import { actionKey, firstSentence, rowEntry, rulesTopics, stepActions, type CombatEntry, type KitAction } from '../combatEntries'
 import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
 import { onFootRows, ruleRows, statusGroups, turnSteps } from '../rulesData'
-import { baseActionsLoaded, combatTags, hiddenTags, loadBaseActions, loadRules, loadTagNames, rulesLoaded, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
+import { baseActionsLoaded, combatTags, hiddenTags, rulesLoaded, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
@@ -32,8 +32,6 @@ import { plainText } from '../rulesText'
 // looks through the current mode's rows: the bar gives way to the matching actions and every section with a match opens.
 const route = useRoute()
 const router = useRouter()
-const loadContent = () => { loadBaseActions(); loadRules(); loadTagNames() }
-loadContent()
 // The action, rule and tag wording is editable content, only the database has it: show nothing of it until all have loaded.
 const contentReady = computed(() => baseActionsLoaded.value && rulesLoaded.value && tagNamesLoaded.value)
 // Your living pilot as a GM approved it: what's in play, not a change still in draft.
@@ -214,7 +212,7 @@ const clear = () => {
 <template>
   <main class="page">
     <PageHeader title="Combat" summary="What you can do on your turn, and the rules to look up." />
-    <CatalogueNotice :retry="loadContent" />
+    <CatalogueNotice />
     <div class="combat">
       <div class="tools">
         <div class="mode">
@@ -267,7 +265,7 @@ const clear = () => {
                 </div>
               </div>
             </div>
-            <p v-for="id in !searching && s.id === 'combat-kit' ? (loadout?.missing ?? []) : []" :key="id" class="note dim missing"><Icon name="warning" />Unknown item ({{ id }})</p>
+            <p v-for="id in !searching && !catalogueLoading && s.id === 'combat-kit' ? (loadout?.missing ?? []) : []" :key="id" class="note dim missing"><Icon name="warning" />Unknown item ({{ id }})</p>
           </FileSection>
         </template>
       </template>

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import InfoBody from '../components/InfoBody.vue'
 import InfoButton from '../components/InfoButton.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
+import { retrying } from '../catalogue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -213,7 +214,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
           </ul>
         </li>
       </ul>
-      <p v-else class="empty">No content yet.</p>
+      <p v-else-if="!retrying" class="empty">No content yet.</p>
     </template>
 
     <!-- Everything else: the list (a box per manufacturer or gear type, licence sub-headings for weapons and systems)
@@ -259,7 +260,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
     <p v-else-if="searching" class="empty" role="status">Nothing matches that search.</p>
     <!-- The catalogues don't say when they've finished loading, so "nothing at all" can mean either. -->
     <p v-else-if="entries.length" class="empty">No entries.</p>
-    <p v-else class="empty">No content yet.</p>
+    <p v-else-if="!retrying" class="empty">No content yet.</p>
   </main>
 </template>
 

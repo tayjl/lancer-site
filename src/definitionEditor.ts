@@ -47,7 +47,7 @@ export function definitionProblems(info: DefKindInfo, rows: EditRow[]): Problem[
       slots.forEach((slot, n) => { if (!slot.length) error(`${name}: Slot ${n + 1} needs a weapon size.`, `rows.${i}.slots.${n}`) })
     }
   })
-  return out.filter((problem, i) => out.findIndex((other) => other.field === problem.field && other.text === problem.text) === i)
+  return out
 }
 
 // A problem line for under its own field, without the row's name ("Burn: The ID ..." becomes "The ID ...").

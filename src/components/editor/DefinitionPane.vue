@@ -110,7 +110,8 @@ const setLabel = (item: EditRow, change: Change, label: string) => change({ labe
 const setSlot = (item: EditRow, change: Change, n: number, slot: string[]) => setData(item, change, { slots: slotsOf(item).map((s, i) => (i === n ? slot : s)) })
 
 // A conflict's Reload throws the edits away on purpose, so it doesn't ask.
-const warnLeaving = (event: BeforeUnloadEvent) => { if (dirty.value && !conflict.value) event.preventDefault() }
+const reloading = ref(false)
+const warnLeaving = (event: BeforeUnloadEvent) => { if (dirty.value && !reloading.value) event.preventDefault() }
 onMounted(() => window.addEventListener('beforeunload', warnLeaving))
 onUnmounted(() => window.removeEventListener('beforeunload', warnLeaving))
 defineExpose({ dirty })
@@ -136,7 +137,7 @@ defineExpose({ dirty })
         </div>
       </div>
 
-      <ConflictNotice v-if="conflict" />
+      <ConflictNotice v-if="conflict" @reload="reloading = true" />
       <div v-if="shown.length" class="notice warn" role="alert">
         <p class="notice-title">Fix {{ plural(shown.length, 'problem') }} before saving</p>
         <ul class="problems">

@@ -1,5 +1,5 @@
-import { computed, shallowRef } from 'vue'
-import { cached, clearCatalogues, loadKind } from './catalogue'
+import { computed, shallowRef, watch } from 'vue'
+import { cached, clearCatalogues, loadKind, reloads } from './catalogue'
 import { BASE_ACTIONS, baseActions, toBaseAction, type BaseAction } from './baseActions'
 import { rule, ruleItems, toRuleItem } from './rulesData'
 import { loadDefinitions } from './definitions'
@@ -365,6 +365,7 @@ export function useGameData() {
 
   async function load() {
     loadTagNames()
+    loadBaseActions()
     loadSources()
     loadRules()
     loadDefinitions()
@@ -388,6 +389,7 @@ export function useGameData() {
   }
 
   load()
+  watch(reloads, load)
 
   return { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses }
 }

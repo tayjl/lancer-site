@@ -115,6 +115,25 @@ describe('mechStats', () => {
     expect(value(mechStats(blackbeard, { hull: 2 }, effects.modifiers), 'hp')).toBe(23)
   })
 
+  it('reminds about a pilot effect nobody declared, and stays quiet about the pilot stats', () => {
+    const system = toItem('odd', { name: 'Odd', bonuses: [{ id: 'pilot_foo', val: 2 }, { id: 'pilot_hp', val: 1 }] })
+    const effects = mechEffects({ systems: ['odd'] }, {}, { ...catalogue, systems: new Map([['odd', system]]) })
+    expect(effects.reminders).toEqual([expect.objectContaining({ kind: 'item', name: 'Odd', text: '+2 pilot foo.', uncounted: true })])
+  })
+
+  it('reminds about the bonuses of an active core power', () => {
+    const raw = { core_system: { name: 'Core', active_name: 'Surge', active_effect: 'Go.', active_bonuses: [{ id: 'hp', val: 5 }, { id: 'speed', val: 1, condition: '{moving}' }] } }
+    const power = mechEffects({ frame: blackbeard.id }, {}, { ...catalogue, frames: [{ ...blackbeard, raw }] }).reminders.filter((entry) => entry.kind === 'core-power')
+    expect(power).toEqual([expect.objectContaining({ name: 'Surge', text: 'Go.<br>While active, not counted in the stats: +5 hp. +1 speed, only when moving.' })])
+    expect(power[0].uncounted).toBeUndefined()
+  })
+
+  it('words a minimum range bonus of an active core power as a minimum', () => {
+    const raw = { core_system: { name: 'Core', active_name: 'Surge', active_effect: 'Go.', active_bonuses: [{ id: 'min_range', val: 3, range_types: ['Threat'] }] } }
+    const power = mechEffects({ frame: blackbeard.id }, {}, { ...catalogue, frames: [{ ...blackbeard, raw }] }).reminders.find((entry) => entry.kind === 'core-power')
+    expect(power?.text).toBe('Go.<br>While active, not counted in the stats: Threat range is at least 3.')
+  })
+
   it('keeps conditions, expressions, filters and unsupported stats out of totals and in reminders', () => {
     const system = toItem('conditional', { name: 'Conditional', bonuses: [
       { id: 'hp', val: 10, condition: '{exposed}' }, { id: 'hp', val: '{ll}' },

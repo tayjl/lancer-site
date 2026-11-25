@@ -28,6 +28,11 @@ describe('definition editor', () => {
     expect([bad('0.5'), bad('2'), bad('02'), bad('big')]).toEqual([0, 0, 1, 1])
   })
 
+  it('reports a bad frame size id once', () => {
+    const sizes = defKindInfo('frame_sizes')!
+    expect(definitionProblems(sizes, [saved('01')]).map((p) => p.text)).toEqual(['01: The ID must be a number, like 2 or 0.5.'])
+  })
+
   it('wants every mount slot to take a size', () => {
     const mount = defKindInfo('mount_types')!
     expect(definitionProblems(mount, [saved('Odd')]).map((p) => p.text)).toEqual(['Odd needs at least one slot.'])

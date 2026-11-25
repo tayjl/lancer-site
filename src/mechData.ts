@@ -1,4 +1,5 @@
-import { shallowRef } from 'vue'
+import { shallowRef, watch } from 'vue'
+import { reloads } from './catalogue'
 import { ruleNumbers } from './rulesData'
 import armourIcon from './assets/icons/armour.svg'
 import evasionIcon from './assets/icons/evasion.svg'
@@ -350,8 +351,11 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     let replacing = 0
     for (const bonus of source.bonuses) {
       if (!bonus || typeof bonus !== 'object') continue
-      // Pilot stats are the pilot's (src/gameData.ts), not the mech's.
-      if (isPilotBonus(bonus.id)) continue
+      // Pilot stats are the pilot's (src/gameData.ts), not the mech's. A pilot_ effect nobody declared is counted nowhere, so it's a reminder.
+      if (isPilotBonus(bonus.id)) {
+        if (bonus.id.startsWith('pilot_') && !bonusDef(bonus.id)) reminders.push({ ...source.origin, source: source.name, text: bonusReminder(bonus, bonusValue(bonus.val, variables)), uncounted: true })
+        continue
+      }
       bonuses.push({ source: source.name, bonus, key: source.key && bonus.id === 'replace_mount' ? choiceKey(source.key, replacing++) : source.key })
       const stat = bonusDef(bonus.id)?.stat
       const calculated = bonusValue(bonus.val, variables)
@@ -365,6 +369,17 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
         modifiers.push({ stat, source: source.name, value, replace: !!bonus.replace, overwrite: !!bonus.overwrite })
       else if (bonus.condition || bonus.detail || (bonusDef(bonus.id)?.counted !== 'effect' && bonus.accuracy === undefined)) reminders.push({ ...source.origin, source: source.name, text: bonusReminder(bonus, numeric ? value : null), uncounted: true })
     }
+  }
+  // Core power bonuses apply only while it's active, which the sheet doesn't track: one reminder line, never counted.
+  const power = baseFrame?.raw?.core_system as Record<string, unknown> | undefined
+  const active = listOf(power?.active_bonuses).filter(bonus => bonus && typeof bonus === 'object')
+  if (power && active.length) {
+    const list = active.map(bonus => bonusReminder(bonus, bonusValue(bonus.val, variables))).join(' ')
+    // Folded into the power's own entry, so the mech page and the combat page show one core power, not two with one name.
+    const entry = reminders.find(item => item.kind === 'core-power')
+    // The power itself is shown in full, so the note sits in the added line, not under the whole entry.
+    if (entry) entry.text = `${entry.text}<br>While active, not counted in the stats: ${list}`
+    else reminders.push({ kind: 'core-power', name: String(power.active_name ?? power.name), from: power.name ? String(power.name) : undefined, source: `${power.active_name ?? power.name} · active core power`, text: `While active: ${list}`, uncounted: true })
   }
   return { modifiers, bonuses, reminders, frame }
 }
@@ -538,6 +553,7 @@ export function useMechData() {
   }
 
   load()
+  watch(reloads, load)
 
   return { frames, weapons, systems, mods, integrated }
 }

@@ -34,7 +34,7 @@ function build(data: Data): Built {
     if (kind === 'talents') return { info: talentInfo(toTalent(id, data)) }
     if (kind === 'core_bonuses') { const bonus = toCoreBonus(id, data); return { info: coreBonusInfo(bonus), bonus } }
     if (kind === 'manufacturers') return { info: manufacturerInfo(toManufacturer(id, data), frames.value) }
-    if (kind === 'tags') return { info: { kind: 'Tag', name: String(data.name ?? id), facts: [], stats: [], groups: [{ title: 'Meaning', cards: [{ heading: 'Meaning', html: String(data.description ?? '') }] }] } }
+    if (kind === 'tags') return { info: { kind: 'Tag', name: String(data.name ?? id), facts: data.combat_page === true ? [{ text: 'On combat page' }] : [], stats: [], groups: [{ title: 'Meaning', cards: [{ heading: 'Meaning', html: String(data.description ?? '') }] }] } }
     if (kind === 'actions') return { info: { kind: 'Action', name: String(data.name ?? id), facts: data.frequency ? [{ text: String(data.frequency) }] : [], stats: [], groups: data.detail ? [{ title: 'Rules', cards: [{ heading: 'Rules text', html: fill(String(data.detail)) }] }] : [] } }
     if (kind === 'factions' || kind === 'commendations') return { info: { kind: kind === 'factions' ? 'Faction' : 'Commendation', name: String(data.name ?? ''), facts: [], stats: [], groups: [] } }
     if (kind === 'bionics') {

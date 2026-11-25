@@ -67,6 +67,7 @@ describe('item checks', () => {
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 2 }, { id: 'physicality', val: '1' }, { id: 'sp', val: '{systems}/2' }] })).toEqual([])
     expect(texts({ ...vest, bonuses: [{ id: 'pilot_hp', val: 'lots' }, { val: 1 }] })).toEqual(['Effect 1 needs a number, or a formula such as {systems}/2.', 'Effect 2 needs a type.'])
     expect(texts({ ...vest, bonuses: [{ id: 'mystery', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Effect "mystery" is shown on the sheet but not counted.'])
+    expect(texts({ ...vest, bonuses: [{ id: 'pilot_foo', val: 1 }] }, 'pilot_gear', 'warn')).toEqual(['Effect "pilot_foo" is shown on the sheet but not counted.'])
   })
   it('accepts dice for damage and shows a missing number', () => {
     expect(texts({ ...vest, damage: [{ type: 'Kinetic', val: '2d6+1' }, { type: 'Energy', val: 3 }] })).toEqual([])

@@ -1,9 +1,9 @@
-import { capitalise, sameName } from './text'
+import { capitalise, orList, sameName } from './text'
 import { BONUS_REGISTRY, bonusDef, bonusValue, personalDef, type BonusDef, type BonusFilter } from './bonuses'
 import { ICON_CHOICES } from './commendations'
 import { coreCheckBonuses } from './coreRules'
 import { flatDamage } from './damage'
-import { defIds } from './definitions'
+import { defIds, defList } from './definitions'
 import { IMAGE_PATH } from './images'
 import type { LcpKind } from './lcp'
 import { REQUIREMENT_KINDS } from './gameData'
@@ -167,7 +167,7 @@ const FILTER_NOUNS: Record<BonusFilter, string> = { weapon_types: 'weapon type',
 // own stats. Only others are shown on the sheet as "not counted".
 export const bonusCounted = (row: Data, statIds: string[] = []) => {
   const id = String(row.id ?? '')
-  return !!bonusDef(id) || statIds.includes(id) || row.accuracy !== undefined || (id.startsWith('pilot_') && id !== 'pilot_evasion')
+  return !!bonusDef(id) || statIds.includes(id) || row.accuracy !== undefined
 }
 // The effects with their own value kind (a mount, steps, tags...); stats are plain numbers or formulas.
 const effectType = (id: string) => { const def = bonusDef(id); return def && def.value !== 'formula' ? def : undefined }
@@ -282,6 +282,8 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
     const row = entry(action)
     if (typeof row.name !== 'string' || !row.name.trim()) out.push(error(say(who, `action ${index + 1} needs a name.`), `${at}actions.${index}.name`))
     if (row.activation !== undefined && !defIds('activations', true).includes(String(row.activation))) out.push(warn(say(who, `action ${index + 1} has an unknown activation.`), `${at}actions.${index}.activation`))
+    checkEntries(row.range, 'range', `Action ${index + 1} range`, `${at}actions.${index}.range`, who, out)
+    checkEntries(row.damage, 'damage', `Action ${index + 1} damage`, `${at}actions.${index}.damage`, who, out)
     // Cards and the information dialog only show an action that says what it does.
     if (typeof row.name === 'string' && row.name.trim() && !String(row.detail ?? '').trim()) out.push(warn(say(who, `action ${index + 1} has no rules text and won't show.`), `${at}actions.${index}.detail`))
   }
@@ -298,6 +300,8 @@ function checkDeployables(value: unknown, ctx: Context, out: Problem[], base = '
       const number = row[key]
       if (number !== undefined && number !== '' && (!isNumber(number) || Number(number) < 0)) out.push(error(`${who}: ${label} needs a number, 0 or more.`, `${at}.${key}`))
     }
+    if (row.activation !== undefined && !defIds('activations', true).includes(String(row.activation))) out.push(warn(`${who} has an unknown activation.`, `${at}.activation`))
+    checkEntries(row.range, 'range', 'Range', `${at}.range`, who, out)
     checkParts({ actions: row.actions }, `${at}.`, who, ctx, out, false)
   }
 }
@@ -327,6 +331,7 @@ function checkWeapon(data: Data, ctx: Context, out: Problem[]) {
   if (!defIds('weapon_sizes', true).concat(DATA_ONLY_MOUNTS).includes(String(data.mount))) out.push(error('Choose the mount size.', 'mount'))
   if (!defIds('weapon_types', true).concat(DATA_ONLY_WEAPON_TYPES).includes(String(data.type))) out.push(error('Choose the weapon type.', 'type'))
   checkPoints(data, out)
+  if (data.no_mods !== undefined && typeof data.no_mods !== 'boolean') out.push(error('Choose whether the weapon takes mods.', 'no_mods'))
   checkLicence(data, ctx, out)
   checkGrants(data, ctx, out)
   const profiles = list(data.profiles)
@@ -423,7 +428,7 @@ function checkFrame(data: Data, ctx: Context, out: Problem[]) {
     if (unused && value === undefined) continue
     const field = `stats.${key}`
     if (!isNumber(value)) out.push(error(`${label} needs a number.`, field))
-    else if (key === 'size') { if (!defIds('frame_sizes', true).some((id) => Number(id) === Number(value))) out.push(error('Size is ½, 1, 2 or 3.', field)) }
+    else if (key === 'size') { if (!defIds('frame_sizes', true).some((id) => Number(id) === Number(value))) out.push(error(`Size is ${orList(defList('frame_sizes', true).map((row) => row.label))}.`, field)) }
     else if (!Number.isInteger(Number(value)) || (Number(value) < 0 && key !== 'tech_attack')) out.push(error(`${label} must be a whole number${key === 'tech_attack' ? '' : ', 0 or more'}.`, field))
   }
 
@@ -511,6 +516,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
   else if (kind === 'manufacturers') checkManufacturer(data, problems)
   else if (kind === 'rules') checkRule(data, problems)
   else checkParts(data, '', '', ctx, problems)
+  if (kind === 'pilot_gear') checkDeployables(data.deployables, ctx, problems)
   if (kind === 'core_bonuses') checkGrants(data, ctx, problems)
   if (['weapons', 'systems', 'mods', 'pilot_gear', 'core_bonuses', 'talents', 'frames'].includes(kind)) checkRequires(data, ctx, problems)
   return problems

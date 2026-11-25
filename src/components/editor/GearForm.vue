@@ -7,6 +7,7 @@ import { defIds } from '../../definitions'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import DamageField from './DamageField.vue'
+import DeployableListField from './DeployableListField.vue'
 import Field from './Field.vue'
 import FoldPanel from './FoldPanel.vue'
 import RequirementListField from './RequirementListField.vue'
@@ -27,6 +28,7 @@ const description = f.text('description')
 const range = f.list<{ type: string; val: string | number }>('range')
 const damage = f.list<{ type: string; val: string | number }>('damage')
 const bonuses = f.list<Data>('bonuses')
+const deployables = f.list<Data>('deployables')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 const tagList = f.list<{ id: string; val?: string | number }>('tags')
 const actions = f.list<Data>('actions')
@@ -79,6 +81,10 @@ const price = computed({
 
   <FoldPanel title="Actions" :summary="plural(actions.length, 'action')" :paths="['actions']">
     <ActionListField v-model="actions" />
+  </FoldPanel>
+
+  <FoldPanel title="Deployables" :summary="plural(deployables.length, 'deployable')" :paths="['deployables']">
+    <DeployableListField v-model="deployables" />
   </FoldPanel>
 
   <FoldPanel title="Requirements" :summary="plural(requires.length, 'requirement')" :paths="['requires']">
