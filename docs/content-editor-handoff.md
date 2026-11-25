@@ -7,11 +7,12 @@ State at the end of the session: all commits are on `origin/main` (`e92c73f` plu
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
 ## Where we are (2026-11-25)
-- Step 2 of the cleanup is done and committed (`1f028ba` code, `e899ecf` docs) but **not pushed**: `main` is 2 commits ahead of `origin/main`.
-- Step 3 (0.2, remove all data duplication) is **done, uncommitted, not pushed**. Code (3a) and the migration `20261125100000_content_cleanup_3b` (3b) are in the working tree. Details in 0.2.
-- **One hosted migration is pending:** `20261125100000_content_cleanup_3b`. Apply it **before** pushing. Check the hosted `rule_number_limits` and `loadout_*` values first, and read the NOTICE output for owner-edited rows.
-- **Next: step 4 (0.3, statuses, conditions and the remaining Definitions).** Nothing is started on it. Resume at 0.3 (it has a "Resume here" line).
-- Pushing: agents' pushes hang on a hidden Git credential prompt. The developer pushes by hand (`git push origin main`), or runs `gh auth login` then `gh auth setup-git` once so agents can push.
+- Steps 2 and 3 are committed, pushed and live (`origin/main` `c7ff4b7`; code `1f028ba`, `e899ecf`, `b0e4bf9`; docs `c7ff4b7`). Pushed 2026-11-25.
+- Migration `20261125100000_content_cleanup_3b` (3b) is applied to hosted (2026-11-25, before the push). The CLI printed no NOTICE lines, so check hosted rows with an `edited` value to see whether owner-edited rows were touched.
+- **Step 4a is done, uncommitted** (0.3, status groups and damage type guide text). Migration `20261125110000_content_cleanup_4a` is local only, not on hosted (pending; pre-apply check in STATUS.md).
+- Nothing else pending on hosted. Nothing pushed from 4a.
+- **Next: 4b, then 4c** (0.3). Check live (STATUS.md) stays open.
+- Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
 
 ## 0. Remaining objectives from the original plan (the developer wants this done)
 The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (`.hermes.md`, Team routing), and finish each with the reviewers, a browser pass and the docs.
@@ -42,7 +43,7 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - Done when: a report lists every gap and each gets an editor field or a written reason it stays code.
 
 ### 0.2 Remove all data duplication
-**Status: done 2026-11-25 (step 3). Uncommitted, not pushed.** Rule decisions: [rule-decisions.md](rule-decisions.md) 2026-11-25.
+**Status: done 2026-11-25 (step 3). Committed, pushed and live (`c7ff4b7`); 3b applied to hosted.** Rule decisions: [rule-decisions.md](rule-decisions.md) 2026-11-25.
 
 What changed:
 - **3a (code seed):** duplicate rule text removed from `src/combatRules.ts`, `src/rulesData.ts`, `src/combatEntries.ts` and `src/coreContent.ts`. New `fill()` key `overcharge_first` (first Overcharge step, from the rule numbers) is used by Full Repair. `REACTIONS_NOTE` keeps only the expiry sentence. Tech note drops the Full Tech sentence. The Movement and Free notes are removed (the steps serve). Dice note shortened, DICE table kept. Copied action names are `{action:id}` links. Pilot on-foot stat numbers are dropped from text (`pilotVitals()` is the source; a fill key would be a circular import). Structure 2 note left (not a duplicate). Reliable tag reads "Always deals at least {VAL} damage, even on a miss." `src/rules.ts` `freeGear` reads the `loadout_*` numbers. Repairs item reads "Repairs per Structure or Stress."
@@ -77,17 +78,34 @@ Left from 0.2 (for later):
 - `content_editor.test.sql` fails locally on leftover row `hb_tg_ux_probe_tag` in pack 7. Clean the local data first.
 
 ### 0.3 Statuses, conditions and the remaining Definitions
-**Resume here (step 4).** Step 3 (0.2) is done and uncommitted. Check STATUS.md first: the 3b migration, and whether step 3 is committed. Then start with the statuses items below. `ON_FOOT_ROWS` is dead code (still true after step 3).
+**Resume here (step 4b).** Steps 3 (0.2) and 4a are done. 3 is pushed and live (`c7ff4b7`). 4a is uncommitted (see the 4a block below).
+
+**4a: done 2026-11-25 (uncommitted).** Migration `supabase/migrations/20261125110000_content_cleanup_4a.sql` (local only, not on hosted).
+- **Status groups are a Definitions kind**, `status_groups` (label = card title, `data.icon`, `data.mode` mech or pilot). Seed: cover 'Cover and stealth', conditions 'Conditions', other 'Other statuses' (mech), pilot 'On foot' (pilot). Statuses stay `rules` rows in section `statuses`. The combat page builds mech cards from mech groups and the On foot card(s) from pilot groups. Down and out shows only in pilot mode. A hidden group hides its statuses. `delete_definition` refuses a group used by a status rule (effective group, `coalesce(edited, data)`). Editor: a 'Shown in' select per group row.
+- **Damage type guide text** is `damage_types` `data.text` ('Guide text' in Definitions). The combat guide lists every non-hidden damage type, so an owner-added type appears. All six damage types start with empty guide text, which the owner can fill in the editor (developer, 2026-11-25). The four rule rows `rule_attacks_kinetic/explosive/energy/burn` are deleted.
+- **Removed code:** `STATUS_CARDS`, `STATUS_GROUPS`, `DAMAGE_TYPES`, `ON_FOOT_ROWS`.
+- **Before the hosted apply:** run `select distinct data->>'group' from content_items where kind='rules' and data->>'section'='statuses'`. Every value must be cover, conditions, other or pilot, or that status vanishes from the combat page. Then apply and read the NOTICEs (owner text on the four deleted rule rows is copied into the damage type).
+- **pgTAP:** `supabase/tests/content_cleanup_4a.test.sql` holds a copy of the migration's data block. Keep it in step with the migration.
+- **Checks:** `npm test` 555 pass, `npm run build` ok, `npx supabase test db` 33 files 1037 tests pass. Reviewer: no blocking issues. Browser (qa, 360 and 1280): pass.
+- **Left open from 4a (record, not blocking):**
+  - Editor buttons Save, Discard and Delete are 28px at 1280, and dialog buttons 36px (editor-wide, pre-existing).
+  - The 'Hidden from players' hint is not linked to its checkbox.
+  - New-row problems only show after editing.
+  - A new definition id can contain spaces and capitals.
+  - The editor gives no warning when a hidden status group still holds statuses.
+  - `damageTypesHtml` puts the label into HTML unescaped (owner-only).
+  - A small race between the in-use count and delete for status groups.
+  - Local `npx supabase db reset` leaves 0 rules rows and test-gm as gm, not owner. Browser tests need the seed and a role change.
 
 Open items from the audits (`content-audit/constants-and-matrix.md`, scratch):
-- `STATUS_CARDS` (`src/rulesData.ts:20`) hard-codes the group ids and the `pilot` bucket (`src/rulesData.ts:96, 216`, `src/views/CombatView.vue:167`). A new status group can't be added in the editor.
-- `DAMAGE_TYPES` (`src/combatRules.ts:127`): the guide shows only the 4 rule rows, so Heat and Variable from `damage_types` never appear.
-- `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicates `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) should be a tag flag (`combat_page` already exists).
-- `ON_FOOT_ROWS` (`src/combatRules.ts:258`) is dead code: `onFootRows()` reads the database. Still true after step 3.
+- (done 4a) `STATUS_CARDS` (`src/rulesData.ts:20`) hard-coded the group ids and the `pilot` bucket. Status groups are now a Definitions kind, and a new group can be added in the editor.
+- (done 4a) `DAMAGE_TYPES` (`src/combatRules.ts:127`): the guide showed only the 4 rule rows. It now reads every visible `damage_types` row with its text.
+- `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicates `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) should be a tag flag (`combat_page` already exists). (4c)
+- (done 4a) `ON_FOOT_ROWS` (`src/combatRules.ts:258`) was dead code and is removed.
 - `Integrated Auxiliary` and `Superheavy` are code literals that duplicate `mount_types` rows (`src/mechData.ts:155-167`, `src/rules.ts:259, 345`, `src/equipment.ts:22`, `src/components/MechLoadout.vue:238, 307`). Use a flag on the mount row. `Main/Aux` (`src/mechData.ts:153`) is the named core bonus `cb_mount_retrofitting`.
-- **Statuses and conditions become editable and addable.** Today they are partly code (`src/combatRules.ts:169`, status cards in `src/rulesData.ts`). Make each one a Definition or content row the combat page reads (name, text, icon and colour from existing variables, group, and whatever the combat page needs). Owner can add, edit, hide and delete (guarded) in the editor; the combat guide and any status picker or chip read them from the database.
-- **Combat guide follows the database:** `DAMAGE_TYPES` and the four damage type rule rows in `src/combatRules.ts` / `src/rulesData.ts` must come from the Definitions, so a new damage type appears in the guide. Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
-- Other Definitions work: tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
+- (done 4a) **Statuses and conditions become editable and addable.** Status groups are Definitions (4a). Statuses are `rules` rows in section `statuses`, so an owner adds, edits, hides and deletes them in the Rules tab, and the combat page reads them from the database. Conditions have no separate kind (they are the `conditions` group). Hidden-group and delete guard are in the 4a block.
+- (done 4a) **Combat guide follows the database:** the damage type rows come from the Definitions (`damage_types`, with guide text). Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
+- Other Definitions work (4b and 4c): tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
 - (done) Frame size error text follows the Definition rows. Show "Used by n" on each Definitions row before trying to delete.
 - Done when: an owner can add a damage type, a status or a condition, or a mount type in the editor and it works on the sheet, archive and combat page with no code change.
 

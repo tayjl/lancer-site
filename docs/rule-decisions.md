@@ -45,6 +45,10 @@ Rules will keep changing. To change one:
 - **Fight is a Quick action too with a Sidearm weapon (Light A/C, Light Signature)**, as the tag says.
 - **Pilot Overwatch uses any pilot weapon, not the mech weapon classes.**
 
+## 2026-11-25
+- **Status groups are Definitions** (kind `status_groups`: title, icon, and a mode, Mech or Pilot). The statuses themselves stay rules rows. A Pilot group's statuses show in the combat page's On foot card in Pilot view, not in Mech view (so Down and out is no longer listed under Other statuses).
+- **Damage type guide text lives in the damage type's Definition** (`text`). The combat guide lists every visible damage type, so an added one appears. Heat and Variable start with no guide text, like the other damage types (developer, 2026-11-25).
+
 ## 2026-11-21
 - **Starting manna is 2000.**
 

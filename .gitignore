@@ -18,7 +18,6 @@ dist-ssr
 !.env.example
 
 # Local tool output
-graphify-out/
 
 # Editor directories and files
 .vscode/*

@@ -3,36 +3,28 @@
 Short handoff note. Update at the end of each feature or milestone. Finished work moves to the dated log in [docs/history.md](docs/history.md).
 
 ## Current state
-- **Content editor cleanup step 3 is done, uncommitted** (remove data duplication, handoff 0.2): code and migration `20261125100000_content_cleanup_3b`. Step 4 (handoff 0.3, statuses, conditions and the remaining Definitions) is next and paused; resume from [docs/content-editor-handoff.md](docs/content-editor-handoff.md#03-statuses-conditions-and-the-remaining-definitions). Step 2 is committed (`1f028ba`, `e899ecf`).
+- **Content editor cleanup steps 2 and 3 are pushed and live** (`origin/main` `c7ff4b7`, 2026-11-25). Step 3 (handoff 0.2, remove data duplication) is done, with migration `20261125100000_content_cleanup_3b` applied to hosted first. Step 4a (handoff 0.3, status groups as Definitions and damage type guide text) is done, uncommitted. Next is 4b, then 4c; resume from [docs/content-editor-handoff.md](docs/content-editor-handoff.md#03-statuses-conditions-and-the-remaining-definitions).
 - Vue + Vite + TypeScript app with Supabase; Discord login works; the new-pilot loop, pending changes, GM review, death and memorial, owner content page (LCP import) and content editor, archives, lore and reputation are built (check `git log` for the latest).
 - The pilot page is a "dossier": one scrolling file with a cover header, numbered sections (02 to the end collapsible) and a file index ([pilot-and-mech-pages.md](docs/pilot-and-mech-pages.md#pilot-page-dossier)). Pilot inventory, Variable damage types, full-screen dialogs on phones and the grouped Buy picker are live (log: 2026-11-20).
 - Discord link previews: `/registry/<id>` runs a small Worker (`worker/`, `wrangler.jsonc` `main` and `run_worker_first`) that adds og tags for approved and dead pilots ([pilots.md](docs/pilots.md#id-cards-and-link-previews)). Local test: `npm run build`, then `npx wrangler dev --local` with the git-ignored `.dev.vars`.
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Unpushed work
-- `1f028ba` Content editor: step 2 fixes, shared retry, new editor fields (code).
-- `e899ecf` Docs: step 2 of the content editor cleanup (docs).
-- Step 3 (0.2, remove data duplication): uncommitted, in the working tree. Includes `supabase/migrations/20261125100000_content_cleanup_3b.sql` (hosted migration, not applied yet).
-- Nothing else. Commit and push need the developer (see the handoff's Where we are note).
+- **Step 4a is uncommitted** (not committed, not pushed). Code: status groups are a Definitions kind (`status_groups`), damage type guide text is `damage_types` `data.text`, and `STATUS_CARDS`, `STATUS_GROUPS`, `DAMAGE_TYPES`, `ON_FOOT_ROWS` are removed. Migration `20261125110000_content_cleanup_4a.sql` exists locally only. Checks: `npm test` 555 pass, `npm run build` ok, `npx supabase test db` 33 files 1037 tests pass, reviewer no blocking issues, browser (360 and 1280) pass.
+- Steps 2 and 3 are pushed (`origin/main` `c7ff4b7`).
 
 ## Latest release
-Pushed 2026-11-24 (`e92c73f`): the content editor cleanup (database is the only copy of rules, actions and numbers; Definitions tab; tab groups; effect registry; Hidden from players on every kind; Saved by; actions and rules in LCP packs). Its four migrations were applied to hosted before the push. Details in the completed-work log in [docs/history.md](docs/history.md); what is left in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
+Pushed 2026-11-25 (`c7ff4b7`): content editor cleanup steps 2 and 3 (commits `1f028ba`, `e899ecf`, `b0e4bf9`, `c7ff4b7`). Migration `20261125100000_content_cleanup_3b` was applied to hosted first. The 2026-11-24 release is in [docs/history.md](docs/history.md). What is left is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 
 ## Pending hosted migrations
-- **`20261125100000_content_cleanup_3b`** (step 3, not applied). Apply **before** pushing: old client code would show raw `{overcharge_first}` and blank Movement text.
-  - Part A rewrites 36 content rows' text and deletes 3 rows, each only where the row still equals the old seed. Owner-edited rows are skipped and listed in a NOTICE to review. The migration bumps `updated_at` on changed rows, so an owner with the editor open may see a "saved elsewhere" conflict.
-  - Part B adds `loadout_armour` (1), `loadout_weapons` (2) and `loadout_gear` (3) to `rule_number_limits` (range 0 to 6). `settle_pilot_gear` and `equip_pilot_gear` read them, so the database now enforces them.
-  - **Before applying:** check the hosted `rule_number_limits` and `loadout_*` values, since owners may have edited them.
-  - Apply: `npx supabase migration up --remote --yes`, then read the NOTICE output.
-- Everything through `20261124130000_hidden_and_last_save` is on the hosted project (applied 2026-11-24). The full list is in [docs/history.md](docs/history.md).
+- `20261125110000_content_cleanup_4a` (local only, not applied). Before applying, run `select distinct data->>'group' from content_items where kind='rules' and data->>'section'='statuses'`. Every value must be `cover`, `conditions`, `other` or `pilot`, or that status vanishes from the combat page. Then apply and read the NOTICEs (owner text on the four deleted rule rows is copied into the damage type).
+- Everything through `20261125100000_content_cleanup_3b` is on the hosted project (applied 2026-11-25, before the push). The full list is in [docs/history.md](docs/history.md).
 
 ## Next steps
-1. **Commit** steps 2 and 3 (code and docs). Ask the developer to approve the commit.
-2. **Apply the 3b migration** to hosted (see Pending hosted migrations). Check the loadout values first.
-3. **Push** `main`. Ask first: pushing goes live. Agents' pushes hang on a credential prompt, so the developer pushes or runs `gh auth setup-git`.
-4. **Check live:** the combat page after step 3 (not browser-checked since 0.2), then the 2026-11-24 deploy checks below.
-5. **Step 4** (handoff 0.3, statuses, conditions and the remaining Definitions): resume there.
-- **Open for the developer:** nothing from step 3. Faction and commendation delete (blocked while in use) and pack imports (no `content_saves` stamp) are decided in [docs/rule-decisions.md](docs/rule-decisions.md) (2026-11-25).
+1. **Check live:** the combat page after step 3 (not browser-checked since 0.2), then the 2026-11-24 deploy checks below. Also check whether 3b touched owner-edited rows: the CLI printed no NOTICE, so look at hosted `content_items` rows with an `edited` value.
+2. **Step 4a, then commit and push** (ask first). Apply the 4a migration to hosted before the push (pre-apply check above).
+3. **Step 4b** (mount flags, `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, unused `weapon_mounts`), then **4c** (`PILOT_TYPES` vs `gear_types`, `HIDDEN_TAGS` as a tag flag, pilot gear group titles, Armor/Armour label). Handoff 0.3 has the open list.
+- **Open for the developer:** nothing from step 3. The 4a open list (editor button sizes, unlinked hint, and others) is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md) 0.3. Faction and commendation delete (blocked while in use) and pack imports (no `content_saves` stamp) are decided in [docs/rule-decisions.md](docs/rule-decisions.md) (2026-11-25).
 - **Check live first (2026-11-24 deploy, postponed 2026-11-25):** the combat page (Tags card lists 35 tags, no raw `{...}` text, Overcharge and Reaction read once), the content editor as owner (tab groups, Definitions, Hidden from players, Saved by), a player login (hidden items gone from pickers, owned items still show). The checklist is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 
 - **Check live, not browser-tested yet:** the combat page on phone and desktop in both modes (Pilot mode with real gear, Fight as Quick with a Sidearm, Overcharge gear, Prepare, the phone Preview tab), a reworded or hidden action in Pilot mode, the seeding itself.
