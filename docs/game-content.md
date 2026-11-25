@@ -74,7 +74,7 @@
     - `Publish item` (after an "are you sure?", only when nothing is unsaved) makes them live. A trigger (`private.keep_published()`) refuses a published item going back to a draft. Official items have no draft state.
   - **Saving is explicit** (`Save changes`, not autosave), because a save changes other pilots' sheets. It follows the site's save rules:
     - Every write ends in `.select()` through `checkWrite()`. `content_items`, `bionics` and `pilot_stats` have an `updated_at` (moddatetime) and updates are guarded with `.eq('updated_at', <raw string last loaded or saved>)`, so a newer save elsewhere shows `ConflictNotice` and stops saving.
-    - Status via `SaveStatus` (`useSaveStatus`). `Discard changes` drops unsaved edits. `Save changes` uses the blocked pattern ("Fix 1 problem first."). Leaving with unsaved changes asks first (route guard, in-page switches and `beforeunload`). `invalidateCatalogues()` runs after every write, so the site sees changes without a reload.
+    - Status via `SaveStatus` (`useSaveStatus`). `Discard changes` drops unsaved edits. `Save changes` uses the blocked pattern ("Fix 1 problem first."). Leaving with unsaved changes asks first (route guard, in-page switches and `beforeunload`). A conflict's Reload (`ConflictNotice`'s `reload` event) skips that guard, so it doesn't prompt; closing the tab still asks. `invalidateCatalogues()` runs after every write, so the site sees changes without a reload.
   - **"Used by":** `item_usage(item_id, is_bionic)` (owner-only `security definer`, same matching as `pack_usage`: the id as a quoted JSON string in a sheet or open change, bionics matched exactly because they are numbers in a list) names the pilots. The pane shows "Used by WARDEN, LANTERN and 3 more. Saving changes their sheets." (a one-line info notice).
     - `delete_content_item(id)` (owners only, refused while used, **homebrew items only**: official items are removed with their pack or reverted) is a danger-zone `Delete item` with the blocked pattern while used.
     - Bionics and personal stats have no delete (no grant): a bionic is **retired**.
@@ -100,7 +100,7 @@
   - `Field` (label, input in its slot, hint, problem marking, `block` for rules text editors and radio groups).
   - `FoldPanel` (a folding section panel, its title a step above field labels (16px), with a one-line summary and "Needs fixing" while folded, used by every form's sections). Only Basics (Identity on frames) starts open, plus Range and damage (weapons, pilot weapons) and Stats (frames). Open or closed is remembered per kind and section title in this browser through `src/fileSections.ts`, ids `editor:{kind}:{title}`, the kind provided by `EditorPane`. `forget` opts out, as the raw data box does.
   - `RepeatList` (grouped entries as folding boxes, the first open, with up, down, remove and "Add", `fixed` for a talent's three ranks, used for a weapon's profiles, actions, deployables and ranks).
-  - `ActionListField` (`ActionChip` beside the activation), `DeployableListField` (name, kind, size, HP, evasion, e-defence, armour, rules, its own actions, a `path` prop), `DamageField` (range or damage, `path` and `noun` props).
+  - `ActionListField` (`ActionChip` beside the activation), `DeployableListField` (name, kind, size, HP, evasion, e-defence, armour, rules, activation, range, its own actions, a `path` prop), `DamageField` (range or damage, `path` and `noun` props).
   - `TagListField` and `BonusListField` (`path` props, only the ids the build maths counts (`BONUS_TYPES`) plus personal stats, a `replace` toggle, extra keys kept).
   - `ChoiceField` (one of a few as real radio inputs: licence rank, mount size), `ToggleChips` (several of a list as neutral `aria-pressed` chips with a tick), `ItemIdListField` (existing items by id through `ItemPicker`), `ColourField` (hex text and a picker).
   - `ItemBasics` (name, id, manufacturer, licence and rank, system points, a slot for more, shared by weapons, systems and mods).
@@ -124,7 +124,8 @@
   - The editor picker (`bonusTypesFor`), validation (`problemsFor`), the one-line summary (`bonusSummary`), `isPilotBonus` and the mech sheet maths (`mechEffects`) all read it.
   - **To add a mechanic: add one entry.** A stat the mech counts needs only its `stat` key. A new effect also needs its code in `mechData.ts`.
   - Personal stats come from `pilot_stats` through `personalDef`, so an owner can add a stat and use it as an effect with no code.
-  - An id not in the registry is kept, shown on the sheet as a reminder (`bonusReminder`) and warned about in the editor ("shown on the sheet but not counted"). Pilot ids that start `pilot_` but aren't declared are treated as the pilot's and not reminded.
+  - An id not in the registry is kept, shown on the sheet as a reminder (`bonusReminder`) and warned about in the editor ("shown on the sheet but not counted"). Undeclared `pilot_*` ids are the same: a reminder, and the editor warns they aren't counted. Pilot gear effects are not read yet.
+  - `bonusReminder` wording: a minimum reads "Threat range is at least 3.", a replace bonus reads "Sets speed to 4.".
 - **Core power checks** (2026-11-24): a frame's core power can ask for check modifiers through `core_system.check_bonuses`, a list of `{ id, accuracy: 1 | -1, val: 0 }` (id one of hull, agility, systems, engineering, tech_attack).
   - `coreCheckBonuses()` in `src/coreRules.ts` reads the field first (an empty list means none, a non-list is ignored) and falls back to `CORE_CHECK_BONUSES` for official frame ids, so `mechEffects` is unchanged for official frames.
   - The table stays: it is the default for official frames and still keys the four core bonuses (`cb_*`) read in `mechEffects`.
@@ -145,10 +146,17 @@
   - Biomods keep `retired`, relabelled "Hidden from players", and their list row shows the Hidden badge.
   - "Saved by NAME, date" is one quiet line from `loadSaveLine` (`content_saves`, owner-only, `loadListSaveLine` takes the newest stamp of a Definitions list), reloaded after a save.
   - `Unlock.hidden` (`info.ts`) stops `UnlockList` linking a hidden item to an archive entry that isn't listed: it opens its information instead. Browser pass not done yet.
+- **Retry and loading** (2026-11-24, step 2): `retryCatalogues()` in `src/catalogue.ts` reloads every content loader. `CatalogueNotice`'s Retry works on every page and reads `Loading…` while it runs. "Unknown item" is hidden while `catalogueLoading` is true.
+  - postgrest-js retries a failed read 3 times (1s, 2s, 4s), so a failure shows after about 7 seconds. Left as is.
 
 ## Content editor forms
 
-- **The phase 2 forms** (same shapes as `@massif/lancer-data` `lib/*.json`). Fields with no input, such as `skirmish`, `no_mods`, `synergies` and a deployable's `activation`, are kept untouched and reachable through the raw box.
+- **The phase 2 forms** (same shapes as `@massif/lancer-data` `lib/*.json`). Fields with no input are kept untouched and reachable through the raw box. The weapon's **Can't take mods** (`no_mods`) and a deployable's activation and range have inputs now.
+  - **Data-only fields** (audit, 2026-11-24): no input, never read by the site, kept as data. Why, per group:
+    - `skirmish`, `synergies`, `active_synergies`, `counters`, `filter_ignore`, action `confirm`, `hide_active`, `ignore_used` and `synergy_locations`: nothing reads them; the rules text carries the wording.
+    - `y_pos`, `image_url`, `other_art`: layout and art hints the site doesn't use (the frame's `image` replaces `image_url`).
+    - `ammo`: there is no ammo mechanic.
+    - Faction `description`: no field and no reader, left alone.
   - **Weapons** (`WeaponForm.vue`): Basics (`ItemBasics` plus mount size, `Auxiliary/Main/Heavy/Superheavy`, and weapon type), then **Range and damage** or **Profiles**, Actions, Deployables, Tags, Bonuses when equipped, and Text (rules, on attack, on hit, on critical hit, lore).
     - A weapon has one set of range and damage at the top, or `profiles[]` (`Split into profiles` moves range, damage and the on-* text into profile 1, going back to one profile folds it up again: `splitProfiles()` / `setProfiles()` in `contentEditor.ts`).
     - With profiles each has its own unique name, range and damage, and optionally its own tags, rules, on-* and actions. The weapon's own tags, rules and actions are shared and a profile's replace them while in use (how `selectWeaponProfile` merges), so empty ones are left out of the data.
@@ -164,7 +172,7 @@
     - **Stats** (open): every `stats` key as a number box, size one of ½, 1, 2, 3 as a select. Sensors and Save target are labelled "(not used)" and dimmed.
     - **Weapon mounts**: plain rows of a select with what the mount takes (`MOUNT_HINTS`, in `mechData.ts`) and up, down, remove (not `RepeatList`, as in the mockup).
     - **Traits** (`RepeatList`): name, use limit, rules, actions, bonuses (mech ones only), deployables.
-    - **Core system**: name, lore. Passive: name, rules, actions, bonuses (counted in the stats). Core power: name, activation with its chip, lasts for, switch off with, rules, actions, bonuses (not counted, only active while the power is on). Built-in equipment through `ItemIdListField` (`useEquipmentOptions()`, shared with the talent form). Deployables.
+    - **Core system**: name, lore. Passive: name, rules, actions, bonuses (counted in the stats). Core power: name, activation with its chip, lasts for, switch off with, rules, actions, bonuses (not counted in the stats: they show in the power's entry as "While active, not counted in the stats: …"). Built-in equipment through `ItemIdListField` (`useEquipmentOptions()`, shared with the talent form). Deployables.
     - **Licence unlocks** (read-only): ranks I to III, the frame itself at its rank and the weapons, systems and mods naming it, each opening its information.
     - **A frame is its own licence** (`license_id` = its id, which follows the name until the first save, `license_level` 0 for GMS, 2 otherwise), unless it is an alternate: the "Alternate of" select sets `license_id` to the original's id and `variant` to its name (`checkFrame()` refuses an alternate of itself or of another alternate). A new frame starts as GMS with plain numbers and one Main mount (`blankFrame()`).
     - `checkFrame()`: a name and a manufacturer, an `image` that is not an `IMAGE_PATH` path is an error, a licence rank 0 to 3, every non-"unused" stat a number (whole, 0 or more, tech attack may be negative, size ½/1/2/3), at least one known mount, unique non-empty trait names, a core system name, built-in ids that exist, and the shared action, bonus and deployable checks (paths such as `traits.0.actions.1.name` and `core_system.passive_bonuses.0.val`).

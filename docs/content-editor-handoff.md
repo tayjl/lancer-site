@@ -27,7 +27,7 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - **Biomods can grant stuff** to a pilot or a mech stat, and **can be deleted**.
 - **Conditional effects with a reminder** should exist on most things.
 
-### 0.1 Finish the Phase 0 audit (explorer, read-only; the first pass was partial)
+### 0.1 Finish the Phase 0 audit (done 2026-11-25) (explorer, read-only; the first pass was partial)
 - Compare every column in `src/lib/database.types.ts` and every LANCER data field against the form field that edits it. Known gaps with no input: `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`.
 - Triage constants not yet looked at: `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts` (content or engine). Leave stats, skills and the two special rules above as engine.
 - Rebuild the capability matrix (kind by effects, grants, requirements, actions) from runtime behaviour, not form imports.
@@ -45,7 +45,7 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - **Statuses and conditions become editable and addable.** Today they are partly code (`src/combatRules.ts:169`, status cards in `src/rulesData.ts`). Make each one a Definition or content row the combat page reads (name, text, icon and colour from existing variables, group, and whatever the combat page needs). Owner can add, edit, hide and delete (guarded) in the editor; the combat guide and any status picker or chip read them from the database.
 - **Combat guide follows the database:** `DAMAGE_TYPES` and the four damage type rule rows in `src/combatRules.ts` / `src/rulesData.ts` must come from the Definitions, so a new damage type appears in the guide. Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
 - Other Definitions work: tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
-- Frame size error text must follow the Definition rows. Show "Used by n" on each Definitions row before trying to delete.
+- (done) Frame size error text follows the Definition rows. Show "Used by n" on each Definitions row before trying to delete.
 - Done when: an owner can add a damage type, a status or a condition, or a mount type in the editor and it works on the sheet, archive and combat page with no code change.
 
 ### 0.4 Building blocks on the kinds that need them
@@ -68,11 +68,11 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - Low priority, last: export and import for Definitions, factions, commendations and biomods.
 
 ### 0.6 Missing editor inputs and consistency
-- Add the editor fields found in 0.1.
-- A hidden value on an existing item shows its label, not the raw id, in the picker.
-- Tag preview shows the "Show on combat page" flag.
+- (done) Add the editor fields found in 0.1: weapon `no_mods`, deployable activation and range, action range and damage, deployables on pilot gear. Faction description skipped: nothing reads or saves it.
+- (done) A hidden value on an existing item shows its label, not the raw id, in the picker.
+- (done) Tag preview shows the "Show on combat page" flag.
 - Old text fixes: "Reliable X" dice wording and US spellings in tag text (ask the developer which wording first).
-- Retry button on every page's load-error notice, not only Combat.
+- (done) Retry button on every page's load-error notice, not only Combat.
 
 ### 0.7 Verify everything that was never opened in a browser
 - Work through section 4 below. Run each UX review as a narrow job with a report-by-turn-45 limit.
@@ -99,26 +99,26 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 - Hosted `content_saves` fills as the owner edits; the first pack import stamps every row (see section 2).
 
 ## 2. Bugs and suspect behaviour to investigate
-- **Frame-size id counted twice.** A bad frame-size id (for example `01`) made the Definitions banner say "Fix 2 problems" and list one line twice. The agent deduplicated the output (`definitionProblems` in `src/definitionEditor.ts`) without finding the cause. Find the second source, then drop the dedupe if it hides a real double check.
-- **Conflict Reload leaves a "Leave site?" prompt in `EditorPane`.** Fixed in `DefinitionPane` only. `EditorPane`'s conflict Reload (`ConflictNotice`, a plain `window.location.reload()`) has the same `beforeunload` guard and probably prompts too.
+- (done) **Frame-size id counted twice.** The `definitionProblems` dedupe is removed. The "Fix 2 problems" report couldn't be reproduced; the likely cause is two new rows both typed `01`.
+- (done) **Conflict Reload leaves a "Leave site?" prompt.** Reload skips the guard in `EditorPane` and `DefinitionPane` (via `ConflictNotice`'s `reload` event). Closing the tab still asks.
 - **Owner's first pack import stamps every row** in `content_saves` as an editor save. An import isn't an editor save. Decide: skip stamping on insert for pack imports, or accept.
 - **Trigger raises if the signed-in user has no profile row** (`private.stamp_save` foreign key). Unreachable for real owners; matters only for a service-role call carrying a user JWT.
 - **Seed ids are positional** (`SEED_IDS`, `ACTION_IDS`): a new seed row needs an id placed to match its `add()` call. Snapshot tests fail until updated on purpose. Consider keyed ids.
-- **Frame size error text is fixed** ("Size is ½, 1, 2 or 3.") and goes stale if the owner adds a size.
+- (done) **Frame size error text is fixed** ("Size is ½, 1, 2 or 3.") and goes stale if the owner adds a size. Now built from the `frame_sizes` Definition rows (`contentEditor.ts`), so an added size shows up.
 - **Duplicate carries built-in core checks** for official frames (fixed, tested) but the first edit of an official frame's core checks writes a full copy that no longer follows `CORE_CHECK_BONUSES`. Never confirmed that the first edit saves its own copy (the reviewer could not tell).
-- **Hidden official value shows its raw id** in an item's picker (for example "Heat") instead of its label.
+- (done) **Hidden official value shows its raw id** in an item's picker (for example "Heat") instead of its label.
 - **Used by** matches exact strings, so a manufacturer code can match a weapon's `license` text. It does not scan biomods. "Used by" reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
 - **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decide whether to block it (restrictive policy or `on delete restrict`).
 - A very long faction name is accepted (only unique, no length check).
 - **Phase 2 leftovers:** the Full Repair text still says "Overcharge goes back to 1 Heat" (no placeholder for the first step), and `REACTIONS_NOTE` still repeats the Reaction step's general rule: both are in scope (0.2). The combat guide's damage type rows still come from `DAMAGE_TYPES` in `src/combatRules.ts` and do not follow Definitions: in scope (0.3). The Engaged status is being removed by the developer, so its duplicate row and doubled-parentheses title need no work.
-- Tag preview in the editor does not show the "Show on combat page" flag.
+- (done) Tag preview shows the "Show on combat page" flag.
 - Old wording in core text: "Reliable X" says "rolls less damage" (dice wording the developer is deciding), tags use US spelling ("Armor-Piercing", "Personal Armor", "E-Defense") against the site's "armour" and "E-defence".
-- `pilot_foo` effects with no registry entry are treated as the pilot's but never shown as a reminder on the pilot sheet (needs a pilot reminder in `src/gameData.ts`).
+- (done) Undeclared `pilot_*` effects show as uncounted reminders, and the editor warns they aren't counted. Pilot gear effects are still not read (step 6).
 - A brand-new effect type that changes anything other than a mech or personal stat still needs code in `src/mechData.ts`: out of scope, the developer hardcodes entirely new mechanics.
 - `lcp.ts` now imports `contentEditor.ts` at runtime: check the bundle size of the content/import page.
 - LCP import validates actions and rules with an empty tag and stat context, so unknown tags or stats warn at most.
 - Hidden in `loadKind`: **not filtered centrally** (it would break lookups). Pickers call `offered(list, keep)` in `src/catalogue.ts:42`. A new picker must call it or hidden items leak. Nothing in the database blocks awarding a hidden commendation.
-- Retry button is wired on the Combat page only; other pages' load-error notices have none.
+- (done) Retry is on every page's load-error notice (`retryCatalogues()`).
 - Before `pilot_stats` loads, `isPilotBonus` treats personal stats as mech bonuses (corrects on load).
 
 ## 3. Not built (decided or offered, left out)
@@ -128,7 +128,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - **Actions on biomods:** required, see 0.4.
 - **Requirements on core systems:** not needed (developer decision, 2026-11-24).
 - **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Still to move or justify (0.3): `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`, the `Integrated Auxiliary`/`Main/Aux`/`Superheavy` ids in `mechData.ts`. `weapon_mounts` is an allowed kind with no rows (the code uses one list for sizes and mounts, seeded as `weapon_sizes`). Data-only values (`Ship-class`, `Special`, `Spool Weapon`, `???`) are not seeded.
-- **Fields with no editor input** (audit): `skirmish`, `no_mods`, `synergies`, deployable `activation`, frame `y_pos`, `image_url`, `counters`, `other_art`, core `active_synergies`. The audit also did not compare `database.types.ts` column by column against the forms, and did not triage `src/info.ts`, `src/rulesData.ts`, `src/itemDetails.ts:123` constants.
+- (done) **Fields with no editor input** (audit, 2026-11-25): `no_mods`, deployable `activation` and `range` now have inputs. The rest are data-only, with reasons in [game-content.md](game-content.md#content-editor-forms).
 - **Rare kinds that don't exist:** reserves, backgrounds and NPCs are not content kinds (out of scope until they exist).
 - **Used-by counts before delete** on Definitions rows (the refusal appears only after trying).
 - **Duplicate** is not offered for manufacturers, rules or site kinds: not needed, those kinds stay simple.

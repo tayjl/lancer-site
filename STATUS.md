@@ -3,6 +3,7 @@
 Short handoff note. Update at the end of each feature or milestone. Finished work moves to the dated log in [docs/history.md](docs/history.md).
 
 ## Current state
+- **Content editor cleanup step 2 is done (2026-11-25), uncommitted** in the working tree: Retry on every page, the conflict Reload guard, new editor fields, the audit (0.1). Details in [docs/history.md](docs/history.md) and [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 - Vue + Vite + TypeScript app with Supabase; Discord login works; the new-pilot loop, pending changes, GM review, death and memorial, owner content page (LCP import) and content editor, archives, lore and reputation are built (check `git log` for the latest).
 - The pilot page is a "dossier": one scrolling file with a cover header, numbered sections (02 to the end collapsible) and a file index ([pilot-and-mech-pages.md](docs/pilot-and-mech-pages.md#pilot-page-dossier)). Pilot inventory, Variable damage types, full-screen dialogs on phones and the grouped Buy picker are live (log: 2026-11-20).
 - Discord link previews: `/registry/<id>` runs a small Worker (`worker/`, `wrangler.jsonc` `main` and `run_worker_first`) that adds og tags for approved and dead pilots ([pilots.md](docs/pilots.md#id-cards-and-link-previews)). Local test: `npm run build`, then `npx wrangler dev --local` with the git-ignored `.dev.vars`.
@@ -12,9 +13,10 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 Pushed 2026-11-24 (`e92c73f`): the content editor cleanup (database is the only copy of rules, actions and numbers; Definitions tab; tab groups; effect registry; Hidden from players on every kind; Saved by; actions and rules in LCP packs). Its four migrations were applied to hosted before the push. Details in the completed-work log in [docs/history.md](docs/history.md); what is left in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 
 ## Pending hosted migrations
-None. Everything through `20261124130000_hidden_and_last_save` is on the hosted project (applied 2026-11-24). The full list is in [docs/history.md](docs/history.md).
+None. Everything through `20261124130000_hidden_and_last_save` is on the hosted project (applied 2026-11-24). Step 2 (2026-11-25) added no migration. The full list is in [docs/history.md](docs/history.md).
 
 ## Next steps
+- **Content editor cleanup step 3 (next, not started):** remove data duplication (handoff 0.2). Waiting for the developer on: the Overcharge wording (Full Repair text), "Reliable X" wording, tag spelling (US or UK), faction and commendation delete (block or keep the warning), whether pack imports stamp `content_saves`, and the live check.
 - **Check live first (2026-11-24 deploy):** the combat page (Tags card lists 35 tags, no raw `{...}` text, Overcharge and Reaction read once), the content editor as owner (tab groups, Definitions, Hidden from players, Saved by), a player login (hidden items gone from pickers, owned items still show). The checklist is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 - **Check live, not browser-tested yet:** the combat page on phone and desktop in both modes (Pilot mode with real gear, Fight as Quick with a Sidearm, Overcharge gear, Prepare, the phone Preview tab), a reworded or hidden action in Pilot mode, the seeding itself.
 - **Check live after the 2026-11-22 usability pass:** a plain player login, the GM pilots row cards with real rows, the GM change page on phone, 320px. Known gaps: the archives header count wraps to its own line on phone, the content pack table clips a cell inside its scroll, the GM pilots cards drop table semantics for screen readers, the GM changes queue loads every pending sheet (fine now, grows with the queue), item and tab names under 44px elsewhere were not swept.
