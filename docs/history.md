@@ -168,6 +168,7 @@ Newest last. Detail for each area is in the topic files linked from [STATUS.md](
 | `20261125200000_block_required_commendation` | Applied to hosted 2026-11-25, before the push. A commendation that an item or biomod requires can't be deleted. |
 | `20261125210000_grants_on_mods_and_gear` | **On hosted (step 11).** `sheet_rule_problems`: equipped pilot gear and mods on an equipped weapon grant equipment; `granted_by` names mods and gear. |
 | `20261125220000_server_mount_checks_and_hardening` | **On hosted (2026-11-25, `19b8964`).** `sheet_rule_problems` checks weapon mounts server-side; execute revoked from anon on schema `private`; default function grants set. |
+| `20261126100000_talent_rank_grants` | **On hosted (2026-11-26, `b3ca22a`).** `sheet_rule_problems` counts free talent ranks from biomods, core bonuses and equipped gear; past max is reported, not blocked. |
 | `20261125230000_faction_name_length` | **On hosted (2026-11-25, `19b8964`).** Constraint `organisations_name_length` (1 to 60). |
 
 ## Backups

@@ -10,6 +10,7 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Unpushed work
+- Nothing. Talent rank grants shipped (`b3ca22a`, migration `20261126100000` applied to hosted first). Known drifts: the client ignores the published flag, gear slot overflow.
 - The New button for factions and commendations (`src/views/ContentEditorView.vue`). Shipped (`b3bb773`).
 
 ## Latest release
@@ -21,7 +22,7 @@ Pushed 2026-11-25 (`origin/main` `19b8964`): server mount checks, private schema
 ## Next steps
 1. **Check live:** the combat page (see the list below), not browser-tested since 0.2. Then the 2026-11-24 deploy checks below. Also check whether 3b touched owner-edited rows: the CLI printed no NOTICE, so look at hosted `content_items` rows with an `edited` value.
 2. **Commit and ship the New button** for factions and commendations (shipped `b3bb773`, nothing left to do).
-3. **Open for the developer:** what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on the `private` schema. Nothing else is in the plan. Resume list: [handoff, Next session: start here](docs/content-editor-handoff.md#next-session-start-here).
+3. **Open for the developer:** what granting licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on the `private` schema. Nothing else is in the plan. Resume list: [handoff, Next session: start here](docs/content-editor-handoff.md#next-session-start-here).
 - **Step 13 audit (2026-11-25):** the browser sweep passed for every Campaign and Mech category, Definitions, and the Weapon, Mod, Biomod and Faction forms at 360. The reviewer's security audit found no Critical or Security issues (local suite 1130 pgTAP tests; hosted: 80 edited rows all valid, every security definer function has a fixed `search_path`, `weapon_mounts` empty, `bionic_bonuses` dropped). Not covered: the commendation form before the New-button fix, player checks of pilot gear, talents, tags, actions and rules tabs, and `profile.update` `checkWrite`. Nits are in the handoff, section 0.7.
 - The 4a open list (editor button sizes, unlinked hint, and others) is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md) 0.3. Faction and commendation delete (blocked while in use) and pack imports (no `content_saves` stamp) are live ([docs/rule-decisions.md](docs/rule-decisions.md), 2026-11-25).
 - **Check live first (2026-11-24 deploy, postponed 2026-11-25):** the combat page (Tags card lists 35 tags, no raw `{...}` text, Overcharge and Reaction read once), the content editor as owner (tab groups, Definitions, Hidden from players, Saved by), a player login (hidden items gone from pickers, owned items still show). The checklist is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).

@@ -21,9 +21,11 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
 
 ## Next session: start here
+Talent rank grants shipped 2026-11-26 (`b3ca22a`, migration `20261126100000` on hosted): see rule-decisions.md. Known drifts: the client ignores the published flag, and gear slot overflow is not checked.
+
 State 2026-11-25. Steps 2 to 12 are live (`origin/main` `0c7d1cf`, docs `8df78c0`; migration `20261125210000` on hosted). Step 13 (audit and browser sweep) is done. Remaining, in order:
 1. Commit and ship the New button for factions and commendations (`src/views/ContentEditorView.vue`, shipped `b3bb773`, nothing left to do).
-2. Developer decisions: what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on all functions in schema `private` (see 0.7).
+2. Developer decisions: what granting licences means (talent ranks are done); export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on all functions in schema `private` (see 0.7).
 
 Nothing else is in the plan.
 
