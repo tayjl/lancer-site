@@ -183,19 +183,19 @@ select throws_ok($$ select public.sheet_rule_problems(jsonb_build_object('owned_
 -- save_bionic: the new fields, owners only
 -- ---------------------------------------------------------------------
 set local request.jwt.claim.sub = 'a1111111-1111-1111-1111-111111111111';
-select throws_ok($$ select public.save_bionic('Sneaky', '', '', '', 0, 0, false, '[]', null, null, null,
+select throws_ok($$ select public.save_bionic('Sneaky', '', '', '', 0, 0, false, null, null, null,
   '[{"id": "mod_points", "val": 99}]') $$, 'P0001', 'Only owners can change biomods.', 'a player can''t save a biomod');
 
 set local request.jwt.claim.sub = 'd4444444-4444-4444-4444-444444444444';
-select lives_ok($$ select public.save_bionic('Wired', '', 'Arm', '', 10, 1, false, '[]', null, null, 'HBT',
+select lives_ok($$ select public.save_bionic('Wired', '', 'Arm', '', 10, 1, false, null, null, 'HBT',
   '[{"id": "mod_points", "val": 1}]', '{__h_gun}', '{__h_fist}', true, '[{"kind": "talent", "id": "__h_brawler", "rank": 1}]') $$,
   'an owner saves a biomod with the new fields');
 select results_eq($$ select effect_bonuses, integrated, special_equipment, replace_integrated, requires from public.bionics where name = 'Wired' $$,
   $$ values ('[{"id": "mod_points", "val": 1}]'::jsonb, '{__h_gun}'::text[], '{__h_fist}'::text[], true, '[{"kind": "talent", "id": "__h_brawler", "rank": 1}]'::jsonb) $$,
   'and they are stored');
-select throws_ok($$ select public.save_bionic('Bad', '', '', '', 0, 0, false, '[]', null, null, null, '{"id": "x"}') $$, 'P0001',
+select throws_ok($$ select public.save_bionic('Bad', '', '', '', 0, 0, false, null, null, null, '{"id": "x"}') $$, 'P0001',
   'The effect bonuses must be a list of bonuses.', 'effect bonuses must be a list');
-select throws_ok($$ select public.save_bionic('Bad', '', '', '', 0, 0, false, '[]', null, null, null, '[]', '{}', '{}', false, '["x"]') $$, 'P0001',
+select throws_ok($$ select public.save_bionic('Bad', '', '', '', 0, 0, false, null, null, null, '[]', '{}', '{}', false, '["x"]') $$, 'P0001',
   'The requirements must be a list.', 'requirements must be a list of entries');
 
 select * from finish();

@@ -11,7 +11,7 @@ import { capitalise } from './text'
 // What a pilot can use in a fight, for the combat guide's "Your loadout": the chosen mech's weapons and systems, the
 // frame, talents and core bonuses that act or remind, and the pilot's gear. Everything is read through the same pure
 // functions as the mech page. "sizes" and "tagIds" say which weapon sizes and tags the guide still needs to explain.
-export type LoadoutBlock = 'weapons' | 'systems' | 'frame' | 'talents' | 'core-bonuses' | 'gear'
+export type LoadoutBlock = 'weapons' | 'systems' | 'frame' | 'talents' | 'biomods' | 'core-bonuses' | 'gear'
 export type LoadoutRow = {
   block: LoadoutBlock
   label?: string
@@ -28,7 +28,7 @@ export type LoadoutRow = {
   slot?: 'Armor' | 'Weapon' | 'Gear' // gear rows only: the item's type
 }
 
-const BLOCK_OF: Partial<Record<string, LoadoutBlock>> = { frame: 'frame', trait: 'frame', core: 'frame', 'core-power': 'frame', talent: 'talents', 'core-bonus': 'core-bonuses' }
+const BLOCK_OF: Partial<Record<string, LoadoutBlock>> = { frame: 'frame', trait: 'frame', core: 'frame', 'core-power': 'frame', talent: 'talents', biomod: 'biomods', 'core-bonus': 'core-bonuses' }
 
 export function combatLoadout(details: MechPrivate, sheet: Sheet, catalogue: EffectCatalogue, tagNames: Map<string, string>) {
   const effects = mechEffects(details, sheet, catalogue)

@@ -38,7 +38,7 @@ function build(data: Data): Built {
     if (kind === 'actions') return { info: { kind: 'Action', name: String(data.name ?? id), facts: data.frequency ? [{ text: String(data.frequency) }] : [], stats: [], groups: data.detail ? [{ title: 'Rules', cards: [{ heading: 'Rules text', html: fill(String(data.detail)) }] }] : [] } }
     if (kind === 'factions' || kind === 'commendations') return { info: { kind: kind === 'factions' ? 'Faction' : 'Commendation', name: String(data.name ?? ''), facts: [], stats: [], groups: [] } }
     if (kind === 'bionics') {
-      const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), source: String(data.source ?? '') || null, effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, bonuses: Array.isArray(data.bonuses) ? (data.bonuses as Bionic['bonuses']) : [] }
+      const bionic: Bionic = { id: 0, name: String(data.name ?? ''), description: String(data.description ?? ''), slot: String(data.slot ?? ''), source: String(data.source ?? '') || null, effect: String(data.effect ?? ''), manna_cost: Number(data.manna_cost) || 0, mod_point_cost: Number(data.mod_point_cost) || 0, retired: data.retired === true, effect_bonuses: Array.isArray(data.effect_bonuses) ? (data.effect_bonuses as Bionic['effect_bonuses']) : [], actions: Array.isArray(data.actions) ? data.actions : [] }
       return { info: bionicInfo(bionic, new Map(props.stats.map((stat) => [stat.id, stat.name]))) }
     }
     return { error: 'No preview for this kind.' }

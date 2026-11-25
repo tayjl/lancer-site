@@ -194,10 +194,10 @@ export type Bionic = {
   manna_cost: number
   mod_point_cost: number
   retired: boolean
-  bonuses: { stat_id: string; amount: number }[]
   // The same fields every other kind has (migration 20261121140000_homebrew_rules.sql). "effect_bonuses" holds any bonus
-  // ids (the relation above is "bonuses", the personal-stat amounts).
+  // ids, the personal stats included.
   effect_bonuses?: Bonus[]
+  actions?: unknown[]
   integrated?: string[]
   special_equipment?: string[]
   replace_integrated?: boolean
@@ -262,18 +262,17 @@ export const STAT_ICONS: Record<string, string> = {
 }
 
 // "Where these numbers come from" for a stat: "Base: 6" (unless a bonus sets it), then "Source: +2" or "Source: sets to 3"
-// per bonus that counted, then any "extra" added on top.
-function bonusLines(base: number, result: ReturnType<typeof resolveBonuses>, extra: { source: string; value: number; replace?: boolean }[] = []) {
+// per bonus that counted.
+function bonusLines(base: number, result: ReturnType<typeof resolveBonuses>) {
   return [
     ...(result.usesBase ? [`Base: ${base}`] : []),
-    ...[...result.used, ...extra].map(entry => `${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
+    ...result.used.map(entry => `${entry.source}: ${entry.replace ? 'sets to ' : entry.value >= 0 ? '+' : ''}${entry.value}`),
   ]
 }
 
 // A sheet's stats, ready for StatRow, with bionic bonuses on the personal stats. Personal stats (house
 // rule) start at 2 if never set; mech skills (HASE) start at 0, as in LANCER (docs/lancer-rules.md).
-export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bionic[], extraBonuses: NamedBonus[] = []) {
-  const installed = catalogue.filter((b) => sheet.bionics?.includes(b.id)).flatMap((b) => b.bonuses.map((bonus) => ({ source: b.name, statId: bonus.stat_id, value: bonus.amount })))
+export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], extraBonuses: NamedBonus[] = []) {
   const values = (key: 'pilot_stats' | 'mech_skills', stats: PilotStat[], start: number) =>
     stats.map((stat) => ({ id: stat.id, name: stat.name.toLowerCase(), icon: STAT_ICONS[stat.id], value: sheet[key]?.[stat.id] ?? start }))
   return {
@@ -283,12 +282,10 @@ export function sheetStats(sheet: Sheet, pilotStats: PilotStat[], catalogue: Bio
         return value === null ? [] : [{ source: entry.source, value, replace: entry.bonus.replace, overwrite: entry.bonus.overwrite }]
       })
       const result = resolveBonuses(stat.value, entries)
-      // Bionics add on top of everything else.
-      const bionics = installed.filter((entry) => entry.statId === stat.id)
-      const bonus = bionics.reduce((sum, entry) => sum + entry.value, 0) + result.value - stat.value
+      const bonus = result.value - stat.value
       // Listed under the block only when something changes the stat.
       const conditional = extraBonuses.filter(entry => entry.bonus.id === stat.id && entry.bonus.condition).map(entry => uncountedLine(entry.source, entry.bonus))
-      return { ...stat, bonus, contributors: [...(result.used.length || bionics.length ? bonusLines(stat.value, result, bionics) : []), ...conditional] }
+      return { ...stat, bonus, contributors: [...(result.used.length ? bonusLines(stat.value, result) : []), ...conditional] }
     }),
     piloting: values('mech_skills', MECH_SKILLS, 0),
   }
@@ -328,6 +325,12 @@ export function pilotVitals(sheet: Sheet, gear: Item[], talents: Talent[] = [], 
   })
 }
 
+// A biomod's counted personal-stat effects, for its facts and stat tiles.
+export const bionicStats = (b: Bionic) => (b.effect_bonuses ?? []).flatMap((bonus) => {
+  const value = bonusValue(bonus.val)
+  return personalStatIds.value.has(bonus.id) && permanentBonus(bonus) && value !== null ? [{ id: bonus.id, value }] : []
+})
+
 // Bionics as LoadoutBox items: the slot, bonuses and manna price as the subtitle (and the bonuses as stats with symbols, for
 // the cards), the mod-point cost as the cost, the price for the picker's affordability check.
 export const bionicItems = (catalogue: Bionic[]) =>
@@ -335,12 +338,12 @@ export const bionicItems = (catalogue: Bionic[]) =>
     id: b.id,
     name: b.name,
     // The picker's facts line, before the mod points and price: maker, slot, then each bonus.
-    facts: [b.source ?? '', b.slot, ...b.bonuses.map((bonus) => `${bonus.amount > 0 ? '+' : ''}${bonus.amount} ${bonus.stat_id.replace('_', '-')}`)].filter(Boolean),
+    facts: [b.source ?? '', b.slot, ...bionicStats(b).map((stat) => `${stat.value > 0 ? '+' : ''}${stat.value} ${stat.id.replace('_', '-')}`)].filter(Boolean),
     source: b.source ?? '',
     slot: b.slot,
     effect: b.effect,
     price: b.manna_cost,
-    stats: b.bonuses.map((bonus) => ({ label: bonus.stat_id.replace('_', '-'), value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}`, icon: STAT_ICONS[bonus.stat_id] })),
+    stats: bionicStats(b).map((stat) => ({ label: stat.id.replace('_', '-'), value: `${stat.value > 0 ? '+' : ''}${stat.value}`, icon: STAT_ICONS[stat.id] })),
     description: b.description,
     cost: b.mod_point_cost,
     retired: b.retired,
@@ -376,14 +379,14 @@ export function useGameData() {
       loadKind('pilot_gear'),
       loadKind('talents'),
       loadKind('core_bonuses'),
-      cached('bionics', () => fetchAll((from, to) => supabase.from('bionics').select('*, bonuses:bionic_bonuses(stat_id, amount)').order('name').order('id').range(from, to))),
+      cached('bionics', () => fetchAll((from, to) => supabase.from('bionics').select('*').order('name').order('id').range(from, to))),
       loadPilotStats(),
     ])
     gear.value = gearRows.rows
       .map(({ id, data }) => toItem(id, data))
       .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name))
     // The table only holds a list here (a check on the column).
-    bionics.value = bionicRows.rows.map((row) => ({ ...row, effect_bonuses: row.effect_bonuses as Bonus[] }))
+    bionics.value = bionicRows.rows.map((row) => ({ ...row, effect_bonuses: row.effect_bonuses as Bonus[], actions: row.actions as unknown[] }))
     pilotStats.value = statRows.rows
     talents.value = talentRows.rows.map(({ id, data }) => toTalent(id, data)).sort((a, b) => a.name.localeCompare(b.name))
     coreBonuses.value = coreRows.rows

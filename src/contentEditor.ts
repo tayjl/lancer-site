@@ -93,7 +93,7 @@ export function blankItem(kind: EditorKind, id: string): Data {
   if (kind === 'manufacturers') return { id: '', name: '', logo: '', light: '#8a8a99', dark: '#b3b3c2', quote: '', description: '' }
   if (kind === 'factions') return { id: '', name: '' }
   if (kind === 'commendations') return { id: '', name: '', description: '', icon: 'medal' }
-  if (kind === 'bionics') return { id: '', name: '', description: '', slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, retired: false, bonuses: [] }
+  if (kind === 'bionics') return { id: '', name: '', description: '', slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, retired: false, effect_bonuses: [], actions: [] }
   return { id, name: '' }
 }
 
@@ -140,13 +140,13 @@ export function duplicateItem(kind: EditorKind, data: Data, taken: Iterable<stri
 export const REFERRING_KINDS = ['frames', 'weapons', 'systems', 'mods', 'pilot_gear', 'talents', 'core_bonuses']
 
 // Which other items point at this id: any value in their data that is exactly the id (a licence, manufacturer, tag, built-in
-// item, requirement and so on). The row's own id and name don't count.
+// item, requirement and so on). The row's own id, name and licence fields don't count (a frame's ladder shows in Licence unlocks).
 export function referencesTo(id: string, rows: { id: string; data: unknown }[]): string[] {
   const found = (value: unknown, top: boolean): boolean => {
     if (typeof value === 'string') return value === id
     if (Array.isArray(value)) return value.some((entry) => found(entry, false))
     if (!isObject(value)) return false
-    return Object.entries(value).some(([key, entry]) => !(top && (key === 'id' || key === 'name')) && found(entry, false))
+    return Object.entries(value).some(([key, entry]) => !(top && ['id', 'name', 'license', 'license_id'].includes(key)) && found(entry, false))
   }
   const names = rows.filter((row) => row.id !== id && found(row.data, true)).map((row) => String(isObject(row.data) && row.data.name ? row.data.name : row.id))
   return [...new Set(names)].sort((a, b) => a.localeCompare(b))
@@ -266,6 +266,7 @@ function checkParts(data: Data, at: string, who: string, ctx: Context, out: Prob
     if (!id) out.push(error(say(who, `effect ${index + 1} needs a type.`), `${at}bonuses.${index}.id`))
     else if (!bonusCounted(row, ctx.statIds)) out.push(warn(say(who, `Effect "${id}" is shown on the sheet but not counted.`), `${at}bonuses.${index}.id`))
     const effect = effectType(id)
+    if (row.condition !== undefined && !(typeof row.condition === 'string' && row.condition.length >= 1 && row.condition.length <= 120)) out.push(error(say(who, `effect ${index + 1}: "Only when" must be 120 characters or fewer.`), `${at}bonuses.${index}.condition`))
     const why = effect && effectValueProblem(effect, row)
     if (why) out.push(error(say(who, `effect ${index + 1} ${why}`), `${at}bonuses.${index}.val`))
     // A bonus the build maths doesn't count (an accuracy bonus has no "val") is kept as it is, not evaluated.
@@ -522,13 +523,13 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
 
 // Where on the body a biomod goes: the form suggests these (and any slot already used); the slot itself is free text.
 export const BIONIC_SLOTS = ['Head', 'Eyes', 'Ears', 'Brain', 'Spine', 'Torso', 'Heart', 'Lungs', 'Arm', 'Hand', 'Leg', 'Foot', 'Skin', 'Nervous system', 'Full body']
-// A biomod's own bonuses are the stat ones in "bonuses" (the table the personal stats read). Its effect_bonuses (any bonus
-// id, like every other kind's "bonuses"), integrated, special_equipment, replace_integrated and requires are the same
-// fields the other kinds have, in columns of the bionics table.
+// A biomod has the same fields the other kinds have, in columns of the bionics table: effect_bonuses (any bonus id,
+// personal stats included), actions, integrated, special_equipment, replace_integrated and requires.
 export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Partial<Context>): Problem[] {
   const problems: Problem[] = []
   const full: Context = { id: '', tags: new Map(), ...ctx }
   checkParts({ bonuses: data.effect_bonuses }, 'effect_', '', full, problems, false)
+  checkParts({ actions: data.actions }, '', '', full, problems, false)
   checkGrants(data, full, problems)
   checkRequires(data, full, problems)
   if (typeof data.name !== 'string' || !data.name.trim()) problems.push(error('A name is needed.', 'name'))
@@ -536,15 +537,6 @@ export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Parti
   if (typeof data.source !== 'string' || !data.source.trim()) problems.push(warn("No manufacturer. It's listed under Other.", 'source'))
   if (!Number.isInteger(data.manna_cost) || (data.manna_cost as number) < 0) problems.push(error('Price must be a whole number, 0 or more.', 'manna_cost'))
   if (!Number.isInteger(data.mod_point_cost) || (data.mod_point_cost as number) < 0) problems.push(error('Mod points must be a whole number, 0 or more.', 'mod_point_cost'))
-  const seen = new Set<string>()
-  for (const [index, bonus] of list(data.bonuses).entries()) {
-    const row = entry(bonus)
-    const stat = String(row.stat_id ?? '')
-    if (!ctx.statIds.includes(stat)) problems.push(error(`Bonus ${index + 1} needs a stat that exists.`, `bonuses.${index}.stat_id`))
-    else if (seen.has(stat)) problems.push(error(`Only one bonus per stat: ${stat} is there twice.`, `bonuses.${index}.stat_id`))
-    seen.add(stat)
-    if (!Number.isInteger(row.amount) || row.amount === 0) problems.push(error(`Bonus ${index + 1} must be a whole number, not 0.`, `bonuses.${index}.amount`))
-  }
   return problems
 }
 

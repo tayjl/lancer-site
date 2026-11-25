@@ -12,7 +12,7 @@ const frames: Frame[] = rows('frames').map(({ id, data }) => {
   return { id, name: String(raw.name), source: String(raw.source), licenceLevel: Number(raw.license_level ?? 0), integrated: [], mechtype: (raw.mechtype ?? []) as string[], mounts: (raw.mounts ?? []) as string[], stats: (raw.stats ?? {}) as Record<string, number>, description: String(raw.description ?? ''), raw }
 })
 const biomod = (id: number, name: string, source: string | null, extra: Partial<Bionic> = {}): Bionic =>
-  ({ id, name, description: 'A cold eye.', slot: 'Eyes', source, effect: '<p>See in the dark.</p>', manna_cost: 500, mod_point_cost: 2, retired: false, bonuses: [], ...extra })
+  ({ id, name, description: 'A cold eye.', slot: 'Eyes', source, effect: '<p>See in the dark.</p>', manna_cost: 500, mod_point_cost: 2, retired: false, ...extra })
 const content: ArchiveContent = {
   manufacturers: rows('manufacturers').map(({ id, data }) => ({ id, ...(data as object), colour: (data as { dark: string }).dark }) as Manufacturer)
     .sort((a, b) => a.name.localeCompare(b.name)),

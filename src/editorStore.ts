@@ -92,11 +92,10 @@ export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; err
 
 export async function loadItem(kind: EditorKind, key: string): Promise<{ item: Loaded | null; error: string | null }> {
   if (kind === 'bionics') {
-    const { data, error } = await supabase.from('bionics').select('*, bonuses:bionic_bonuses(stat_id, amount)').eq('id', Number(key)).maybeSingle()
+    const { data, error } = await supabase.from('bionics').select('*').eq('id', Number(key)).maybeSingle()
     if (error || !data) return { item: null, error: error?.message ?? null }
-    const { updated_at, bonuses, ...rest } = data
-    const bonusList = [...bonuses].sort((a, b) => a.stat_id.localeCompare(b.stat_id))
-    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: updated_at, data: { id: String(data.id), name: rest.name, description: rest.description ?? '', slot: rest.slot, source: rest.source ?? '', effect: rest.effect, manna_cost: rest.manna_cost, mod_point_cost: rest.mod_point_cost, retired: rest.retired, bonuses: bonusList } }, error: null }
+    const { updated_at, ...rest } = data
+    return { item: { key, kind, packId: null, draft: false, edited: null, updatedAt: updated_at, data: { id: String(data.id), name: rest.name, description: rest.description ?? '', slot: rest.slot, source: rest.source ?? '', effect: rest.effect, manna_cost: rest.manna_cost, mod_point_cost: rest.mod_point_cost, retired: rest.retired, effect_bonuses: rest.effect_bonuses, integrated: rest.integrated, special_equipment: rest.special_equipment, replace_integrated: rest.replace_integrated, requires: rest.requires, actions: rest.actions } }, error: null }
   }
   if (kind === 'factions') {
     const { data, error } = await supabase.from('organisations').select('id, name, hidden, updated_at').eq('id', Number(key)).maybeSingle()
@@ -144,8 +143,8 @@ export async function homebrewPack(packs: Pack[]): Promise<{ id: number; error?:
 
 // What save_bionic takes, from the form data (the slot is trimmed by the function).
 const ids = (value: unknown) => (Array.isArray(value) ? value.map(String) : [])
-const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_source: String(working.source ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired, new_bonuses: (working.bonuses ?? []) as Json,
-  new_effect_bonuses: (Array.isArray(working.effect_bonuses) ? working.effect_bonuses : []) as Json, new_integrated: ids(working.integrated), new_special_equipment: ids(working.special_equipment), new_replace_integrated: working.replace_integrated === true, new_requires: (Array.isArray(working.requires) ? working.requires : []) as Json })
+const bionicArgs = (working: Data) => ({ new_name: String(working.name), new_description: String(working.description ?? ''), new_slot: String(working.slot ?? ''), new_source: String(working.source ?? ''), new_effect: String(working.effect ?? ''), new_price: Number(working.manna_cost), new_mod_cost: Number(working.mod_point_cost), new_retired: !!working.retired,
+  new_effect_bonuses: (Array.isArray(working.effect_bonuses) ? working.effect_bonuses : []) as Json, new_integrated: ids(working.integrated), new_special_equipment: ids(working.special_equipment), new_replace_integrated: working.replace_integrated === true, new_requires: (Array.isArray(working.requires) ? working.requires : []) as Json, new_actions: (Array.isArray(working.actions) ? working.actions : []) as Json })
 
 // A new item, as a draft (pack items), or a new bionic.
 export async function createItem(kind: EditorKind, edits: Data, packId: number | null): Promise<(Saved & { key?: string })> {
@@ -203,6 +202,10 @@ async function update(item: Loaded, changes: { data?: Json; edited?: Json | null
 
 // Only homebrew items can be deleted, and only while no pilot uses them (the database says so too).
 export async function deleteItem(key: string, kind?: EditorKind): Promise<string | null> {
+  if (kind === 'bionics') {
+    const { error } = await supabase.rpc('delete_bionic', { target_id: Number(key) })
+    return error ? message(error) : null
+  }
   if (kind === 'factions') return (await checkWrite(await supabase.from('organisations').delete().eq('id', Number(key)).select('id'))).error
   if (kind === 'commendations') return (await checkWrite(await supabase.from('commendations').delete().eq('id', key).select('id'))).error
   const { error } = await supabase.rpc('delete_content_item', { target_id: key })

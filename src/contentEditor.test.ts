@@ -90,16 +90,12 @@ describe('item checks', () => {
 })
 
 describe('bionic and personal stat checks', () => {
-  const bionic = { name: 'Arm', slot: 'Arm', source: 'IPS-N', manna_cost: 750, mod_point_cost: 2, bonuses: [{ stat_id: 'physicality', amount: 1 }] }
-  it('accepts a bionic with a bonus on a stat that exists', () => {
+  const bionic = { name: 'Arm', slot: 'Arm', source: 'IPS-N', manna_cost: 750, mod_point_cost: 2, effect_bonuses: [{ id: 'physicality', val: 1 }], actions: [{ name: 'Flash', activation: 'Quick', detail: 'Blind.' }] }
+  it('accepts a bionic with a personal stat effect and an action', () => {
     expect(texts(bionic, 'bionics')).toEqual([])
   })
-  it('refuses a missing stat, a repeated stat, zero and fractions', () => {
-    expect(texts({ ...bionic, bonuses: [{ stat_id: 'luck', amount: 1 }, { stat_id: 'acuity', amount: 0 }, { stat_id: 'acuity', amount: 1 }] }, 'bionics')).toEqual([
-      'Bonus 1 needs a stat that exists.',
-      'Bonus 2 must be a whole number, not 0.',
-      'Only one bonus per stat: acuity is there twice.',
-    ])
+  it('refuses an action with no name', () => {
+    expect(texts({ ...bionic, actions: [{ name: ' ', detail: 'Blind.' }] }, 'bionics')).toEqual(['Action 1 needs a name.'])
     expect(texts({ ...bionic, name: '', mod_point_cost: -1 }, 'bionics')).toEqual(['A name is needed.', 'Mod points must be a whole number, 0 or more.'])
   })
   it('needs a whole price of 0 or more, and only warns about a missing slot', () => {
@@ -163,6 +159,14 @@ describe('duplicate and references', () => {
     expect(referencesTo('tg_x', rows)).toEqual(['Zed'])
     expect(referencesTo('nothing', rows)).toEqual([])
   })
+  it('ignores licence fields, and finds a biomod that grants the id', () => {
+    const rows = [
+      { id: 'mf_a', data: { id: 'mf_a', name: 'Frame', license: 'mf_a', license_id: 'mf_a' } },
+      { id: '7', data: { id: '7', name: 'Arm', integrated: ['w1'] } },
+    ]
+    expect(referencesTo('mf_a', rows)).toEqual([])
+    expect(referencesTo('w1', rows)).toEqual(['Arm'])
+  })
   it('checks a weapon grants real items', () => {
     const weapon = { id: 'hb_mw_w', name: 'W', mount: 'Main', type: 'Rifle', source: 'GMS', license: 'GMS', license_id: '', license_level: 0, sp: 1, range: [], damage: [], tags: [], integrated: ['nope'] }
     const found = problemsFor('weapons', weapon, { ...ctx, id: 'hb_mw_w', known: new Set(['hb_mw_w']) }).map((p) => p.text)
@@ -174,7 +178,7 @@ describe('new items', () => {
   it('start with an id and a name, so the raw box always has something valid to edit', () => {
     expect(blankItem('frames', 'hb_mf_new')).toMatchObject({ id: 'hb_mf_new', license_id: 'hb_mf_new', name: '', mounts: ['Main'] })
     expect(blankItem('pilot_gear', 'hb_pg_new')).toMatchObject({ id: 'hb_pg_new', type: 'Gear' })
-    expect(blankItem('bionics', '')).toMatchObject({ slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, bonuses: [] })
+    expect(blankItem('bionics', '')).toMatchObject({ slot: '', source: '', effect: '', manna_cost: 500, mod_point_cost: 1, effect_bonuses: [], actions: [] })
   })
 })
 
@@ -228,6 +232,10 @@ describe('effect bonuses and core bonus equipment', () => {
       { id: 'range', val: 1, weapon_types: ['Rifle'], range_types: ['Range'] }, { id: 'threat', val: 1 },
       { id: 'overcharge', val: ['1', '1d3', '1d6', '1d6+4'] },
     )).toEqual([])
+  })
+  it('limits "Only when" to 120 characters', () => {
+    expect(bonuses({ id: 'hp', val: 1, condition: 'in cover' }, { id: 'hp', val: 1, condition: 'x'.repeat(120) })).toEqual([])
+    expect(bonuses({ id: 'hp', val: 1, condition: 'x'.repeat(121) }, { id: 'hp', val: 1, condition: '' }, { id: 'hp', val: 1, condition: 3 })).toEqual(Array(3).fill(0).map((_, n) => `Effect ${n + 1}: \"Only when\" must be 120 characters or fewer.`))
   })
   it('rejects values that do not fit', () => {
     expect(bonuses({ id: 'add_mount', val: 'Huge' }, { id: 'add_mount', val: 'Main', max: 0 }, { id: 'drone_hp', val: 'lots' }, { id: 'overcharge', val: ['1', '2'] }, { id: 'range', val: 1, weapon_types: ['Wand'] })).toEqual([

@@ -181,7 +181,7 @@ export const buildVariables = (sheet: Sheet, frame?: Frame | null) => ({
 
 // What a reminder is about, for the mech page's "other effects and conditions" list: its kind (a symbol and an
 // uppercase label there), its own name, and where it comes from (the talent and rank, the core system).
-export type ReminderKind = 'frame' | 'trait' | 'core' | 'core-power' | 'core-bonus' | 'talent' | 'item' | 'missing'
+export type ReminderKind = 'frame' | 'trait' | 'core' | 'core-power' | 'core-bonus' | 'talent' | 'biomod' | 'item' | 'missing'
 // Each kind of "other effect": its symbol and its uppercase label (the mech page and the combat guide).
 export const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }> = {
   frame: { icon: 'frame', label: 'Frame' },
@@ -190,6 +190,7 @@ export const EFFECT_KINDS: Record<ReminderKind, { icon: string; label: string }>
   'core-power': { icon: 'corebonus', label: 'Core power' },
   'core-bonus': { icon: 'corebonus', label: 'Core bonus' },
   talent: { icon: 'talent', label: 'Talent' },
+  biomod: { icon: 'pilot', label: 'Biomod' },
   item: { icon: 'system', label: 'Equipment' },
   missing: { icon: 'warning', label: 'Missing' },
 }
@@ -343,7 +344,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
     })
   }
   // Installed biomods' bonuses count like any other source's (pilot ones are the pilot's).
-  for (const bionic of installed) sources.push({ name: bionic.name, bonuses: bionic.effect_bonuses ?? [], origin: { kind: 'item', name: bionic.name }, key: `bionic:${bionic.id}` })
+  for (const bionic of installed) addRaw(bionic.name, '', { ...bionic, bonuses: bionic.effect_bonuses ?? [] }, { kind: 'biomod', name: bionic.name }, true, `bionic:${bionic.id}`)
   const modifiers: StatModifier[] = []
   const bonuses: NamedBonus[] = []
   const variables = buildVariables(sheet, frame)

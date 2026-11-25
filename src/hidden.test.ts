@@ -83,3 +83,20 @@ describe('saveLine', () => {
     expect(saveLine('Ana', null)).toBe('')
   })
 })
+
+// A guard, not proof: it catches a new picker file that forgot to filter hidden items, not a wrong filter.
+describe('pickers hide hidden content', () => {
+  const sources = import.meta.glob<string>(['./components/**/*.vue', './views/**/*.vue'], { query: '?raw', import: 'default', eager: true })
+  const source = (file: string) => sources[`./${file}`]
+  // The editor shows hidden items, flagged. The rest are shared components fed by filtered callers, or are not content lists.
+  const exempt = (file: string) => file.startsWith('components/editor/') || ['RichTextEditor.vue', 'LoreEditView.vue', 'ItemPicker.vue', 'PickList.vue', 'LoadoutBox.vue'].some((name) => file.endsWith(`/${name}`))
+  it('filter every picker with offered() or .hidden', () => {
+    const files = Object.keys(sources).map((key) => key.slice(2)).filter((file) => !exempt(file) && /<(ItemPicker|PickList)\b/.test(source(file)))
+    expect(files.length).toBeGreaterThan(0)
+    expect(files.filter((file) => !/offered\(|\.hidden/.test(source(file)))).toEqual([])
+  })
+  it('filter the reputation list, and the award picker through its loader', () => {
+    expect(source('components/ReputationPanel.vue')).toContain('hidden')
+    expect(source('components/CommendationAward.vue')).toContain('loadCommendations')
+  })
+})

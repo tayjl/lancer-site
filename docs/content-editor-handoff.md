@@ -10,21 +10,21 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - Steps 2, 3 and 4a are committed, pushed and live (`origin/main` `6f35d38`; step 4a code `17f91be`, docs `6f35d38`; steps 2 and 3 code `1f028ba`, `e899ecf`, `b0e4bf9`, docs `c7ff4b7`). Pushed 2026-11-25.
 - Migration `20261125100000_content_cleanup_3b` (3b) is applied to hosted (2026-11-25, before the push). The CLI printed no NOTICE lines, so check hosted rows with an `edited` value to see whether owner-edited rows were touched.
 - **Step 4a is done and pushed** (0.3, status groups and damage type guide text). Migration `20261125110000_content_cleanup_4a` is applied to hosted before the push (2026-11-25).
-- **Step 4b is done and pushed** (code `f7207ff`, docs `a8fc866`). Migration `20261125120000_content_cleanup_4b` is on hosted. Not browser-checked.
-- **Step 4c is built and checked locally, uncommitted and unpushed.** Migration `20261125130000_content_cleanup_4c` is applied locally only, not on hosted. Tests, reviewer and browser checks passed (see the 4c block, 0.3). Next steps are in 'Next session: start here' below.
+- **Step 4b is done and pushed** (code `f7207ff`, docs `a8fc866`). Migration `20261125120000_content_cleanup_4b` is on hosted. Browser check passed 2026-11-25.
+- **Step 4c is pushed** (`origin/main` `5f3f1ef`, 2026-11-25). Migration `20261125130000_content_cleanup_4c` is on hosted (applied before the push). Tests, reviewer and browser checks passed (see the 4c block, 0.3).
+- **Batch 2026-11-25 (steps 2 to 8 and 12, 4b check, 0.3 close-out): built and checked locally, not committed or pushed.** See the batch block under 0.3. Its four migrations go to hosted before the push.
 - Check live (STATUS.md) stays open.
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
 
 ## Next session: start here
-State 2026-11-25. Steps up to 4b are pushed. Step 4c is built and checked locally (tests, reviewer, owner and player browser checks, tag rerun), but not committed, not pushed, and its migration is not on hosted. Run these in order. Steps marked **yes** need the developer's yes first.
+State 2026-11-25. Steps up to 4c are pushed (`origin/main` `5f3f1ef`). The batch (steps 2 to 8 and 12) is built and checked locally; it is committed and pushed after its four migrations are on hosted. Run these in order.
 1. Check the dev server: `npm run local` (port 5174, background). Start it if it is down.
-2. **Yes:** check the three tag rows `tg_gear`, `tg_pilot_weapon`, `tg_personal_armor` on hosted. The migration changes nothing where they are missing, and its `edited` check aborts if `data->>'id'` is not the id or the name is empty.
-3. **Yes:** apply 4c to hosted before the push (devops): `npx supabase migration up --linked --yes`.
-4. **Yes:** commit and push (devops). The guard now accepts the approval prefix after `cd x &&`, but the developer may push by hand.
-5. Update [STATUS.md](../STATUS.md) and [history.md](history.md) after the push (move 4c out of Unpushed work, add its row to the hosted table, drop the 'not on hosted' wording).
-6. Browser-check 4b (section 4).
-7. Then 0.3 Definitions leftovers: tag groups; `weapon_mounts` only if it must differ from sizes; pilot gear group titles in `archive.ts`.
-8. Then 0.4, 0.5, and 0.7 (browser and security verification).
+2. Confirm the Cloudflare deploys of `5f3f1ef` and of the batch push (see [STATUS.md](../STATUS.md)). Check that biomod bonuses count once and an owner can save a biomod.
+3. Step 9: drop `bionic_bonuses` (new migration). Only after step 8 is live and checked.
+4. Step 10: commendation requirements (high risk, submit guard). It extends the step 7 trigger.
+5. Step 11: grants on mods and pilot gear (big SQL function). Build after step 10, not in parallel.
+6. Step 13: 0.7 security audit and browser jobs (section 4).
+7. Developer questions: granting pilot gear, talent ranks or licences; export and import for Definitions, factions, commendations and biomods.
 
 Not fixed (minor, record only): rich-text toolbar buttons in `RichTextEditor.vue` are 34px wide on mobile (under 44). Mount flags `integrated` and `superheavy` have no editor control; keep them on save. The Armour-type system row is unchecked because no Armor-type system exists in local data. 4c: reverting one of the three tags to pack drops the hide flag; pack text changes to those three tags are shadowed by `edited`; `pilotCard` has no editor control; the player check covered pilot gear only, not mech items.
 
@@ -96,10 +96,37 @@ Left from 0.2 (for later):
 - `content_editor.test.sql` fails locally on leftover row `hb_tg_ux_probe_tag` in pack 7. Clean the local data first.
 
 ### 0.3 Statuses, conditions and the remaining Definitions
-**Resume here (step 4c, built locally, unpushed).** Steps 3 (0.2), 4a and 4b are pushed (`f7207ff`, docs `a8fc866`). See the 4c, 4b and 4a blocks below. Start with 'Next session: start here' at the top.
+**Resume here: the batch block below, then 'Next session: start here' at the top.** Steps 3 (0.2), 4a, 4b and 4c are pushed (`5f3f1ef`). See the 4c, 4b and 4a blocks below. Start with 'Next session: start here' at the top.
 
-**4c: built and checked locally, NOT committed or pushed (2026-11-25).**
-- **Migration** `supabase/migrations/20261125130000_content_cleanup_4c.sql` is untracked and applied locally only. Test `supabase/tests/content_cleanup_4c.test.sql` is untracked too. The test pastes the migration's SQL and inserts its own `content_packs` row, so keep the two in step (a comment in the test says so).
+**Batch 2026-11-25: steps 2 to 8 and 12, the 4b check and the 0.3 close-out (not pushed yet).** Built and checked locally, uncommitted. Reviewed as planned in the remaining-plan scratch file.
+- **4b browser check: pass.** Integrated and superheavy flags on a real mech (flag on and off, bracing), the mount type picker, data-only rows hidden from pickers, `weapon_mounts` gone. Minor, judged intended: the Mount types slot chips offer the hidden Ship-class size (`DefinitionPane.vue:49`, `defIds(...,true)`). Mount flags `integrated` and `superheavy` and `pilotCard` have no editor control (kept on save).
+- **Step 2:** drone and deployable speed and Heat cap in `BONUS_REGISTRY` (`src/bonuses.ts:83`).
+- **Step 3:** 'Only when' field on effects (`BonusListField.vue`), 120-character validation.
+- **Step 4:** guard test in `src/hidden.test.ts` that pickers use `offered()`.
+- **Step 5:** Used by ignores licence keys and lists biomods.
+- **Step 6:** owners can delete unused biomods. Migration `20261125140000_biomod_delete.sql` (`delete_bionic`).
+- **Step 7:** factions and commendations can't be deleted while in use. Migration `20261125150000_block_used_delete.sql` (before-delete triggers). `pilot_profile.test.sql` expects the refusal.
+- **Step 8:** biomods keep personal stat bonuses in `effect_bonuses` and gain actions. Migration `20261125170000_biomod_actions_effects.sql`. `bionic_bonuses` is kept (step 9 drops it). `save_bionic` lost `new_bonuses` and gained `new_actions`. Combat page has a Biomods card.
+- **Step 12:** pack imports no longer stamp `content_saves`. Migration `20261125160000_pack_imports_dont_stamp.sql`.
+- **Scouted, nothing to build:** frame core `active_bonuses` has a reader (`src/mechData.ts:373-383`); the undeclared `pilot_*` warning exists (`src/contentEditor.ts:166`).
+- **0.3 close-out (decisions, overturnable):**
+  - Tag groups need no new Definitions kind: the hidden flag, `hideOnCard` and 'Show on combat page' cover it. `KEY_TAGS` (`src/pickerRows.ts:79`) stays in code. If wanted, the smallest version is a 'Key tag' checkbox on `TagForm`.
+  - Core bonus mount hooks `cb_improved_armament`, `cb_mount_retrofitting` and `cb_integrated_weapon` stay in code.
+  - Pilot gear group titles stay in code.
+  - `pilot_evasion` stays dropped (flat 10, [rule-decisions.md](rule-decisions.md)).
+- **Deploy window:** after `20261125170000` and before the Cloudflare build finishes, live biomod bonuses count twice and owner biomod saves fail. Migrate and push back to back. Back up hosted `bionics` and `bionic_bonuses` first.
+- **Checks:** `npm test` 570 (47 files), `npx supabase test db` 1090 (39 files), `npm run build` clean.
+- **Known minor, not fixed:**
+  - No 'New' button for factions and commendations in the editor (`ContentEditorView.vue:165` `add: false`). `?cat=...&item=new` works.
+  - Biomod rich text toolbar buttons are 34px wide on mobile (existing note).
+  - The pane header icon is stale until save after changing a commendation icon.
+  - `bionicStats` shows replace and overwrite effects as a plain +n.
+  - The test copies the migration SQL for 4c and 8: keep each copy in step with its migration.
+  - Server validation of biomod actions is only "a list of objects" (owner only).
+- **Skipped, ask the developer:** granting pilot gear, talent ranks or licences; export and import for Definitions, factions, commendations and biomods.
+
+**4c: pushed 2026-11-25** (`5f3f1ef`). Migration applied to hosted before the push (the three tag rows were checked read-only first; the Armour label was not queried).
+- **Migration** `supabase/migrations/20261125130000_content_cleanup_4c.sql` (applied to hosted). Test `supabase/tests/content_cleanup_4c.test.sql`. The test pastes the migration's SQL and inserts its own `content_packs` row, so keep the two in step (a comment in the test says so).
 - **What it adds:** `pilotCard` on `gear_types` Armor and Gear (Weapon has none); `hideOnCard` on tags `tg_gear`, `tg_pilot_weapon`, `tg_personal_armor` (in `edited`, so a pack re-import keeps it; tags come from LCP import, so the update changes nothing where those rows are missing); the 'Armour' label on `gear_types` and `system_types` Armor (ids stay `Armor`).
 - **Code:** `HIDDEN_TAGS` and `PILOT_TYPES` removed from `src/itemDetails.ts`; `cardHiddenTags` in `src/gameData.ts` (read from the tag's loaded data, like `hidden` and `combat_page`); `onPilotCard` in `src/definitions.ts`; 'Hide on item cards' checkbox in `TagForm.vue` (saves `false` rather than omitting the flag, like the other flags; every reader checks `=== true`); `GearForm.vue` and `SystemForm.vue` use `defLabel` for Armour. `src/definitions.ts` DEFAULT_DEFINITIONS and `src/definitions.test.ts` updated. `src/editorStore.ts` `loadList` maps pilot_gear and systems types through `defLabel` (test in `src/hidden.test.ts`). `EditorPane.vue` takes a `knownTags` prop (full tag map) for `ctx.tags`, which removes the false "Tag 'tg_personal_armor' doesn't exist" warning (pickers keep the filtered list).
 - **Checks 2026-11-25:** `npx supabase test db` 35 files, 1059 tests pass; `npm test` 560 of 560 (47 files) pass; `npm run build` clean.
@@ -110,7 +137,7 @@ Left from 0.2 (for later):
 - **Next steps:** see 'Next session: start here' at the top of this file.
 - Check-live items (section 1 and STATUS.md) stay open.
 
-**4b: done and pushed 2026-11-25** (code `f7207ff`, docs `a8fc866`). Migration `supabase/migrations/20261125120000_content_cleanup_4b.sql` is on hosted (applied before the push).
+**4b: done and pushed 2026-11-25** (code `f7207ff`, docs `a8fc866`). Browser check passed 2026-11-25 (see the batch block). Migration `supabase/migrations/20261125120000_content_cleanup_4b.sql` is on hosted (applied before the push).
 - **Mount flags:** `integrated` on the 'Integrated Auxiliary' mount type and `superheavy` on 'Superheavy', both in `mount_types` `data`.
 - **Data-only rows** (seeded hidden, `dataOnly`): `weapon_sizes` 'Ship-class'; `weapon_types` 'Special', 'Spool Weapon', '???'. `DATA_ONLY_MOUNTS` and `DATA_ONLY_WEAPON_TYPES` are removed from `src/contentEditor.ts`.
 - **`weapon_mounts`:** the migration deletes any rows and removes the kind (sizes and mounts share one list, seeded as `weapon_sizes`).
@@ -139,13 +166,13 @@ Left from 0.2 (for later):
 Open items from the audits (`content-audit/constants-and-matrix.md`, scratch):
 - (done 4a) `STATUS_CARDS` (`src/rulesData.ts:20`) hard-coded the group ids and the `pilot` bucket. Status groups are now a Definitions kind, and a new group can be added in the editor.
 - (done 4a) `DAMAGE_TYPES` (`src/combatRules.ts:127`): the guide showed only the 4 rule rows. It now reads every visible `damage_types` row with its text.
-- (done 4c, pending push) `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicated `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) is now the `hideOnCard` tag flag (`combat_page` already exists).
+- (done 4c, pushed) `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicated `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) is now the `hideOnCard` tag flag (`combat_page` already exists).
 - (done 4a) `ON_FOOT_ROWS` (`src/combatRules.ts:258`) was dead code and is removed.
 - (done 4b) `Integrated Auxiliary` and `Superheavy` are flags on the `mount_types` rows, read through `mountIs`/`mountsWith` in `src/definitions.ts`. `Main/Aux` (`src/mechData.ts:153`) is the named core bonus `cb_mount_retrofitting`, left in code.
 - (done 4b) `DATA_ONLY_MOUNTS` and `DATA_ONLY_WEAPON_TYPES` are seeded as hidden `dataOnly` rows (`Ship-class`, `Special`, `Spool Weapon`, `???`).
 - (done 4a) **Statuses and conditions become editable and addable.** Status groups are Definitions (4a). Statuses are `rules` rows in section `statuses`, so an owner adds, edits, hides and deletes them in the Rules tab, and the combat page reads them from the database. Conditions have no separate kind (they are the `conditions` group). Hidden-group and delete guard are in the 4a block.
 - (done 4a) **Combat guide follows the database:** the damage type rows come from the Definitions (`damage_types`, with guide text). Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
-- Other Definitions work (4b and 4c): tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
+- Other Definitions work (4b and 4c): tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down. Decided in the batch: tag groups stay in code (see the batch block).
 - (done) Frame size error text follows the Definition rows. Show "Used by n" on each Definitions row before trying to delete.
 - Done when: an owner can add a damage type, a status or a condition, or a mount type in the editor and it works on the sheet, archive and combat page with no code change.
 
@@ -170,9 +197,9 @@ Open items from the audits (`content-audit/constants-and-matrix.md`, `content-au
 - Done when: the capability matrix's empty cells are only the ones ruled out above, biomods can grant stat effects and actions, and a homebrew variation short of an entirely new calculation can be built from the editor alone.
 
 ### 0.5 After-launch completeness
-- **Biomods can be deleted**, not only hidden (guard against in-use like `delete_content_item`; pilots who own it are the in-use case).
-- Decide and build the faction and commendation delete safety (block when in use, or keep the warning); commendations required by an item must block deletion (see commendation requirements).
-- Hidden filtering must cover any picker added later: add a test that fails if a picker reads a content list without `offered(...)`.
+- (done, batch step 6) **Biomods can be deleted**, not only hidden (guard against in-use like `delete_content_item`; pilots who own it are the in-use case).
+- (done, batch step 7) Decide and build the faction and commendation delete safety (block when in use, or keep the warning); commendations required by an item must block deletion (see commendation requirements).
+- (done, batch step 4) Hidden filtering must cover any picker added later: add a test that fails if a picker reads a content list without `offered(...)`.
 - Low priority, last: export and import for Definitions, factions, commendations and biomods.
 
 ### 0.6 Missing editor inputs and consistency
@@ -209,14 +236,14 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 ## 2. Bugs and suspect behaviour to investigate
 - (done) **Frame-size id counted twice.** The `definitionProblems` dedupe is removed. The "Fix 2 problems" report couldn't be reproduced; the likely cause is two new rows both typed `01`.
 - (done) **Conflict Reload leaves a "Leave site?" prompt.** Reload skips the guard in `EditorPane` and `DefinitionPane` (via `ConflictNotice`'s `reload` event). Closing the tab still asks.
-- **Owner's first pack import stamps every row** in `content_saves` as an editor save. Decided 2026-11-25: pack imports don't stamp (see rule-decisions.md). Build status not confirmed.
+- **Owner's first pack import stamps every row** in `content_saves` as an editor save. Decided 2026-11-25 and built in the batch (step 12).
 - **Trigger raises if the signed-in user has no profile row** (`private.stamp_save` foreign key). Unreachable for real owners; matters only for a service-role call carrying a user JWT.
 - **Seed ids are positional** (`SEED_IDS`, `ACTION_IDS`): a new seed row needs an id placed to match its `add()` call. Snapshot tests fail until updated on purpose. Consider keyed ids.
 - (done) **Frame size error text is fixed** ("Size is ½, 1, 2 or 3.") and goes stale if the owner adds a size. Now built from the `frame_sizes` Definition rows (`contentEditor.ts`), so an added size shows up.
 - **Duplicate carries built-in core checks** for official frames (fixed, tested) but the first edit of an official frame's core checks writes a full copy that no longer follows `CORE_CHECK_BONUSES`. Never confirmed that the first edit saves its own copy (the reviewer could not tell).
 - (done) **Hidden official value shows its raw id** in an item's picker (for example "Heat") instead of its label.
-- **Used by** matches exact strings, so a manufacturer code can match a weapon's `license` text. It does not scan biomods. "Used by" reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
-- **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decided 2026-11-25: block while in use (see rule-decisions.md). Build status not confirmed.
+- **Used by** matches exact strings, so a manufacturer code can match a weapon's `license` text. Fixed in the batch (step 5): it scans biomods and ignores licence keys. "Used by" reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
+- **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decided 2026-11-25 and built in the batch (step 7).
 - A very long faction name is accepted (only unique, no length check).
 - **Phase 2 leftovers:** the Full Repair text still says "Overcharge goes back to 1 Heat" (no placeholder for the first step), and `REACTIONS_NOTE` still repeats the Reaction step's general rule: both are in scope (0.2). The combat guide's damage type rows still come from `DAMAGE_TYPES` in `src/combatRules.ts` and do not follow Definitions: in scope (0.3). The Engaged status is being removed by the developer, so its duplicate row and doubled-parentheses title need no work.
 - (done) Tag preview shows the "Show on combat page" flag.
@@ -225,7 +252,7 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 - A brand-new effect type that changes anything other than a mech or personal stat still needs code in `src/mechData.ts`: out of scope, the developer hardcodes entirely new mechanics.
 - `lcp.ts` now imports `contentEditor.ts` at runtime: check the bundle size of the content/import page.
 - LCP import validates actions and rules with an empty tag and stat context, so unknown tags or stats warn at most.
-- Hidden in `loadKind`: **not filtered centrally** (it would break lookups). Pickers call `offered(list, keep)` in `src/catalogue.ts:42`. A new picker must call it or hidden items leak. Nothing in the database blocks awarding a hidden commendation.
+- Hidden in `loadKind`: **not filtered centrally** (it would break lookups). Pickers call `offered(list, keep)` in `src/catalogue.ts:42`. A new picker must call it or hidden items leak. Guarded by a test in `src/hidden.test.ts` (batch step 4). Nothing in the database blocks awarding a hidden commendation.
 - (done) Retry is on every page's load-error notice (`retryCatalogues()`).
 - Before `pilot_stats` loads, `isPilotBonus` treats personal stats as mech bonuses (corrects on load).
 
@@ -235,7 +262,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - **Grants on mods and pilot gear:** the sheet never reads them (equipped grants cover weapons and systems only). In scope (0.4): the sheet reads them first, then the form field.
 - **Actions on biomods:** required, see 0.4.
 - **Requirements on core systems:** not needed (developer decision, 2026-11-24).
-- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Done in 4c (pending push): the Armor/Armour label (`defLabel` in `GearForm`/`SystemForm`). Left in code on purpose: the plural gear group titles (`GEAR_TITLES` in `archive.ts`, `GEAR_GROUPS` in `combatLoadout.ts`, `CATEGORIES` in `PilotLoadout.vue`). `Main/Aux` stays in code (named core bonus). Done in 4b: `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, the Integrated Auxiliary and Superheavy ids, `weapon_mounts` removed (the code uses one list for sizes and mounts, seeded as `weapon_sizes`), data-only values seeded.
+- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Done in 4c (pushed): the Armor/Armour label (`defLabel` in `GearForm`/`SystemForm`). Left in code on purpose: the plural gear group titles (`GEAR_TITLES` in `archive.ts`, `GEAR_GROUPS` in `combatLoadout.ts`, `CATEGORIES` in `PilotLoadout.vue`). `Main/Aux` stays in code (named core bonus). Done in 4b: `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, the Integrated Auxiliary and Superheavy ids, `weapon_mounts` removed (the code uses one list for sizes and mounts, seeded as `weapon_sizes`), data-only values seeded.
 - (done) **Fields with no editor input** (audit, 2026-11-25): `no_mods`, deployable `activation` and `range` now have inputs. The rest are data-only, with reasons in [game-content.md](game-content.md#content-editor-forms).
 - **Rare kinds that don't exist:** reserves, backgrounds and NPCs are not content kinds (out of scope until they exist).
 - **Used-by counts before delete** on Definitions rows (the refusal appears only after trying).
@@ -244,8 +271,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - "What changed" history beyond the last save (decided: last save only).
 
 ## 4. Never browser-checked (code and tests only)
-- Phase 4b (2026-11-25): integrated and superheavy mounts on a real mech (flag on and off, bracing), the mount type picker, the data-only rows hidden from pickers. (The migration is on hosted.)
-- Phase 4c (built and checked locally, unpushed): owner and player browser checks and the tag chip rerun passed (see the 4c block). Not yet covered: mech items in the player check, and `hideOnCard` alone without the hidden flag (unit test only).
+- Phase 4c (pushed 2026-11-25): owner and player browser checks and the tag chip rerun passed (see the 4c block). Not yet covered: mech items in the player check, and `hideOnCard` alone without the hidden flag (unit test only).
 - Commendations on the shared pane: create, edit, icon picker, medal preview, delete.
 - Faction delete confirm and faction preview tab; duplicate-name error.
 - Phase 1: Retry button styling inside `.notice`; the catalogue error and Retry behaviour with the rules request blocked.

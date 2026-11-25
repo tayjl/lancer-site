@@ -188,8 +188,8 @@ select throws_ok($$ insert into public.commendations (name, icon) values ('Cool 
 select throws_ok($$ insert into public.commendations (name, icon) values ('Bad icon', 'Not An Icon') $$, '23514', null, 'an icon is a plain icon name');
 select lives_ok($$ update public.commendations set description = 'Kept very calm' where id = 'c0000000-0000-4000-8000-000000000002' $$, 'an owner edits a commendation');
 select lives_ok($$ insert into public.pilot_commendations (character_id, commendation_id) values (100, 'c0000000-0000-4000-8000-000000000002') $$, 'an owner gives an award');
-select lives_ok($$ delete from public.commendations where id = 'c0000000-0000-4000-8000-000000000002' $$, 'an owner deletes a commendation');
-select is((select count(*)::int from public.pilot_commendations where commendation_id = 'c0000000-0000-4000-8000-000000000002'), 0, 'its awards go with it');
+select throws_ok($$ delete from public.commendations where id = 'c0000000-0000-4000-8000-000000000002' $$, 'P0001', null, 'an awarded commendation cannot be deleted');
+select is((select count(*)::int from public.pilot_commendations where commendation_id = 'c0000000-0000-4000-8000-000000000002'), 1, 'its awards stay');
 
 -- ---------------------------------------------------------------------
 -- Logged-out visitors

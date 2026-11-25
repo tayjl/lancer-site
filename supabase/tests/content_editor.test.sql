@@ -29,7 +29,6 @@ insert into public.characters (id, player_id, status, pilot_name, callsign) over
   (9200, 'cccccccc-0000-4000-8000-000000000001', 'approved', 'One', 'Wren');
 insert into public.character_sheets (character_id, sheet) values (9200, '{"pilot_gear": ["__ce_used"], "bionics": [9301]}');
 insert into public.bionics (id, name, mod_point_cost) overriding system value values (9301, 'Old arm', 1), (9302, 'Spare', 1);
-insert into public.bionic_bonuses (bionic_id, stat_id, amount) values (9301, 'physicality', 1);
 
 -- Players and GMs can change nothing and call nothing
 set local role authenticated;
@@ -38,12 +37,12 @@ update public.content_items set edited = '{"id": "__ce_official", "name": "Hacke
 select is((select edited from public.content_items where id = '__ce_official'), null, 'a player cannot edit content');
 select throws_ok($$ select * from public.item_usage('__ce_used') $$, 'P0001', 'Only owners can see where content is used.', 'players cannot see usage');
 select throws_ok($$ select public.delete_content_item('__ce_free') $$, 'P0001', 'Only owners can delete content.', 'players cannot delete content');
-select throws_ok($$ select public.save_bionic('X', '', '', '', 500, 1, false, '[]') $$, 'P0001', 'Only owners can change biomods.', 'players cannot save a bionic');
+select throws_ok($$ select public.save_bionic('X', '', '', '', 500, 1, false) $$, 'P0001', 'Only owners can change biomods.', 'players cannot save a bionic');
 set local request.jwt.claim.sub = 'cccccccc-0000-4000-8000-000000000002';
 update public.content_items set edited = '{"id": "__ce_official", "name": "Hacked"}' where id = '__ce_official';
 select is((select edited from public.content_items where id = '__ce_official'), null, 'a GM cannot edit content');
 select throws_ok($$ select public.delete_content_item('__ce_free') $$, 'P0001', 'Only owners can delete content.', 'GMs cannot delete content');
-select throws_ok($$ select public.save_bionic('X', '', '', '', 500, 1, false, '[]') $$, 'P0001', 'Only owners can change biomods.', 'GMs cannot save a bionic');
+select throws_ok($$ select public.save_bionic('X', '', '', '', 500, 1, false) $$, 'P0001', 'Only owners can change biomods.', 'GMs cannot save a bionic');
 
 -- An owner edits an official item; a pack update keeps the edit and changes only the pack's own data
 set local request.jwt.claim.sub = 'cccccccc-0000-4000-8000-000000000003';
@@ -82,26 +81,27 @@ select throws_ok($$ delete from public.content_items where id = '__ce_free' $$, 
 select lives_ok($$ select public.delete_content_item('__ce_free') $$, 'an unused homebrew item can be deleted');
 select is((select count(*)::int from public.content_items where id = '__ce_free'), 0, 'and it is gone');
 
--- Bionics: created, changed and guarded together with their bonuses
-select lives_ok($$ select public.save_bionic('  Neural link ', 'Faster', ' Head ', '<p>+1 acuity</p>', 750, 2, false, '[{"stat_id": "acuity", "amount": 2}]') $$, 'a bionic can be created with its bonuses');
+-- Bionics: created, changed and guarded together with their effects and actions
+select lives_ok($$ select public.save_bionic('  Neural link ', 'Faster', ' Head ', '<p>+1 acuity</p>', 750, 2, false, null, null, null, '[{"id": "acuity", "val": 2}]') $$, 'a bionic can be created with its effects');
 select is((select count(*)::int from public.bionics where name = 'Neural link'), 1, 'the name is trimmed');
-select is((select b.amount from public.bionic_bonuses b join public.bionics n on n.id = b.bionic_id where n.name = 'Neural link' and b.stat_id = 'acuity'), 2, 'its bonus is saved');
+select is((select effect_bonuses from public.bionics where name = 'Neural link'), '[{"id": "acuity", "val": 2}]'::jsonb, 'its stat bonus is saved as an effect');
 select results_eq($$ select slot, effect, manna_cost from public.bionics where name = 'Neural link' $$, $$ values ('Head'::text, '<p>+1 acuity</p>'::text, 750) $$, 'slot, effect and price are saved (slot trimmed)');
-select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', 'Arm', '<p>Hits harder</p>', 900, 1, false, '[]', 9301, (select updated_at from public.bionics where id = 9301)) $$, 'slot, effect and price can be changed');
+select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', 'Arm', '<p>Hits harder</p>', 900, 1, false, 9301, (select updated_at from public.bionics where id = 9301)) $$, 'slot, effect and price can be changed');
 select results_eq($$ select slot, manna_cost from public.bionics where id = 9301 $$, $$ values ('Arm'::text, 900) $$, 'the changed slot and price are kept');
-select lives_ok($$ select public.save_bionic('Visor', '', 'Eyes', '', 500, 1, false, '[]', null, null, ' HORUS ') $$, 'a biomod can be created with a manufacturer');
+select lives_ok($$ select public.save_bionic('Visor', '', 'Eyes', '', 500, 1, false, null, null, ' HORUS ') $$, 'a biomod can be created with a manufacturer');
 select is((select source from public.bionics where name = 'Visor'), 'HORUS', 'the manufacturer is saved (trimmed)');
-select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', 'Arm', '<p>Hits harder</p>', 900, 1, false, '[]', 9301, (select updated_at from public.bionics where id = 9301), 'IPS-N') $$, 'the manufacturer can be set on update');
+select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', 'Arm', '<p>Hits harder</p>', 900, 1, false, 9301, (select updated_at from public.bionics where id = 9301), 'IPS-N') $$, 'the manufacturer can be set on update');
 select is((select source from public.bionics where id = 9301), 'IPS-N', 'the changed manufacturer is kept');
-select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', 'Arm', '<p>Hits harder</p>', 900, 1, false, '[]', 9301, (select updated_at from public.bionics where id = 9301), '') $$, 'an empty manufacturer is allowed');
+select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', 'Arm', '<p>Hits harder</p>', 900, 1, false, 9301, (select updated_at from public.bionics where id = 9301), '') $$, 'an empty manufacturer is allowed');
 select is((select source from public.bionics where id = 9301), null, 'an empty manufacturer is stored as none');
-select throws_ok($$ select public.save_bionic('Bad price', '', '', '', -1, 1, false, '[]') $$, '23514', null, 'a negative price is refused');
-select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', '', '', 500, 1, false, '[{"stat_id": "dexterity", "amount": 1}]', 9301, (select updated_at from public.bionics where id = 9301)) $$, 'a bionic can be changed');
-select results_eq($$ select stat_id from public.bionic_bonuses where bionic_id = 9301 $$, $$ values ('dexterity'::text) $$, 'its bonuses are replaced, not added to');
-select throws_ok($$ select public.save_bionic('Old arm', '', '', '', 500, 1, false, '[]', 9301, now() - interval '1 day') $$, 'P0001', 'This biomod changed somewhere else, or no longer exists.', 'a stale save is refused');
-select throws_ok($$ select public.save_bionic('Old arm', '', '', '', 500, 1, false, '[{"stat_id": "nonsense", "amount": 1}]', 9301, (select updated_at from public.bionics where id = 9301)) $$, '23503', null, 'a bonus must point at a stat that exists');
-select is((select count(*)::int from public.bionic_bonuses where bionic_id = 9301 and stat_id = 'dexterity'), 1, 'the refused save changed nothing');
-select throws_ok($$ select public.save_bionic('Twice', '', '', '', 500, 1, false, '[{"stat_id": "acuity", "amount": 1}, {"stat_id": "acuity", "amount": 2}]') $$, 'P0001', 'The bonuses must be a list with one amount per stat.', 'one amount per stat');
+select throws_ok($$ select public.save_bionic('Bad price', '', '', '', -1, 1, false) $$, '23514', null, 'a negative price is refused');
+select lives_ok($$ select public.save_bionic('Old arm', 'Heavier', '', '', 500, 1, false, 9301, (select updated_at from public.bionics where id = 9301), null, '[{"id": "dexterity", "val": 1}]') $$, 'a bionic can be changed');
+select is((select effect_bonuses from public.bionics where id = 9301), '[{"id": "dexterity", "val": 1}]'::jsonb, 'its effects are replaced, not added to');
+select throws_ok($$ select public.save_bionic('Old arm', '', '', '', 500, 1, false, 9301, now() - interval '1 day') $$, 'P0001', 'This biomod changed somewhere else, or no longer exists.', 'a stale save is refused');
+select lives_ok($$ select public.save_bionic('Old arm', '', '', '', 500, 1, false, 9301, (select updated_at from public.bionics where id = 9301), null, '[{"id": "dexterity", "val": 1}]', '{}', '{}', false, '[]', '[{"name": "Flex", "activation": "Quick"}]') $$, 'a bionic can be saved with an action');
+select is((select actions -> 0 ->> 'name' from public.bionics where id = 9301), 'Flex', 'its action is saved');
+select throws_ok($$ select public.save_bionic('Bad', '', '', '', 0, 0, false, null, null, null, '[]', '{}', '{}', false, '[]', '{"name": "x"}') $$, 'P0001', 'The actions must be a list.', 'actions must be a list');
+select throws_ok($$ select public.save_bionic('Bad', '', '', '', 0, 0, false, null, null, null, '[]', '{}', '{}', false, '[]', '["x"]') $$, 'P0001', 'The actions must be a list.', 'actions must be objects');
 
 select * from finish();
 rollback;

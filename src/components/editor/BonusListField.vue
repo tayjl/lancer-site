@@ -12,9 +12,9 @@ import ToggleChips from './ToggleChips.vue'
 import { latest, useProblems, useRowKeys } from './useFields'
 
 // An item's effects: a type (one declared in BONUS_REGISTRY, src/bonuses.ts, plus the personal stats), a
-// value that fits the type, and under Options the weapons it aims at, a mount limit and whether it sets the base. Only what
-// lasts out of combat and shows on the sheet is edited here (the rest is rules text). A row with other fields (a condition,
-// weapon sizes, a damage type; nothing official or local uses them) keeps them; one whose type isn't in the list stays and shows its id.
+// value that fits the type, and under Options the weapons it aims at, a mount limit, an "only when" condition and whether it sets
+// the base. Only what lasts out of combat and shows on the sheet is edited here (the rest is rules text). A row with other
+// fields (weapon sizes, a damage type; nothing official or local uses them) keeps them; one whose type isn't in the list stays and shows its id.
 const modelProp = defineModel<Data[]>({ required: true })
 const model = latest(modelProp)
 const props = withDefaults(defineProps<{ types: BonusType[]; path?: string }>(), { path: 'bonuses' })
@@ -66,7 +66,7 @@ const add = () => (model.value = [...model.value, { id: groupsFor(undefined)[0]?
 // Options: what's set in them. They start open when anything is set, and can't be folded over a problem.
 const setCount = (bonus: Data) => {
   const effect = effectOf(bonus)
-  const set = [...filtersOf(bonus).filter((key) => Array.isArray(bonus[key]) && (bonus[key] as unknown[]).length), ...(effect?.max && bonus.max ? ['max'] : []), ...(bonus.replace ? ['replace'] : [])]
+  const set = [...filtersOf(bonus).filter((key) => Array.isArray(bonus[key]) && (bonus[key] as unknown[]).length), ...(effect?.max && bonus.max ? ['max'] : []), ...(bonus.replace ? ['replace'] : []), ...(bonus.condition ? ['condition'] : [])]
   return set.length
 }
 const opened = ref(new Set(model.value.flatMap((bonus, index) => (setCount(bonus) ? [keyOf(index)] : []))))
@@ -121,6 +121,9 @@ const setSteps = (index: number, step: number, value: string) => change(index, {
           </Field>
           <Field v-if="effectOf(bonus)?.max" label="Only if fewer mounts than" :path="where(index, 'max')">
             <input type="number" min="1" step="1" class="narrow" :value="bonus.max" @input="change(index, { max: ($event.target as HTMLInputElement).value === '' ? undefined : Number(($event.target as HTMLInputElement).value) })" />
+          </Field>
+          <Field label="Only when" :path="where(index, 'condition')">
+            <input type="text" :value="bonus.condition ?? ''" maxlength="120" placeholder="in cover" @input="change(index, { condition: ($event.target as HTMLInputElement).value || undefined })" />
           </Field>
           <label v-if="isStat(bonus)" class="check"><input type="checkbox" :checked="bonus.replace === true" @change="change(index, { replace: ($event.target as HTMLInputElement).checked || undefined })" />Sets the base</label>
         </div>

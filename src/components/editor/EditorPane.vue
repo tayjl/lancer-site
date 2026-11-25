@@ -61,10 +61,10 @@ const homebrew = !isNew && props.item!.packId !== null && props.item!.packId ===
 const imported = !isNew && !info.site && !homebrew
 // Factions and commendations are rows of their own tables: no packs and no item usage, and the owner can delete them.
 const own = props.kind === 'factions' || props.kind === 'commendations'
-const deletable = homebrew || (own && !isNew)
-// What deleting one does to pilots (an item is refused while pilots use it, so it says nothing).
-const effect = props.kind === 'factions' ? "Every pilot's reputation with it is removed." : props.kind === 'commendations' ? 'Pilots who have it lose it.' : ''
-const deleteLabel = `Delete ${own ? info.singular : 'item'}`
+// Biomods are rows of their own table too (not in a pack), so they're deletable once saved. The database refuses a delete while pilots use it.
+const kindNamed = own || props.kind === 'bionics'
+const deletable = homebrew || (kindNamed && !isNew)
+const deleteLabel = `Delete ${kindNamed ? info.singular : 'item'}`
 // Tags, actions, rules and biomods have a hidden control in their own form (a biomod's is "retired"); every other kind gets one here.
 const ownHide = ['tags', 'actions', 'rules', 'bionics'].includes(props.kind)
 const SAVE_SOURCE: Partial<Record<EditorKind, string>> = { bionics: 'bionics', factions: 'organisations', commendations: 'commendations' }
@@ -105,7 +105,7 @@ watch(() => working.value.name, (name) => {
 const rawError = ref('')
 // Licences are frames' (a weapon of Marrow II needs the Marrow licence at rank II), so the frames are read for the choice.
 const { frames } = useMechData()
-const { talents, coreBonuses } = useGameData()
+const { talents, coreBonuses, bionics } = useGameData()
 const licences = computed(() => licensedFrames(frames.value).map((frame) => ({ id: frame.id, name: frame.name, source: frame.source })))
 const problems = computed<Problem[]>(() => {
   const found = problemsFor(props.kind, working.value, {
@@ -141,12 +141,13 @@ onMounted(async () => {
   usageError.value = !!result.error
 })
 // Which other items point at this one (read from the loaded content, so there's no extra request).
-const references = ref<string[]>([])
+// The biomods arrive after this pane mounts, so the list is computed.
+const loadedRows = shallowRef<{ id: string; data: unknown }[]>([])
 onMounted(async () => {
   if (!props.item || info.site || props.kind === 'rules') return
-  const loaded = await Promise.all(REFERRING_KINDS.map(loadKind))
-  references.value = referencesTo(props.item.key, loaded.flatMap((result) => result.rows))
+  loadedRows.value = (await Promise.all(REFERRING_KINDS.map(loadKind))).flatMap((result) => result.rows)
 })
+const references = computed(() => (!props.item || info.site || props.kind === 'rules' ? [] : referencesTo(props.item.key, [...loadedRows.value, ...bionics.value.map((b) => ({ id: String(b.id), data: b }))])))
 
 // Who saved it last (owner-only stamp; nothing for an item nobody has saved yet).
 const savedLine = ref('')
@@ -230,7 +231,7 @@ const discard = () => {
 
 const deleteError = ref('')
 async function remove() {
-  if (!(await confirmAction([`Delete ${title.value}?`, effect, "This can't be undone."].filter(Boolean).join(' '), { confirmLabel: deleteLabel, danger: true }))) return
+  if (!(await confirmAction(`Delete ${title.value}? This can't be undone.`, { confirmLabel: deleteLabel, danger: true }))) return
   deleteError.value = (await deleteItem(props.item!.key, props.kind)) ?? ''
   if (!deleteError.value) {
     invalidateCatalogues()
@@ -318,7 +319,7 @@ defineExpose({ dirty })
         <section v-if="deletable" class="panel danger-zone" aria-labelledby="danger-title">
           <h3 id="danger-title" class="sheet-label">Danger zone</h3>
           <div class="danger-body">
-            <p class="dim">Deleting removes this {{ own ? info.singular : 'item' }}. {{ effect }} This can't be undone.</p>
+            <p class="dim">Deleting removes this {{ kindNamed ? info.singular : 'item' }}. This can't be undone.</p>
             <span v-if="pilots.length" class="blocked">
               <button type="button" class="danger" disabled aria-describedby="delete-why">{{ deleteLabel }}</button>
               <span id="delete-why" class="blocked-reason">{{ usedBy(pilots) }}</span>

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadoutSlots, pilotVitals, sheetStats, toItem, type Bionic } from './gameData'
+import { personalStatIds } from './bonuses'
+import { bionicItems, loadoutSlots, pilotBonuses, pilotVitals, sheetStats, toItem, type Bionic } from './gameData'
 
 // gameData also loads the catalogues, which needs Supabase; these tests don't.
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -34,21 +35,32 @@ describe('personal stats', () => {
   const stats = [{ id: 'physicality', name: 'Physicality' }, { id: 'acuity', name: 'Acuity' }]
 
   it('starts each personal stat at 2 without changing the HASE defaults', () => {
-    const result = sheetStats({}, stats, [])
+    const result = sheetStats({}, stats)
     expect(result.personal.map(stat => stat.value)).toEqual([2, 2])
     expect(result.piloting.map(stat => stat.value)).toEqual([0, 0, 0, 0])
   })
 
   it('keeps positive and negative biomod bonuses separate from the allocated base', () => {
-    const bionics = [{ id: 1, bonuses: [{ stat_id: 'physicality', amount: 2 }, { stat_id: 'acuity', amount: -1 }] }] as Bionic[]
-    const result = sheetStats({ pilot_stats: { physicality: 4, acuity: 2 }, bionics: [1] }, stats, bionics)
+    const bionics = [{ id: 1, name: 'Arm', effect_bonuses: [{ id: 'physicality', val: 2 }, { id: 'acuity', val: -1 }] }] as Bionic[]
+    const sheet = { pilot_stats: { physicality: 4, acuity: 2 }, bionics: [1] }
+    const result = sheetStats(sheet, stats, pilotBonuses(sheet, [], [], [], bionics))
     expect(result.personal.map(stat => [stat.value, stat.bonus, stat.value + stat.bonus])).toEqual([[4, 2, 6], [2, -1, 1]])
   })
 
   it('lists where a changed personal stat comes from, and nothing for an unchanged one', () => {
-    const bionics = [{ id: 1, name: 'Arm', bonuses: [{ stat_id: 'physicality', amount: 2 }] }] as Bionic[]
-    const result = sheetStats({ pilot_stats: { physicality: 4 }, bionics: [1] }, stats, bionics, [{ source: 'Kit', bonus: { id: 'physicality', val: -1 } }])
+    const bionics = [{ id: 1, name: 'Arm', effect_bonuses: [{ id: 'physicality', val: 2 }] }] as Bionic[]
+    const sheet = { pilot_stats: { physicality: 4 }, bionics: [1] }
+    const result = sheetStats(sheet, stats, [{ source: 'Kit', bonus: { id: 'physicality', val: -1 } }, ...pilotBonuses(sheet, [], [], [], bionics)])
     expect(result.personal.map(stat => stat.contributors)).toEqual([['Base: 4', 'Kit: -1', 'Arm: +2'], []])
+  })
+})
+
+describe('bionicItems', () => {
+  it('shows the personal stat effects as facts and stat tiles, not other effects', () => {
+    personalStatIds.value = new Set(['physicality'])
+    const [item] = bionicItems([{ id: 1, name: 'Arm', source: 'IPS-N', slot: 'Arm', effect_bonuses: [{ id: 'physicality', val: 2 }, { id: 'hp', val: 5 }] }] as Bionic[])
+    expect(item.facts).toEqual(['IPS-N', 'Arm', '+2 physicality'])
+    expect(item.stats).toMatchObject([{ label: 'physicality', value: '+2' }])
   })
 })
 

@@ -93,17 +93,11 @@ from pack, jsonb_array_elements($gear$[
 ]$gear$::jsonb) item;
 
 -- Made-up bionics, so the bionics picker and the mod limit can be tried out. The real ones are the GMs' to write.
-insert into public.bionics (id, name, description, slot, effect, manna_cost, mod_point_cost)
+insert into public.bionics (id, name, description, slot, effect, manna_cost, mod_point_cost, effect_bonuses)
 overriding system value values
-  (1, 'Myomer weave', 'Synthetic muscle fibre threaded through the arms and back.', 'Arm', '<p>Lifting and grappling feel easy.</p>', 500, 2),
-  (2, 'Ocular suite', 'Replacement eyes with a zoom lens and low-light filter.', 'Eyes', '', 500, 1),
-  (3, 'Neural lace', 'A mesh across the cortex that speeds up thought and machine handshakes.', 'Brain', '', 750, 3),
-  (4, 'Reflex graft', 'Wired nerves that cut reaction time.', 'Spine', '', 500, 4);
+  (1, 'Myomer weave', 'Synthetic muscle fibre threaded through the arms and back.', 'Arm', '<p>Lifting and grappling feel easy.</p>', 500, 2, '[{"id": "physicality", "val": 1}]'),
+  (2, 'Ocular suite', 'Replacement eyes with a zoom lens and low-light filter.', 'Eyes', '', 500, 1, '[{"id": "perception", "val": 1}]'),
+  (3, 'Neural lace', 'A mesh across the cortex that speeds up thought and machine handshakes.', 'Brain', '', 750, 3, '[{"id": "acuity", "val": 1}, {"id": "tech_fluency", "val": 1}]'),
+  (4, 'Reflex graft', 'Wired nerves that cut reaction time.', 'Spine', '', 500, 4, '[{"id": "dexterity", "val": 2}]');
 select setval(pg_get_serial_sequence('public.bionics', 'id'), 4);
 
-insert into public.bionic_bonuses (bionic_id, stat_id, amount) values
-  (1, 'physicality', 1),
-  (2, 'perception', 1),
-  (3, 'acuity', 1),
-  (3, 'tech_fluency', 1),
-  (4, 'dexterity', 2);

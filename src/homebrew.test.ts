@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { toItem, pilotVitals, sheetStats, type Bionic, type CoreBonus, type Talent } from './gameData'
 import { buildFrame, mechEffects, mechResources, mountReplacements, type EffectCatalogue, type Frame } from './mechData'
 import { equipmentDetails } from './equipment'
-import { problemsFor } from './contentEditor'
+import { problemsFor, bonusCounted } from './contentEditor'
 import { mechProblems, modPointLimit, pilotProblems, requirementReason, unmetRequirements } from './rules'
-import { personalStatIds, type NamedBonus } from './bonuses'
+import { personalStatIds, bonusDef, type NamedBonus } from './bonuses'
 
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
 
@@ -96,6 +96,15 @@ describe('resources and deployables', () => {
     expect(drone).toMatchObject({ armor: 2, hp: 6, evasion: 12, edef: 7, size: 2 })
     expect(mine).toMatchObject({ hp: 2 })
   })
+  it('applies drone and deployable speed and Heat cap, and counts them', () => {
+    expect(bonusDef('drone_speed')?.label).toBe('Drone speed')
+    expect(bonusDef('deployable_heatcap')?.label).toBe('Deployable Heat cap')
+    expect(bonusCounted({ id: 'deployable_heatcap', val: 1 })).toBe(true)
+    const turret = item('t', { type: 'Deployable', deployables: [{ name: 'Gun', type: 'Drone', speed: 4, heatcap: 2 }, { name: 'Mine', type: 'Mine', speed: 1 }] })
+    const [drone, mine] = (equipmentDetails(turret, {}, [named('drone_speed', 1), named('deployable_heatcap', 2)]).raw!.deployables as Record<string, number>[])
+    expect(drone).toMatchObject({ speed: 5, heatcap: 4 })
+    expect(mine).toMatchObject({ speed: 1 })
+  })
 })
 
 describe('bonuses on every source', () => {
@@ -103,13 +112,13 @@ describe('bonuses on every source', () => {
     const talents = [{ id: 't', name: 'T', terse: '', ranks: [{ name: 'I', description: '', bonuses: [{ id: 'physicality', val: 1 }, { id: 'mod_points', val: 2 }] }] }] as Talent[]
     const bionic = { id: 1, name: 'Implant', bonuses: [], effect_bonuses: [{ id: 'acuity', val: 1 }, { id: 'pilot_hp', val: 3 }] } as unknown as Bionic
     const sheet = { talents: { t: 1 }, bionics: [1] }
-    const stats = sheetStats(sheet, [{ id: 'physicality', name: 'Physicality' }, { id: 'acuity', name: 'Acuity' }], [bionic], [named('physicality', 1), named('acuity', 1)])
+    const stats = sheetStats(sheet, [{ id: 'physicality', name: 'Physicality' }, { id: 'acuity', name: 'Acuity' }], [named('physicality', 1), named('acuity', 1)])
     expect(stats.personal.map(stat => stat.bonus)).toEqual([1, 1])
     expect(modPointLimit(2, sheet, [], talents, [], [bionic])).toBe(10)
     expect(pilotVitals(sheet, [], talents, [], [bionic]).find(stat => stat.id === 'pilot_hp')!.value).toBe(9)
   })
   it('shows a conditional pilot bonus without counting it', () => {
-    const stats = sheetStats({}, [{ id: 'physicality', name: 'Physicality' }], [], [named('physicality', 2, { condition: 'wounded' })])
+    const stats = sheetStats({}, [{ id: 'physicality', name: 'Physicality' }], [named('physicality', 2, { condition: 'wounded' })])
     expect(stats.personal[0].bonus).toBe(0)
     expect(stats.personal[0].contributors).toEqual(['Test: +2 physicality, only when wounded. Not counted.'])
   })

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { allowedSizes, mechEffects, mechResources, mechStats, mountSize, type EffectCatalogue, type Frame, type StatModifier } from './mechData'
-import { toItem } from './gameData'
+import { allowedSizes, grantingSources, mechEffects, mechResources, mechStats, mountSize, talentGrants, type EffectCatalogue, type Frame, type StatModifier } from './mechData'
+import { personalStatIds } from './bonuses'
+import { pilotBonuses, toItem, type Bionic } from './gameData'
 import type { Sheet } from './myPilot'
 import { coreContent } from './coreContent'
 
@@ -119,6 +120,29 @@ describe('mechStats', () => {
     const system = toItem('odd', { name: 'Odd', bonuses: [{ id: 'pilot_foo', val: 2 }, { id: 'pilot_hp', val: 1 }] })
     const effects = mechEffects({ systems: ['odd'] }, {}, { ...catalogue, systems: new Map([['odd', system]]) })
     expect(effects.reminders).toEqual([expect.objectContaining({ kind: 'item', name: 'Odd', text: '+2 pilot foo.', uncounted: true })])
+  })
+
+  describe('biomods', () => {
+    const arm = { id: 1, name: 'Arm', effect: '<p>Strong.</p>', effect_bonuses: [{ id: 'physicality', val: 2 }], integrated: ['mw_knife'] } as unknown as Bionic
+    const sheet: Sheet = { bionics: [1] }
+    personalStatIds.value = new Set(['physicality'])
+    it('adds a personal stat effect to the pilot and still grants its weapon', () => {
+      expect(pilotBonuses(sheet, [], [], [], [arm]).map(entry => [entry.source, entry.bonus.id, entry.bonus.val])).toEqual([['Arm', 'physicality', 2]])
+      expect([...talentGrants(sheet, [], [], grantingSources({}, sheet, { ...catalogue, bionics: [arm] })).integrated]).toEqual(['mw_knife'])
+      expect(mechEffects({}, sheet, { ...catalogue, bionics: [arm] }).reminders).toEqual([])
+    })
+    it('grants without a stat effect, and adds a stat effect without a grant', () => {
+      const grantOnly = { ...arm, effect_bonuses: [] } as Bionic, statOnly = { ...arm, integrated: [] } as Bionic
+      expect(pilotBonuses(sheet, [], [], [], [grantOnly])).toEqual([])
+      expect([...talentGrants(sheet, [], [], grantingSources({}, sheet, { ...catalogue, bionics: [grantOnly] })).integrated]).toEqual(['mw_knife'])
+      expect(pilotBonuses(sheet, [], [], [], [statOnly])).toHaveLength(1)
+      expect(talentGrants(sheet, [], [], grantingSources({}, sheet, { ...catalogue, bionics: [statOnly] })).integrated).toEqual([])
+    })
+    it('shows a biomod action as a biomod reminder, without repeating its rules text', () => {
+      const eye = { ...arm, actions: [{ name: 'Flash', activation: 'Quick', detail: 'Blind a target.' }] } as unknown as Bionic
+      const { reminders } = mechEffects({}, sheet, { ...catalogue, bionics: [eye] })
+      expect(reminders).toEqual([expect.objectContaining({ kind: 'biomod', name: 'Flash', activation: 'Quick', text: 'Blind a target.' })])
+    })
   })
 
   it('reminds about the bonuses of an active core power', () => {

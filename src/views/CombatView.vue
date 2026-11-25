@@ -111,6 +111,7 @@ const kitBlocks: { key: LoadoutBlock; title: string; icon: string; colour: strin
   { key: 'talents', title: 'Talents', icon: 'talent', colour: '--type-talent' },
   { key: 'core-bonuses', title: 'Core bonuses', icon: 'corebonus', colour: '--type-core' },
   { key: 'gear', title: 'Pilot gear', icon: 'pilot', colour: '--type-pilot' },
+  { key: 'biomods', title: 'Biomods', icon: 'pilot', colour: '--type-pilot' },
 ]
 // A kit row opens the item's full information; a trait, talent or core bonus has no item, so its text is the card.
 const kitInfo = (row: LoadoutRow): Info =>
@@ -161,7 +162,7 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
     .filter((id) => tagNames.value.has(id) && !hiddenTags.value.has(id))
     .map((id) => ({ tag: tagNames.value.get(id)!.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(id) ?? '').replaceAll('{VAL}', 'X') }))
   const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame' || b.key === 'weapons' || b.key === 'gear', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
-  const [weapons, systems, frameCard, talents, core, gear] = kitBlocks.map(block)
+  const [weapons, systems, frameCard, talents, core, gear, biomods] = kitBlocks.map(block)
   // Pilot-mode statuses (Down and out) are only in On foot.
   const statuses = statusGroups().map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.map((row) => rowEntry(row)) }))
   const rows = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => rowEntry(row))
@@ -171,8 +172,9 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
   const tags: Group = { title: trim || pilot ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, empty: 'None.', entries: tagRows.map((row) => ({ ...row, gist: firstSentence(row.text) })) }
   const topics = rulesTopics(pilot, repairLine.value).map((card): Group => ({ title: card.title, icon: card.icon, chips: true, entries: card.topics.map((t) => ({ name: t.name, text: t.text, info: t.info })) }))
 
+  const withBiomods: Block[] = biomods.entries?.length ? [{ grid: 'one', columns: [[biomods]] }] : []
   const content: [string, string, string, boolean, Block[]][] = [
-    ['combat-kit', '01', 'Your kit', false, pilot ? [{ grid: 'one', columns: [[gear]] }, { grid: 'one', columns: [[talents]] }] : [{ grid: 'one', columns: [[frameCard]] }, { grid: 'one', columns: [[weapons]] }, { grid: 'three', columns: [[systems, talents, core]] }]],
+    ['combat-kit', '01', 'Your kit', false, pilot ? [{ grid: 'one', columns: [[gear]] }, { grid: 'one', columns: [[talents]] }, ...withBiomods] : [{ grid: 'one', columns: [[frameCard]] }, { grid: 'one', columns: [[weapons]] }, { grid: 'three', columns: [[systems, talents, core]] }, ...withBiomods]],
     ['combat-tags', '02', 'Tags and statuses', false, pilot
       ? [{ grid: 'two', columns: [[tags, ...statuses, ...onFoot]] }]
       : [

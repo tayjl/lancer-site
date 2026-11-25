@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { ArchiveCategory } from './archive'
 import { flatDamageText } from './damage'
 import { frameArt, type FrameArt } from './images'
-import { hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
+import { bionicStats, hiddenTags, STAT_ICONS, tagDescriptions, tagNames, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
 import { activationOf, half, itemDetails, itemRules } from './itemDetails'
 import { alternateOf, frameRanges, licenceFrames, licenceNames, mechStats, type Frame } from './mechData'
 import { radarAxes, type RadarAxis } from './mechOverview'
@@ -189,7 +189,7 @@ export function bionicInfo(bionic: Bionic, statNames: Map<string, string>): Info
     name: bionic.name,
     source: bionic.source ?? undefined,
     facts: facts(bionic.source ?? '', bionic.slot, modPoints(bionic.mod_point_cost), `${bionic.manna_cost} manna`, bionic.retired ? 'Retired' : ''),
-    stats: bionic.bonuses.map((bonus) => ({ label: statNames.get(bonus.stat_id) ?? bonus.stat_id, icon: STAT_ICONS[bonus.stat_id], value: `${bonus.amount > 0 ? '+' : ''}${bonus.amount}` })),
+    stats: bionicStats(bionic).map((stat) => ({ label: statNames.get(stat.id) ?? stat.id, icon: STAT_ICONS[stat.id], value: `${stat.value > 0 ? '+' : ''}${stat.value}` })),
     // The description is flavour, drawn as lore like a frame's; it's plain text, so escaped.
     lore: text(bionic.description) ? `<p>${text(bionic.description).replace(/[&<]/g, (c) => (c === '&' ? '&amp;' : '&lt;'))}</p>` : '',
     groups: groups({ title: 'Rules', cards: card('Effect', bionic.effect) }),

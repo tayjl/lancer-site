@@ -285,7 +285,7 @@ const bionicOptions = computed(() => {
     return { ...item, gmOnly: false, exotic: r.exotic || r.gmOnly, info: () => bionicInfo(bionics.value[i], statNames) }
   })
 })
-const stats = computed(() => sheetStats(sheet.value, pilotStats.value, bionics.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value, bionics.value)))
+const stats = computed(() => sheetStats(sheet.value, pilotStats.value, pilotBonuses(sheet.value, gear.value, talents.value, coreBonuses.value, bionics.value)))
 // Grit is LANCER's: half the level, rounded up. Shown only; the mech maths doesn't use it.
 const vitals = computed(() => [
   ...pilotVitals(sheet.value, gear.value, talents.value, coreBonuses.value, bionics.value),

@@ -74,6 +74,7 @@ export type Database = {
       }
       bionics: {
         Row: {
+          actions: Json
           description: string | null
           effect: string
           effect_bonuses: Json
@@ -91,6 +92,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actions?: Json
           description?: string | null
           effect?: string
           effect_bonuses?: Json
@@ -108,6 +110,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actions?: Json
           description?: string | null
           effect?: string
           effect_bonuses?: Json
@@ -1018,6 +1021,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_bionic: { Args: { target_id: number }; Returns: undefined }
       delete_content_item: { Args: { target_id: string }; Returns: undefined }
       delete_definition: {
         Args: { target_id: string; target_kind: string }
@@ -1135,7 +1139,7 @@ export type Database = {
       save_bionic: {
         Args: {
           expected_updated_at?: string
-          new_bonuses: Json
+          new_actions?: Json
           new_description: string
           new_effect: string
           new_effect_bonuses?: Json

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { personalStatIds } from './bonuses'
 import { coreContent } from './coreContent'
 import { packNames, sourceOf, tagDescriptions, tagNames, toItem, type Bionic, type CoreBonus, type Talent } from './gameData'
 import { bionicInfo, coreBonusInfo, frameInfo, itemInfo, licenceInfo, manufacturerInfo, talentInfo, type Info, type Manufacturer } from './info'
@@ -115,7 +116,8 @@ describe('full information', () => {
   })
 
   it('shows bionic bonuses by stat name and escapes its plain text', () => {
-    const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', slot: 'Eyes', source: 'IPS-N', effect: '<p>Sees <b>far</b>.</p>', manna_cost: 750, mod_point_cost: 2, retired: false, bonuses: [{ stat_id: 'perception', amount: 1 }] }
+    const bionic: Bionic = { id: 1, name: 'Eye', description: 'See <far> & wide', slot: 'Eyes', source: 'IPS-N', effect: '<p>Sees <b>far</b>.</p>', manna_cost: 750, mod_point_cost: 2, retired: false, effect_bonuses: [{ id: 'perception', val: 1 }] }
+    personalStatIds.value = new Set(['perception'])
     const info = bionicInfo(bionic, new Map([['perception', 'perception']]))
     expect(info.stats).toMatchObject([{ label: 'perception', value: '+1' }])
     expect(info.stats[0].icon).toBeTruthy()

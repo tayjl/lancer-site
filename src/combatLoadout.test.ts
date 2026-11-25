@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { coreContent } from './coreContent'
 import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutRow } from './combatLoadout'
 import { actionKey, stepActions, type KitAction } from './combatEntries'
-import { toItem, type Item } from './gameData'
+import { toItem, type Bionic, type Item } from './gameData'
 import type { EffectCatalogue, Frame } from './mechData'
 
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -22,6 +22,11 @@ describe('combat loadout', () => {
     expect([...sizes].sort()).toEqual(['Auxiliary', 'Main'])
     expect(tagIds.has('tg_reliable') && tagIds.has('tg_loading')).toBe(true)
     expect(structureRepairs).toBe(1)
+  })
+  it('lists a biomod action in its own block', () => {
+    const eye = { id: 1, name: 'Eye', effect: '', actions: [{ name: 'Flash', activation: 'Quick', detail: 'Blind a target.' }] } as unknown as Bionic
+    const { rows } = combatLoadout({}, { bionics: [1] }, { ...catalogue, bionics: [eye] }, tagNames)
+    expect(rows).toEqual([expect.objectContaining({ block: 'biomods', kind: 'biomod', label: 'Biomod', name: 'Flash', activation: 'Quick', html: 'Blind a target.' })])
   })
   it('has no weapons without a frame', () => {
     const loadout = combatLoadout({}, {}, catalogue, tagNames)

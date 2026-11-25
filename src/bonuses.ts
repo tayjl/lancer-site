@@ -80,7 +80,7 @@ export const BONUS_REGISTRY: BonusDef[] = [
   effect('Weapons', 'add_tags', 'Adds tags to weapons', 'tags', { filters: WEAPON_FILTERS }),
   effect('Resources', 'cheap_struct', 'Structure repair cost', 'whole'),
   effect('Resources', 'overcharge', 'Overcharge heat', 'steps'),
-  ...['Drone', 'Deployable'].flatMap((who) => ['hp:HP', 'armor:armour', 'evasion:evasion', 'edef:E-defence', 'size:size'].map((entry) => {
+  ...['Drone', 'Deployable'].flatMap((who) => ['hp:HP', 'armor:armour', 'evasion:evasion', 'edef:E-defence', 'size:size', 'speed:speed', 'heatcap:Heat cap'].map((entry) => {
     const [key, label] = entry.split(':')
     return effect('Drones & deployables', `${who.toLowerCase()}_${key}`, `${who} ${label}`, 'number')
   })),
