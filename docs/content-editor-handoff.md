@@ -7,11 +7,12 @@ State at the end of the session: all commits are on `origin/main` (`e92c73f` plu
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
 ## Where we are (2026-11-25)
-- Steps 2 and 3 are committed, pushed and live (`origin/main` `c7ff4b7`; code `1f028ba`, `e899ecf`, `b0e4bf9`; docs `c7ff4b7`). Pushed 2026-11-25.
+- Steps 2, 3 and 4a are committed, pushed and live (`origin/main` `6f35d38`; step 4a code `17f91be`, docs `6f35d38`; steps 2 and 3 code `1f028ba`, `e899ecf`, `b0e4bf9`, docs `c7ff4b7`). Pushed 2026-11-25.
 - Migration `20261125100000_content_cleanup_3b` (3b) is applied to hosted (2026-11-25, before the push). The CLI printed no NOTICE lines, so check hosted rows with an `edited` value to see whether owner-edited rows were touched.
-- **Step 4a is done, uncommitted** (0.3, status groups and damage type guide text). Migration `20261125110000_content_cleanup_4a` is local only, not on hosted (pending; pre-apply check in STATUS.md).
-- Nothing else pending on hosted. Nothing pushed from 4a.
-- **Next: 4b, then 4c** (0.3). Check live (STATUS.md) stays open.
+- **Step 4a is done and pushed** (0.3, status groups and damage type guide text). Migration `20261125110000_content_cleanup_4a` is applied to hosted before the push (2026-11-25).
+- **Step 4b is done, unpushed and uncommitted.** Migration `20261125120000_content_cleanup_4b` is local only and must be applied to hosted before the push. Details in the 4b block (0.3).
+- Nothing pending on hosted until 4b is applied.
+- **Next: 4c** (0.3), after 4b is pushed and browser-checked. Check live (STATUS.md) stays open.
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
 
 ## 0. Remaining objectives from the original plan (the developer wants this done)
@@ -78,9 +79,18 @@ Left from 0.2 (for later):
 - `content_editor.test.sql` fails locally on leftover row `hb_tg_ux_probe_tag` in pack 7. Clean the local data first.
 
 ### 0.3 Statuses, conditions and the remaining Definitions
-**Resume here (step 4b).** Steps 3 (0.2) and 4a are done. 3 is pushed and live (`c7ff4b7`). 4a is uncommitted (see the 4a block below).
+**Resume here (step 4c).** Steps 3 (0.2) and 4a are pushed (`6f35d38`). Step 4b is done, unpushed. See the 4b and 4a blocks below.
 
-**4a: done 2026-11-25 (uncommitted).** Migration `supabase/migrations/20261125110000_content_cleanup_4a.sql` (local only, not on hosted).
+**4b: done, unpushed (2026-11-25).** Migration `supabase/migrations/20261125120000_content_cleanup_4b.sql` is local only and must be applied to hosted before the push.
+- **Mount flags:** `integrated` on the 'Integrated Auxiliary' mount type and `superheavy` on 'Superheavy', both in `mount_types` `data`.
+- **Data-only rows** (seeded hidden, `dataOnly`): `weapon_sizes` 'Ship-class'; `weapon_types` 'Special', 'Spool Weapon', '???'. `DATA_ONLY_MOUNTS` and `DATA_ONLY_WEAPON_TYPES` are removed from `src/contentEditor.ts`.
+- **`weapon_mounts`:** the migration deletes any rows and removes the kind (sizes and mounts share one list, seeded as `weapon_sizes`).
+- **Code:** `mountsWith` and `mountIs` in `src/definitions.ts` replace the Integrated Auxiliary and Superheavy literals in `mechData.ts`, `rules.ts`, `equipment.ts`, `combatLoadout.ts` and `MechLoadout.vue`. `ANY_SIZE` is removed from `MechLoadout.vue`.
+- **Left in code on purpose:** `Main/Aux` (named core bonus), `Flex` in `allowedSizes`, the `bracingMount()` Heavy rule.
+- **Checks:** `npm test` 556 pass, `npm run build` passes, `npx supabase test db` passes (34 files). Reviewer: no critical issues; the two important ones are fixed. Not browser-checked (section 4).
+- **Known minor points, not fixed:** weapon sizes and mount types share ids, so unflagging Superheavy changes bracing; with no flagged mount, the integrated and superheavy bonuses add no mount; an owner can untick Hidden on the dataOnly rows in the Definitions pane, which offers them in pickers.
+
+**4a: done and pushed 2026-11-25** (code `17f91be`, docs `6f35d38`). Migration `supabase/migrations/20261125110000_content_cleanup_4a.sql` is applied to hosted before the push.
 - **Status groups are a Definitions kind**, `status_groups` (label = card title, `data.icon`, `data.mode` mech or pilot). Seed: cover 'Cover and stealth', conditions 'Conditions', other 'Other statuses' (mech), pilot 'On foot' (pilot). Statuses stay `rules` rows in section `statuses`. The combat page builds mech cards from mech groups and the On foot card(s) from pilot groups. Down and out shows only in pilot mode. A hidden group hides its statuses. `delete_definition` refuses a group used by a status rule (effective group, `coalesce(edited, data)`). Editor: a 'Shown in' select per group row.
 - **Damage type guide text** is `damage_types` `data.text` ('Guide text' in Definitions). The combat guide lists every non-hidden damage type, so an owner-added type appears. All six damage types start with empty guide text, which the owner can fill in the editor (developer, 2026-11-25). The four rule rows `rule_attacks_kinetic/explosive/energy/burn` are deleted.
 - **Removed code:** `STATUS_CARDS`, `STATUS_GROUPS`, `DAMAGE_TYPES`, `ON_FOOT_ROWS`.
@@ -102,7 +112,8 @@ Open items from the audits (`content-audit/constants-and-matrix.md`, scratch):
 - (done 4a) `DAMAGE_TYPES` (`src/combatRules.ts:127`): the guide showed only the 4 rule rows. It now reads every visible `damage_types` row with its text.
 - `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicates `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) should be a tag flag (`combat_page` already exists). (4c)
 - (done 4a) `ON_FOOT_ROWS` (`src/combatRules.ts:258`) was dead code and is removed.
-- `Integrated Auxiliary` and `Superheavy` are code literals that duplicate `mount_types` rows (`src/mechData.ts:155-167`, `src/rules.ts:259, 345`, `src/equipment.ts:22`, `src/components/MechLoadout.vue:238, 307`). Use a flag on the mount row. `Main/Aux` (`src/mechData.ts:153`) is the named core bonus `cb_mount_retrofitting`.
+- (done 4b) `Integrated Auxiliary` and `Superheavy` are flags on the `mount_types` rows, read through `mountIs`/`mountsWith` in `src/definitions.ts`. `Main/Aux` (`src/mechData.ts:153`) is the named core bonus `cb_mount_retrofitting`, left in code.
+- (done 4b) `DATA_ONLY_MOUNTS` and `DATA_ONLY_WEAPON_TYPES` are seeded as hidden `dataOnly` rows (`Ship-class`, `Special`, `Spool Weapon`, `???`).
 - (done 4a) **Statuses and conditions become editable and addable.** Status groups are Definitions (4a). Statuses are `rules` rows in section `statuses`, so an owner adds, edits, hides and deletes them in the Rules tab, and the combat page reads them from the database. Conditions have no separate kind (they are the `conditions` group). Hidden-group and delete guard are in the 4a block.
 - (done 4a) **Combat guide follows the database:** the damage type rows come from the Definitions (`damage_types`, with guide text). Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
 - Other Definitions work (4b and 4c): tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
@@ -195,7 +206,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - **Grants on mods and pilot gear:** the sheet never reads them (equipped grants cover weapons and systems only). In scope (0.4): the sheet reads them first, then the form field.
 - **Actions on biomods:** required, see 0.4.
 - **Requirements on core systems:** not needed (developer decision, 2026-11-24).
-- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Still to move or justify (0.3): `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`, the `Integrated Auxiliary`/`Main/Aux`/`Superheavy` ids in `mechData.ts`. `weapon_mounts` is an allowed kind with no rows (the code uses one list for sizes and mounts, seeded as `weapon_sizes`). Data-only values (`Ship-class`, `Special`, `Spool Weapon`, `???`) are not seeded.
+- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Still to move or justify (4c): pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`. `Main/Aux` stays in code (named core bonus). Done in 4b: `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, the Integrated Auxiliary and Superheavy ids, `weapon_mounts` removed (the code uses one list for sizes and mounts, seeded as `weapon_sizes`), data-only values seeded.
 - (done) **Fields with no editor input** (audit, 2026-11-25): `no_mods`, deployable `activation` and `range` now have inputs. The rest are data-only, with reasons in [game-content.md](game-content.md#content-editor-forms).
 - **Rare kinds that don't exist:** reserves, backgrounds and NPCs are not content kinds (out of scope until they exist).
 - **Used-by counts before delete** on Definitions rows (the refusal appears only after trying).
@@ -204,6 +215,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - "What changed" history beyond the last save (decided: last save only).
 
 ## 4. Never browser-checked (code and tests only)
+- Phase 4b (2026-11-25): integrated and superheavy mounts on a real mech (flag on and off, bracing), the mount type picker, the data-only rows hidden from pickers, the migration on hosted (not yet applied).
 - Commendations on the shared pane: create, edit, icon picker, medal preview, delete.
 - Faction delete confirm and faction preview tab; duplicate-name error.
 - Phase 1: Retry button styling inside `.notice`; the catalogue error and Retry behaviour with the rules request blocked.
