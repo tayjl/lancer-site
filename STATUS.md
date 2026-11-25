@@ -3,14 +3,14 @@
 Short handoff note. Update at the end of each feature or milestone. Finished work moves to the dated log in [docs/history.md](docs/history.md).
 
 ## Current state
-- **Content editor cleanup steps 2 to 12 are live** (`origin/main` `0c7d1cf`, docs `8df78c0`, 2026-11-25). **Step 13 (audit and browser sweep) is done.** Its one bug fix, a New button for factions and commendations, is built and **pending commit** (ask before pushing). Resume from [docs/content-editor-handoff.md](docs/content-editor-handoff.md#next-session-start-here).
+- **Content editor cleanup steps 2 to 12 are live** (`origin/main` `0c7d1cf`, docs `8df78c0`, 2026-11-25). **Step 13 (audit and browser sweep) is done.** Its one bug fix, a New button for factions and commendations, is **shipped** (`b3bb773`). Resume from [docs/content-editor-handoff.md](docs/content-editor-handoff.md#next-session-start-here).
 - Vue + Vite + TypeScript app with Supabase; Discord login works; the new-pilot loop, pending changes, GM review, death and memorial, owner content page (LCP import) and content editor, archives, lore and reputation are built (check `git log` for the latest).
 - The pilot page is a "dossier": one scrolling file with a cover header, numbered sections (02 to the end collapsible) and a file index ([pilot-and-mech-pages.md](docs/pilot-and-mech-pages.md#pilot-page-dossier)). Pilot inventory, Variable damage types, full-screen dialogs on phones and the grouped Buy picker are live (log: 2026-11-20).
 - Discord link previews: `/registry/<id>` runs a small Worker (`worker/`, `wrangler.jsonc` `main` and `run_worker_first`) that adds og tags for approved and dead pilots ([pilots.md](docs/pilots.md#id-cards-and-link-previews)). Local test: `npm run build`, then `npx wrangler dev --local` with the git-ignored `.dev.vars`.
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Unpushed work
-- The New button for factions and commendations (`src/views/ContentEditorView.vue`). Built, pending commit.
+- The New button for factions and commendations (`src/views/ContentEditorView.vue`). Shipped (`b3bb773`).
 
 ## Latest release
 Pushed 2026-11-25 (`origin/main` `0c7d1cf`): content editor cleanup step 11 (grants from equipped weapon mods and pilot gear; migration `20261125210000` applied to hosted first). Before it, `b1071df`: steps 9 and 10 (drop `bionic_bonuses`; commendation requirements; a commendation an item or biomod requires can't be deleted). Before it, `c5c79c1` (steps 2 to 8 and 12). Migrations were applied to hosted before each push. Earlier, step 4c (`5f3f1ef`), 4b (`f7207ff`), 4a (`17f91be`), steps 2 and 3 (`c7ff4b7`). The 2026-11-24 release is in [docs/history.md](docs/history.md). What is left is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
@@ -20,7 +20,7 @@ Pushed 2026-11-25 (`origin/main` `0c7d1cf`): content editor cleanup step 11 (gra
 
 ## Next steps
 1. **Check live:** the combat page (see the list below), not browser-tested since 0.2. Then the 2026-11-24 deploy checks below. Also check whether 3b touched owner-edited rows: the CLI printed no NOTICE, so look at hosted `content_items` rows with an `edited` value.
-2. **Commit and ship the New button** for factions and commendations (built, pending commit; ask before pushing).
+2. **Commit and ship the New button** for factions and commendations (shipped `b3bb773`, nothing left to do).
 3. **Open for the developer:** what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on the `private` schema. Nothing else is in the plan. Resume list: [handoff, Next session: start here](docs/content-editor-handoff.md#next-session-start-here).
 - **Step 13 audit (2026-11-25):** the browser sweep passed for every Campaign and Mech category, Definitions, and the Weapon, Mod, Biomod and Faction forms at 360. The reviewer's security audit found no Critical or Security issues (local suite 1130 pgTAP tests; hosted: 80 edited rows all valid, every security definer function has a fixed `search_path`, `weapon_mounts` empty, `bionic_bonuses` dropped). Not covered: the commendation form before the New-button fix, player checks of pilot gear, talents, tags, actions and rules tabs, and `profile.update` `checkWrite`. Nits are in the handoff, section 0.7.
 - The 4a open list (editor button sizes, unlinked hint, and others) is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md) 0.3. Faction and commendation delete (blocked while in use) and pack imports (no `content_saves` stamp) are live ([docs/rule-decisions.md](docs/rule-decisions.md), 2026-11-25).

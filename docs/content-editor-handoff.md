@@ -15,13 +15,13 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - **Batch 2026-11-25 (steps 2 to 8 and 12, 4b check, 0.3 close-out): pushed as `c5c79c1`.** Migrations `140000` to `170000` were applied to hosted before the push. See the batch block under 0.3.
 - **Steps 9 and 10: pushed as `b1071df`.** Migrations `180000`, `190000` and `200000` were applied to hosted before the push. Cloudflare build and CI passed. See 'Steps 9 to 11' under 0.3.
 - **Step 11: shipped (`0c7d1cf`, docs `8df78c0`).** Migration `20261125210000` is on hosted.
-- **Step 13 (audit and browser sweep): done 2026-11-25.** Its one bug fix (a New button for factions and commendations) is built, pending commit. Results are in 0.7.
+- **Step 13 (audit and browser sweep): done 2026-11-25.** Its one bug fix (a New button for factions and commendations) is shipped (`b3bb773`). Results are in 0.7.
 - Check live (STATUS.md) stays open.
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
 
 ## Next session: start here
 State 2026-11-25. Steps 2 to 12 are live (`origin/main` `0c7d1cf`, docs `8df78c0`; migration `20261125210000` on hosted). Step 13 (audit and browser sweep) is done. Remaining, in order:
-1. Commit and ship the New button for factions and commendations (`src/views/ContentEditorView.vue`, built, pending commit). Ask first before pushing.
+1. Commit and ship the New button for factions and commendations (`src/views/ContentEditorView.vue`, shipped `b3bb773`, nothing left to do).
 2. Developer decisions: what granting talent ranks or licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on all functions in schema `private` (see 0.7).
 
 Nothing else is in the plan.
@@ -117,7 +117,7 @@ Left from 0.2 (for later):
 - **Deploy window (closed 2026-11-25):** after `20261125170000` and before the Cloudflare build finishes, live biomod bonuses count twice and owner biomod saves fail. Migrated and pushed back to back, after backing up hosted `bionics` and `bionic_bonuses` (scratch: `hosted-bionics-backup-20261125.json`, `hosted-pre-step9-10-20261125.json`, and a `-functions-` file from the same date).
 - **Checks:** `npm test` 570 (47 files), `npx supabase test db` 1090 (39 files), `npm run build` clean.
 - **Known minor, not fixed:**
-  - (done, step 13) No 'New' button for factions and commendations. Built (`newAbove` in `ContentEditorView.vue`), pending commit. `?cat=...&item=new` worked before.
+  - (done, step 13) No 'New' button for factions and commendations. Shipped (`newAbove` in `ContentEditorView.vue`, `b3bb773`). `?cat=...&item=new` worked before.
   - Biomod rich text toolbar buttons are 34px wide on mobile (existing note).
   - The pane header icon is stale until save after changing a commendation icon.
   - `bionicStats` shows replace and overwrite effects as a plain +n.
@@ -224,7 +224,7 @@ Open items from the audits (`content-audit/constants-and-matrix.md`, `content-au
 
 ### 0.7 Verify everything that was never opened in a browser
 - **Done 2026-11-25 (step 13).**
-  - Browser sweep passed at 360 for every Campaign and Mech category, Definitions, and the Weapon, Mod, Biomod and Faction forms. A bug was found and fixed: no New button for factions and commendations (built, pending commit).
+  - Browser sweep passed at 360 for every Campaign and Mech category, Definitions, and the Weapon, Mod, Biomod and Faction forms. A bug was found and fixed: no New button for factions and commendations (shipped `b3bb773`).
   - Security audit by the reviewer: no Critical or Security issues. Local suite 1130 pgTAP tests. Hosted: 80 edited rows all valid, every security definer function has a fixed `search_path`, `weapon_mounts` empty, `bionic_bonuses` dropped.
   - Not covered: the commendation form in a browser before the fix; player-role checks of pilot gear, talents, tags, actions and rules tabs; `profile.update` `checkWrite`.
 - **Nits, recorded, not fixed:**
