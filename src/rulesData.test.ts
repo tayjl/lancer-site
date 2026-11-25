@@ -33,7 +33,9 @@ describe('rules seed', () => {
 
   it('falls back to the seed numbers and keeps the page working', () => {
     expect(ruleNumbers('overcharge_heat')).toEqual([1, 2, 4, 6])
-    expect(turnSteps()[4].text).toContain('up to 6 a use')
+    baseActions.value = BASE_ACTIONS
+    expect(turnSteps()[4].text).toBe('Use Overcharge.')
+    baseActions.value = []
     expect(statusGroups().map((g) => g.rows.length)).toEqual([6, 7, 7])
     expect(onFootRows().map((r) => r.value)).toEqual(['Down and out (pilot status)', 'Mech destroyed', 'Melt down'])
   })
@@ -41,16 +43,28 @@ describe('rules seed', () => {
   it('fills number and action placeholders and leaves unknown ones', () => {
     baseActions.value = BASE_ACTIONS
     expect(fill('{loadout_weapons} {loadout_armour} {loadout_gear}')).toBe('2 1 3')
-    expect(fill('{overcharge_heat} {repair_cost}')).toBe('6 2')
+    expect(fill('{overcharge_heat} {overcharge_first} {repair_cost}')).toBe('6 1 2')
+    expect(fill(RULES_SEED.find((r) => r.id === 'rule_structure_full_repair')!.text)).toContain('Overcharge goes back to 1 Heat.')
     expect(fill('Use {action:act_invade}.')).toBe('Use Invade.')
     expect(fill('Limited {VAL} {oops} {action}')).toBe('Limited {VAL} {oops} {action}')
     ruleItems.value = [...RULES_SEED.filter((r) => r.id !== 'rule_num_loadout_gear'), item({ id: 'rule_num_loadout_gear', section: 'numbers', numbers: [5] })]
     expect(fill('{loadout_gear}')).toBe('5')
+    ruleItems.value = [...RULES_SEED.filter((r) => r.id !== 'rule_numbers_overcharge_heat'), item({ id: 'rule_numbers_overcharge_heat', section: 'numbers', numbers: [3, 5, 8] })]
+    expect(fill('{overcharge_first} {overcharge_heat}')).toBe('3 8')
     baseActions.value = BASE_ACTIONS.filter((a) => a.id !== 'act_invade')
-    expect(fill('Use {action:act_invade}.')).toBe('Use .')
+    expect(fill('Use {action:act_invade}.')).toBe('Use Invade.')
     expect(fill('{action:act_nope}')).toBe('')
     // A left-out action takes its comma with it.
-    expect(fill('Are {action:act_nope}, {action:act_invade}, {action:act_nope}, or more.')).toBe('Are or more.')
+    expect(fill('Are {action:act_nope}, {action:act_invade}, {action:act_nope}, or more.')).toBe('Are Invade, or more.')
+    baseActions.value = []
+  })
+
+  it('fills placeholders in gists', () => {
+    baseActions.value = BASE_ACTIONS
+    ruleItems.value = [item({ id: 'rule_x', section: 'turn_steps', gist: 'Then {action:act_invade}', text: 'a' }), item({ id: 'rule_y', section: 'statuses', group: 'other', gist: 'Max {loadout_weapons}', text: 'b' })]
+    expect(turnSteps()[0].gist).toBe('Then Invade')
+    expect(ruleRows('statuses', 'other')[0].gist).toBe('Max 2')
+    ruleItems.value = []
     baseActions.value = []
   })
 

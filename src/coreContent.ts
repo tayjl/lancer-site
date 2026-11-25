@@ -18,6 +18,7 @@ import { withoutActiveEffects, type LcpKind, type LcpPack } from './lcp'
 // The campaign's wording, for tags the official text writes for dice. Only the seed, so the owner's edits still win.
 const WORDING: Record<string, string> = {
   tg_overkill: 'Before an attack you can take 1 Heat to add +2 damage, once per attack.',
+  tg_reliable: 'Always deals at least {VAL} damage, even on a miss.',
   tg_knockback: 'On a full hit or crit, the target is knocked back by {VAL}. Never on a grazing hit.',
 }
 

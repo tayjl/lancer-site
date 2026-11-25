@@ -154,10 +154,10 @@ export const gearPrice = (item: Item) => {
 }
 
 // Which owned items cost nothing (one boolean per entry), worked out like the database's settle_pilot_gear (the sheet's own
-// "free" flags are never trusted). Without a live sheet (a pilot's first approval) the first 1 Armor, 2 Weapon and 3 Gear
-// are free. Against the live sheet an item is free only if it was there with the same key and id and free, once per key.
+// "free" flags are never trusted). Without a live sheet (a pilot's first approval) the loadout's slots (1 Armor, 2 Weapon
+// and 3 Gear unless the numbers say otherwise) are free. Against the live sheet an item is free only if it was there with the same key and id and free, once per key.
 export function freeGear(owned: OwnedGear[], typeOf: (id: string) => string | undefined, live: Sheet | null): boolean[] {
-  const room: Record<string, number> = { Armor: 1, Weapon: 2, Gear: 3 }
+  const room: Record<string, number> = { Armor: rule('loadout_armour'), Weapon: rule('loadout_weapons'), Gear: rule('loadout_gear') }
   const seen = new Set<string>()
   return owned.map(({ key, id }) => {
     if (!live) {

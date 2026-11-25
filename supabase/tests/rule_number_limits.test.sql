@@ -27,7 +27,7 @@ select is(public.rule_number('extra_mech_price'), 500::numeric, 'text falls back
 
 set local role authenticated;
 set local request.jwt.claim.sub = 'a1111111-1111-1111-1111-111111111111';
-select is((select count(*) from public.rule_number_limits), 8::bigint, 'a player can read the limits');
+select is((select count(*) from public.rule_number_limits), 11::bigint, 'a player can read the limits');
 select throws_ok($$ insert into public.rule_number_limits values ('x', 1, 0, 2) $$, '42501', null, 'a player cannot add a limit');
 select throws_ok($$ update public.rule_number_limits set def = 1 where key = 'licence_rank_price' $$, '42501', null, 'a player cannot change a limit');
 select throws_ok($$ delete from public.rule_number_limits $$, '42501', null, 'a player cannot delete a limit');

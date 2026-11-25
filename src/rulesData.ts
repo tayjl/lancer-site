@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import { baseActions } from './baseActions'
+import { BASE_ACTIONS, baseActions } from './baseActions'
 import * as C from './combatRules'
 import type { CombatRow } from './combatRules'
 
@@ -7,7 +7,7 @@ import type { CombatRow } from './combatRules'
 // database is the live copy. One item is one entry. Fields by section shape:
 //   note: name, text. steps: name, value (the frequency), gist, text. table: name, value (the short value column, when the
 //   row has both), short, gist, text, icon, group. numbers: name, group (combat or economy), numbers.
-// Placeholders in text (see fill): a number key like "{loadout_gear}" or "{overcharge_heat}", and "{action:<id>}" for an action's name.
+// Placeholders in text (see fill): a number key like "{loadout_gear}", "{overcharge_heat}" (the last Overcharge step) or "{overcharge_first}", and "{action:<id>}" for an action's name.
 export type RuleItem = {
   id: string; name: string; section: string; group?: string; value?: string; short?: string; gist?: string
   text: string; icon?: string; order: number; numbers?: number[]; hidden?: boolean
@@ -83,8 +83,7 @@ const NOTES: [string, string, string][] = [
   ['knockback', 'Knockback', C.KNOCKBACK_NOTE], ['sensors', 'Sensors', C.SENSORS_NOTE], ['auras', 'Auras', C.AURAS_NOTE], ['cover', 'Cover', C.COVER_NOTE],
   ['conversions', 'Dice conversions', C.CONVERSIONS_NOTE], ['tech', 'Tech actions', C.TECH_NOTE], ['dice', 'Dice', C.DICE_NOTE], ['structure', 'Structure', C.STRUCTURE_NOTE],
   ['drones', 'Drones', C.DRONES_NOTE], ['size', 'Size', C.SIZE_NOTE],
-  ['movement_how', 'Movement step', 'Move up to your Speed.'], ['movement_pilot', 'Movement step on foot', 'Move using your Speed.'],
-  ['free_pilot', 'Free actions on foot', 'Free actions cost no action. Some gear uses them.'], ['sidearm_needed', 'Sidearm Fight', 'Needs a Sidearm weapon.'],
+  ['sidearm_needed', 'Sidearm Fight', 'Needs a Sidearm weapon.'],
 ]
 for (const [key, name, text] of NOTES) seed.push({ id: `rule_notes_${key}`, name, section: 'notes', text, order: (count.notes = (count.notes ?? 0) + 10) })
 
@@ -124,7 +123,7 @@ add('dice', 'recharge', rows(C.RECHARGE))
 const SEED_NUMBERS = { overcharge_heat: C.OVERCHARGE_HEAT, repair_cost: [C.REPAIR_COST] }
 add('numbers', 'combat', [
   { name: 'Overcharge heat', text: 'Heat for each Overcharge use. The last number repeats.', numbers: SEED_NUMBERS.overcharge_heat },
-  { name: 'Repair cost', text: 'Repairs to restore 1 Structure or 1 Stress at a Rest.', numbers: SEED_NUMBERS.repair_cost },
+  { name: 'Repair cost', text: 'Repairs per Structure or Stress.', numbers: SEED_NUMBERS.repair_cost },
 ])
 
 // The game-balance numbers owners can edit, one 'rules' row each (id rule_num_<key>, numbers [value]). The database reads the same
@@ -144,9 +143,9 @@ export const NUMBER_KEYS = [
   { key: 'personal_stat_min', label: 'Lowest personal stat', def: 2, lo: 0, hi: 10, db: false, hint: 'Must not be above the highest.' },
   { key: 'personal_stat_max', label: 'Highest personal stat', def: 4, lo: 1, hi: 20, db: false, hint: 'Must not be below the lowest.' },
   { key: 'personal_stat_points', label: 'Personal stat points', def: 4, lo: 0, hi: 50, db: false, hint: 'Points to raise stats above the lowest.' },
-  { key: 'loadout_armour', label: 'Armour slots', def: 1, lo: 0, hi: 6, db: false, hint: 'Pilot armour a pilot can equip.' },
-  { key: 'loadout_weapons', label: 'Weapon slots', def: 2, lo: 0, hi: 6, db: false, hint: 'Pilot weapons a pilot can equip.' },
-  { key: 'loadout_gear', label: 'Gear slots', def: 3, lo: 0, hi: 6, db: false, hint: 'Pilot gear items a pilot can equip.' },
+  { key: 'loadout_armour', label: 'Armour slots', def: 1, lo: 0, hi: 6, db: true, hint: 'Pilot armour a pilot can equip.' },
+  { key: 'loadout_weapons', label: 'Weapon slots', def: 2, lo: 0, hi: 6, db: true, hint: 'Pilot weapons a pilot can equip.' },
+  { key: 'loadout_gear', label: 'Gear slots', def: 3, lo: 0, hi: 6, db: true, hint: 'Pilot gear items a pilot can equip.' },
 ] as const
 export const numberKeyOf = (id: string) => NUMBER_KEYS.find((n) => id === `rule_num_${n.key}`)
 for (const n of NUMBER_KEYS)
@@ -194,10 +193,12 @@ export const rule = (key: NumberKey): number => {
   }
   return stored(n)
 }
-// Fills the placeholders in rule text. A missing or hidden action is left out with its comma. Any other unknown placeholder (a typo, {VAL}) stays as written.
-export const fill = (text: string) => text.replace(/(, )?\{action:([\w-]+)\}(, )?/g, (whole, _before, id: string) => (baseActions.value.some((a) => a.id === id) ? whole : '')).replace(/\{(action:[\w-]+|\w+)\}/g, (whole, key: string) => {
-  if (key.startsWith('action:')) return baseActions.value.find((a) => a.id === key.slice(7))?.name ?? ''
+const actionName = (id: string) => (baseActions.value.find((a) => a.id === id) ?? BASE_ACTIONS.find((a) => a.id === id))?.name
+// Fills the placeholders in rule text. An action hidden from players keeps its seed name as plain text. An unknown one is left out with its comma. Any other unknown placeholder (a typo, {VAL}) stays as written.
+export const fill = (text: string) => text.replace(/(, )?\{action:([\w-]+)\}(, )?/g, (whole, _before, id: string) => (actionName(id) ? whole : '')).replace(/\{(action:[\w-]+|\w+)\}/g, (whole, key: string) => {
+  if (key.startsWith('action:')) return actionName(key.slice(7)) ?? ''
   if (key === 'overcharge_heat') return String(ruleNumbers('overcharge_heat').at(-1))
+  if (key === 'overcharge_first') return String(ruleNumbers('overcharge_heat')[0])
   if (key === 'repair_cost') return String(ruleNumbers('repair_cost')[0])
   const n = NUMBER_KEYS.find((k) => k.key === key)
   return n ? String(rule(n.key)) : whole
@@ -206,11 +207,11 @@ export const ruleNote = (key: string) => fill(live('notes').find((i) => i.id ===
 
 // A table row in the shape the page uses: a row with only a name has it as its value.
 export type RuleRow = CombatRow & { id: string; group?: string }
-const asRow = (i: RuleItem): RuleRow => ({ id: i.id, group: i.group, value: i.value ?? i.name, name: i.value ? i.name : undefined, short: i.short, gist: i.gist, text: fill(i.text), icon: i.icon })
+const asRow = (i: RuleItem): RuleRow => ({ id: i.id, group: i.group, value: i.value ?? i.name, name: i.value ? i.name : undefined, short: i.short, gist: i.gist && fill(i.gist), text: fill(i.text), icon: i.icon })
 export const ruleRows = (section: string, group?: string) => live(section, group).map(asRow)
 
 export type TurnStep = { id: string; key: string; name: string; activations: string[]; frequency?: string; gist?: string; text: string }
-export const turnSteps = (): TurnStep[] => live('turn_steps').map((i) => ({ id: i.id, name: i.name, key: STEP_FIXED.get(i.id)?.key ?? i.id, activations: STEP_FIXED.get(i.id)?.activations ?? [], frequency: i.value, gist: i.gist, text: fill(i.text) }))
+export const turnSteps = (): TurnStep[] => live('turn_steps').map((i) => ({ id: i.id, name: i.name, key: STEP_FIXED.get(i.id)?.key ?? i.id, activations: STEP_FIXED.get(i.id)?.activations ?? [], frequency: i.value, gist: i.gist && fill(i.gist), text: fill(i.text) }))
 export const turnStepText = (key: string) => turnSteps().find((s) => s.key === key)?.text ?? ''
 
 export const statusGroups = () => STATUS_CARDS.map((g) => ({ ...g, rows: live('statuses').filter((i) => i.group === g.id || (g.id === 'other' && i.group === 'pilot')).map(asRow) }))

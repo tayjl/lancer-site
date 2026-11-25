@@ -1,7 +1,7 @@
 import type { Info, InfoCard } from './info'
 import { activationOf, type ItemStat } from './itemDetails'
 import type { CombatAction, CombatRow } from './combatRules'
-import { fill, onFootRows, ruleNote, ruleNumbers, ruleRows, turnStepText, turnSteps, type TurnStep } from './rulesData'
+import { fill, onFootRows, ruleNote, ruleNumbers, ruleRows, turnStepText, turnSteps } from './rulesData'
 import { plainText } from './rulesText'
 import { SCENE_RESOURCE_IDS, baseActions, type BaseAction } from './baseActions'
 
@@ -39,7 +39,7 @@ export const actionEntry = (a: CombatAction): CombatEntry => ({ name: a.name, ac
 // name (a Speed gateway, a range), and "gist: false" leaves the gist out where the name already says it.
 export const rowEntry = (row: CombatRow, options: { column?: boolean; gist?: boolean } = {}): CombatEntry => ({
   ...(options.column ? { value: row.short ?? row.value, name: row.name } : { name: row.value }),
-  gist: options.gist === false ? undefined : (row.gist ?? firstSentence(row.text)),
+  gist: options.gist === false ? undefined : (row.gist ? fill(row.gist) : firstSentence(row.text)),
   text: row.text,
   icon: row.icon,
 })
@@ -53,15 +53,14 @@ const sceneResources = () => baseActions.value.filter((a) => SCENE_RESOURCE_IDS.
 // "Your turn" and "Scene resources". The overcharge cost and the Speed come from your mech when it has a frame.
 // A pilot on foot has no protocol or overcharge, so those two steps are left out.
 export function turnEntries(speed: number | null, overcharge: string | null, pilot = false) {
-  const onFoot = (step: TurnStep, text?: string) => (pilot && step.key === 'Movement' ? ruleNote('movement_pilot') : text)
   const steps = turnSteps().filter((step) => !pilot || (step.key !== 'Protocol' && step.key !== 'Overcharge')).map((step, i): CombatEntry => ({
     step: i + 1,
     activations: step.activations,
     name: step.activations.length ? undefined : step.name,
     frequency: step.key === 'Movement' && speed !== null ? `Speed ${speed}` : step.frequency,
     heat: step.key === 'Overcharge' ? (overcharge ?? defaultHeat()) : undefined,
-    gist: onFoot(step, step.gist),
-    text: step.activations.some((a) => a === 'Full' || a === 'Quick') ? `<b>${step.name}.</b> ${step.text}` : (onFoot(step, step.text) as string),
+    gist: step.gist,
+    text: step.activations.some((a) => a === 'Full' || a === 'Quick') ? `<b>${step.name}.</b> ${step.text}` : step.text,
   }))
   return { steps, resources: sceneResources().map(actionEntry) }
 }
@@ -132,7 +131,7 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
   switch (stepName) {
     case 'Protocol': return [how(turnStepText('Protocol'), 'protocol'), { title: 'Protocols', colour: 'protocol', empty: 'No protocols.', entries: kit((e) => e.key === 'protocol') }]
     case 'Movement': return [
-      { title: 'How it works', text: ruleNote('movement_how'), entries: ruleRows('movement', 'gateway').map((row) => rowEntry(row, { column: true })) },
+      { title: 'How it works', text: turnStepText('Movement'), entries: ruleRows('movement', 'gateway').map((row) => rowEntry(row, { column: true })) },
       { title: 'Move further', entries: general.filter((a) => a.group === 'move').map((a) => ({ ...actionEntry(a), cost: `1 ${activation(a)}` })) },
     ]
     case 'Overcharge': {
@@ -143,8 +142,8 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
         { title: 'Heat', colour: 'overcharge', entries: kit((e) => activation(e) === 'overcharge'), heat: { steps: track.split(' → '), custom: track !== defaultHeat() } },
       ]
     }
-    case 'Free': return [how(pilot ? ruleNote('free_pilot') : turnStepText('Free'), 'free'), { title: 'Free actions', colour: 'free', empty: 'No free actions.', entries: [...keyed('free'), ...kit((e) => e.key === 'free' && activation(e) !== 'overcharge')] }]
-    case 'Reaction': return [how(ruleNote('reactions'), 'reaction'), { title: 'Reactions', colour: 'reaction', empty: 'No reactions.', entries: [...keyed('reaction'), ...kit((e) => e.key === 'reaction')] }]
+    case 'Free': return [how(turnStepText('Free'), 'free'), { title: 'Free actions', colour: 'free', empty: 'No free actions.', entries: [...keyed('free'), ...kit((e) => e.key === 'free' && activation(e) !== 'overcharge')] }]
+    case 'Reaction': return [how(`${turnStepText('Reaction')} ${ruleNote('reactions')}`, 'reaction'), { title: 'Reactions', colour: 'reaction', empty: 'No reactions.', entries: [...keyed('reaction'), ...kit((e) => e.key === 'reaction')] }]
     default: return []
   }
 }

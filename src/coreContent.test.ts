@@ -27,7 +27,7 @@ describe('official core content', () => {
     const tag = (id: string) => String(coreContent.items.find(item => item.id === id)!.data.description)
     expect(tag('tg_overkill')).toBe('Before an attack you can take 1 Heat to add +2 damage, once per attack.')
     expect(tag('tg_knockback')).toMatch(/full hit or crit/)
-    expect(tag('tg_reliable')).toMatch(/^This weapon has some degree/)
+    expect(tag('tg_reliable')).toBe('Always deals at least {VAL} damage, even on a miss.')
   })
 
   it('does not include missing-data placeholders', () => {

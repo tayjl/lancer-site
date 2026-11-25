@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import rulesSql from '../supabase/migrations/20261124100000_rule_number_limits.sql?raw'
+import limitsSql from '../supabase/migrations/20261124100000_rule_number_limits.sql?raw'
+import loadoutSql from '../supabase/migrations/20261125100000_content_cleanup_3b.sql?raw'
 import { equipmentDetails } from './equipment'
 import { toItem, type Item } from './gameData'
 import { NUMBER_KEYS, rule, ruleItems, RULES_SEED, type NumberKey } from './rulesData'
@@ -370,6 +371,11 @@ describe('free gear', () => {
       .toEqual([true, false, true, true, false, true, true, true, false])
     expect(freeGear(owned('missing', 'odd'), typeOf, null)).toEqual([false, false])
   })
+  it('follows the loadout numbers', () => {
+    ruleItems.value = ['loadout_armour', 'loadout_weapons', 'loadout_gear'].map((key, order) => ({ id: `rule_num_${key}`, name: key, section: 'numbers', text: '', order, numbers: [[2, 1, 0][order]] }))
+    expect(freeGear(owned('suit', 'vest', 'whip', 'gun', 'kit'), typeOf, null)).toEqual([true, true, true, false, false])
+    ruleItems.value = RULES_SEED
+  })
   it('on a change frees only what the live sheet had free under the same key and id', () => {
     const live = { owned_gear: [{ key: 'k0', id: 'suit', free: true }, { key: 'k1', id: 'whip', free: false }, { key: 'k2', id: 'gun', free: true }] }
     expect(freeGear(owned('suit', 'whip', 'rifle', 'kit'), typeOf, live)).toEqual([true, false, false, false])
@@ -390,7 +396,7 @@ describe('editable game numbers', () => {
   afterEach(() => { ruleItems.value = RULES_SEED })
 
   it('use the same fallbacks and ranges as the database', () => {
-    const rows = [...rulesSql.matchAll(/^\s*\('(\w+)', (\d+), (\d+), (\d+)\)[,;]$/gm)]
+    const rows = [...(limitsSql + loadoutSql).matchAll(/^\s*\('(\w+)', (\d+), (\d+), (\d+)\)[,;]$/gm)]
     expect(rows.length).toBeGreaterThan(7)
     for (const [, key, def, lo, hi] of rows) {
       const n = NUMBER_KEYS.find((k) => k.key === key)
