@@ -33,6 +33,13 @@ describe('definition editor', () => {
     expect(definitionProblems(sizes, [saved('01')]).map((p) => p.text)).toEqual(['01: The ID must be a number, like 2 or 0.5.'])
   })
 
+  it('wants a mode on a status group and words as damage type text', () => {
+    const groups = defKindInfo('status_groups')!
+    expect(definitionProblems(groups, [saved('a', { data: { mode: 'mech' } }), saved('b', { data: { mode: 'pilot' } })])).toEqual([])
+    expect(definitionProblems(groups, [saved('a'), saved('b', { data: { mode: 'x' } })]).map((p) => p.text)).toEqual(['a: Choose where it is shown.', 'b: Choose where it is shown.'])
+    expect(definitionProblems(damage, [saved('a', { data: { text: 'Words.' } }), saved('b', { data: { text: 3 } })]).map((p) => p.text)).toEqual(['b: The text must be words.'])
+  })
+
   it('wants every mount slot to take a size', () => {
     const mount = defKindInfo('mount_types')!
     expect(definitionProblems(mount, [saved('Odd')]).map((p) => p.text)).toEqual(['Odd needs at least one slot.'])

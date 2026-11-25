@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import type { Data } from '../../contentEditor'
 import { firstSentence, rowEntry, type CombatEntry } from '../../combatEntries'
 import { hasValue, ruleSection, sectionIcon } from '../../ruleList'
-import { fill, statusGroups } from '../../rulesData'
+import { defData, defList } from '../../definitions'
+import { fill } from '../../rulesData'
 import { plainText } from '../../rulesText'
 import CombatGroup from '../CombatGroup.vue'
 import RulesText from '../RulesText.vue'
@@ -26,8 +27,8 @@ const card = computed<Card | null>(() => {
   // No value, no value column (no empty gutter).
   const column = hasValue(s.id) && !!value
   const row = { value: column ? value : name, short: str('short') || undefined, name: column ? name : undefined, gist: str('gist') || undefined, text, icon: str('icon') || undefined }
-  const status = s.id === 'statuses' ? statusGroups().find((g) => g.id === str('group') || (g.id === 'other' && str('group') === 'pilot')) : undefined
-  return { title: status?.title ?? s.label, icon: status?.icon ?? sectionIcon(s.id), entries: [{ ...rowEntry(row, { column }), open: true }] }
+  const status = s.id === 'statuses' ? defList('status_groups', true).find((g) => g.id === str('group')) : undefined
+  return { title: status?.label ?? s.label, icon: (status && String(defData('status_groups', status.id).icon ?? '')) || sectionIcon(s.id), entries: [{ ...rowEntry(row, { column }), open: true }] }
 })
 </script>
 

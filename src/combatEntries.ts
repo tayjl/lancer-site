@@ -1,6 +1,7 @@
 import type { Info, InfoCard } from './info'
 import { activationOf, type ItemStat } from './itemDetails'
 import type { CombatAction, CombatRow } from './combatRules'
+import { damageText, defList } from './definitions'
 import { fill, onFootRows, ruleNote, ruleNumbers, ruleRows, turnStepText, turnSteps } from './rulesData'
 import { plainText } from './rulesText'
 import { SCENE_RESOURCE_IDS, baseActions, type BaseAction } from './baseActions'
@@ -163,6 +164,9 @@ const topic = (name: string, cards: InfoCard[]): Topic => ({
 })
 const topics = (rows: CombatRow[]) => rows.map((r) => topic(r.value, rowCards([r])))
 
+// Every visible damage type, with its guide text when it has one.
+const damageTypesHtml = () => defList('damage_types').map((t) => { const text = damageText(t.id); return text ? `<b>${t.label}:</b> ${fill(text)}` : `<b>${t.label}</b>` }).join('<br>')
+
 // "pilot" trims it to what a pilot on foot uses. "repairLine" is the mech's own Repair cost line, when it has one.
 export function rulesTopics(pilot: boolean, repairLine?: string): TopicCard[] {
   const core = baseActions.value.map(filled).find((a) => a.id === 'act_core_power_rules')
@@ -178,7 +182,7 @@ export function rulesTopics(pilot: boolean, repairLine?: string): TopicCard[] {
     { title: 'Attacks and damage', icon: 'crosshair', topics: [
       topic('Attack totals', rowCards(rows('attacks', 'formula'))),
       topic('Results', [note(ruleNote('results')), ...rowCards(rows('attacks', 'result'))]),
-      topic('Damage', [{ heading: 'Damage types', html: rows('attacks', 'damage_type').map((t) => t.value).join(', ') }, ...rowCards(rows('attacks', 'damage_formula'))]),
+      topic('Damage', [{ heading: 'Damage types', html: damageTypesHtml() }, ...rowCards(rows('attacks', 'damage_formula'))]),
       ...(pilot ? [] : [
         topic('Dice conversions', [
           note(`${ruleNote('conversions')} ${ruleNote('dice')}`),

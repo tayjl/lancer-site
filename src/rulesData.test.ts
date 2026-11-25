@@ -6,12 +6,13 @@ import { blankItem, validateItem } from './contentEditor'
 import { mechResources } from './mechData'
 import { fill, RULES_SEED, SECTIONS, onFootRows, ruleItems, ruleNumbers, ruleRows, statusGroups, toRuleItem, turnSteps, type RuleItem } from './rulesData'
 import type { Sheet } from './myPilot'
+import { definitionRows } from './definitions'
 
 const topicText = (pilot = false) => rulesTopics(pilot).flatMap((c) => c.topics.map((t) => t.text)).join(' ')
 const item = (over: Partial<RuleItem>): RuleItem => ({ id: 'hb_rule_x', name: 'X', section: 'notes', text: '', order: 5, ...over })
 
 describe('rules seed', () => {
-  afterEach(() => { ruleItems.value = RULES_SEED })
+  afterEach(() => { ruleItems.value = RULES_SEED; definitionRows.value = null })
 
   it('keeps every seed id when a name changes', () => {
     // These ids are the database rows' keys: a change here orphans a row.
@@ -36,7 +37,7 @@ describe('rules seed', () => {
     baseActions.value = BASE_ACTIONS
     expect(turnSteps()[4].text).toBe('Use Overcharge.')
     baseActions.value = []
-    expect(statusGroups().map((g) => g.rows.length)).toEqual([6, 7, 7])
+    expect(statusGroups().map((g) => g.rows.length)).toEqual([6, 7, 6])
     expect(onFootRows().map((r) => r.value)).toEqual(['Down and out (pilot status)', 'Mech destroyed', 'Melt down'])
   })
 
@@ -96,6 +97,49 @@ describe('rules seed', () => {
     expect(turnSteps().some((s) => s.name === 'Quick words')).toBe(true)
     ruleItems.value = [...RULES_SEED, item({ id: 'hb_rule_terrain', name: 'Ice', section: 'movement', group: 'terrain', text: 'Slippery ice.' })]
     expect(topicText()).toContain('Slippery ice.')
+  })
+
+  const def = (kind: string, id: string, extra: object = {}) => ({ kind, id, label: id, data: {}, sort: 0, hidden: false, ...extra })
+
+  it('builds the status cards from the status_groups definitions', () => {
+    definitionRows.value = [
+      def('status_groups', 'cover', { label: 'Cover', sort: 1, data: { icon: 'shield', mode: 'mech' } }),
+      def('status_groups', 'weird', { label: 'Weird', sort: 2, data: { icon: 'info', mode: 'mech' } }),
+      def('status_groups', 'old', { label: 'Old', sort: 3, hidden: true, data: { mode: 'mech' } }),
+      def('status_groups', 'foot', { label: 'Foot', sort: 4, data: { mode: 'pilot' } }),
+    ]
+    ruleItems.value = [item({ id: 'a', name: 'Fog', section: 'statuses', group: 'weird' }), item({ id: 'b', name: 'Out', section: 'statuses', group: 'foot' }), item({ id: 'c', name: 'Gone', section: 'statuses', group: 'old' }), item({ id: 'd', name: 'Lost', section: 'statuses', group: 'nope' })]
+    expect(statusGroups().map((g) => [g.id, g.title, g.icon, g.rows.map((r) => r.value)])).toEqual([['cover', 'Cover', 'shield', []], ['weird', 'Weird', 'info', ['Fog']]])
+    expect(onFootRows().map((r) => r.value)).toEqual(['Out'])
+  })
+
+  it('puts Down and out in the pilot group, and only there', () => {
+    expect(statusGroups().flatMap((g) => g.rows.map((r) => r.value))).not.toContain('Down and out (pilot status)')
+    expect(onFootRows()[0].value).toBe('Down and out (pilot status)')
+  })
+
+  it('takes the group choice of a status rule from the status_groups ids', () => {
+    const check = (group: string) => validateItem('rules', { ...blankItem('rules', 'a'), name: 'N', section: 'statuses', group } as never, { id: 'a' } as never).map((p) => p.field)
+    expect(check('conditions')).toEqual([])
+    expect(check('weird')).toEqual(['group'])
+    definitionRows.value = [def('status_groups', 'weird')]
+    expect(check('weird')).toEqual([])
+    expect(check('conditions')).toEqual(['group'])
+    expect(SECTIONS.find((s) => s.id === 'statuses')!.groups!.map((g) => g.id)).toEqual(['weird'])
+  })
+
+  it('lists every visible damage type with its text in the combat guide', () => {
+    const guide = () => rulesTopics(false).flatMap((c) => c.topics).find((t) => t.name === 'Damage')!.text
+    expect(guide()).toContain('Heat')
+    expect(guide()).toContain('Variable')
+    expect(guide()).toContain('Kinetic')
+    definitionRows.value = [
+      def('damage_types', 'Kinetic', { sort: 0 }), def('damage_types', 'Secret', { sort: 1, hidden: true, data: { text: 'No.' } }),
+      def('damage_types', 'Plasma', { sort: 2, data: { text: 'Hits {loadout_gear} things.' } }),
+    ]
+    expect(guide()).toContain('Plasma: Hits 3 things.')
+    expect(guide()).not.toContain('Secret')
+    expect(guide()).not.toContain('Heat:')
   })
 
   it('reads stored data and rejects unreadable rows', () => {

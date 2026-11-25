@@ -124,12 +124,6 @@ export const IMPROVISED: CombatAction = {
   group: 'attack',
   text: 'A melee attack (Range 1) with a fist, a rifle butt or a lump of wreckage. It deals 4 kinetic damage and is resolved like any other attack.',
 }
-export const DAMAGE_TYPES: { name: string; icon: string }[] = [
-  { name: 'Kinetic', icon: 'kinetic' },
-  { name: 'Explosive', icon: 'explosive' },
-  { name: 'Energy', icon: 'energy' },
-  { name: 'Burn', icon: 'burn' },
-]
 export const DEFENCES: { mech: string; evasion: string; edef: string }[] = [
   { mech: 'Light or nimble', evasion: '12–14', edef: '10–12' },
   { mech: 'Medium or standard', evasion: '10–12', edef: '10–12' },
@@ -190,12 +184,12 @@ const STATUS_ROWS: CombatRow[] = [
   { value: 'Stunned', text: 'Until the end of your next turn you can take only 1 quick action (no full actions, Movement, {action:act_overcharge} or reactions). Attacks against you get +2 (1 Accuracy).' },
 ]
 
-// Grouped by what they do. "Conditions" is the word Stabilize and Shut down use.
+// Grouped by what they do, as the seed of the status rules. "Conditions" is the word Stabilize and Shut down use.
 const statuses = (...names: string[]) => names.map((name) => STATUS_ROWS.find((row) => row.value.startsWith(name))!)
-export const STATUS_GROUPS: { title: string; icon: string; rows: CombatRow[] }[] = [
-  { title: 'Cover and stealth', icon: 'shield', rows: statuses('Barrier-protected', 'Screened', 'Obscured', 'Hidden', 'Invisible', 'Intangible') },
-  { title: 'Conditions', icon: 'warning', rows: statuses('Immobilized', 'Impaired', 'Jammed', 'Lock on', 'Shredded', 'Slowed', 'Stunned') },
-  { title: 'Other statuses', icon: 'info', rows: statuses('Burn X', 'Danger zone', 'Down and out', 'Engaged', 'Exposed', 'Prone', 'Shutdown') },
+export const STATUS_SEED: [group: string, rows: CombatRow[]][] = [
+  ['cover', statuses('Barrier-protected', 'Screened', 'Obscured', 'Hidden', 'Invisible', 'Intangible')],
+  ['conditions', statuses('Immobilized', 'Impaired', 'Jammed', 'Lock on', 'Shredded', 'Slowed', 'Stunned')],
+  ['other', statuses('Burn X', 'Danger zone', 'Down and out', 'Engaged', 'Exposed', 'Prone', 'Shutdown')],
 ]
 
 export const SPEED_GATEWAYS: CombatRow[] = [
@@ -254,8 +248,6 @@ export const FOOT_RULES: CombatRow[] = [
   { value: 'Melt down', text: 'The reactor explodes at the end of your next turn, like {action:act_self_destruct_quick}. The pilot must {action:act_eject_quick} before then or dies.' },
   { value: 'Pilot gear', text: 'Up to {loadout_weapons} pilot weapons, {loadout_armour} armour and {loadout_gear} gear.' },
 ]
-// The Statuses tab's "On foot" card (Pilot mode).
-export const ON_FOOT_ROWS: CombatRow[] = [...statuses('Down and out'), ...FOOT_RULES.filter((row) => ['Mech destroyed', 'Melt down'].includes(row.value))]
 export const JOCKEY: CombatAction = {
   name: 'Jockey',
   activation: 'Full',

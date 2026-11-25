@@ -41,6 +41,8 @@ export function definitionProblems(info: DefKindInfo, rows: EditRow[]): Problem[
     else if (id.length > 60) error(`${name}: The ID can have at most 60 characters.`, `rows.${i}.id`)
     else if (info.key === 'frame_sizes' && !NUMBER.test(id)) error(`${name}: The ID must be a number, like 2 or 0.5.`, `rows.${i}.id`)
     else if (rows.some((other, j) => j < i && other.id.trim().toLowerCase() === id.toLowerCase())) error(`${name}: That ID is already used by another ${info.singular}.`, `rows.${i}.id`)
+    if (info.modes && row.data.mode !== 'mech' && row.data.mode !== 'pilot') error(`${name}: Choose where it is shown.`, `rows.${i}.mode`)
+    if (info.text && row.data.text !== undefined && typeof row.data.text !== 'string') error(`${name}: The text must be words.`, `rows.${i}.text`)
     if (info.mount) {
       const slots = slotsOf(row)
       if (!slots.length) error(`${name} needs at least one slot.`, `rows.${i}.slots`)

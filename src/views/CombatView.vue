@@ -14,7 +14,8 @@ import ChoiceField from '../components/editor/ChoiceField.vue'
 import { searchWords } from '../archive'
 import { actionKey, firstSentence, rowEntry, rulesTopics, stepActions, type CombatEntry, type KitAction } from '../combatEntries'
 import { combatLoadout, frameGroups, gearGroups, weaponGroups, type LoadoutBlock, type LoadoutRow } from '../combatLoadout'
-import { onFootRows, ruleRows, statusGroups, turnSteps } from '../rulesData'
+import { defList, groupMode } from '../definitions'
+import { ruleRows, statusGroups, turnSteps } from '../rulesData'
 import { baseActionsLoaded, combatTags, hiddenTags, rulesLoaded, pilotVitals, tagDescriptions, tagNames, tagNamesLoaded, useGameData } from '../gameData'
 import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
@@ -161,22 +162,25 @@ function build(on: boolean, trim: boolean, pilot = mode.value === 'pilot'): Cont
     .map((id) => ({ tag: tagNames.value.get(id)!.replaceAll('{VAL}', 'X'), text: (tagDescriptions.value.get(id) ?? '').replaceAll('{VAL}', 'X') }))
   const block = (b: (typeof kitBlocks)[number]): Group => ({ title: b.title, icon: b.icon, colour: b.colour, chips: true, empty: 'None.', entries: kitEntries(b.key), across: b.key === 'frame' || b.key === 'weapons' || b.key === 'gear', meta: b.key === 'frame' && l?.frame ? `${l.frame.source} ${l.frame.name}` : undefined })
   const [weapons, systems, frameCard, talents, core, gear] = kitBlocks.map(block)
-  // In Pilot mode "Down and out" is only in On foot.
-  const [cover, conditions, other] = statusGroups().map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.filter((row) => !pilot || row.group !== 'pilot').map((row) => rowEntry(row)) }))
+  // Pilot-mode statuses (Down and out) are only in On foot.
+  const statuses = statusGroups().map((g): Group => ({ title: g.title, icon: g.icon, chips: true, entries: g.rows.map((row) => rowEntry(row)) }))
   const rows = (list: Parameters<typeof rowEntry>[0][]) => list.map((row) => rowEntry(row))
+  // One card per pilot-mode status group (its title and icon from Definitions); the on foot rules sit in the first.
+  const pilotGroups = defList('status_groups').filter((g) => groupMode(g.id) === 'pilot')
+  const onFoot = (pilotGroups.length ? pilotGroups : [null]).map((g, i): Group => ({ title: g?.label ?? 'On foot', icon: typeof g?.data.icon === 'string' ? g.data.icon : 'pilot', chips: true, entries: rows([...(g ? ruleRows('statuses', g.id) : []), ...(i ? [] : ruleRows('foot', 'on_foot'))]) }))
   const tags: Group = { title: trim || pilot ? 'Tags on your gear' : 'Tags', icon: 'generic_item', chips: true, empty: 'None.', entries: tagRows.map((row) => ({ ...row, gist: firstSentence(row.text) })) }
   const topics = rulesTopics(pilot, repairLine.value).map((card): Group => ({ title: card.title, icon: card.icon, chips: true, entries: card.topics.map((t) => ({ name: t.name, text: t.text, info: t.info })) }))
 
   const content: [string, string, string, boolean, Block[]][] = [
     ['combat-kit', '01', 'Your kit', false, pilot ? [{ grid: 'one', columns: [[gear]] }, { grid: 'one', columns: [[talents]] }] : [{ grid: 'one', columns: [[frameCard]] }, { grid: 'one', columns: [[weapons]] }, { grid: 'three', columns: [[systems, talents, core]] }]],
     ['combat-tags', '02', 'Tags and statuses', false, pilot
-      ? [{ grid: 'two', columns: [[tags, cover, conditions, other, { title: 'On foot', icon: 'pilot', chips: true, entries: rows(onFootRows()) }]] }]
+      ? [{ grid: 'two', columns: [[tags, ...statuses, ...onFoot]] }]
       : [
           { grid: 'two', columns: [[
             tags,
             { title: trim ? 'Weapon sizes on your gear' : 'Weapon sizes', icon: 'weapon', chips: true, entries: rows(sizes) },
           ]] },
-          { grid: 'status', columns: [[cover, conditions, other]] },
+          { grid: 'status', columns: [[...statuses]] },
         ]],
     ['combat-rules', '03', 'Rules', true, [{ grid: 'two', columns: [topics] }]],
   ]

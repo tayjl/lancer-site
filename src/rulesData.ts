@@ -2,6 +2,7 @@ import { shallowRef } from 'vue'
 import { BASE_ACTIONS, baseActions } from './baseActions'
 import * as C from './combatRules'
 import type { CombatRow } from './combatRules'
+import { defList, groupMode } from './definitions'
 
 // The combat guide's rules as editable content (content_items kind 'rules'). The combatRules.ts constants are the seed only, the
 // database is the live copy. One item is one entry. Fields by section shape:
@@ -16,15 +17,14 @@ export type RuleShape = 'note' | 'steps' | 'table' | 'numbers'
 export type RuleSection = { id: string; label: string; shape: RuleShape; groups?: { id: string; label: string }[] }
 
 const groups = (...pairs: [string, string][]) => pairs.map(([id, label]) => ({ id, label }))
-// The cards of the Statuses tab. "pilot" rows sit in Other, and in the On foot card in Pilot mode.
-const STATUS_CARDS = [{ id: 'cover', title: 'Cover and stealth', icon: 'shield' }, { id: 'conditions', title: 'Conditions', icon: 'warning' }, { id: 'other', title: 'Other statuses', icon: 'info' }]
 
 export const SECTIONS: RuleSection[] = [
   { id: 'notes', label: 'Notes', shape: 'note' },
   { id: 'turn_steps', label: 'Turn steps', shape: 'steps' },
-  { id: 'statuses', label: 'Statuses', shape: 'table', groups: groups(...STATUS_CARDS.map((g): [string, string] => [g.id, g.title]), ['pilot', 'Pilot statuses']) },
+  { id: 'statuses', label: 'Statuses', shape: 'table', // Its groups are the status_groups Definitions (hidden ones too, so a rule in one stays valid).
+    get groups() { return defList('status_groups', true).map((g) => ({ id: g.id, label: g.label })) } },
   { id: 'checks', label: 'Checks', shape: 'table', groups: groups(['formula', 'Formulas'], ['result', 'Results'], ['dc', 'Pilot DCs']) },
-  { id: 'attacks', label: 'Attacks and damage', shape: 'table', groups: groups(['formula', 'Attack formulas'], ['result', 'Attack results'], ['damage_formula', 'Damage formulas'], ['extra', 'Extra rules'], ['damage_type', 'Damage types'], ['defence', 'Defence baselines']) },
+  { id: 'attacks', label: 'Attacks and damage', shape: 'table', groups: groups(['formula', 'Attack formulas'], ['result', 'Attack results'], ['damage_formula', 'Damage formulas'], ['extra', 'Extra rules'], ['defence', 'Defence baselines']) },
   { id: 'movement', label: 'Movement', shape: 'table', groups: groups(['gateway', 'Speed gateways'], ['terrain', 'Terrain'], ['knockback', 'Knockback']) },
   { id: 'range', label: 'Range', shape: 'table', groups: groups(['tier', 'Range tiers'], ['area', 'Areas'], ['bonus', 'Range and Threat bonuses'], ['sensor', 'Sensors'], ['aura', 'Auras'], ['talent', 'Range in talents']) },
   { id: 'structure', label: 'Structure and repairs', shape: 'table', groups: groups(['trigger', 'Triggers'], ['step', 'Structure and stress steps'], ['repair', 'Repairs']) },
@@ -49,8 +49,7 @@ const SEED_IDS = [
   'rule_attacks_1_accuracy_2_1_difficulty_2', 'rule_attacks_3_or_more_over', 'rule_attacks_equal_up_to_2_over', 'rule_attacks_1_to_3_under',
   'rule_attacks_4_or_more_under', 'rule_attacks_critical_hit_weapon_damage_flat_bonuses_1_25_rounded_up',
   'rule_attacks_grazing_hit_damage_2_rounded_up', 'rule_attacks_damage_taken_damage_armour', 'rule_attacks_grit', 'rule_attacks_bonus_damage',
-  'rule_attacks_damage_resistance', 'rule_attacks_heat_as_damage', 'rule_attacks_kinetic', 'rule_attacks_explosive', 'rule_attacks_energy',
-  'rule_attacks_burn', 'rule_attacks_light_or_nimble', 'rule_attacks_medium_or_standard', 'rule_attacks_heavy_or_superheavy',
+  'rule_attacks_damage_resistance', 'rule_attacks_heat_as_damage', 'rule_attacks_light_or_nimble', 'rule_attacks_medium_or_standard', 'rule_attacks_heavy_or_superheavy',
   'rule_movement_standard_repositioning', 'rule_movement_cross_field_maneuver', 'rule_movement_extreme_dash', 'rule_movement_difficult_terrain',
   'rule_movement_dangerous_terrain', 'rule_movement_knockback_1', 'rule_movement_knockback_2', 'rule_movement_knockback_3',
   'rule_range_engaged_melee', 'rule_range_close', 'rule_range_medium', 'rule_range_far', 'rule_range_extreme', 'rule_range_burst',
@@ -91,9 +90,9 @@ add('turn_steps', undefined, C.TURN_STEPS.map((s) => ({ name: s.name, value: s.f
 // What a turn step lists is fixed in code, by the step's id.
 const STEP_FIXED = new Map(seed.filter((r) => r.section === 'turn_steps').map((r, i) => [r.id, { key: C.TURN_STEPS[i].name, activations: C.TURN_STEPS[i].activations }]))
 
-C.STATUS_GROUPS.forEach((g, i) => add('statuses', STATUS_CARDS[i].id, rows(g.rows)))
-const downAndOut = seed.find((r) => r.id === 'rule_statuses_down_and_out_pilot_status')!
-downAndOut.group = 'pilot'
+for (const [group, list] of C.STATUS_SEED) add('statuses', group, rows(list))
+// Down and out is listed with the others above, but it is a pilot status: the Pilot view's On foot card shows it.
+seed.find((r) => r.id === 'rule_statuses_down_and_out_pilot_status')!.group = 'pilot'
 add('checks', 'formula', formulas(C.CHECK_FORMULAS))
 add('checks', 'result', rows(C.CHECK_RESULTS))
 add('checks', 'dc', rows(C.PILOT_DCS, 'DC '))
@@ -101,7 +100,6 @@ add('attacks', 'formula', formulas(C.ATTACK_FORMULAS))
 add('attacks', 'result', C.ATTACK_RESULTS.map((r) => ({ name: r.margin, text: [r.note ? `${r.note}.` : '', `<b>${r.physical[0]}:</b> ${r.physical[1]}`, `<b>${r.tech[0]}:</b> ${r.tech[1]}`].filter(Boolean).join('<br>') })))
 add('attacks', 'damage_formula', formulas(C.DAMAGE_FORMULAS))
 add('attacks', 'extra', rows(C.ATTACK_EXTRAS))
-add('attacks', 'damage_type', C.DAMAGE_TYPES.map((t) => ({ name: t.name, icon: t.icon, text: '' })))
 add('attacks', 'defence', C.DEFENCES.map((d) => ({ name: d.mech, text: `Evasion ${d.evasion}<br>E-defence ${d.edef}` })))
 add('movement', 'gateway', rows(C.SPEED_GATEWAYS))
 add('movement', 'terrain', rows(C.TERRAIN))
@@ -214,6 +212,7 @@ export type TurnStep = { id: string; key: string; name: string; activations: str
 export const turnSteps = (): TurnStep[] => live('turn_steps').map((i) => ({ id: i.id, name: i.name, key: STEP_FIXED.get(i.id)?.key ?? i.id, activations: STEP_FIXED.get(i.id)?.activations ?? [], frequency: i.value, gist: i.gist && fill(i.gist), text: fill(i.text) }))
 export const turnStepText = (key: string) => turnSteps().find((s) => s.key === key)?.text ?? ''
 
-export const statusGroups = () => STATUS_CARDS.map((g) => ({ ...g, rows: live('statuses').filter((i) => i.group === g.id || (g.id === 'other' && i.group === 'pilot')).map(asRow) }))
-// The Statuses tab's "On foot" card (Pilot mode).
-export const onFootRows = (): RuleRow[] => [...ruleRows('statuses', 'pilot'), ...ruleRows('foot', 'on_foot')]
+// The status cards of the Mech view: the status_groups Definitions in the 'mech' mode, in their order, with their live rows.
+export const statusGroups = () => defList('status_groups').filter((g) => groupMode(g.id) === 'mech').map((g) => ({ id: g.id, title: g.label, icon: typeof g.data.icon === 'string' ? g.data.icon : 'info', rows: ruleRows('statuses', g.id) }))
+// The Pilot view's "On foot" card: the statuses of the 'pilot' mode groups, then the on foot rules.
+export const onFootRows = (): RuleRow[] => [...defList('status_groups').filter((g) => groupMode(g.id) === 'pilot').flatMap((g) => ruleRows('statuses', g.id)), ...ruleRows('foot', 'on_foot')]

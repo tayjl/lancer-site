@@ -191,6 +191,16 @@ defineExpose({ dirty })
                 <span class="box" :class="{ none: !known(item.data.colour) }" :style="known(item.data.colour) ? { background: `var(${item.data.colour})` } : undefined" aria-hidden="true"></span>
               </span>
             </Field>
+            <Field v-if="info.modes" label="Shown in" :path="`rows.${index}.mode`" hint="Mech groups are cards in Mech view. Pilot groups are in the On foot card in Pilot view.">
+              <select :value="text(item.data.mode)" @change="setData(item, change, { mode: ($event.target as HTMLSelectElement).value })">
+                <option value="" disabled>Choose a view</option>
+                <option value="mech">Mech</option>
+                <option value="pilot">Pilot</option>
+              </select>
+            </Field>
+            <Field v-if="info.text" label="Guide text" :path="`rows.${index}.text`" hint="Shown in the combat guide. Leave empty to show the name only.">
+              <textarea rows="3" :value="text(item.data.text)" @input="setData(item, change, { text: ($event.target as HTMLTextAreaElement).value })"></textarea>
+            </Field>
             <template v-if="info.mount">
               <Field block label="Slots" :path="`rows.${index}.slots`">
                 <ol v-if="slotsOf(item).length" class="slots">
@@ -271,6 +281,15 @@ defineExpose({ dirty })
 .pick {
   display: flex;
   gap: var(--space-s);
+}
+
+.def-pane textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.def-pane select {
+  min-height: 44px;
 }
 
 .pick select {

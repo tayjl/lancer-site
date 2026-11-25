@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import definitionsSql from '../supabase/migrations/20261124120000_game_definitions.sql?raw'
+import cleanup4aSql from '../supabase/migrations/20261125110000_content_cleanup_4a.sql?raw'
 import { DEFAULT_DEFINITIONS, defColour, defData, defIcon, defIds, defLabel, defList, definitionRows, loadDefinitions, type DefKind } from './definitions'
 import { mountHint, mountSlots } from './definitions'
 import { allowedSizes, mountSize } from './mechData'
@@ -9,8 +10,9 @@ import { actionKey } from './combatEntries'
 const fetched = vi.hoisted(() => ({ result: { rows: [] as unknown[], error: null as string | null } }))
 vi.mock('./lib/supabaseClient', () => ({ supabase: { from: () => ({}) }, fetchAll: async () => fetched.result }))
 
-// The seed's rows, as the migration writes them.
-const seed = [...definitionsSql.matchAll(/^\s*\('(\w+)', '([^']*)', '([^']*)', '(\{.*?\})', (\d+)\)[,;]$/gm)]
+// The seed's rows, as the migrations write them: the first file's and the status groups of the 4a one.
+const seedRow = /^\s*\('(\w+)', '([^']*)', '([^']*)', '(\{.*?\})', (\d+)\)[,;]?$/gm
+const seed = [...definitionsSql.matchAll(seedRow), ...cleanup4aSql.matchAll(seedRow)]
   .map(([, kind, id, label, data, sort]) => ({ kind, id, label, data: JSON.parse(data), sort: Number(sort) }))
 const row = (kind: string, id: string, extra: object = {}) => ({ kind, id, label: id, data: {}, sort: 0, hidden: false, ...extra })
 

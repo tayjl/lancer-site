@@ -9,7 +9,7 @@ import { fetchAll, supabase } from './lib/supabaseClient'
 export type DefData = { icon?: string; colour?: string; [key: string]: unknown }
 export type Definition = { id: string; label: string; data: DefData; hidden: boolean }
 export type DefKind = 'damage_types' | 'range_types' | 'activations' | 'uses' | 'frame_roles' | 'frame_sizes' | 'weapon_types' | 'weapon_sizes'
-  | 'mount_types' | 'gear_types' | 'system_types' | 'deployable_types'
+  | 'mount_types' | 'gear_types' | 'system_types' | 'deployable_types' | 'status_groups'
 
 // Exception to "the database is the only live copy": these lists stay in code as the built-in default, used while loading
 // and when the load fails or returns no rows, so the mech sheet never breaks. The migration's seed must equal them (definitions.test.ts).
@@ -50,15 +50,18 @@ export const DEFAULT_DEFINITIONS: Record<DefKind, Definition[]> = {
   gear_types: ['Armor', 'Weapon', 'Gear'].map((id) => def(id)),
   system_types: ['System', 'AI', 'Shield', 'Deployable', 'Drone', 'Tech', 'Armor', 'Flight System', 'Integrated'].map((id) => def(id)),
   deployable_types: ['Deployable', 'Drone', 'Mine'].map((id) => def(id)),
+  // The combat page's status cards. mode: the page's Mech view shows the card, the Pilot view shows the group's statuses in its On foot card.
+  status_groups: [['cover', 'Cover and stealth', 'shield', 'mech'], ['conditions', 'Conditions', 'warning', 'mech'], ['other', 'Other statuses', 'info', 'mech'], ['pilot', 'On foot', 'pilot', 'pilot']]
+    .map(([id, label, icon, mode]) => ({ ...def(id, { icon, mode }), label })),
 }
 
 // What the Definitions screen of the content editor shows per list: its label, the singular noun, the box it sits in, and the
 // fields beyond label, id and hidden. "colours" are the game's own colour variables the list may use (never a hex).
 type Colour = { name: string; label: string }
 const colours = (prefix: string, names: string[]): Colour[] => names.map((n) => ({ name: `--${prefix}-${n.toLowerCase()}`, label: n }))
-export type DefKindInfo = { key: DefKind; label: string; singular: string; box: string; icons?: string[]; colours?: Colour[]; mount?: boolean }
+export type DefKindInfo = { key: DefKind; label: string; singular: string; box: string; icons?: string[]; colours?: Colour[]; mount?: boolean; modes?: boolean; text?: boolean }
 export const DEF_KINDS: DefKindInfo[] = [
-  { key: 'damage_types', label: 'Damage types', singular: 'damage type', box: 'Weapons', icons: ['kinetic', 'energy', 'explosive', 'burn', 'heat', 'variable'], colours: colours('dmg', ['Kinetic', 'Energy', 'Explosive', 'Burn', 'Heat', 'Variable']) },
+  { key: 'damage_types', label: 'Damage types', singular: 'damage type', box: 'Weapons', icons: ['kinetic', 'energy', 'explosive', 'burn', 'heat', 'variable'], colours: colours('dmg', ['Kinetic', 'Energy', 'Explosive', 'Burn', 'Heat', 'Variable']), text: true },
   { key: 'range_types', label: 'Range types', singular: 'range type', box: 'Weapons', icons: ['range', 'threat', 'line', 'cone', 'blast', 'burst'] },
   { key: 'weapon_types', label: 'Weapon types', singular: 'weapon type', box: 'Weapons' },
   { key: 'weapon_sizes', label: 'Weapon sizes', singular: 'weapon size', box: 'Weapons' },
@@ -70,6 +73,7 @@ export const DEF_KINDS: DefKindInfo[] = [
   { key: 'activations', label: 'Activations', singular: 'activation', box: 'Actions', icons: ['activation_quick', 'activation_full', 'reaction', 'protocol', 'free_action', 'tech_quick', 'tech_full', 'overcharge'], colours: [...colours('act', ['Quick', 'Full', 'Reaction', 'Protocol', 'Free', 'Overcharge', 'Tech'])] },
   { key: 'uses', label: 'Uses', singular: 'use', box: 'Actions' },
   { key: 'gear_types', label: 'Gear types', singular: 'gear type', box: 'Pilots' },
+  { key: 'status_groups', label: 'Status groups', singular: 'status group', box: 'Actions', icons: ['shield', 'warning', 'info', 'pilot'], modes: true },
 ]
 export const DEF_BOXES = ['Weapons', 'Mechs', 'Actions', 'Pilots']
 export const defKindInfo = (key: string) => DEF_KINDS.find((k) => k.key === key)
@@ -106,6 +110,13 @@ export const mountSlots = (mount: unknown): string[][] | undefined => {
 export const mountHint = (mount: unknown) => {
   const hint = defData('mount_types', mount).hint
   return typeof hint === 'string' ? hint : undefined
+}
+// A status group's mode: 'pilot' groups show in the Pilot view's On foot card, the others as cards of their own.
+export const groupMode = (id: unknown): 'mech' | 'pilot' => (defData('status_groups', id).mode === 'pilot' ? 'pilot' : 'mech')
+// A damage type's guide text (before placeholders are filled), or '' when it has none.
+export const damageText = (id: unknown) => {
+  const text = defData('damage_types', id).text
+  return typeof text === 'string' ? text : ''
 }
 // The row's icon file name when src/assets/icons has it.
 export const defIcon = (kind: DefKind | string, id: unknown) => {
