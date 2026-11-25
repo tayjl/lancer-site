@@ -10,14 +10,13 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Unpushed work
-- Step 11 (grants on mods and pilot gear): built, reviewed and browser-checked. Uncommitted: the new migration `20261125210000_grants_on_mods_and_gear.sql` and pgTAP test `supabase/tests/grants_mods_gear.test.sql`, plus the modified files in `git status`. `npm test` 578, `npx supabase test db` 1130 (42 files). Details and known limits: [handoff, steps 9 to 11](docs/content-editor-handoff.md#steps-9-to-11-2026-11-25).
+Nothing.
 
 ## Latest release
-Pushed 2026-11-25 (`origin/main` `b1071df`): content editor cleanup steps 9 and 10 (drop `bionic_bonuses`; commendation requirements; a commendation an item or biomod requires can't be deleted). Before it, `c5c79c1` (steps 2 to 8 and 12). Migrations were applied to hosted before each push. Earlier, step 4c (`5f3f1ef`), 4b (`f7207ff`), 4a (`17f91be`), steps 2 and 3 (`c7ff4b7`). The 2026-11-24 release is in [docs/history.md](docs/history.md). What is left is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
+Pushed 2026-11-25 (`origin/main` `0c7d1cf`): content editor cleanup step 11 (grants from equipped weapon mods and pilot gear; migration `20261125210000` applied to hosted first). Before it, `b1071df`: steps 9 and 10 (drop `bionic_bonuses`; commendation requirements; a commendation an item or biomod requires can't be deleted). Before it, `c5c79c1` (steps 2 to 8 and 12). Migrations were applied to hosted before each push. Earlier, step 4c (`5f3f1ef`), 4b (`f7207ff`), 4a (`17f91be`), steps 2 and 3 (`c7ff4b7`). The 2026-11-24 release is in [docs/history.md](docs/history.md). What is left is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 
 ## Not yet on hosted
-- Migration `20261125210000_grants_on_mods_and_gear` (step 11, built, not committed). Apply it with `npx supabase migration up --remote --yes` before the step 11 commit is pushed (ask first).
-- Everything through `20261125200000_block_required_commendation` is on the hosted project (steps 9 and 10 applied 2026-11-25, before `b1071df`). The full list is in [docs/history.md](docs/history.md).
+- Everything through `20261125210000_grants_on_mods_and_gear` (step 11) and before it `20261125200000_block_required_commendation` is on the hosted project (steps 9 and 10 applied 2026-11-25, before `b1071df`). The full list is in [docs/history.md](docs/history.md).
 
 ## Next steps
 1. **Check live:** the combat page (see the list below), not browser-tested since 0.2. Then the 2026-11-24 deploy checks below. Also check whether 3b touched owner-edited rows: the CLI printed no NOTICE, so look at hosted `content_items` rows with an `edited` value.
