@@ -15,6 +15,7 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - **Batch 2026-11-25 (steps 2 to 8 and 12, 4b check, 0.3 close-out): pushed as `c5c79c1`.** Migrations `140000` to `170000` were applied to hosted before the push. See the batch block under 0.3.
 - **Steps 9 and 10: pushed as `b1071df`.** Migrations `180000`, `190000` and `200000` were applied to hosted before the push. Cloudflare build and CI passed. See 'Steps 9 to 11' under 0.3.
 - **Step 11: shipped (`0c7d1cf`, docs `8df78c0`).** Migration `20261125210000` is on hosted.
+- **Mount checks, private schema hardening, faction name limit: shipped (`19b8964`).** Migrations `20261125220000` and `20261125230000` are on hosted.
 - **Step 13 (audit and browser sweep): done 2026-11-25.** Its one bug fix (a New button for factions and commendations) is shipped (`b3bb773`). Results are in 0.7.
 - Check live (STATUS.md) stays open.
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
