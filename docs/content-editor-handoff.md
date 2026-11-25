@@ -6,6 +6,13 @@ State at the end of the session: all commits are on `origin/main` (`e92c73f` plu
 
 Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 audit) and `definitions-spec.md` (UI spec for Definitions and the tab groups).
 
+## Where we are (2026-11-25)
+- Step 2 of the cleanup is done and committed (`1f028ba` code, `e899ecf` docs) but **not pushed**: `main` is 2 commits ahead of `origin/main`.
+- Step 3 (0.2, remove all data duplication) is **done, uncommitted, not pushed**. Code (3a) and the migration `20261125100000_content_cleanup_3b` (3b) are in the working tree. Details in 0.2.
+- **One hosted migration is pending:** `20261125100000_content_cleanup_3b`. Apply it **before** pushing. Check the hosted `rule_number_limits` and `loadout_*` values first, and read the NOTICE output for owner-edited rows.
+- **Next: step 4 (0.3, statuses, conditions and the remaining Definitions).** Nothing is started on it. Resume at 0.3 (it has a "Resume here" line).
+- Pushing: agents' pushes hang on a hidden Git credential prompt. The developer pushes by hand (`git push origin main`), or runs `gh auth login` then `gh auth setup-git` once so agents can push.
+
 ## 0. Remaining objectives from the original plan (the developer wants this done)
 The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (`.hermes.md`, Team routing), and finish each with the reviewers, a browser pass and the docs.
 
@@ -35,13 +42,49 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - Done when: a report lists every gap and each gets an editor field or a written reason it stays code.
 
 ### 0.2 Remove all data duplication
-- `REACTIONS_NOTE` must stop repeating the Reaction step's general rule.
-- Full Repair text: replace "Overcharge goes back to 1 Heat" with a placeholder for the first Overcharge step.
-- Work through the 0.1 duplication sweep until nothing is stated twice: one database entry per fact, other places link it with a placeholder (`{action:id}`, number keys) or read it.
-- Skip Engaged (being removed) and Pilot Overwatch (stays separate).
-- Done when: no rules text states a number held in Numbers, names an action by copy, or repeats another entry.
+**Status: done 2026-11-25 (step 3). Uncommitted, not pushed.** Rule decisions: [rule-decisions.md](rule-decisions.md) 2026-11-25.
+
+What changed:
+- **3a (code seed):** duplicate rule text removed from `src/combatRules.ts`, `src/rulesData.ts`, `src/combatEntries.ts` and `src/coreContent.ts`. New `fill()` key `overcharge_first` (first Overcharge step, from the rule numbers) is used by Full Repair. `REACTIONS_NOTE` keeps only the expiry sentence. Tech note drops the Full Tech sentence. The Movement and Free notes are removed (the steps serve). Dice note shortened, DICE table kept. Copied action names are `{action:id}` links. Pilot on-foot stat numbers are dropped from text (`pilotVitals()` is the source; a fill key would be a circular import). Structure 2 note left (not a duplicate). Reliable tag reads "Always deals at least {VAL} damage, even on a miss." `src/rules.ts` `freeGear` reads the `loadout_*` numbers. Repairs item reads "Repairs per Structure or Stress."
+- **3b (database):** `supabase/migrations/20261125100000_content_cleanup_3b.sql`. (A) 36 `content_items` text updates and 3 guarded deletes, each only where `data` still equals the old seed. Rows the owner edited get a NOTICE to review (their `edited` override is untouched). `rule_notes_tech` is blank on hosted, so it is skipped. (B) `loadout_armour` 1, `loadout_weapons` 2, `loadout_gear` 3 added to `rule_number_limits` (range 0 to 6). `settle_pilot_gear` and `equip_pilot_gear` read them; the error text is built from the number. pgTAP: `supabase/tests/content_cleanup_3b.test.sql`.
+- **Follow-up fixes (done, 550 tests pass):** gists go through `fill()`. A hidden action's `{action:id}` renders its seed name as plain text instead of blanking. Limit: if an action was renamed and then hidden, the seed name shows.
+- **Checks:** reviewer found no blocking issues. `npm test` 549 pass. `npm run build` passes. `npx supabase test db` passes except `content_editor.test.sql`, which fails on a leftover local row `hb_tg_ux_probe_tag` in pack 7 (local data; clean it before relying on that test).
+
+Checklist (from the audit, `content-audit/duplication.md`, scratch):
+- [x] Reaction rule: `REACTIONS_NOTE` keeps only the expiry sentence. The Reactions section still reads it.
+- [x] Full Tech: sentence removed from the Tech note. The Quick Tech list stays.
+- [x] Overcharge: the step reads "Use {action:act_overcharge}." (Once a turn). The action is the only source of its text.
+- [x] Overcharge first step: Full Repair uses `{overcharge_first}`.
+- [x] Movement note and Free note removed (the steps serve).
+- [x] Dice note shortened, DICE table kept.
+- [x] Copied action names turned into `{action:id}` links.
+- [x] Structure 2: note left as is, not a duplicate.
+- [x] Pilot HP, Speed and E-defence: numbers dropped from text. `pilotVitals()` is the source.
+- [x] Repairs-per-Structure item shortened.
+- [x] Rule limits mirror `NUMBER_KEYS`: code copy kept (`rules.test.ts` checks it). Loadout limits added to the DB in 3b.
+- [x] Pilot gear room: `rule_num_loadout_*` read by `freeGear`, `settle_pilot_gear` and `equip_pilot_gear`.
+- [x] Can't take the same action twice: the rule lives only in the '1 full' step (2 quick drops it).
+- [x] Lancer's Edge and Precision: references use `{action:act_lancer_s_edge}` and `{action:act_lancer_s_precision}`. The "(+2)" is dropped.
+- [x] Repair restores all HP: Stabilize says "spend 1 Repair (see Rest)". Rest is the source.
+
+Left from 0.2 (for later):
+- Gists still hold copied action names in plain text (Shutdown, Disengage and Overwatch gists; the Overcharge step gist duplicates the action gist).
+- Copied action names beyond the checklist were not hunted (e.g. Brace mentions Overcharge).
+- Pilot mode Free step says "Core powers, systems and some gear use them". That over-states for pilots on foot.
+- First submissions priced under the old loadout numbers can be charged differently if the limits change before approval.
+- `content_cleanup_3b.test.sql` re-implements the migration loop, so it can drift from the migration.
+- Owner-edited rows named in the migration NOTICE need a review on hosted.
+- `content_editor.test.sql` fails locally on leftover row `hb_tg_ux_probe_tag` in pack 7. Clean the local data first.
 
 ### 0.3 Statuses, conditions and the remaining Definitions
+**Resume here (step 4).** Step 3 (0.2) is done and uncommitted. Check STATUS.md first: the 3b migration, and whether step 3 is committed. Then start with the statuses items below. `ON_FOOT_ROWS` is dead code (still true after step 3).
+
+Open items from the audits (`content-audit/constants-and-matrix.md`, scratch):
+- `STATUS_CARDS` (`src/rulesData.ts:20`) hard-codes the group ids and the `pilot` bucket (`src/rulesData.ts:96, 216`, `src/views/CombatView.vue:167`). A new status group can't be added in the editor.
+- `DAMAGE_TYPES` (`src/combatRules.ts:127`): the guide shows only the 4 rule rows, so Heat and Variable from `damage_types` never appear.
+- `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicates `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) should be a tag flag (`combat_page` already exists).
+- `ON_FOOT_ROWS` (`src/combatRules.ts:258`) is dead code: `onFootRows()` reads the database. Still true after step 3.
+- `Integrated Auxiliary` and `Superheavy` are code literals that duplicate `mount_types` rows (`src/mechData.ts:155-167`, `src/rules.ts:259, 345`, `src/equipment.ts:22`, `src/components/MechLoadout.vue:238, 307`). Use a flag on the mount row. `Main/Aux` (`src/mechData.ts:153`) is the named core bonus `cb_mount_retrofitting`.
 - **Statuses and conditions become editable and addable.** Today they are partly code (`src/combatRules.ts:169`, status cards in `src/rulesData.ts`). Make each one a Definition or content row the combat page reads (name, text, icon and colour from existing variables, group, and whatever the combat page needs). Owner can add, edit, hide and delete (guarded) in the editor; the combat guide and any status picker or chip read them from the database.
 - **Combat guide follows the database:** `DAMAGE_TYPES` and the four damage type rule rows in `src/combatRules.ts` / `src/rulesData.ts` must come from the Definitions, so a new damage type appears in the guide. Anything else the guide reads from code constants should read the database too (check with the 0.1 sweep).
 - Other Definitions work: tag groups; `weapon_mounts` only if it needs to differ from sizes; the leftovers `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, pilot gear group titles in `archive.ts`, the Armor/Armour label tweak and the mount ids in `mechData.ts` (not `Flex`, not `bracingMount()`). Where a rule truly needs code and will never change, leave it in code and write that down.
@@ -49,6 +92,13 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - Done when: an owner can add a damage type, a status or a condition, or a mount type in the editor and it works on the sheet, archive and combat page with no code change.
 
 ### 0.4 Building blocks on the kinds that need them
+Open items from the audits (`content-audit/constants-and-matrix.md`, `content-audit/fields.md`, scratch):
+- **Undeclared `pilot_*` effects are silently ignored.** No reminder on the pilot sheet or the mech sheet (`src/bonuses.ts:107`, `src/mechData.ts:354`, `src/gameData.ts:311-326`). The editor does not warn either (`src/contentEditor.ts:170`).
+- `pilot_evasion` has no registry entry and no sheet handler (`src/contentEditor.ts:170`).
+- `melee`, `deployable_speed`, `deployable_heatcap`, `drone_speed`, `drone_heatcap` are handled in code with no registry entry (`src/equipment.ts:126, 151`).
+- Frame core power `active_bonuses` has an editor field (`CoreSystemFields.vue:79`) and no sheet reader.
+- Core bonus mount hooks are code: `cb_mount_retrofitting`, `cb_integrated_weapon` (`src/mechData.ts:150-167`). The registry already has `add_mount`, `replace_mount`, `superheavy_mounting`.
+- Data-only, stays data-only (no reader, no input): `skirmish`, `synergies`, `counters`, `other_art`, `y_pos`, `image_url`, `active_synergies`, `ammo`, `filter_ignore`, `stats.sensor_range`, `stats.save`. Don't add inputs for them.
 - **Biomods** (decided): 
   - Actions on biomods: migration for the storage (`bionics` has no actions column; see `save_bionic`, `bionic_bonuses`), the form field (the existing ActionListField), and the sheet reading biomod actions the way it reads them on other kinds.
   - **Biomod grants must be as diverse as the biomods are** (developer, 2026-11-24): one biomod might give a pilot a weapon, another +1 to a mech stat, another a pilot stat bonus, a talent rank, an action or a piece of gear. A biomod gets everything the other kinds can carry, through the same shared fields: the full effect registry (mech stats, pilot effects and conditional reminders, with the grouped picker, search and summaries), every grant kind the engine already honours (built-in and optional equipment: pilot weapons, pilot gear, mech weapons and systems, deployables, extra mounts, talent ranks and licences once those grants exist), actions, and requirements. Today a biomod only has the limited stat list in `bionic_bonuses` (plus a few grants): replace it with the same `bonuses`, `grants` and `actions` data shape other kinds use, stored with the biomod (migrate the existing `bionic_bonuses` rows into it, keep pilots' owned biomods working, and keep the mod-point and manna costs). The sheet must read all of it for a pilot who owns the biomod, and the editor shows the same plain summary line per effect or grant. Test with a biomod that grants a pilot weapon, one that grants +1 to a mech stat and one that does both.
@@ -71,7 +121,7 @@ The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that conte
 - (done) Add the editor fields found in 0.1: weapon `no_mods`, deployable activation and range, action range and damage, deployables on pilot gear. Faction description skipped: nothing reads or saves it.
 - (done) A hidden value on an existing item shows its label, not the raw id, in the picker.
 - (done) Tag preview shows the "Show on combat page" flag.
-- Old text fixes: "Reliable X" dice wording and US spellings in tag text (ask the developer which wording first).
+- Old text fixes, decided 2026-11-25 (see [rule-decisions.md](rule-decisions.md)): "Reliable X" reads "Always deals at least X damage, even on a miss." (no dice or "rolls" wording). Tag text keeps US spelling (Armor-Piercing, Personal Armor, E-Defense). Applied in step 3 (0.2, 2026-11-25).
 - (done) Retry button on every page's load-error notice, not only Combat.
 
 ### 0.7 Verify everything that was never opened in a browser
@@ -91,8 +141,8 @@ Note: for a few minutes between the migrations and the Cloudflare build, the old
 
 Rollback if needed: restore the backed-up rows (content_items kinds rules, actions, tags) and re-add the 35 `rule_tag_list_*` rows; the new tables and columns can stay.
 
-**Check live first (not done yet, needs a login):**
-- Combat page, Mech and Pilot modes: Tags card lists 35 tags with no empty card; no raw `{...}` text anywhere; Overcharge, Reaction, Engaged and the pilot gear line read once and correctly; the Quick Tech note is blank (the owner's own edit) so check it is acceptable.
+**Check live first (postponed 2026-11-25: the developer can't do it now; still open):**
+- Combat page after step 3 (0.2), not opened in a browser since: Overcharge, Full Repair, Reaction, the Movement and Free notes and the Reliable tag should read once and correctly; no raw `{...}`, no blank text. Mech and Pilot modes: Tags card lists 35 tags with no empty card; no raw `{...}` text anywhere; Overcharge, Reaction, Engaged and the pilot gear line read once and correctly; the Quick Tech note is blank (the owner's own edit) so check it is acceptable.
 - Content editor as owner: tab groups and the Tags, Actions, Rules and Definitions tabs; Definitions lists 72 rows in 12 kinds; hide and restore a test item and see the Saved by line; Duplicate; the effect picker.
 - Player login: hidden items gone from pickers and the archive, owned items still shown.
 - `npm run build` output has no `lcp.ts`/`contentEditor.ts` bundle surprise on the content page.
@@ -101,14 +151,14 @@ Rollback if needed: restore the backed-up rows (content_items kinds rules, actio
 ## 2. Bugs and suspect behaviour to investigate
 - (done) **Frame-size id counted twice.** The `definitionProblems` dedupe is removed. The "Fix 2 problems" report couldn't be reproduced; the likely cause is two new rows both typed `01`.
 - (done) **Conflict Reload leaves a "Leave site?" prompt.** Reload skips the guard in `EditorPane` and `DefinitionPane` (via `ConflictNotice`'s `reload` event). Closing the tab still asks.
-- **Owner's first pack import stamps every row** in `content_saves` as an editor save. An import isn't an editor save. Decide: skip stamping on insert for pack imports, or accept.
+- **Owner's first pack import stamps every row** in `content_saves` as an editor save. Decided 2026-11-25: pack imports don't stamp (see rule-decisions.md). Build status not confirmed.
 - **Trigger raises if the signed-in user has no profile row** (`private.stamp_save` foreign key). Unreachable for real owners; matters only for a service-role call carrying a user JWT.
 - **Seed ids are positional** (`SEED_IDS`, `ACTION_IDS`): a new seed row needs an id placed to match its `add()` call. Snapshot tests fail until updated on purpose. Consider keyed ids.
 - (done) **Frame size error text is fixed** ("Size is ½, 1, 2 or 3.") and goes stale if the owner adds a size. Now built from the `frame_sizes` Definition rows (`contentEditor.ts`), so an added size shows up.
 - **Duplicate carries built-in core checks** for official frames (fixed, tested) but the first edit of an official frame's core checks writes a full copy that no longer follows `CORE_CHECK_BONUSES`. Never confirmed that the first edit saves its own copy (the reviewer could not tell).
 - (done) **Hidden official value shows its raw id** in an item's picker (for example "Heat") instead of its label.
 - **Used by** matches exact strings, so a manufacturer code can match a weapon's `license` text. It does not scan biomods. "Used by" reads oddly for licences ("Licence unlocks 7 items" counts one more than the six listed).
-- **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decide whether to block it (restrictive policy or `on delete restrict`).
+- **Delete of a faction or commendation in use cascades** to pilot reputation and awarded commendations (unchanged from before, the confirm text warns). Decided 2026-11-25: block while in use (see rule-decisions.md). Build status not confirmed.
 - A very long faction name is accepted (only unique, no length check).
 - **Phase 2 leftovers:** the Full Repair text still says "Overcharge goes back to 1 Heat" (no placeholder for the first step), and `REACTIONS_NOTE` still repeats the Reaction step's general rule: both are in scope (0.2). The combat guide's damage type rows still come from `DAMAGE_TYPES` in `src/combatRules.ts` and do not follow Definitions: in scope (0.3). The Engaged status is being removed by the developer, so its duplicate row and doubled-parentheses title need no work.
 - (done) Tag preview shows the "Show on combat page" flag.

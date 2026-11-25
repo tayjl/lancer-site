@@ -20,6 +20,15 @@ Rules will keep changing. To change one:
 | Starting manna, levelling, licences | `STARTING_MANNA` and the rest of `src/rules.ts`, described in [lancer-rules.md](lancer-rules.md) |
 | One frame, weapon, system or talent | Not code: owners edit it in the content editor (Content tab) |
 
+## 2026-11-25
+- **Overcharge is "Once a turn".** The Overcharge action (`act_overcharge`) is the only source of its text. The turn step links to it.
+- **"Reliable X" reads "Always deals at least X damage, even on a miss."** No dice or "roll" wording.
+- **Tag text keeps US spelling** (Armor-Piercing, Personal Armor, E-Defense). The site's own UI text keeps "armour".
+- **Pilot on-foot stats (HP 6, Speed 4, E-defence 10) live in `pilotVitals()`.** The guide text does not repeat them.
+- **Loadout room (Armour 1, Weapons 2, Gear 3) is editable in the rules tab** and the database enforces it (`rule_number_limits`, range 0 to 6).
+- **Faction and commendation delete is blocked while in use**, not cascaded. (Content editor handoff 0.5.)
+- **Pack imports don't stamp `content_saves`.** (Content editor handoff section 2.)
+
 ## 2026-11-22
 - **Never say "roll" on screen** (no dice). Say "compare with" or "check against".
 - **The combat guide follows the developer's handbook**, [combat-handbook.md](combat-handbook.md): diceless, mapless, for text posts. Change the handbook first, then `src/combatRules.ts`.
