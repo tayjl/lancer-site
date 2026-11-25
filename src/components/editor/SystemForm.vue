@@ -12,8 +12,7 @@ import RequirementListField from './RequirementListField.vue'
 import GrantFields from './GrantFields.vue'
 import ItemBasics from './ItemBasics.vue'
 import TagListField from './TagListField.vue'
-import { computed } from 'vue'
-import { filled, latest, list, useFields } from './useFields'
+import { filled, grantsSummary, latest, useFields } from './useFields'
 
 // The form for a mech system (a system, AI, shield, drone and so on): the basics, what it does, its actions, deployables,
 // tags and bonuses. A system with no type in the game data is a plain "System"; the box shows that, and writes a type only when
@@ -27,7 +26,6 @@ const description = f.text('description')
 const tagList = f.list<{ id: string; val?: string | number }>('tags')
 const bonuses = f.list<Data>('bonuses')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
-const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 const actions = f.list<Data>('actions')
 const deployables = f.list<Data>('deployables')
 const type = f.text('type')
@@ -66,7 +64,7 @@ const type = f.text('type')
     <BonusListField v-model="bonuses" :types="bonusTypes" />
   </FoldPanel>
 
-  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+  <FoldPanel title="Equipment" :summary="grantsSummary(model)" :paths="['integrated', 'special_equipment', 'replace_integrated']">
     <GrantFields :data="model" owner="System" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 

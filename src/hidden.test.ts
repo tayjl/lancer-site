@@ -90,10 +90,13 @@ describe('pickers hide hidden content', () => {
   const source = (file: string) => sources[`./${file}`]
   // The editor shows hidden items, flagged. The rest are shared components fed by filtered callers, or are not content lists.
   const exempt = (file: string) => file.startsWith('components/editor/') || ['RichTextEditor.vue', 'LoreEditView.vue', 'ItemPicker.vue', 'PickList.vue', 'LoadoutBox.vue'].some((name) => file.endsWith(`/${name}`))
-  it('filter every picker with offered() or .hidden', () => {
+  // These two list ranks and core bonuses with their own rows, so they filter by hand: the guard wants `!x.hidden` in them.
+  const byHand = ['RankPanel.vue', 'CoreBonusPanel.vue']
+  it('filter every picker with offered(), or by hand where listed', () => {
     const files = Object.keys(sources).map((key) => key.slice(2)).filter((file) => !exempt(file) && /<(ItemPicker|PickList)\b/.test(source(file)))
     expect(files.length).toBeGreaterThan(0)
-    expect(files.filter((file) => !/offered\(|\.hidden/.test(source(file)))).toEqual([])
+    const filtered = (file: string) => (byHand.some((name) => file.endsWith(`/${name}`)) ? /!\w+\.hidden\b/ : /\boffered\(/).test(source(file))
+    expect(files.filter((file) => !filtered(file))).toEqual([])
   })
   it('filter the reputation list, and the award picker through its loader', () => {
     expect(source('components/ReputationPanel.vue')).toContain('hidden')

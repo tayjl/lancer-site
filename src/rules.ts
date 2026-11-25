@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { equippedGear, loadoutSlots, pilotBonuses, requirementsOf, useGameData, type Bionic, type CoreBonus, type Item, type Talent } from './gameData'
-import { allowedSizes, alternateOf, chosenFrame, fittedMods, grantingSources, idList, mechEffects, mechStats, mountReplacements, mountSize, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
+import { allowedSizes, alternateOf, chosenFrame, fittedMods, grantingSources, idList, isId, mechEffects, mechStats, mountReplacements, mountSize, placedWeapons, talentGrants, useMechData, weaponAt, type Frame } from './mechData'
 import { DAMAGE_CHOICES, modBlockedBy, variableDamage } from './equipment'
 import { bonusValue, resolveBonuses } from './bonuses'
 import type { MechPrivate, OwnedGear, Sheet } from './myPilot'
@@ -343,8 +343,8 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
     if ((source || item?.raw?.talent_item) && !unlocked.has(id)) problems.push(`${item?.name ?? id} needs ${source ? [...new Set(source)].sort((a, b) => a.localeCompare(b)).join(' or ') : 'its talent rank'}.`)
     if (frame.integrated.includes(id)) problems.push(`${item?.name ?? id} is integrated and can't also take a normal slot.`)
   }
-  if ((mech.mounts ?? []).slice(frame.mounts.length).some(places => places.some(Boolean))) problems.push("Some weapons are on mounts the frame doesn't have.")
-  if ((mech.mounts ?? []).some((places, index) => index < frame.mounts.length && places.slice(mountSize(frame.mounts[index])).some(Boolean))) problems.push("Some weapons are in slots the mount doesn't have.")
+  if ((mech.mounts ?? []).slice(frame.mounts.length).some(places => places.some(isId))) problems.push("Some weapons are on mounts the frame doesn't have.")
+  if ((mech.mounts ?? []).some((places, index) => index < frame.mounts.length && places.slice(mountSize(frame.mounts[index])).some(isId))) problems.push("Some weapons are in slots the mount doesn't have.")
   const choices = [...['cb_mount_retrofitting', 'cb_auto_stabilizing_hardpoints'].filter(id => sheet.core_bonuses?.includes(id)).map(id => ({ key: id, name: catalogue.coreBonuses?.find(bonus => bonus.id === id)?.name ?? id })), ...mountReplacements(effects.bonuses)]
   for (const { key, name } of choices) {
     const index = mech.core_mounts?.[key]
@@ -425,7 +425,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   const mods = fittedMods(mech, frame).flatMap(([, id]) => catalogue.mods?.get(id) ?? [])
   const known = [...fitted, ...installed.filter((item): item is Item => !!item), ...mods]
   // Requirements: the frame and every item on the mech, met by what's equipped on it.
-  const onMech = new Set([...frame.integrated, ...(mech.systems ?? []), ...(mech.mounts ?? []).flat().filter((id): id is string => !!id), ...Object.values(mech.weapon_mods ?? {})])
+  const onMech = new Set([...frame.integrated, ...(mech.systems ?? []), ...placedWeapons(mech, sheet, catalogue).map(([, id]) => id), ...Object.values(mech.weapon_mods ?? {})])
   const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, commendations: catalogue.commendations, awarded: catalogue.awarded, itemName: (id: string) => lookup(catalogue.weapons, id)?.name ?? lookup(catalogue.systems, id)?.name ?? catalogue.mods?.get(id)?.name }
   for (const [name, data] of [[`The ${frame.name} frame`, baseFrame.raw], ...known.map(item => [item.name, item.raw] as const)] as const)
     for (const thing of unmetRequirements(data, sheet, onMech, names)) problems.push(`${name} needs ${thing}.`)

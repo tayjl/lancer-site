@@ -11,7 +11,7 @@ import ManufacturerField from './ManufacturerField.vue'
 import FoldPanel from './FoldPanel.vue'
 import GrantFields from './GrantFields.vue'
 import RequirementListField from './RequirementListField.vue'
-import { filled, latest, list, useFields } from './useFields'
+import { filled, grantsSummary, latest, useFields } from './useFields'
 
 // The form for a biomod (a site table, not pack content): its slot on the body, its own price in manna, the mod points it
 // takes, and its description (flavour) and effect (rules). "Retired" takes it off the list
@@ -36,7 +36,6 @@ const retired = f.flag('retired')
 const effects = f.list<Data>('effect_bonuses')
 const effectTypes = computed(() => bonusTypesFor('bionics', props.stats))
 const actions = f.list<Data>('actions')
-const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
 </script>
 
@@ -63,7 +62,7 @@ const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id
     <ActionListField v-model="actions" path="actions" />
   </FoldPanel>
 
-  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+  <FoldPanel title="Equipment" :summary="grantsSummary(model)" :paths="['integrated', 'special_equipment', 'replace_integrated']">
     <GrantFields :data="model" owner="Biomod" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 

@@ -111,7 +111,7 @@ Left from 0.2 (for later):
 - **Scouted, nothing to build:** frame core `active_bonuses` has a reader (`src/mechData.ts:373-383`); the undeclared `pilot_*` warning exists (`src/contentEditor.ts:166`).
 - **0.3 close-out (decisions, overturnable):**
   - Tag groups need no new Definitions kind: the hidden flag, `hideOnCard` and 'Show on combat page' cover it. `KEY_TAGS` (`src/pickerRows.ts:79`) stays in code. If wanted, the smallest version is a 'Key tag' checkbox on `TagForm`.
-  - Core bonus mount hooks `cb_improved_armament`, `cb_mount_retrofitting` and `cb_integrated_weapon` stay in code.
+  - Core bonus mount hooks `cb_improved_armament`, `cb_mount_retrofitting` and `cb_integrated_weapon` stay in code. Improved Armament stays in code by id (hosted data has no bonus; the server mirrors it), and any `add_mount` bonus on it is ignored.
   - Pilot gear group titles stay in code.
   - `pilot_evasion` stays dropped (flat 10, [rule-decisions.md](rule-decisions.md)).
 - **Deploy window (closed 2026-11-25):** after `20261125170000` and before the Cloudflare build finishes, live biomod bonuses count twice and owner biomod saves fail. Migrated and pushed back to back, after backing up hosted `bionics` and `bionic_bonuses` (scratch: `hosted-bionics-backup-20261125.json`, `hosted-pre-step9-10-20261125.json`, and a `-functions-` file from the same date).

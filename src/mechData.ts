@@ -130,28 +130,60 @@ export function talentGrants(sheet: Sheet, talents: Talent[], coreBonuses: CoreB
   return { integrated: [...integrated], optional: [...optional], replace: [...replace] }
 }
 
-// The equipped weapons and systems that exist in the catalogue (for what they grant).
-export function equippedItems(mech: MechPrivate, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated'>) {
-  return [...(mech.systems ?? []).map(id => catalogue.systems.get(id) ?? catalogue.integrated.get(id)), ...(mech.mounts ?? []).flat().map(id => (id ? catalogue.weapons.get(id) ?? catalogue.integrated.get(id) : undefined))]
+// A weapon id that's really there: null and "" are empty places.
+export const isId = (id: unknown): id is string => typeof id === 'string' && id !== ''
+
+// The mount bonuses (add_mount, superheavy_mounting, replace_mount) from taken core bonuses and talent ranks, installed
+// systems and the frame itself.
+export function mountBonusesOf(mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'frames' | 'systems' | 'integrated' | 'talents' | 'coreBonuses'>): NamedBonus[] {
+  const baseFrame = catalogue.frames?.find(frame => frame.id === mech.frame)
+  const traitList = (Array.isArray(baseFrame?.raw?.traits) ? baseFrame!.raw!.traits : []) as Record<string, unknown>[]
+  const mountSources: { key: string; name: string; bonuses: unknown }[] = [
+    ...(catalogue.coreBonuses ?? []).filter(bonus => sheet.core_bonuses?.includes(bonus.id)).map(bonus => ({ key: bonus.id, name: bonus.name, bonuses: bonus.bonuses })),
+    ...(catalogue.talents ?? []).flatMap(talent => talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).map((rank, index) => ({ key: `${talent.id}:${index + 1}`, name: `${talent.name} ${index + 1}`, bonuses: rank.bonuses }))),
+    ...(mech.systems ?? []).flatMap(id => { const item = catalogue.systems.get(id) ?? catalogue.integrated.get(id); return item ? [{ key: id, name: item.name, bonuses: item.bonuses }] : [] }),
+    ...(baseFrame?.raw ? [{ key: baseFrame.id, name: baseFrame.name, bonuses: baseFrame.raw.bonuses }, ...traitList.map((trait, index) => ({ key: `${baseFrame.id}:trait:${index}`, name: `${baseFrame.name} · ${trait.name ?? 'trait'}`, bonuses: trait.bonuses }))] : []),
+    ...(baseFrame?.raw?.core_system ? [{ key: `${baseFrame.id}:core`, name: String((baseFrame.raw.core_system as Record<string, unknown>).name ?? 'Core system'), bonuses: (baseFrame.raw.core_system as Record<string, unknown>).passive_bonuses }] : []),
+  ]
+  return mountSources.flatMap(source => {
+    let n = 0
+    // Improved Armament's Flex mount is added by id in buildFrame, so its own add_mount bonus (if the data has one) is ignored.
+    if (source.key === 'cb_improved_armament') return []
+    return Array.isArray(source.bonuses) ? (source.bonuses as Bonus[]).filter(bonus => ['add_mount', 'superheavy_mounting', 'replace_mount'].includes(bonus?.id)).map(bonus => ({ source: source.name, bonus, key: bonus.id === 'replace_mount' ? choiceKey(source.key, n++) : source.key })) : []
+  })
+}
+
+// The weapons in places the built frame has, as [place "mount:place", id]. Which mounts there are never depends on the
+// weapons, so the frame is built here without them. With no known frame every weapon counts (nothing to compare against).
+export function placedWeapons(mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'frames' | 'systems' | 'integrated' | 'talents' | 'coreBonuses'>) {
+  const baseFrame = catalogue.frames?.find(frame => frame.id === mech.frame)
+  const mounts = baseFrame ? buildFrame(baseFrame, mech, sheet, catalogue.talents ?? [], mountBonusesOf(mech, sheet, catalogue), { coreBonuses: catalogue.coreBonuses, integrated: catalogue.integrated })!.mounts : null
+  return (mech.mounts ?? []).flatMap((places, m) => (mounts && !mounts[m] ? [] : places.slice(0, mounts ? mountSize(mounts[m]) : places.length).flatMap((id, i) => (isId(id) ? [[`${m}:${i}`, id] as const] : []))))
+}
+
+// The equipped weapons and systems that exist in the catalogue (for what they grant). Weapons only where the frame has the place.
+export function equippedItems(mech: MechPrivate, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated'>, placed: (readonly [string, string])[]) {
+  return [...(mech.systems ?? []).map(id => catalogue.systems.get(id) ?? catalogue.integrated.get(id)), ...placed.map(([, id]) => catalogue.weapons.get(id) ?? catalogue.integrated.get(id))]
     .filter((item): item is Item => !!item)
 }
 
 // Everything on the mech that can grant equipment: equipped weapons and systems, the mods fitted on it, the pilot's equipped
 // gear and installed biomods. Mirrors "granting" in sheet_rule_problems.
-export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated' | 'bionics' | 'mods' | 'gear' | 'commendations' | 'awarded'>) => {
-  // A mod grants only when it sits on an equipped weapon ("mount:place" read from the sheet's own mounts, as the database
-  // does, because this runs before the frame is built) and its own requirements are met by the systems, weapons and mods
-  // on the mech (built-in items don't count).
+export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick<EffectCatalogue, 'frames' | 'talents' | 'coreBonuses' | 'weapons' | 'systems' | 'integrated' | 'bionics' | 'mods' | 'gear' | 'commendations' | 'awarded'>) => {
+  // A mod grants only when it sits on an equipped weapon in a place the built frame has ("mount:place", as the database
+  // does) and its own requirements are met by the systems, weapons and mods on the mech (built-in items don't count).
+  const placed = placedWeapons(mech, sheet, catalogue)
   const fitted = Object.values(mech.weapon_mods ?? {})
-  const owned = [...(mech.systems ?? []), ...(mech.mounts ?? []).flat().filter((id): id is string => !!id), ...fitted]
+  const owned = [...(mech.systems ?? []), ...placed.map(([, id]) => id), ...fitted]
+  const places = new Map(placed)
   const onWeapon = Object.entries(mech.weapon_mods ?? {}).filter(([key]) => {
     const [, m, i] = /^(\d{1,4}):(\d{1,4})$/.exec(key) ?? []
-    const weapon = m === undefined ? undefined : mech.mounts?.[Number(m)]?.[Number(i)]
+    const weapon = m === undefined ? undefined : places.get(`${Number(m)}:${Number(i)}`)
     return !!weapon && catalogue.weapons.has(weapon)
   }).map(([, id]) => id)
   const mods = onWeapon.flatMap(id => catalogue.mods?.get(id) ?? []).filter(mod => !unmetRequirements(mod.raw, sheet, owned, { commendations: catalogue.commendations, awarded: catalogue.awarded }).length)
   const gear = equippedGear(sheet).flatMap(owned => catalogue.gear?.find(item => item.id === owned.id) ?? [])
-  return [...equippedItems(mech, catalogue), ...mods, ...gear, ...(catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id)).map(bionic => ({ raw: bionic as unknown as Record<string, unknown> }))]
+  return [...equippedItems(mech, catalogue, placed), ...mods, ...gear, ...(catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id)).map(bionic => ({ raw: bionic as unknown as Record<string, unknown> }))]
 }
 
 // A source's second replace_mount gets "#1" on its key, so each has its own choice.
@@ -241,17 +273,7 @@ export function mechEffects(mech: MechPrivate, sheet: Sheet, catalogue: EffectCa
   // A Unique item duplicated on an invalid loadout must not grant its bonuses twice.
   const baseFrame = catalogue.frames?.find(frame => frame.id === mech.frame)
   const traitList = (Array.isArray(baseFrame?.raw?.traits) ? baseFrame!.raw!.traits : []) as Record<string, unknown>[]
-  const mountSources: { key: string; name: string; bonuses: unknown }[] = [
-    ...(catalogue.coreBonuses ?? []).filter(bonus => sheet.core_bonuses?.includes(bonus.id)).map(bonus => ({ key: bonus.id, name: bonus.name, bonuses: bonus.bonuses })),
-    ...(catalogue.talents ?? []).flatMap(talent => talent.ranks.slice(0, Math.min(3, Math.max(0, sheet.talents?.[talent.id] ?? 0))).map((rank, index) => ({ key: `${talent.id}:${index + 1}`, name: `${talent.name} ${index + 1}`, bonuses: rank.bonuses }))),
-    ...(mech.systems ?? []).flatMap(id => { const item = catalogue.systems.get(id) ?? catalogue.integrated.get(id); return item ? [{ key: id, name: item.name, bonuses: item.bonuses }] : [] }),
-    ...(baseFrame?.raw ? [{ key: baseFrame.id, name: baseFrame.name, bonuses: baseFrame.raw.bonuses }, ...traitList.map((trait, index) => ({ key: `${baseFrame.id}:trait:${index}`, name: `${baseFrame.name} · ${trait.name ?? 'trait'}`, bonuses: trait.bonuses }))] : []),
-    ...(baseFrame?.raw?.core_system ? [{ key: `${baseFrame.id}:core`, name: String((baseFrame.raw.core_system as Record<string, unknown>).name ?? 'Core system'), bonuses: (baseFrame.raw.core_system as Record<string, unknown>).passive_bonuses }] : []),
-  ]
-  const mountBonuses = mountSources.flatMap(source => {
-    let n = 0
-    return Array.isArray(source.bonuses) ? (source.bonuses as Bonus[]).filter(bonus => ['add_mount', 'superheavy_mounting', 'replace_mount'].includes(bonus?.id)).map(bonus => ({ source: source.name, bonus, key: bonus.id === 'replace_mount' ? choiceKey(source.key, n++) : source.key })) : []
-  })
+  const mountBonuses = mountBonusesOf(mech, sheet, catalogue)
   // Installed biomods grant equipment like equipped items do.
   const installed = (catalogue.bionics ?? []).filter(bionic => sheet.bionics?.includes(bionic.id))
   const granting = grantingSources(mech, sheet, catalogue)

@@ -1,6 +1,7 @@
 import { computed, customRef, inject, nextTick, provide, ref, type InjectionKey, type ModelRef, type Ref } from 'vue'
 import type { Data, Problem } from '../../contentEditor'
 import { useMechData } from '../../mechData'
+import { plural } from '../../text'
 
 // Small helpers the forms share: an input's value, an array field's value (or [] if it isn't one), and an empty
 // array left out of the data.
@@ -12,6 +13,11 @@ export const clean = <T,>(value: T[]) => (value.length ? value : undefined)
 // A folded text section's summary: the labels of the fields with something in them (rules text is HTML, so tags don't count).
 export const filled = (fields: [string, unknown][]) =>
   fields.filter(([, value]) => String(value ?? '').replace(/<[^>]*>/g, '').trim()).map(([label]) => label).join(', ') || 'Empty'
+// An Equipment section's summary: how many items it grants, built in or optional.
+export const grantsSummary = (data: Data) => {
+  const count = list<string>(data.integrated).length + list<string>(data.special_equipment).length
+  return count ? plural(count, 'item') : 'Empty'
+}
 
 // A form's v-model, where a write is seen by the very next read. A plain defineModel only shows the parent's new value
 // after the parent re-renders, so two writes in one tick (each spreading the object it just read) would lose the first;

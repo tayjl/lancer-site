@@ -21,6 +21,7 @@ import { itemInfo, type Info } from '../info'
 import { activationOf } from '../itemDetails'
 import { useMyPilot } from '../myPilot'
 import type { PublicMech } from '../pilots'
+import { usePilotAwards, useRequirementAwards } from '../commendations'
 import { useCatalogue } from '../rules'
 import { plainText } from '../rulesText'
 
@@ -37,7 +38,10 @@ const router = useRouter()
 const contentReady = computed(() => baseActionsLoaded.value && rulesLoaded.value && tagNamesLoaded.value)
 // Your living pilot as a GM approved it: what's in play, not a change still in draft.
 const { character, sheet, approved, loading, loadError, load, gm } = useMyPilot()
-const catalogue = useCatalogue()
+const base = useCatalogue()
+// Commendation requirements, so a gated mod's grants show here as on the mech page.
+const needs = useRequirementAwards(usePilotAwards(() => character.value?.id))
+const catalogue = computed(() => ({ ...base.value, ...needs.value }))
 const live = computed(() => approved.value ?? { character: character.value, sheet: sheet.value })
 const mechList = computed(() => (Array.isArray(live.value.character?.mechs) ? live.value.character.mechs : []) as unknown as PublicMech[])
 // A stale or made-up ?mech falls back to the first mech.

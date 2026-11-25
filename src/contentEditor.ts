@@ -543,8 +543,10 @@ export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Parti
 }
 
 // A faction (the reputation tracker's organisation) needs a name no other faction has, whatever the capitals.
+export const FACTION_NAME_MAX = 60
 export function validateFaction(name: string, others: string[]): Problem[] {
   if (!name.trim()) return [error('A name is needed.', 'name')]
+  if (name.trim().length > FACTION_NAME_MAX) return [error(`A name is at most ${FACTION_NAME_MAX} characters.`, 'name')]
   return others.some((other) => sameName(other, name)) ? [error('Another faction already has that name.', 'name')] : []
 }
 

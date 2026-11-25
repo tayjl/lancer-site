@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Data } from '../../contentEditor'
+import { FACTION_NAME_MAX, type Data } from '../../contentEditor'
 import Field from './Field.vue'
 import { latest, useFields } from './useFields'
 
@@ -12,7 +12,7 @@ const name = useFields(model).text('name')
 <template>
   <section class="panel">
     <Field label="Name" path="name">
-      <input v-model="name" type="text" maxlength="80" autocomplete="off" />
+      <input v-model="name" type="text" :maxlength="FACTION_NAME_MAX" autocomplete="off" />
     </Field>
   </section>
 </template>

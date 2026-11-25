@@ -16,7 +16,7 @@ import RequirementListField from './RequirementListField.vue'
 import ItemBasics from './ItemBasics.vue'
 import RepeatList from './RepeatList.vue'
 import TagListField from './TagListField.vue'
-import { clean, filled, input, latest, list, useFields } from './useFields'
+import { clean, filled, grantsSummary, input, latest, list, useFields } from './useFields'
 
 // The form for a mech weapon. A weapon has one set of range, damage and rules, or several "profiles" (modes the pilot
 // chooses between, each with its own range and damage and optionally its own tags, rules and actions). With profiles
@@ -44,7 +44,6 @@ const actions = f.list<Data>('actions')
 const deployables = f.list<Data>('deployables')
 const noMods = f.flag('no_mods')
 const profiles = f.list<Data>('profiles')
-const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 
 const mounts = computed(() => {
   const list = defList('weapon_sizes').map((size) => ({ value: size.id, label: size.label }))
@@ -128,7 +127,7 @@ const summary = (profile: Data) => [numbers(list<Entry>(profile.range)), numbers
     <TagListField v-model="tagList" :tags="tags" :locked="lockedTags(model)" />
   </FoldPanel>
 
-  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+  <FoldPanel title="Equipment" :summary="grantsSummary(model)" :paths="['integrated', 'special_equipment', 'replace_integrated']">
     <GrantFields :data="model" owner="Weapon" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 

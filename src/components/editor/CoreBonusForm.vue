@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { BonusType, Data } from '../../contentEditor'
 import { plural } from '../../text'
 import ActionListField from './ActionListField.vue'
@@ -10,7 +9,7 @@ import FoldPanel from './FoldPanel.vue'
 import GrantFields from './GrantFields.vue'
 import RequirementListField from './RequirementListField.vue'
 import RichTextEditor from '../RichTextEditor.vue'
-import { filled, latest, list, useFields } from './useFields'
+import { filled, grantsSummary, latest, useFields } from './useFields'
 
 // The form for a core bonus: its manufacturer, its rules, what it changes (bonuses) and any actions it grants.
 const modelProp = defineModel<Data>({ required: true })
@@ -25,7 +24,6 @@ const description = f.text('description')
 const bonuses = f.list<Data>('bonuses')
 const actions = f.list<Data>('actions')
 const requires = f.list<{ kind: 'talent' | 'licence' | 'core_bonus' | 'item'; id: string; rank?: number }>('requires')
-const grants = computed(() => list<string>(model.value.integrated).length + list<string>(model.value.special_equipment).length)
 </script>
 
 <template>
@@ -51,7 +49,7 @@ const grants = computed(() => list<string>(model.value.integrated).length + list
     <BonusListField v-model="bonuses" :types="bonusTypes" />
   </FoldPanel>
 
-  <FoldPanel title="Equipment" :summary="grants ? plural(grants, 'item') : 'Empty'" :paths="['integrated', 'special_equipment', 'replace_integrated']">
+  <FoldPanel title="Equipment" :summary="grantsSummary(model)" :paths="['integrated', 'special_equipment', 'replace_integrated']">
     <GrantFields :data="model" owner="Core bonus" @change="model = { ...model, ...$event }" />
   </FoldPanel>
 

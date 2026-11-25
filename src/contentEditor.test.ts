@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ref } from 'vue'
 import { useFields } from './components/editor/useFields'
-import { blankItem, bonusTypesFor, duplicateItem, errorsOf, referencesTo, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, validateFaction, withExoticTag, type Context } from './contentEditor'
+import { blankItem, bonusTypesFor, duplicateItem, errorsOf, referencesTo, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, FACTION_NAME_MAX, validateFaction, withExoticTag, type Context } from './contentEditor'
 
 const ctx: Context = {
   id: 'hb_pg_vest',
@@ -227,6 +227,10 @@ describe('validateFaction', () => {
     expect(validateFaction('Harrison Armory', ['Union'])).toEqual([])
     expect(validateFaction('  ', []).map((p) => p.field)).toEqual(['name'])
     expect(validateFaction('union ', ['Union']).map((p) => p.text)).toEqual(['Another faction already has that name.'])
+  })
+  it('limits the name length', () => {
+    expect(validateFaction('x'.repeat(FACTION_NAME_MAX), [])).toEqual([])
+    expect(validateFaction(`${'x'.repeat(FACTION_NAME_MAX)}y`, []).map((p) => p.field)).toEqual(['name'])
   })
 })
 

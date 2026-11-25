@@ -76,6 +76,31 @@ describe('grants from equipped items and biomods', () => {
     expect(granted({ mounts: [['mw_gone']], weapon_mods: { '0:0': 'wm_lock' } })).toBe(false)
     expect(granted({ mounts: [], weapon_mods: { '0:0': 'wm_lock' } })).toBe(false)
   })
+  it('lets a weapon in a place the built frame lacks grant nothing and satisfy no requirement', () => {
+    const lockGun = item('mw_lockgun', { special_equipment: ['ms_extra'] })
+    const needy = item('ms_needy', { type: 'System', mount: '', requires: [{ kind: 'item', id: 'mw_lockgun' }] })
+    const c = { ...onGun(cat()), weapons: new Map([[gun.id, gun], [lockGun.id, lockGun]]), systems: new Map([[needy.id, needy]]) }
+    const base = { frame: 'mf_test', systems: ['ms_extra', 'ms_needy'] }
+    const granted = (mounts: (string | null)[][]) => grantingSources({ ...base, mounts }, {}, c).map(source => source.raw).includes(lockGun.raw)
+    expect(granted([['mw_lockgun']])).toBe(true)
+    expect(granted([[], [], ['mw_lockgun']])).toBe(false)
+    expect(granted([['mw_gun', 'mw_lockgun']])).toBe(false)
+    expect(granted([[], [null, '', 'mw_lockgun']])).toBe(false)
+    expect(extraNeed(mechProblems({ ...base, mounts: [['mw_lockgun']] }, {}, c))).toBe(false)
+    expect(mechProblems({ ...base, mounts: [['mw_lockgun']] }, {}, c).some(problem => problem.startsWith('ms_needy needs'))).toBe(false)
+    const phantom = mechProblems({ ...base, mounts: [[], [], ['mw_lockgun']] }, {}, c)
+    expect(phantom).toContain("Some weapons are on mounts the frame doesn't have.")
+    expect(extraNeed(phantom)).toBe(true)
+    expect(phantom).toContain('ms_needy needs mw_lockgun.')
+    // A place the frame gains from a core bonus counts again.
+    const flex = { id: 'cb_flex', name: 'Flex', source: 'GMS', effect: '', bonuses: [{ id: 'add_mount', val: 'Main', max: 3 }] } as CoreBonus
+    expect(grantingSources({ ...base, mounts: [[], [], ['mw_lockgun']] }, { core_bonuses: ['cb_flex'] }, { ...c, coreBonuses: [flex] }).map(source => source.raw)).toContain(lockGun.raw)
+  })
+  it('treats only non-empty strings as weapons in the mount checks', () => {
+    const c = onGun(cat())
+    const sloppy = [['mw_gun'], [], [0, false, ''] as unknown as (string | null)[]]
+    expect(mechProblems({ frame: 'mf_test', mounts: sloppy }, {}, c)).toEqual([])
+  })
   it('lets a mod grant only with its requirements met, and checks a stray mod too', () => {
     const gated = item('wm_gated', { type: 'Mod', name: 'Gated Mod', special_equipment: ['ms_extra'], requires: [{ kind: 'licence', id: 'mf_gmt', rank: 3 }] })
     const withMod = onGun({ ...cat(), mods: new Map([[gated.id, gated]]) })

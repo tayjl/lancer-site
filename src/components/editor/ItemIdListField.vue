@@ -35,6 +35,7 @@ const choose = (id: string) => {
 <style scoped>
 .ids { display: grid; gap: var(--space-s); justify-items: start; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-s); margin: 0; padding: 0; list-style: none; }
+.remove { flex: none; } /* else a long name squeezes it under the 44px tap size */
 .chip-x {
   display: inline-flex;
   align-items: center;

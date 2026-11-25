@@ -73,6 +73,10 @@ set local role authenticated;
 set local request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
 
 select lives_ok($$ insert into public.organisations (name) values ('Owner faction') $$, 'owners can add factions');
+select throws_ok($$ insert into public.organisations (name) values (repeat('x', 61)) $$, '23514', null, 'a 61 character faction name is refused');
+select throws_ok($$ insert into public.organisations (name) values ('   ') $$, '23514', null, 'a blank faction name is refused');
+select is((select convalidated from pg_constraint where conname = 'organisations_name_length'), true, 'the name length rule is a fully checked constraint');
+select lives_ok($$ insert into public.organisations (name) values (repeat('y', 60)) $$, 'a 60 character faction name is allowed');
 select lives_ok($$ update public.organisations set name = 'Renamed union' where id = 900 $$, 'owners can rename factions');
 select throws_ok($$ insert into public.organisations (name) values ('Renamed union') $$, '23505', null, 'faction names are unique');
 select lives_ok($$ delete from public.organisations where id = 900 $$, 'owners can delete factions');

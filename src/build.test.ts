@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { coreContent } from './coreContent'
 import { toItem, toMod, pilotVitals, type CoreBonus, type Talent } from './gameData'
-import { buildFrame, mechEffects, mechResources, mechStats, talentGrants, type Frame, type EffectCatalogue } from './mechData'
+import { buildFrame, mechEffects, mechResources, mechStats, mountBonusesOf, talentGrants, type Frame, type EffectCatalogue } from './mechData'
 import { equipmentDetails, modBlockedBy, modsRefused, selectWeaponProfile } from './equipment'
 import type { Sheet } from './myPilot'
 import type { NamedBonus } from './bonuses'
@@ -38,6 +38,17 @@ describe('complete core character builds', () => {
     expect(base.mounts).toEqual(['Heavy', 'Main'])
     expect(buildFrame(frame(), {}, { core_bonuses: ['cb_improved_armament'] }, talents)!.mounts).toHaveLength(3)
     expect(buildFrame(null, {}, sheet, talents)).toBeNull()
+  })
+  it('gives Improved Armament exactly one Flex mount whether or not the data has an add_mount bonus', () => {
+    const base = { ...frame(), mounts: ['Main'] }
+    const sheet = { core_bonuses: ['cb_improved_armament'] }
+    const withBonus = coreBonuses.map(bonus => (bonus.id === 'cb_improved_armament' ? { ...bonus, bonuses: [{ id: 'add_mount', val: 'flex', max: 3 }] } : bonus))
+    const without = coreBonuses.map(bonus => (bonus.id === 'cb_improved_armament' ? { ...bonus, bonuses: [] } : bonus))
+    for (const cores of [withBonus, without]) {
+      const extra = mountBonusesOf({ frame: base.id }, sheet, { ...catalogue, frames: [base], coreBonuses: cores })
+      expect(extra).toEqual([])
+      expect(buildFrame(base, {}, sheet, talents, extra)!.mounts).toEqual(['Main', 'Flex'])
+    }
   })
   it('includes weapons on structured extra mounts and checks an item against its resulting SP capacity', () => {
     const extra = toItem('extra', { name: 'Extra mount', bonuses: [{ id: 'add_mount', val: 'Main', max: 4 }] })
