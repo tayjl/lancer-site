@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, provide, ref, shallowRef, useTemplate
 import { confirmAction } from '../../confirm'
 import { loadKind } from '../../catalogue'
 import { DUPLICABLE, REFERRING_KINDS, bonusTypesFor, duplicateItem, errorsOf, kindInfo, newId, problemsFor, referencesTo, usedBy, withExoticTag, type Data, type EditorKind, type Problem } from '../../contentEditor'
-import { createItem, deleteItem, homebrewPack, loadSaveLine, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
+import { createItem, deleteItem, homebrewPack, loadList, loadSaveLine, publishItem, revertItem, saveItem, usageOf, type Loaded, type Pack } from '../../editorStore'
 import { invalidateCatalogues, useGameData } from '../../gameData'
 import { alternateOf, licensedFrames, useMechData } from '../../mechData'
 import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
@@ -107,6 +107,9 @@ const rawError = ref('')
 const { frames } = useMechData()
 const { talents, coreBonuses, bionics } = useGameData()
 const licences = computed(() => licensedFrames(frames.value).map((frame) => ({ id: frame.id, name: frame.name, source: frame.source })))
+// Every commendation including hidden ones, for the requirement existence check.
+const commendationIds = ref<string[]>([])
+onMounted(async () => { commendationIds.value = (await loadList('commendations')).rows.map((row) => row.key) })
 const problems = computed<Problem[]>(() => {
   const found = problemsFor(props.kind, working.value, {
     id: props.item?.key ?? String(working.value.id ?? ''),
@@ -117,6 +120,7 @@ const problems = computed<Problem[]>(() => {
     talents: new Set(talents.value.map((talent) => talent.id)),
     coreBonuses: new Set(coreBonuses.value.map((bonus) => bonus.id)),
     alternates: new Set(frames.value.filter((frame) => alternateOf(frame, frames.value)).map((frame) => frame.id)),
+    commendations: new Set(commendationIds.value),
     others: props.names,
   })
   if (isNew && !info.site && props.takenIds.has(String(working.value.id))) found.push({ level: 'error', text: 'That ID is already used by another item.', field: 'id' })

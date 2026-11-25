@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 import { itemMakerId, useManufacturers } from '../../archive'
 import { REQUIREMENT_LABELS } from '../../contentEditor'
+import { loadList, type ListRow } from '../../editorStore'
 import { REQUIREMENT_KINDS, useGameData, type Requirement } from '../../gameData'
 import { licensedFrames, useMechData } from '../../mechData'
 import { makerGroup, type PickOption } from '../../pickerRows'
@@ -22,13 +23,17 @@ const { frames, weapons, systems, mods } = useMechData()
 const makers = useManufacturers()
 const picker = useTemplateRef('picker')
 const picking = ref(0)
+// Hidden commendations are listed too (flagged): a requirement may name a hidden award.
+const commendations = shallowRef<ListRow[]>([])
+onMounted(async () => { commendations.value = (await loadList('commendations')).rows })
 
-const ARTICLE: Record<Row['kind'], string> = { talent: 'a talent', licence: 'a licence', core_bonus: 'a core bonus', item: 'an item' }
-const EMPTY: Record<Row['kind'], string> = { talent: 'No talents.', licence: 'No licences.', core_bonus: 'No core bonuses.', item: 'No items.' }
+const ARTICLE: Record<Row['kind'], string> = { talent: 'a talent', licence: 'a licence', core_bonus: 'a core bonus', item: 'an item', commendation: 'a commendation' }
+const EMPTY: Record<Row['kind'], string> = { talent: 'No talents.', licence: 'No licences.', core_bonus: 'No core bonuses.', item: 'No items.', commendation: 'No commendations.' }
 const options = computed<Record<Row['kind'], PickOption[]>>(() => ({
   talent: talents.value.map((talent) => ({ id: talent.id, name: talent.name })),
   licence: licensedFrames(frames.value).map((frame) => ({ id: frame.id, name: frame.name, group: makerGroup(frame.source, makers.value) })),
   core_bonus: coreBonuses.value.map((bonus) => ({ id: bonus.id, name: bonus.name, group: makerGroup(bonus.source, makers.value) })),
+  commendation: commendations.value.map((award) => ({ id: award.key, name: award.name, meta: award.hidden ? 'Hidden' : '' })),
   item: [
     ...[...weapons.value, ...systems.value, ...mods.value].map((item) => ({ id: item.id, name: item.name, meta: [item.mount, item.type].filter(Boolean).join(' '), group: makerGroup(itemMakerId(item), makers.value) })),
     ...gear.value.map((item) => ({ id: item.id, name: item.name, meta: item.type })),

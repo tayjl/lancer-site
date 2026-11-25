@@ -98,11 +98,13 @@ export const modPointLimit = (level: number, sheet: Sheet, gear: Item[], talents
 
 // What a requirement names that the pilot (or mech) hasn't got: "Brawler II", "IPS-N Drake II", a core bonus, an item. "owned":
 // the item ids that count (on this mech, or owned as pilot gear). Names the lists don't have fall back to the id.
-export type RequirementNames = { frames?: Frame[]; talents?: Talent[]; coreBonuses?: CoreBonus[]; itemName?: (id: string) => string | undefined }
+// "awarded": the ids of the commendations the pilot has (hidden ones count). Without it every commendation need is unmet.
+export type RequirementNames = { frames?: Frame[]; talents?: Talent[]; coreBonuses?: CoreBonus[]; itemName?: (id: string) => string | undefined; commendations?: { id: string; name: string }[]; awarded?: Iterable<string> }
 export function unmetRequirements(data: unknown, sheet: Pick<Sheet, 'talents' | 'licences' | 'core_bonuses'>, owned: Iterable<string>, names: RequirementNames = {}): string[] {
   const have = new Set(owned)
   return requirementsOf(data).flatMap(need => {
     if (need.kind === 'core_bonus') return sheet.core_bonuses?.includes(need.id) ? [] : [names.coreBonuses?.find(bonus => bonus.id === need.id)?.name ?? need.id]
+    if (need.kind === 'commendation') return new Set(names.awarded).has(need.id) ? [] : [names.commendations?.find(commendation => commendation.id === need.id)?.name ?? need.id]
     if (need.kind === 'item') return have.has(need.id) ? [] : [names.itemName?.(need.id) ?? need.id]
     const rank = Number((need as { rank?: unknown }).rank) || 1
     if (((need.kind === 'talent' ? sheet.talents : sheet.licences)?.[need.id] ?? 0) >= rank) return []
@@ -116,7 +118,7 @@ export const requirementReason = (unmet: string[]) => (unmet.length ? `Needs ${u
 export const licenceLevel = (sheet: Sheet) => sum(sheet.licences)
 export const coreBonusPicks = (sheet: Sheet) => Math.floor(licenceLevel(sheet) / 3)
 
-export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBonus[], talents: Talent[] = []): string[] {
+export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBonus[], talents: Talent[] = [], awards: Pick<RequirementNames, 'commendations' | 'awarded'> = {}): string[] {
   const problems: string[] = []
   const taken = sheet.core_bonuses ?? []
   const picks = coreBonusPicks(sheet)
@@ -131,7 +133,7 @@ export function coreBonusProblems(sheet: Sheet, frames: Frame[], bonuses: CoreBo
       continue
     }
     if (taken.filter((other) => other === id).length > 1) problems.push(`${bonus.name} can only be taken once.`)
-    for (const thing of unmetRequirements(bonus, sheet, [], { frames, talents, coreBonuses: bonuses })) problems.push(`${bonus.name} needs ${thing}.`)
+    for (const thing of unmetRequirements(bonus, sheet, [], { frames, talents, coreBonuses: bonuses, ...awards })) problems.push(`${bonus.name} needs ${thing}.`)
     const source = bonus.source.trim().toUpperCase()
     if (!source) problems.push(`${bonus.name} has no manufacturer.`)
     else if (source !== 'GMS') manufacturers.set(source, (manufacturers.get(source) ?? 0) + 1)
@@ -277,6 +279,9 @@ export type Catalogue = {
   talents?: Talent[]
   gear?: Item[]
   bionics?: Bionic[]
+  // Commendation requirements: the commendations (for names) and the ids the pilot has. The caller adds them, they depend on the pilot.
+  commendations?: { id: string; name: string }[]
+  awarded?: Iterable<string>
 }
 
 // The loaded game content, in the shape the rule checks (and mechEffects) read. Empty until the catalogues arrive.
@@ -421,7 +426,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
   const known = [...fitted, ...installed.filter((item): item is Item => !!item), ...mods]
   // Requirements: the frame and every item on the mech, met by what's equipped on it.
   const onMech = new Set([...frame.integrated, ...(mech.systems ?? []), ...(mech.mounts ?? []).flat().filter((id): id is string => !!id), ...Object.values(mech.weapon_mods ?? {})])
-  const names = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, itemName: (id: string) => lookup(catalogue.weapons, id)?.name ?? lookup(catalogue.systems, id)?.name ?? catalogue.mods?.get(id)?.name }
+  const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, commendations: catalogue.commendations, awarded: catalogue.awarded, itemName: (id: string) => lookup(catalogue.weapons, id)?.name ?? lookup(catalogue.systems, id)?.name ?? catalogue.mods?.get(id)?.name }
   for (const [name, data] of [[`The ${frame.name} frame`, baseFrame.raw], ...known.map(item => [item.name, item.raw] as const)] as const)
     for (const thing of unmetRequirements(data, sheet, onMech, names)) problems.push(`${name} needs ${thing}.`)
   for (const item of new Set(known.filter(isUnique)))
@@ -442,7 +447,7 @@ export function mechProblems(mech: MechPrivate, sheet: Sheet, catalogue: Catalog
 // "live" is the pilot's approved sheet (null for a never-approved pilot), for the gear that's free.
 export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, mechNames: Record<string, string>, live: Sheet | null, grants: Grants = {}): string[] {
   const problems = personalStatProblems(sheet.pilot_stats)
-  const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, itemName: id => catalogue.gear?.find(gear => gear.id === id)?.name }
+  const names: RequirementNames = { frames: catalogue.frames, talents: catalogue.talents, coreBonuses: catalogue.coreBonuses, commendations: catalogue.commendations, awarded: catalogue.awarded, itemName: id => catalogue.gear?.find(gear => gear.id === id)?.name }
   const spent = mannaSpent(sheet, catalogue.bionicPrices ?? new Map(), Object.keys(mechNames).length, catalogue.gear ?? [], live, grants)
   if (spent > gm.manna) problems.push(`${spent} manna spent, but only ${gm.manna} received.`)
 
@@ -489,7 +494,7 @@ export function pilotProblems(sheet: Sheet, gm: GmFields, catalogue: Catalogue, 
   for (const bionic of catalogue.bionics ?? [])
     if (sheet.bionics?.includes(bionic.id)) for (const thing of unmetRequirements(bionic, sheet, [], names)) problems.push(`${bionic.name} needs ${thing}.`)
   if (new Set(sheet.bionics ?? []).size !== (sheet.bionics?.length ?? 0)) problems.push('A biomod can only be installed once.')
-  problems.push(...coreBonusProblems(sheet, catalogue.frames, catalogue.coreBonuses ?? [], catalogue.talents ?? []))
+  problems.push(...coreBonusProblems(sheet, catalogue.frames, catalogue.coreBonuses ?? [], catalogue.talents ?? [], catalogue))
 
   for (const [mechId, mech] of Object.entries(sheet.mechs ?? {}))
     for (const problem of mechProblems(mech, sheet, catalogue)) problems.push(`${mechNames[mechId] ?? 'A mech'}: ${problem}`)

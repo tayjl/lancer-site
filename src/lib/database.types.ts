@@ -39,39 +39,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      bionic_bonuses: {
-        Row: {
-          amount: number
-          bionic_id: number
-          stat_id: string
-        }
-        Insert: {
-          amount: number
-          bionic_id: number
-          stat_id: string
-        }
-        Update: {
-          amount?: number
-          bionic_id?: number
-          stat_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bionic_bonuses_bionic_id_fkey"
-            columns: ["bionic_id"]
-            isOneToOne: false
-            referencedRelation: "bionics"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bionic_bonuses_stat_id_fkey"
-            columns: ["stat_id"]
-            isOneToOne: false
-            referencedRelation: "pilot_stats"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       bionics: {
         Row: {
           actions: Json

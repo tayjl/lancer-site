@@ -1,4 +1,4 @@
-import { ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { Tables } from './lib/database.types'
 import { checkWrite, fetchAll, supabase } from './lib/supabaseClient'
 
@@ -6,7 +6,7 @@ import { checkWrite, fetchAll, supabase } from './lib/supabaseClient'
 // (the content editor's Commendations tab); an award ties one to a pilot with an optional reason. Both are public to
 // every logged-in user. Awarding also writes an automatic service-record entry (a database trigger).
 
-export type Commendation = Pick<Tables<'commendations'>, 'id' | 'name' | 'description' | 'icon' | 'updated_at'>
+export type Commendation = Pick<Tables<'commendations'>, 'id' | 'name' | 'description' | 'icon' | 'updated_at' | 'hidden'>
 export type Award = {
   id: string
   reason: string
@@ -27,8 +27,9 @@ export const ICON_CHOICES = [
 // The icon to draw for a stored name: itself when it's in the set, else the plain medal.
 export const awardIcon = (name: string) => (ICON_CHOICES.includes(name) ? name : 'medal')
 
+// Every commendation, hidden ones too (they still count for requirements): pickers filter with offered().
 export async function loadCommendations(): Promise<{ rows: Commendation[]; error: string | null }> {
-  return fetchAll((from, to) => supabase.from('commendations').select('id, name, description, icon, updated_at').eq('hidden', false).order('name').order('id').range(from, to))
+  return fetchAll((from, to) => supabase.from('commendations').select('id, name, description, icon, updated_at, hidden').order('name').order('id').range(from, to))
 }
 
 // One pilot's awards, oldest first, and the GM's writes (award, revoke). Writes return an error message, or null.
@@ -64,4 +65,11 @@ export function usePilotAwards(characterId: () => number | undefined) {
   }
 
   return { awards, loaded, load, award, revoke }
+}
+
+// What rules.ts needs to check commendation requirements for one pilot: the commendations (for names) and the ids they have.
+export function useRequirementAwards(pilotAwards: ReturnType<typeof usePilotAwards>) {
+  const commendations = shallowRef<Commendation[]>([])
+  loadCommendations().then(({ rows }) => (commendations.value = rows))
+  return computed(() => ({ commendations: commendations.value, awarded: pilotAwards.awards.value.map((a) => a.commendation.id) }))
 }

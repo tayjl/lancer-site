@@ -262,15 +262,8 @@ select lives_ok(
 set local request.jwt.claim.sub = '44444444-4444-4444-4444-444444444444';
 
 select lives_ok(
-  $$ with b as (
-       insert into public.bionics (name, manna_cost, mod_point_cost) values ('Reflex Booster', 100, 1) returning id
-     )
-     insert into public.bionic_bonuses (bionic_id, stat_id, amount) select id, 'dexterity', 2 from b $$,
-  'owners can add bionics and their bonuses');
-select throws_ok(
-  $$ insert into public.bionic_bonuses (bionic_id, stat_id, amount)
-     select id, 'charisma', 1 from public.bionics where name = 'Reflex Booster' $$,
-  '23503', null, 'a bonus must point at a stat that exists');
+  $$ insert into public.bionics (name, manna_cost, mod_point_cost) values ('Reflex Booster', 100, 1) $$,
+  'owners can add bionics');
 select throws_ok(
   $$ delete from public.bionics where name = 'Reflex Booster' $$,
   '42501', null, 'bionics cannot be deleted, only retired');

@@ -42,9 +42,9 @@ export type Bonus = {
   detail?: string
   [key: string]: unknown
 }
-// What an item, core bonus, talent, frame or biomod needs before it can be used: a talent or licence rank, a core bonus, or another item.
-export type Requirement = { kind: 'talent' | 'licence'; id: string; rank: number } | { kind: 'core_bonus' | 'item'; id: string }
-export const REQUIREMENT_KINDS = ['talent', 'licence', 'core_bonus', 'item'] as const
+// What an item, core bonus, talent, frame or biomod needs before it can be used: a talent or licence rank, a core bonus, a commendation, or another item.
+export type Requirement = { kind: 'talent' | 'licence'; id: string; rank: number } | { kind: 'core_bonus' | 'item' | 'commendation'; id: string }
+export const REQUIREMENT_KINDS = ['talent', 'licence', 'core_bonus', 'commendation', 'item'] as const
 export const requirementsOf = (data: unknown): Requirement[] => {
   const list = (data as { requires?: unknown } | null | undefined)?.requires
   return (Array.isArray(list) ? list : []).filter((entry): entry is Requirement =>

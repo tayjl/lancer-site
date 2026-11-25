@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { REASON_MAX, loadCommendations, type Commendation, usePilotAwards } from '../commendations'
+import { offered } from '../catalogue'
 import { confirmAction } from '../confirm'
 import { formatDate } from '../time'
 import MedalBadge from './MedalBadge.vue'
@@ -22,7 +23,7 @@ const message = ref('')
 
 onMounted(async () => {
   const { rows, error: failed } = await loadCommendations()
-  choices.value = rows
+  choices.value = offered(rows)
   choicesError.value = failed ?? ''
   loadedChoices.value = true
 })

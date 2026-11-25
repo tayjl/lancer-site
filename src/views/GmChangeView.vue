@@ -15,6 +15,7 @@ import { useGameData } from '../gameData'
 import type { Character, PendingChange, Sheet } from '../myPilot'
 import { useMechData } from '../mechData'
 import { gearPrice, licenceName, mannaSpent, mechCount, pilotProblems, personalStatProblems, formatAmount, useCatalogue, type Grants } from '../rules'
+import { usePilotAwards, useRequirementAwards } from '../commendations'
 import { cardImages, deleteImage } from '../images'
 import type { Json } from '../lib/database.types'
 import { supabase } from '../lib/supabaseClient'
@@ -39,7 +40,10 @@ const error = ref('')
 
 const { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses } = useGameData()
 const { frames, weapons, systems, mods, integrated } = useMechData()
-const catalogue = useCatalogue()
+const base = useCatalogue()
+// The pilot under review: commendation requirements count what they have now.
+const needs = useRequirementAwards(usePilotAwards(() => change.value?.character_id))
+const catalogue = computed(() => ({ ...base.value, ...needs.value }))
 
 async function load() {
   const { data: row, error: loadError } = await supabase.from('pending_changes').select('*').eq('id', Number(route.params.id)).maybeSingle()

@@ -36,7 +36,7 @@ import StatRow from '../components/StatRow.vue'
 import StatSources from '../components/StatSources.vue'
 import { BANNER_SIDE, cardImages, deleteImage } from '../images'
 import { supabase } from '../lib/supabaseClient'
-import { usePilotAwards } from '../commendations'
+import { useRequirementAwards, usePilotAwards } from '../commendations'
 import { displayColour } from '../pilotColour'
 import { useServiceRecord } from '../serviceRecord'
 import { BANNER_CENTRED, MOTTO_MAX, usePilotProfile, type BannerPosition, type ProfileFields } from '../pilotProfile'
@@ -294,7 +294,9 @@ const vitals = computed(() => [
 
 // --- Level and manna (set by GMs), what manna buys, and the rule check (src/rules.ts; docs/lancer-rules.md) ---
 const { frames, weapons, systems, mods } = useMechData()
-const catalogue = useCatalogue()
+const base = useCatalogue()
+const needs = useRequirementAwards(awards) // commendation requirements
+const catalogue = computed(() => ({ ...base.value, ...needs.value }))
 // The approved sheet, which says which owned gear was free; null for a pilot never approved (its first full loadout is free).
 const live = computed(() => (character.value?.status === 'pending' ? null : (approved.value?.sheet ?? sheet.value)))
 const spent = computed(() => mannaSpent(sheet.value, bionicPrices.value, mechs.value.length, gear.value, live.value, grants.value))
@@ -305,7 +307,7 @@ const balance = computed(() => (!canSeeManna.value ? Infinity : gm.value.manna) 
 // licence level. A licence held under an alternate's own id (bought before alternates shared one) still shows, "stale", so it
 // can be lowered or removed; the rule check says why.
 // What an item, talent, core bonus or frame still needs of this pilot, as a picker's blocked reason ("Needs Brawler II").
-const needsOf = (data: unknown) => requirementReason(unmetRequirements(data, sheet.value, (sheet.value.owned_gear ?? []).map((owned) => owned.id), { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, itemName: (id) => gear.value.find((item) => item.id === id)?.name }))
+const needsOf = (data: unknown) => requirementReason(unmetRequirements(data, sheet.value, (sheet.value.owned_gear ?? []).map((owned) => owned.id), { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, ...needs.value, itemName: (id) => gear.value.find((item) => item.id === id)?.name }))
 const licenceOptions = computed(() => {
   const option = (frame: Frame, stale = false) => ({ id: frame.id, needs: needsOf(frame.raw), name: licenceName(frames.value, frame.id), hidden: frame.hidden, meta: frame.mechtype.join('/'), info: () => frameInfo(frame, frames.value), ...restrictionOf(frame), stale })
   const originals = licensedFrames(frames.value)

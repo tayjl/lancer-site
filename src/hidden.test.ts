@@ -58,13 +58,13 @@ describe('hidden factions and commendations', () => {
     expect((await loadList('systems')).rows[0].facts).toBe('System')
     expect((await loadList('weapons')).rows[0].facts).toBe('System')
   })
-  it('are left out of the award picker only', async () => {
+  it('are loaded with the rest for requirements, and left out of the award picker only', async () => {
+    answers.commendations = [{ id: 'a', name: 'Open', hidden: false }, { id: 'b', name: 'Quiet', hidden: true }]
     filters.length = 0
-    await loadCommendations()
-    expect(filters).toContainEqual(['commendations', 'hidden', false])
-    filters.length = 0
-    await loadList('commendations')
+    const { rows } = await loadCommendations()
+    expect(rows.map((row) => row.id)).toEqual(['a', 'b'])
     expect(filters).not.toContainEqual(['commendations', 'hidden', false])
+    expect(offered(rows).map((row) => row.id)).toEqual(['a'])
   })
 })
 
@@ -97,6 +97,6 @@ describe('pickers hide hidden content', () => {
   })
   it('filter the reputation list, and the award picker through its loader', () => {
     expect(source('components/ReputationPanel.vue')).toContain('hidden')
-    expect(source('components/CommendationAward.vue')).toContain('loadCommendations')
+    expect(source('components/CommendationAward.vue')).toContain('offered(rows)')
   })
 })

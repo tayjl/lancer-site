@@ -145,6 +145,22 @@ describe('requirements', () => {
     expect(need(null, { kind: 'bogus', id: 'x' }, { kind: 'item' })).toEqual([])
     expect(unmetRequirements({ requires: 'nope' }, sheet, [])).toEqual([])
   })
+  it('needs a commendation the pilot was awarded, hidden or not', () => {
+    const medal = { requires: [{ kind: 'commendation', id: 'c1' }] }
+    const commendations = [{ id: 'c1', name: 'Medal' }]
+    expect(unmetRequirements(medal, sheet, [], { commendations, awarded: ['c1'] })).toEqual([])
+    expect(unmetRequirements(medal, sheet, [], { commendations, awarded: new Set(['c2']) })).toEqual(['Medal'])
+    expect(unmetRequirements(medal, sheet, [], { commendations })).toEqual(['Medal'])
+    expect(unmetRequirements(medal, sheet, [], { awarded: [] })).toEqual(['c1'])
+    expect(requirementReason(unmetRequirements(medal, sheet, [], { commendations }))).toBe('Needs Medal')
+  })
+  it('lists a commendation need in the pilot check, and clears it once awarded', () => {
+    const gear = item('g', { type: 'Gear', requires: [{ kind: 'commendation', id: 'c1' }] })
+    const owned = { owned_gear: [{ key: 'k', id: 'g' }] }
+    const run = (awarded?: string[]) => pilotProblems(owned, { level: 5, manna: 99999 }, { ...catalogue(), gear: [gear], commendations: [{ id: 'c1', name: 'Medal' }], awarded }, {}, null)
+    expect(run()).toContain('g needs Medal.')
+    expect(run(['c1'])).not.toContain('g needs Medal.')
+  })
   it('reports a saved mech whose item needs something it lacks', () => {
     const picky = item('ms_picky', { type: 'System', mount: '', requires: [{ kind: 'item', id: 'ms_other' }] })
     const problems = mechProblems({ frame: 'mf_test', systems: ['ms_picky'] }, {}, catalogue({ systems: new Map([['ms_picky', picky]]) }))
@@ -160,7 +176,7 @@ describe('requirements', () => {
 })
 
 describe('editor checks for the new fields', () => {
-  const ctx = { id: 'x', tags: new Map([['tg_ap', 'AP']]), statIds: [], known: new Set(['ms_a']), licences: new Set(['mf_a']), talents: new Set(['t_a']), coreBonuses: new Set(['cb_a']) }
+  const ctx = { id: 'x', tags: new Map([['tg_ap', 'AP']]), statIds: [], known: new Set(['ms_a']), licences: new Set(['mf_a']), talents: new Set(['t_a']), coreBonuses: new Set(['cb_a']), commendations: new Set(['c_a']) }
   const check = (kind: 'systems' | 'weapons', extra: Record<string, unknown>) => problemsFor(kind, { id: 'x', name: 'X', ...extra }, ctx).map(problem => problem.text)
   it('accepts the new bonus ids and rejects bad values', () => {
     expect(check('systems', { bonuses: [{ id: 'cheap_struct', val: 0 }, { id: 'replace_mount', val: 'Heavy' }, { id: 'drone_armor', val: 1 }, { id: 'add_tags', val: [{ id: 'tg_ap' }], weapon_sizes: ['Main'] }, { id: 'damage', val: 2, damage_type: 'Heat', damage_types: ['Kinetic'] }] })).toEqual([])
@@ -173,6 +189,8 @@ describe('editor checks for the new fields', () => {
     expect(check('weapons', { mount: 'Main', type: 'Rifle', requires: [{ kind: 'talent', id: 't_a', rank: 2 }, { kind: 'licence', id: 'mf_a', rank: 1 }, { kind: 'core_bonus', id: 'cb_a' }, { kind: 'item', id: 'ms_a' }] })).toEqual([])
     expect(check('weapons', { mount: 'Main', type: 'Rifle', requires: [{ kind: 'x', id: 'a' }, { kind: 'item' }, { kind: 'talent', id: 't_a', rank: 4 }, { kind: 'core_bonus', id: 'nope' }] }))
       .toEqual(['Requirement 1 needs a kind.', 'Requirement 2 needs choosing.', 'Requirement 3 needs a rank, I, II or III.', 'Requirement 4: Core bonus "nope" doesn\'t exist.'])
+    expect(check('weapons', { mount: 'Main', type: 'Rifle', requires: [{ kind: 'commendation', id: 'c_a' }] })).toEqual([])
+    expect(check('weapons', { mount: 'Main', type: 'Rifle', requires: [{ kind: 'commendation', id: 'nope' }] })).toEqual(['Requirement 1: Commendation "nope" doesn\'t exist.'])
     expect(check('systems', { integrated: ['gone'], replace_integrated: 'yes' })).toEqual(['Item "gone" doesn\'t exist.', 'Replace integrated must be yes or no.'])
   })
   it('checks a biomod\'s effect bonuses and requirements', () => {

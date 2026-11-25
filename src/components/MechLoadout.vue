@@ -11,7 +11,7 @@ import { modBlockedBy, modsRefused } from '../equipment'
 import { defIds, mountHint as mountHintOf, mountIs } from '../definitions'
 import { allowedSizes, fittedMods, mountReplacements, mountSize, type Frame } from '../mechData'
 import type { MechPrivate, Sheet } from '../myPilot'
-import { bracingMount, isLicensed, licenceName, rankName, isExotic, requirementReason, restrictionOf, superheavyMount, unmetRequirements } from '../rules'
+import { bracingMount, isLicensed, licenceName, rankName, isExotic, requirementReason, restrictionOf, superheavyMount, unmetRequirements, type RequirementNames } from '../rules'
 import { useGmOverride, useRestriction } from '../restriction'
 import { withoutNote } from '../itemNotes'
 import ItemPicker from './ItemPicker.vue'
@@ -41,6 +41,8 @@ const props = defineProps<{
   sheet: Sheet
   details: MechPrivate
   bonuses: NamedBonus[]
+  // Commendation requirements (useRequirementAwards).
+  needs?: Pick<RequirementNames, 'commendations' | 'awarded'>
   capacityFor: (changes: Partial<MechPrivate>) => { sp: number; ai: number }
   save: (changes: Partial<MechPrivate>) => Promise<string | null>
 }>()
@@ -160,7 +162,7 @@ const options = computed(() => {
     const capacity = props.capacityFor(changes)
     const swapped = leaving.reduce((sum, id) => sum + (id ? (weaponsById.value.get(id) ?? modsById.value.get(id))?.sp ?? 0 : 0), 0)
     if (!isLicensed(item, props.licences)) return `Needs ${licenceName(props.frames, item.licenceId)} ${rankName(item.licenceLevel)}`
-    const unmet = unmetRequirements(item.raw, props.sheet, onMech, { frames: props.frames, talents: talents.value, coreBonuses: coreBonuses.value, itemName: id => (systemsById.value.get(id) ?? weaponsById.value.get(id) ?? modsById.value.get(id) ?? props.integrated.get(id))?.name })
+    const unmet = unmetRequirements(item.raw, props.sheet, onMech, { frames: props.frames, talents: talents.value, coreBonuses: coreBonuses.value, ...props.needs, itemName: id => (systemsById.value.get(id) ?? weaponsById.value.get(id) ?? modsById.value.get(id) ?? props.integrated.get(id))?.name })
     if (unmet.length) return requirementReason(unmet)
     if (t.kind === 'mod') { const why = modBlockedBy(item, t.weapon, props.frame?.mounts[t.m] ?? '', props.details.weapon_options?.[key]); if (why) return why }
     if (has('tg_unique') && onMech.includes(item.id)) return 'Already on this mech'

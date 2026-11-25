@@ -222,6 +222,7 @@ export type Context = {
   // Every talent and core bonus id, for requirements.
   talents?: Set<string>
   coreBonuses?: Set<string>
+  commendations?: Set<string>
   // The frames that are themselves alternates of another (an alternate can't be of one of these).
   alternates?: Set<string>
   // The other factions' or commendations' names, for the one-of-a-name check.
@@ -388,7 +389,7 @@ function checkGrants(data: Data, ctx: Context, out: Problem[], at = '', who = ''
 }
 
 // What an item needs first (src/rules.ts unmetRequirements): a talent or licence rank, a core bonus or another item.
-export const REQUIREMENT_LABELS: Record<(typeof REQUIREMENT_KINDS)[number], string> = { talent: 'Talent', licence: 'Licence', core_bonus: 'Core bonus', item: 'Item' }
+export const REQUIREMENT_LABELS: Record<(typeof REQUIREMENT_KINDS)[number], string> = { talent: 'Talent', licence: 'Licence', core_bonus: 'Core bonus', commendation: 'Commendation', item: 'Item' }
 function checkRequires(data: Data, ctx: Context, out: Problem[]) {
   if (data.requires === undefined) return
   if (!Array.isArray(data.requires)) return void out.push(error('Requirements must be a list.', 'requires'))
@@ -397,7 +398,7 @@ function checkRequires(data: Data, ctx: Context, out: Problem[]) {
     const n = index + 1, at = `requires.${index}`
     const kind = (REQUIREMENT_KINDS as readonly string[]).includes(String(row.kind)) ? (row.kind as (typeof REQUIREMENT_KINDS)[number]) : undefined
     const id = String(row.id ?? '')
-    const known = kind === 'talent' ? ctx.talents : kind === 'licence' ? ctx.licences : kind === 'core_bonus' ? ctx.coreBonuses : ctx.known
+    const known = kind === 'talent' ? ctx.talents : kind === 'licence' ? ctx.licences : kind === 'core_bonus' ? ctx.coreBonuses : kind === 'commendation' ? ctx.commendations : ctx.known
     if (!kind) out.push(error(`Requirement ${n} needs a kind.`, `${at}.kind`))
     else if (!id) out.push(error(`Requirement ${n} needs choosing.`, `${at}.id`))
     else if (known && !known.has(id)) out.push(error(`Requirement ${n}: ${REQUIREMENT_LABELS[kind]} "${id}" doesn't exist.`, `${at}.id`))

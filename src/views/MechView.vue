@@ -40,6 +40,7 @@ import { usePilotProfile } from '../pilotProfile'
 import { radarAxes } from '../mechOverview'
 import { pilotList } from '../router'
 import { frameBlockedBy, isExotic, mechProblems, requirementReason, restrictionOf, unmetRequirements, useCatalogue } from '../rules'
+import { usePilotAwards, useRequirementAwards } from '../commendations'
 import { GM_EDIT, useRestriction } from '../restriction'
 
 // One of your mechs, opened from the hangar on my pilot, as one scrolling file like the pilot's: a spec sheet at the
@@ -77,7 +78,10 @@ const details = computed<MechPrivate>(() => sheet.value.mechs?.[mechId.value] ??
 
 const { frames, weapons, systems, mods, integrated } = useMechData()
 const { talents, coreBonuses } = useGameData()
-const catalogue = useCatalogue()
+const base = useCatalogue()
+const awards = usePilotAwards(() => character.value?.id)
+const needs = useRequirementAwards(awards) // commendation requirements
+const catalogue = computed(() => ({ ...base.value, ...needs.value }))
 const baseFrame = computed(() => frames.value.find((f) => f.id === details.value.frame) ?? null)
 // The manufacturer's colour (--mf, from the packs, so new manufacturers just work) is decoration only, as much as the
 // pilot colour gets on the pilot page: the plate (logo, top border, faint band), the section dashes and the stat tiles' top strip. A maker with no colour
@@ -209,7 +213,7 @@ const frameOptions = computed(() => {
     name: f.name,
     ...framePick(f, ranges, manufacturers.value, frames.value),
     exotic: isExotic(f),
-    blocked: reasonFor(restrictionOf(f)) || (gmEditing.value ? '' : frameBlockedBy(f, frames.value, sheet.value) || requirementReason(unmetRequirements(f.raw, sheet.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name }))),
+    blocked: reasonFor(restrictionOf(f)) || (gmEditing.value ? '' : frameBlockedBy(f, frames.value, sheet.value) || requirementReason(unmetRequirements(f.raw, sheet.value, onMech.value, { frames: frames.value, talents: talents.value, coreBonuses: coreBonuses.value, ...needs.value, itemName: (id) => catalogue.value.weapons.get(id)?.name ?? catalogue.value.systems.get(id)?.name ?? catalogue.value.mods?.get(id)?.name }))),
     info: () => frameInfo(f, frames.value),
   }))
 })
@@ -427,6 +431,7 @@ async function scrap() {
               :installed="details.systems ?? []"
               :sp-total="spTotal"
               :editable="editable"
+              :needs="needs"
               :save="saveLoadout"
             />
           </FileSection>
