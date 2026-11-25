@@ -6,7 +6,9 @@ Character tracker for one big homebrew LANCER campaign run on Discord (few GMs, 
 - **Scope (2026-10-29): character management only**: submission → approval and change → approval, easy manna spending, easy GM levelling, LCP import and owner content editor. Also: archives, lore, pithub (hidden lore), combat guide (rules reference, no board), reputation (GM only). Clear and simple over stylised. No deadline: quality over speed.
 
 ## Working with me
-- I'm a junior developer. Mentor me in plain English and explain jargon. **Don't write code unless I explicitly ask**: explain, review, point the way.
+- Write code directly when I ask for work. Explain or mentor only when I ask.
+- Code goals: efficient, minimal, readable. Smallest complete change: reuse what exists, no abstractions, options or "for later" code nobody asked for. Deletion beats addition. Comment only the why.
+- Replies: short and plain. End with what you skipped or didn't check.
 - When I ask for work: main Claude plans, briefs and reviews; a custom subagent builds. Small edits stay in the main session.
 
 ## Subagent orchestration
@@ -16,6 +18,7 @@ Character tracker for one big homebrew LANCER campaign run on Discord (few GMs, 
 - **No duplicated design:** the plan is feature/architecture level. Don't write a UI spec if ui-designer will. Small UI tweak: skip ui-designer, give ui-implementer a 2-sentence brief.
 - **Order:** database-architect, ts-developer and ui-implementer in parallel when files don't overlap. Then security-auditor after any DB/auth/RLS change, ux-reviewer after any UI change. Reviewers own verification.
 - **Handoff:** self-contained brief: exact paths, explorer findings (file:line), scratchpad path, dev server URL. One batched brief per agent. Never paste chat history.
+- One brief = one reviewable step (aim under ~100 turns). Split big phases into agents run one after another, each starting fresh from the files.
 - Smallest complete diff, reuse existing code. Run commands quietly (`| tail -n 30` / `| Select-Object -Last 30`).
 - End of a feature: update [STATUS.md](STATUS.md) (state, unpushed work, hosted migrations, next steps).
 
