@@ -1,5 +1,6 @@
 import { HOMEBREW_PACK, KINDS, isObject, withExoticTag, type Data, type EditorKind } from './contentEditor'
 import type { Json } from './lib/database.types'
+import { defLabel } from './definitions'
 import { LCP_KINDS, writeLcp, type LcpKind } from './lcp'
 import { CHANGED_ELSEWHERE, NOT_ALLOWED, checkWrite, fetchAll, supabase } from './lib/supabaseClient'
 import { plural } from './text'
@@ -83,7 +84,7 @@ export async function loadList(kind: EditorKind): Promise<{ rows: ListRow[]; err
     rows: rows.map((row) => {
       const r = row as unknown as { id: string; pack_id: number; draft: boolean; name: string | null; edited_name: string | null; type: string | null; mount: string | null; source: string | null; edited_source: string | null; edited_id: string | null; hidden: string | null; edited_hidden: string | null; activation: string | null; edited_activation: string | null } & Record<string, string | number[] | null>
       const rule = kind === 'rules' ? ruleFields(r) : null
-      return { key: r.id, kind, name: r.edited_name ?? r.name ?? r.id, facts: rule ? rule.facts : [r.mount, r.type, ...(kind === 'actions' ? [r.edited_activation ?? r.activation] : []), ...(MAKER_KINDS.includes(kind) ? [] : [r.source])].filter(Boolean).join(' · '), packId: r.pack_id, draft: r.draft, edited: r.edited_id !== null, hidden: (r.edited_hidden ?? r.hidden) === 'true', source: r.edited_source ?? r.source ?? '', ...rule?.fields }
+      return { key: r.id, kind, name: r.edited_name ?? r.name ?? r.id, facts: rule ? rule.facts : [r.mount, kind === 'pilot_gear' ? r.type && defLabel('gear_types', r.type) : kind === 'systems' ? r.type && defLabel('system_types', r.type) : r.type, ...(kind === 'actions' ? [r.edited_activation ?? r.activation] : []), ...(MAKER_KINDS.includes(kind) ? [] : [r.source])].filter(Boolean).join(' · '), packId: r.pack_id, draft: r.draft, edited: r.edited_id !== null, hidden: (r.edited_hidden ?? r.hidden) === 'true', source: r.edited_source ?? r.source ?? '', ...rule?.fields }
     }),
     error,
   }

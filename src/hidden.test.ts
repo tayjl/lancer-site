@@ -51,6 +51,13 @@ describe('hidden factions and commendations', () => {
     expect((await loadList('factions')).rows.map((r) => [r.name, r.hidden])).toEqual([['Open', false], ['Quiet', true]])
     expect((await loadList('commendations')).rows.map((r) => r.hidden)).toEqual([true])
   })
+  it('show gear and system types by their label', async () => {
+    answers.content_items = [{ id: 'g', pack_id: 1, draft: false, name: 'Light Hardsuit', type: 'Armor', source: null }]
+    expect((await loadList('pilot_gear')).rows[0].facts).toBe('Armour')
+    answers.content_items = [{ id: 's', pack_id: 1, draft: false, name: 'Sys', type: 'System', edited_id: null }]
+    expect((await loadList('systems')).rows[0].facts).toBe('System')
+    expect((await loadList('weapons')).rows[0].facts).toBe('System')
+  })
   it('are left out of the award picker only', async () => {
     filters.length = 0
     await loadCommendations()

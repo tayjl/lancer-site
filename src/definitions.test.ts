@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import definitionsSql from '../supabase/migrations/20261124120000_game_definitions.sql?raw'
 import cleanup4aSql from '../supabase/migrations/20261125110000_content_cleanup_4a.sql?raw'
 import { DEFAULT_DEFINITIONS, defColour, defData, defIcon, defIds, defLabel, defList, definitionRows, loadDefinitions, type DefKind } from './definitions'
-import { mountHint, mountIs, mountSlots, mountsWith } from './definitions'
+import { mountHint, mountIs, mountSlots, mountsWith, onPilotCard } from './definitions'
 import cleanup4bSql from '../supabase/migrations/20261125120000_content_cleanup_4b.sql?raw'
+import cleanup4cSql from '../supabase/migrations/20261125130000_content_cleanup_4c.sql?raw'
 import { allowedSizes, mountSize } from './mechData'
 import { activationOf, symbolOf } from './itemDetails'
 import { actionKey } from './combatEntries'
@@ -17,7 +18,8 @@ const seedRow = /^\s*\('(\w+)', '([^']*)', '([^']*)', '(\{.*?\})', (\d+)(, true)
 const flagRow = /set data = data \|\| '(\{.*?\})' where kind = '(\w+)' and id = '([^']*)'/g
 const seed = [...definitionsSql.matchAll(seedRow), ...cleanup4aSql.matchAll(seedRow), ...cleanup4bSql.matchAll(seedRow)]
   .map(([, kind, id, label, data, sort, hidden]) => ({ kind, id, label, data: JSON.parse(data), sort: Number(sort), hidden: !!hidden }))
-for (const [, flag, kind, id] of cleanup4bSql.matchAll(flagRow)) Object.assign(seed.find((r) => r.kind === kind && r.id === id)!.data, JSON.parse(flag))
+for (const [, flag, kind, id] of [...cleanup4bSql.matchAll(flagRow), ...cleanup4cSql.matchAll(flagRow)]) Object.assign(seed.find((r) => r.kind === kind && r.id === id)!.data, JSON.parse(flag))
+for (const [, label, kind, id] of cleanup4cSql.matchAll(/set label = '([^']*)' where kind = '(\w+)' and id = '([^']*)'/g)) seed.find((r) => r.kind === kind && r.id === id)!.label = label
 const row = (kind: string, id: string, extra: object = {}) => ({ kind, id, label: id, data: {}, sort: 0, hidden: false, ...extra })
 
 describe('built-in definitions', () => {
@@ -65,6 +67,12 @@ describe('mount types', () => {
     expect(mountsWith('integrated')).toEqual(['Hidden bay'])
     expect(mountsWith('superheavy')).toEqual([])
     expect(mountIs('hidden bay', 'integrated')).toBe(true)
+  })
+
+  it('find the gear types drawn as pilot cards', () => {
+    expect(['Armor', 'Gear', 'Weapon', 'Nope'].map(onPilotCard)).toEqual([true, true, false, false])
+    definitionRows.value = [row('gear_types', 'Weapon', { data: { pilotCard: true } }), row('gear_types', 'Gear')]
+    expect([onPilotCard('Weapon'), onPilotCard('Gear')]).toEqual([true, false])
   })
 
   it('take the places of an owner-added mount from its row, and survive bad data', () => {

@@ -10,10 +10,27 @@ Scratchpad files from the session (may be gone): `content-audit.md` (phase 0 aud
 - Steps 2, 3 and 4a are committed, pushed and live (`origin/main` `6f35d38`; step 4a code `17f91be`, docs `6f35d38`; steps 2 and 3 code `1f028ba`, `e899ecf`, `b0e4bf9`, docs `c7ff4b7`). Pushed 2026-11-25.
 - Migration `20261125100000_content_cleanup_3b` (3b) is applied to hosted (2026-11-25, before the push). The CLI printed no NOTICE lines, so check hosted rows with an `edited` value to see whether owner-edited rows were touched.
 - **Step 4a is done and pushed** (0.3, status groups and damage type guide text). Migration `20261125110000_content_cleanup_4a` is applied to hosted before the push (2026-11-25).
-- **Step 4b is done, unpushed and uncommitted.** Migration `20261125120000_content_cleanup_4b` is local only and must be applied to hosted before the push. Details in the 4b block (0.3).
-- Nothing pending on hosted until 4b is applied.
-- **Next: 4c** (0.3), after 4b is pushed and browser-checked. Check live (STATUS.md) stays open.
+- **Step 4b is done and pushed** (code `f7207ff`, docs `a8fc866`). Migration `20261125120000_content_cleanup_4b` is on hosted. Not browser-checked.
+- **Step 4c is built and checked locally, uncommitted and unpushed.** Migration `20261125130000_content_cleanup_4c` is applied locally only, not on hosted. Tests, reviewer and browser checks passed (see the 4c block, 0.3). Next steps are in 'Next session: start here' below.
+- Check live (STATUS.md) stays open.
 - Agents can push: `gh` is logged in and `gh auth setup-git` set the credential helper. Pushing goes live, so ask first.
+
+## Next session: start here
+State 2026-11-25. Steps up to 4b are pushed. Step 4c is built and checked locally (tests, reviewer, owner and player browser checks, tag rerun), but not committed, not pushed, and its migration is not on hosted. Run these in order. Steps marked **yes** need the developer's yes first.
+1. Check the dev server: `npm run local` (port 5174, background). Start it if it is down.
+2. **Yes:** check the three tag rows `tg_gear`, `tg_pilot_weapon`, `tg_personal_armor` on hosted. The migration changes nothing where they are missing, and its `edited` check aborts if `data->>'id'` is not the id or the name is empty.
+3. **Yes:** apply 4c to hosted before the push (devops): `npx supabase migration up --linked --yes`.
+4. **Yes:** commit and push (devops). The guard now accepts the approval prefix after `cd x &&`, but the developer may push by hand.
+5. Update [STATUS.md](../STATUS.md) and [history.md](history.md) after the push (move 4c out of Unpushed work, add its row to the hosted table, drop the 'not on hosted' wording).
+6. Browser-check 4b (section 4).
+7. Then 0.3 Definitions leftovers: tag groups; `weapon_mounts` only if it must differ from sizes; pilot gear group titles in `archive.ts`.
+8. Then 0.4, 0.5, and 0.7 (browser and security verification).
+
+Not fixed (minor, record only): rich-text toolbar buttons in `RichTextEditor.vue` are 34px wide on mobile (under 44). Mount flags `integrated` and `superheavy` have no editor control; keep them on save. The Armour-type system row is unchecked because no Armor-type system exists in local data. 4c: reverting one of the three tags to pack drops the hide flag; pack text changes to those three tags are shadowed by `edited`; `pilotCard` has no editor control; the player check covered pilot gear only, not mech items.
+
+Environment (outside the repo, changed 2026-11-25):
+- `hooks/guard.py` in the Hermes home was rewritten, with tests in its hooks folder.
+- The cce MCP was removed from the 9 non-default profile configs. The gateway runs multiplex_profiles and started 10 copies. Restart the gateway for that to take effect, then check that only one `cce serve` process runs.
 
 ## 0. Remaining objectives from the original plan (the developer wants this done)
 The goal in [content-editor-cleanup.md](content-editor-cleanup.md) is that content is fully editable without code, including things LANCER has never done, and each fact lives in one place. Phases 0 to 7 were built, but the items below were skipped, deferred or only partly met. Suggested order: 0.1 first (it decides the rest), then 0.2, 0.3, 0.4, 0.5, 0.6, 0.7. Follow the project's agent routing (`.hermes.md`, Team routing), and finish each with the reviewers, a browser pass and the docs.
@@ -79,9 +96,21 @@ Left from 0.2 (for later):
 - `content_editor.test.sql` fails locally on leftover row `hb_tg_ux_probe_tag` in pack 7. Clean the local data first.
 
 ### 0.3 Statuses, conditions and the remaining Definitions
-**Resume here (step 4c).** Steps 3 (0.2) and 4a are pushed (`6f35d38`). Step 4b is done, unpushed. See the 4b and 4a blocks below.
+**Resume here (step 4c, built locally, unpushed).** Steps 3 (0.2), 4a and 4b are pushed (`f7207ff`, docs `a8fc866`). See the 4c, 4b and 4a blocks below. Start with 'Next session: start here' at the top.
 
-**4b: done, unpushed (2026-11-25).** Migration `supabase/migrations/20261125120000_content_cleanup_4b.sql` is local only and must be applied to hosted before the push.
+**4c: built and checked locally, NOT committed or pushed (2026-11-25).**
+- **Migration** `supabase/migrations/20261125130000_content_cleanup_4c.sql` is untracked and applied locally only. Test `supabase/tests/content_cleanup_4c.test.sql` is untracked too. The test pastes the migration's SQL and inserts its own `content_packs` row, so keep the two in step (a comment in the test says so).
+- **What it adds:** `pilotCard` on `gear_types` Armor and Gear (Weapon has none); `hideOnCard` on tags `tg_gear`, `tg_pilot_weapon`, `tg_personal_armor` (in `edited`, so a pack re-import keeps it; tags come from LCP import, so the update changes nothing where those rows are missing); the 'Armour' label on `gear_types` and `system_types` Armor (ids stay `Armor`).
+- **Code:** `HIDDEN_TAGS` and `PILOT_TYPES` removed from `src/itemDetails.ts`; `cardHiddenTags` in `src/gameData.ts` (read from the tag's loaded data, like `hidden` and `combat_page`); `onPilotCard` in `src/definitions.ts`; 'Hide on item cards' checkbox in `TagForm.vue` (saves `false` rather than omitting the flag, like the other flags; every reader checks `=== true`); `GearForm.vue` and `SystemForm.vue` use `defLabel` for Armour. `src/definitions.ts` DEFAULT_DEFINITIONS and `src/definitions.test.ts` updated. `src/editorStore.ts` `loadList` maps pilot_gear and systems types through `defLabel` (test in `src/hidden.test.ts`). `EditorPane.vue` takes a `knownTags` prop (full tag map) for `ctx.tags`, which removes the false "Tag 'tg_personal_armor' doesn't exist" warning (pickers keep the filtered list).
+- **Checks 2026-11-25:** `npx supabase test db` 35 files, 1059 tests pass; `npm test` 560 of 560 (47 files) pass; `npm run build` clean.
+- **Reviewer:** no critical issues, no security problems. Important 1: `import_lcp` does `set data = excluded.data` on conflict, so a re-import drops `hideOnCard` from `data`; fixed by storing the flag in `edited` (read as `edited ?? data`, `src/catalogue.ts:60`). Cost: those three tags show an Edited badge (`ContentEditorView.vue:312,338`). Important 2: tags already edited in the editor would miss a data-only flag; the `edited` form covers it. Minor: raw tags may flash before tags load (accepted, as for `hidden`).
+- **Browser checks:** owner pass at 320x640, 360x640 and 1280x800: no overflow, 44px touch targets on mobile, contrast passes (hide-on-card label about 7.9:1; Armour text 7.85 to 15.49). Player pass as `test-pilot` at 360x640 and 1280x800: all 5 items passed, pilot gear only. Tag chip rerun against corrected local data passed at 360x640 and 1280x800: gear, pilot weapon and personal armour chips hidden on pilot gear cards and pickers, other tags still shown, no overflow, owner tag form shows 'Hide on item cards' checked for the three tags.
+- **Caveat:** all three tags also have `hidden: true` in the DB, so the browser check cannot prove `hideOnCard` alone hides them. The unit test in `src/itemDetails.test.ts` covers that.
+- **Known minor points, record only:** reverting one of the three tags to pack drops the hide flag; pack text changes to those three tags are shadowed by `edited`; `pilotCard` has no editor control; the player check covered pilot gear only, not mech items.
+- **Next steps:** see 'Next session: start here' at the top of this file.
+- Check-live items (section 1 and STATUS.md) stay open.
+
+**4b: done and pushed 2026-11-25** (code `f7207ff`, docs `a8fc866`). Migration `supabase/migrations/20261125120000_content_cleanup_4b.sql` is on hosted (applied before the push).
 - **Mount flags:** `integrated` on the 'Integrated Auxiliary' mount type and `superheavy` on 'Superheavy', both in `mount_types` `data`.
 - **Data-only rows** (seeded hidden, `dataOnly`): `weapon_sizes` 'Ship-class'; `weapon_types` 'Special', 'Spool Weapon', '???'. `DATA_ONLY_MOUNTS` and `DATA_ONLY_WEAPON_TYPES` are removed from `src/contentEditor.ts`.
 - **`weapon_mounts`:** the migration deletes any rows and removes the kind (sizes and mounts share one list, seeded as `weapon_sizes`).
@@ -110,7 +139,7 @@ Left from 0.2 (for later):
 Open items from the audits (`content-audit/constants-and-matrix.md`, scratch):
 - (done 4a) `STATUS_CARDS` (`src/rulesData.ts:20`) hard-coded the group ids and the `pilot` bucket. Status groups are now a Definitions kind, and a new group can be added in the editor.
 - (done 4a) `DAMAGE_TYPES` (`src/combatRules.ts:127`): the guide showed only the 4 rule rows. It now reads every visible `damage_types` row with its text.
-- `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicates `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) should be a tag flag (`combat_page` already exists). (4c)
+- (done 4c, pending push) `PILOT_TYPES` (`src/itemDetails.ts:78`) duplicated `gear_types`. `HIDDEN_TAGS` (`src/itemDetails.ts:~35`) is now the `hideOnCard` tag flag (`combat_page` already exists).
 - (done 4a) `ON_FOOT_ROWS` (`src/combatRules.ts:258`) was dead code and is removed.
 - (done 4b) `Integrated Auxiliary` and `Superheavy` are flags on the `mount_types` rows, read through `mountIs`/`mountsWith` in `src/definitions.ts`. `Main/Aux` (`src/mechData.ts:153`) is the named core bonus `cb_mount_retrofitting`, left in code.
 - (done 4b) `DATA_ONLY_MOUNTS` and `DATA_ONLY_WEAPON_TYPES` are seeded as hidden `dataOnly` rows (`Ship-class`, `Special`, `Spool Weapon`, `???`).
@@ -206,7 +235,7 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - **Grants on mods and pilot gear:** the sheet never reads them (equipped grants cover weapons and systems only). In scope (0.4): the sheet reads them first, then the form field.
 - **Actions on biomods:** required, see 0.4.
 - **Requirements on core systems:** not needed (developer decision, 2026-11-24).
-- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Still to move or justify (4c): pilot gear group titles and the Armor/Armour label tweak in `archive.ts`/`GearForm`/`SystemForm`. `Main/Aux` stays in code (named core bonus). Done in 4b: `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, the Integrated Auxiliary and Superheavy ids, `weapon_mounts` removed (the code uses one list for sizes and mounts, seeded as `weapon_sizes`), data-only values seeded.
+- **Definitions leftovers in code:** the `Flex` rule in `allowedSizes` and `bracingMount()` in `src/rules.ts` stay in code on purpose (the developer: those rules never change). Done in 4c (pending push): the Armor/Armour label (`defLabel` in `GearForm`/`SystemForm`). Left in code on purpose: the plural gear group titles (`GEAR_TITLES` in `archive.ts`, `GEAR_GROUPS` in `combatLoadout.ts`, `CATEGORIES` in `PilotLoadout.vue`). `Main/Aux` stays in code (named core bonus). Done in 4b: `DATA_ONLY_MOUNTS`, `DATA_ONLY_WEAPON_TYPES`, the Integrated Auxiliary and Superheavy ids, `weapon_mounts` removed (the code uses one list for sizes and mounts, seeded as `weapon_sizes`), data-only values seeded.
 - (done) **Fields with no editor input** (audit, 2026-11-25): `no_mods`, deployable `activation` and `range` now have inputs. The rest are data-only, with reasons in [game-content.md](game-content.md#content-editor-forms).
 - **Rare kinds that don't exist:** reserves, backgrounds and NPCs are not content kinds (out of scope until they exist).
 - **Used-by counts before delete** on Definitions rows (the refusal appears only after trying).
@@ -215,7 +244,8 @@ Out of scope (developer, 2026-11-24): stats, skills and stat icons (`PERSONAL_ST
 - "What changed" history beyond the last save (decided: last save only).
 
 ## 4. Never browser-checked (code and tests only)
-- Phase 4b (2026-11-25): integrated and superheavy mounts on a real mech (flag on and off, bracing), the mount type picker, the data-only rows hidden from pickers, the migration on hosted (not yet applied).
+- Phase 4b (2026-11-25): integrated and superheavy mounts on a real mech (flag on and off, bracing), the mount type picker, the data-only rows hidden from pickers. (The migration is on hosted.)
+- Phase 4c (built and checked locally, unpushed): owner and player browser checks and the tag chip rerun passed (see the 4c block). Not yet covered: mech items in the player check, and `hideOnCard` alone without the hidden flag (unit test only).
 - Commendations on the shared pane: create, edit, icon picker, medal preview, delete.
 - Faction delete confirm and faction preview tab; duplicate-name error.
 - Phase 1: Retry button styling inside `.notice`; the catalogue error and Retry behaviour with the rules request blocked.

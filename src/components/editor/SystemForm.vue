@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defIds } from '../../definitions'
+import { defIds, defLabel } from '../../definitions'
 import { lockedTags, type BonusType, type Data } from '../../contentEditor'
 import { plural } from '../../text'
 import RichTextEditor from '../RichTextEditor.vue'
@@ -38,7 +38,7 @@ const type = f.text('type')
     <Field label="Kind of system" path="type">
       <select :value="type || 'System'" @change="type = ($event.target as HTMLSelectElement).value">
         <option v-if="type && !defIds('system_types').includes(type)" :value="type">{{ type }}</option>
-        <option v-for="option in defIds('system_types')" :key="option" :value="option">{{ option === 'Armor' ? 'Armour' : option }}</option>
+        <option v-for="option in defIds('system_types')" :key="option" :value="option">{{ defLabel('system_types', option) }}</option>
       </select>
     </Field>
   </ItemBasics>

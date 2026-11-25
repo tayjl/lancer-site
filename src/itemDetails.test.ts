@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { toItem } from './gameData'
-import { activationOf, cardRules, itemCard, itemFacts, itemRules } from './itemDetails'
+import { cardHiddenTags, hiddenTags, toItem } from './gameData'
+import { activationOf, cardRules, itemCard, itemFacts, itemRules, visibleTags } from './itemDetails'
 import { licenceNames } from './mechData'
 
 vi.mock('./lib/supabaseClient', () => ({ supabase: {} }))
@@ -12,6 +12,16 @@ describe('item cards', () => {
     expect(itemCard(toItem('c', { type: 'Deployable', tags: [{ id: 'tg_grenade' }] }))).toEqual({ type: 'system', icon: 'grenade' })
     expect(itemCard(toItem('d', { type: 'AI' }))).toEqual({ type: 'system', icon: 'system' })
     expect(itemCard(toItem('e', { type: 'Armor' }))).toEqual({ type: 'pilot', icon: 'generic_item' })
+  })
+
+  it('leaves out tags flagged to hide on cards or hidden from players', () => {
+    const item = toItem('a', { type: 'Gear', tags: [{ id: 'tg_gear' }, { id: 'tg_limited' }, { id: 'tg_secret' }] })
+    expect(visibleTags(item).map((tag) => tag.id)).toEqual(['tg_gear', 'tg_limited', 'tg_secret'])
+    cardHiddenTags.value = new Set(['tg_gear'])
+    hiddenTags.value = new Set(['tg_secret'])
+    expect(visibleTags(item).map((tag) => tag.id)).toEqual(['tg_limited'])
+    cardHiddenTags.value = new Set()
+    hiddenTags.value = new Set()
   })
 
   it('names the licence rank, or the maker, then the mount and type', () => {

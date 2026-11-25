@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { gearPriceDefault } from '../../rules'
 import { plural } from '../../text'
 import { type BonusType, type Data } from '../../contentEditor'
-import { defIds } from '../../definitions'
+import { defIds, defLabel } from '../../definitions'
 import ActionListField from './ActionListField.vue'
 import BonusListField from './BonusListField.vue'
 import DamageField from './DamageField.vue'
@@ -41,7 +41,7 @@ const price = computed({
 </script>
 
 <template>
-  <FoldPanel title="Basics" open :summary="[type === 'Armor' ? 'Armour' : type, model.manna_cost !== undefined ? `${model.manna_cost} manna` : ''].filter(Boolean).join(' · ')" :paths="['name', 'id', 'type', 'manna_cost']">
+  <FoldPanel title="Basics" open :summary="[defLabel('gear_types', type), model.manna_cost !== undefined ? `${model.manna_cost} manna` : ''].filter(Boolean).join(' · ')" :paths="['name', 'id', 'type', 'manna_cost']">
     <div class="grid">
       <Field class="span2" label="Name" path="name"><input v-model="name" type="text" autocomplete="off" /></Field>
       <Field class="span2" label="ID" path="id" :hint="locked ? 'Fixed once created.' : 'Made from the name.'">
@@ -50,7 +50,7 @@ const price = computed({
       <Field class="span2" label="Kind of gear" path="type">
         <select v-model="type">
           <option value="" disabled>Choose…</option>
-          <option v-for="gear in defIds('gear_types')" :key="gear" :value="gear">{{ gear === 'Armor' ? 'Armour' : gear }}</option>
+          <option v-for="gear in defIds('gear_types')" :key="gear" :value="gear">{{ defLabel('gear_types', gear) }}</option>
         </select>
       </Field>
       <Field class="span2" label="Manna cost" path="manna_cost">

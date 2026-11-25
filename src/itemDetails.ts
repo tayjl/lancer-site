@@ -3,9 +3,9 @@ import eDefIcon from './assets/icons/e_def.svg'
 import hpIcon from './assets/icons/hp.svg'
 import systemPointIcon from './assets/icons/system_point.svg'
 import speedIcon from './assets/icons/speed.svg'
-import { defColour, defData, defIcon, defKnown } from './definitions'
+import { defColour, defData, defIcon, defKnown, onPilotCard } from './definitions'
 import { iconUrl } from './icons'
-import { hiddenTags, type Item } from './gameData'
+import { cardHiddenTags, hiddenTags, type Item } from './gameData'
 import { licenceNames } from './mechData'
 import { rankName } from './rules'
 import { flatDamage, flatDamageText } from './damage'
@@ -31,9 +31,6 @@ export const symbolOf = (type: string) => {
   const icon = defIcon('damage_types', type) ?? defIcon('range_types', type) ?? type.toLowerCase()
   return iconUrl(icon) ?? null
 }
-// Tags that only repeat what the slot already says.
-const HIDDEN_TAGS = ['tg_gear', 'tg_pilot_weapon', 'tg_personal_armor']
-
 // A range or damage list (an item's, or one of its actions'), as stats with symbols. Damage is the flat homebrew
 // number (damage.ts).
 type Entry = { type?: unknown; val: string | number }
@@ -52,7 +49,7 @@ export function tagLabel(tag: { id: string; val?: unknown }, tagNames: Map<strin
   return (name.includes('{VAL}') ? name.replace('{VAL}', String(tag.val ?? '')) : `${name}${tag.val != null ? ` ${tag.val}` : ''}`).trim().toLowerCase()
 }
 // The tags worth showing: not the ones that only repeat the slot or are hidden by the packs.
-export const visibleTags = (item: Item) => item.tags.filter((tag) => !HIDDEN_TAGS.includes(tag.id) && !hiddenTags.value.has(tag.id))
+export const visibleTags = (item: Item) => item.tags.filter((tag) => !cardHiddenTags.value.has(tag.id) && !hiddenTags.value.has(tag.id))
 
 // Each stat's "kind" (bonus, range, damage or sp) lets the archives' rows put them in columns.
 // "tagNames" is lancer-data's tag list (e.g. "Limited {VAL}"); without it the id stands in ("limited").
@@ -75,20 +72,19 @@ export function itemDetails(item: Item, tagNames: Map<string, string>) {
 
 // An item card's look (ItemCard.vue): its header colour (a --type-* token) and its symbol (src/assets/icons).
 export type CardType = 'weapon' | 'system' | 'frame' | 'pilot' | 'talent' | 'core'
-const PILOT_TYPES = ['Armor', 'Gear']
 export function itemCard(item: Item): { type: CardType; icon: string } {
   if (item.type === 'Mod') return { type: 'system', icon: 'mod' }
   if (item.mount || item.type === 'Weapon') return { type: 'weapon', icon: item.type === 'Melee' ? 'melee' : 'weapon' }
   const has = (tag: string) => item.tags.some((t) => t.id === tag)
   const icon = has('tg_grenade') ? 'grenade' : has('tg_mine') ? 'mine' : item.type === 'Drone' || has('tg_drone') ? 'drone'
     : item.type === 'Deployable' || has('tg_deployable') ? 'deployable' : null
-  return PILOT_TYPES.includes(item.type) ? { type: 'pilot', icon: icon ?? 'generic_item' } : { type: 'system', icon: icon ?? 'system' }
+  return onPilotCard(item.type) ? { type: 'pilot', icon: icon ?? 'generic_item' } : { type: 'system', icon: icon ?? 'system' }
 }
 
 // The facts line on a mech weapon's or system's card: the licence rank that unlocks it ("IPS-N Blackbeard II"), or
 // its maker when it needs none ("GMS"), then its mount and type ("Main Melee"). Pilot gear has none: its slot says.
 export function itemFacts(item: Item): string[] {
-  if (PILOT_TYPES.includes(item.type) || (item.type === 'Weapon' && !item.mount)) return []
+  if (onPilotCard(item.type) || (item.type === 'Weapon' && !item.mount)) return []
   const source = typeof item.raw?.source === 'string' ? item.raw.source : ''
   const licence = item.licenceLevel > 0 ? `${licenceNames.value.get(item.licenceId) ?? item.licenceId} ${rankName(item.licenceLevel)}` : source
   if (item.type === 'Mod') return [licence, `Mod for ${(Array.isArray(item.raw?.allowed_types) ? item.raw.allowed_types : []).join(', ') || 'any weapon'}`]

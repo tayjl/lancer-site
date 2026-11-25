@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { ref } from 'vue'
+import { useFields } from './components/editor/useFields'
 import { blankItem, bonusTypesFor, duplicateItem, errorsOf, referencesTo, lockedTags, newId, parseRaw, problemsFor, slug, usedBy, validateFaction, withExoticTag, type Context } from './contentEditor'
 
 const ctx: Context = {
@@ -265,5 +267,18 @@ describe('the "not counted" warning', () => {
   })
   it('still warns for an id nothing reads', () => {
     expect(warns({ id: 'mystery', val: 1 })).toEqual(['Effect "mystery" is shown on the sheet but not counted.'])
+  })
+})
+
+describe('the tag form flags', () => {
+  it('round-trips hideOnCard through the form model', () => {
+    const model = ref<Record<string, unknown>>({ id: 'tg_gear', name: 'Gear', hideOnCard: true })
+    const hide = useFields(model).flag('hideOnCard')
+    expect(hide.value).toBe(true)
+    hide.value = false
+    expect(model.value).toEqual({ id: 'tg_gear', name: 'Gear', hideOnCard: false })
+    hide.value = true
+    expect(model.value.hideOnCard).toBe(true)
+    expect(useFields(ref<Record<string, unknown>>({ id: 'tg_x' })).flag('hideOnCard').value).toBe(false)
   })
 })

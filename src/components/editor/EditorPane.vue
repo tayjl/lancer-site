@@ -42,6 +42,8 @@ const props = defineProps<{
   packName: string
   homebrewId: number | null
   tags: { id: string; name: string }[]
+  // Every tag including hidden ones: the pickers hide those, but validation must still find them.
+  knownTags: Map<string, string>
   manufacturers: { id: string; name: string }[]
   stats: { id: string; name: string }[]
   takenIds: Set<string>
@@ -108,7 +110,7 @@ const licences = computed(() => licensedFrames(frames.value).map((frame) => ({ i
 const problems = computed<Problem[]>(() => {
   const found = problemsFor(props.kind, working.value, {
     id: props.item?.key ?? String(working.value.id ?? ''),
-    tags: new Map(props.tags.map((tag) => [tag.id, tag.name])),
+    tags: props.knownTags,
     statIds: props.stats.map((stat) => stat.id),
     known: props.takenIds,
     licences: new Set(frames.value.map((frame) => frame.id)),

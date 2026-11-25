@@ -49,8 +49,8 @@ export const DEFAULT_DEFINITIONS: Record<DefKind, Definition[]> = {
     ['Auxiliary', [['Auxiliary']]],
     ['Integrated Auxiliary', [['Auxiliary']], '', { integrated: true }],
   ].map(([id, slots, hint, flag]) => def(id as string, { slots, ...(hint ? { hint } : {}), ...(flag as object) })),
-  gear_types: ['Armor', 'Weapon', 'Gear'].map((id) => def(id)),
-  system_types: ['System', 'AI', 'Shield', 'Deployable', 'Drone', 'Tech', 'Armor', 'Flight System', 'Integrated'].map((id) => def(id)),
+  gear_types: ['Armor', 'Weapon', 'Gear'].map((id) => ({ ...def(id, id === 'Weapon' ? {} : { pilotCard: true }), ...(id === 'Armor' ? { label: 'Armour' } : {}) })),
+  system_types: ['System', 'AI', 'Shield', 'Deployable', 'Drone', 'Tech', 'Armor', 'Flight System', 'Integrated'].map((id) => ({ ...def(id), ...(id === 'Armor' ? { label: 'Armour' } : {}) })),
   deployable_types: ['Deployable', 'Drone', 'Mine'].map((id) => def(id)),
   // The combat page's status cards. mode: the page's Mech view shows the card, the Pilot view shows the group's statuses in its On foot card.
   status_groups: [['cover', 'Cover and stealth', 'shield', 'mech'], ['conditions', 'Conditions', 'warning', 'mech'], ['other', 'Other statuses', 'info', 'mech'], ['pilot', 'On foot', 'pilot', 'pilot']]
@@ -117,6 +117,8 @@ export const mountHint = (mount: unknown) => {
   const hint = defData('mount_types', mount).hint
   return typeof hint === 'string' ? hint : undefined
 }
+// Gear types drawn as pilot cards (Armor and Gear, not Weapon), read from the gear type rows' pilotCard flag.
+export const onPilotCard = (type: unknown) => defData('gear_types', type).pilotCard === true
 // A status group's mode: 'pilot' groups show in the Pilot view's On foot card, the others as cards of their own.
 export const groupMode = (id: unknown): 'mech' | 'pilot' => (defData('status_groups', id).mode === 'pilot' ? 'pilot' : 'mech')
 // A damage type's guide text (before placeholders are filled), or '' when it has none.

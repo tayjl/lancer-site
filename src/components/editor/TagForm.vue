@@ -15,10 +15,11 @@ const name = f.text('name')
 const description = f.text('description')
 const hidden = f.flag('hidden')
 const combatPage = f.flag('combat_page')
+const hideOnCard = f.flag('hideOnCard')
 </script>
 
 <template>
-  <FoldPanel title="Basics" open :summary="hidden ? 'Hidden from players' : 'Shown to players'" :paths="['name', 'id', 'combat_page']">
+  <FoldPanel title="Basics" open :summary="hidden ? 'Hidden from players' : 'Shown to players'" :paths="['name', 'id', 'combat_page', 'hideOnCard']">
     <div class="grid">
       <Field class="span2" label="Name" path="name" hint="Use {VAL} for the number, as in &quot;Limited {VAL}&quot;.">
         <input v-model="name" type="text" autocomplete="off" />
@@ -29,6 +30,7 @@ const combatPage = f.flag('combat_page')
     </div>
     <label class="check"><input v-model="hidden" type="checkbox" />Hidden from players</label>
     <label class="check"><input v-model="combatPage" type="checkbox" />Show on combat page</label>
+    <label class="check"><input v-model="hideOnCard" type="checkbox" />Hide on item cards</label>
   </FoldPanel>
 
   <FoldPanel title="What it means" :summary="filled([['Rules text', description]])" :paths="['description']">

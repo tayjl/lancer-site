@@ -111,6 +111,8 @@ export async function loadSources() {
 }
 // Tags the data marks hidden: notes for the app (e.g. "Set Max Uses"), not something a player reads.
 export const hiddenTags = shallowRef(new Set<string>())
+// Tags an item card leaves out because the slot already says it.
+export const cardHiddenTags = shallowRef(new Set<string>())
 // The tags marked "Show on combat page".
 export const combatTags = shallowRef<string[]>([])
 // What each tag means (e.g. "This weapon or system can only be used {VAL} times..."), for the full-information dialog.
@@ -171,6 +173,7 @@ export function loadTagNames() {
       tagNames.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { name?: unknown } | null)?.name ?? id)]))
       tagDescriptions.value = new Map((data ?? []).map(({ id, data }) => [id, String((data as { description?: unknown } | null)?.description ?? '')]))
       combatTags.value = (data ?? []).filter(({ data }) => (data as { combat_page?: unknown } | null)?.combat_page === true).map(({ id }) => id)
+      cardHiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hideOnCard?: unknown } | null)?.hideOnCard === true).map(({ id }) => id))
       hiddenTags.value = new Set((data ?? []).filter(({ data }) => (data as { hidden?: unknown } | null)?.hidden === true).map(({ id }) => id))
     } finally {
       tagNamesLoaded.value = true
