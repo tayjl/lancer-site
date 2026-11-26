@@ -191,7 +191,7 @@ function effectValueProblem(type: BonusDef, row: Data, ctx: Context): string {
   }
   return ''
 }
-export const personalBonusTypes = (stats: { id: string; name: string }[]): BonusType[] => stats.map(personalDef)
+const personalBonusTypes = (stats: { id: string; name: string }[]): BonusType[] => stats.map(personalDef)
 // Any kind can carry any effect; the personal stats only make sense on what a pilot has (gear, core bonuses, talents, biomods).
 // Free talent ranks only count from gear, core bonuses and biomods.
 const GRANTS_TALENT_RANKS = ['pilot_gear', 'core_bonuses', 'bionics']
@@ -536,7 +536,7 @@ export function validateItem(kind: EditorKind, data: Data, ctx: Context): Proble
 export const BIONIC_SLOTS = ['Head', 'Eyes', 'Ears', 'Brain', 'Spine', 'Torso', 'Heart', 'Lungs', 'Arm', 'Hand', 'Leg', 'Foot', 'Skin', 'Nervous system', 'Full body']
 // A biomod has the same fields the other kinds have, in columns of the bionics table: effect_bonuses (any bonus id,
 // personal stats included), actions, integrated, special_equipment, replace_integrated and requires.
-export function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Partial<Context>): Problem[] {
+function validateBionic(data: Data, ctx: Pick<Context, 'statIds'> & Partial<Context>): Problem[] {
   const problems: Problem[] = []
   const full: Context = { id: '', tags: new Map(), ...ctx }
   checkParts({ bonuses: data.effect_bonuses }, 'effect_', '', full, problems, false, true)

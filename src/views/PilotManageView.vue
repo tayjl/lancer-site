@@ -7,6 +7,7 @@ import BackstoryVisibility from '../components/BackstoryVisibility.vue'
 import { confirmAction } from '../confirm'
 import CoreBonusPanel from '../components/CoreBonusPanel.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
+import { catalogueError, retryCatalogues } from '../catalogue'
 import ConflictNotice from '../components/ConflictNotice.vue'
 import CommendationAward from '../components/CommendationAward.vue'
 import GmEditBar from '../components/GmEditBar.vue'
@@ -35,7 +36,7 @@ import StatFigures from '../components/StatFigures.vue'
 import StatRow from '../components/StatRow.vue'
 import StatSources from '../components/StatSources.vue'
 import { BANNER_SIDE, cardImages, deleteImage } from '../images'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 import { useRequirementAwards, usePilotAwards } from '../commendations'
 import { displayColour } from '../pilotColour'
 import { useServiceRecord } from '../serviceRecord'
@@ -131,16 +132,20 @@ const changeNote = computed(() => {
   }
 })
 function clearChangeNote() {
-  clearedNote.value = change.value!.id
+  const id = change.value?.id
+  if (id === undefined) return
+  clearedNote.value = id
   try {
-    localStorage.setItem(noteKey(change.value!.id), '1')
+    localStorage.setItem(noteKey(id), '1')
   } catch {
     // Hidden for this visit only.
   }
 }
 const deathError = ref('') // the danger zone's own error, shown under its buttons
 async function confirmDeath() {
-  const name = character.value!.callsign ?? character.value!.pilot_name
+  const pilot = character.value
+  if (!pilot) return
+  const name = pilot.callsign ?? pilot.pilot_name
   if (!(await confirmAction(`Mark ${name} dead? They move to the memorial. This can't be undone.`, { confirmLabel: 'Mark dead', danger: true }))) return
   const failed = await track(markDead())
   deathError.value = failed ? `Not saved: ${failed}` : ''
@@ -149,10 +154,12 @@ async function confirmDeath() {
 // Owners only (the database enforces it): deleting a character also deletes its sheet, changes and reputation. The
 // returned row proves something was deleted, since RLS turns a refused delete into "0 rows" rather than an error.
 async function deletePilot() {
-  const name = character.value!.callsign ?? character.value!.pilot_name
+  const pilot = character.value
+  if (!pilot) return
+  const name = pilot.callsign ?? pilot.pilot_name
   if (!(await confirmAction(`Delete ${name}? This removes their sheet, mechs and changes. This can't be undone.`, { confirmLabel: 'Delete pilot', danger: true }))) return
-  const { data, error } = await supabase.from('characters').delete().eq('id', character.value!.id).select('id, pilot_image, mechs')
-  deathError.value = error ? `Not deleted: ${error.message}` : (data?.length ? '' : 'Not deleted: Only owners can delete pilots.')
+  const { data, error } = await supabase.from('characters').delete().eq('id', pilot.id).select('id, pilot_image, mechs')
+  deathError.value = error ? `Not deleted: ${readError(error.message)}` : (data?.length ? '' : 'Not deleted: Only owners can delete pilots.')
   if (data?.length) cardImages(data[0]).forEach(deleteImage)
   if (!deathError.value) router.push({ name: 'gm-pilots' })
 }
@@ -221,8 +228,8 @@ const backstory = useBackstoryVisibility(() => character.value?.id)
 const canToggleBackstory = computed(() => gmEditing.value || (!!character.value && character.value.player_id === session.value?.user.id))
 const gmCanEdit = computed(() => isGm.value && character.value?.status !== 'dead' && (!own || character.value?.status === 'approved'))
 const setEdit = (on: boolean) =>
-  own && on
-    ? router.push({ name: 'pilot-record', params: { id: character.value!.id }, query: { edit: '1' } })
+  own && on && character.value
+    ? router.push({ name: 'pilot-record', params: { id: character.value.id }, query: { edit: '1' } })
     : router.replace({ query: { ...route.query, edit: on ? '1' : undefined } })
 const { gear, bionics, bionicPrices, pilotStats, talents, coreBonuses } = useGameData()
 
@@ -251,7 +258,7 @@ function saveText(column: TextColumn, event: Event) {
   const value = input.value.trim() || null
   if (column === 'pilot_name' && !value) {
     saveError.value = 'A pilot needs a name.'
-    input.value = character.value!.pilot_name
+    input.value = character.value?.pilot_name ?? ''
     return
   }
   track(updateCharacter({ [column]: value }))
@@ -422,8 +429,17 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
     </nav>
 
     <p v-if="loading" class="dim">Loading…</p>
-    <p v-else-if="loadError" class="notice warn" role="alert">{{ loadError }}</p>
-    <p v-else-if="!character && !own" class="notice warn" role="alert">No pilot with that ID.</p>
+    <section v-else-if="loadError">
+      <h1 class="sheet-label">Pilot</h1>
+      <p class="notice warn" role="alert">
+        Pilot didn't load: {{ loadError }}
+        <button type="button" class="small" @click="load(), catalogueError && retryCatalogues()">Retry</button>
+      </p>
+    </section>
+    <section v-else-if="!character && !own">
+      <h1 class="sheet-label">Pilot not found</h1>
+      <p class="notice warn" role="alert">No pilot with that ID.</p>
+    </section>
 
     <!-- No pilot yet: a name registers one, then the full sheet opens. -->
     <section v-else-if="!character" class="register panel">
@@ -581,6 +597,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               <SheetField v-if="canSeeBackstory" title="Backstory" :doc="sheet.backstory ?? null" :editable="editable" :save="saveBackstory">
                 <template #head>
                   <BackstoryVisibility :is-public="backstory.isPublic.value" :can-change="canToggleBackstory" :set="backstory.set" />
+                  <p v-if="backstory.error.value" class="dim" role="alert">{{ backstory.error.value }}</p>
                 </template>
               </SheetField>
               <SheetField v-else-if="backstory.isPublic.value" title="Backstory" quiet :doc="backstory.copy.value" :editable="false" />
@@ -594,6 +611,7 @@ const canEquip = computed(() => (character.value?.status === 'pending' ? editabl
               :callsign="(approved?.character ?? character).callsign"
               :name="(approved?.character ?? character).pilot_name"
               :status="character.status"
+              :draft="isDraft"
               :approved-at="character.approved_at"
               :level="gm.level"
               :licence-level="licenceLevel(approved?.sheet ?? sheet)"

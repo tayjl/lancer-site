@@ -148,7 +148,7 @@ export const makerLogo = (maker?: Manufacturer) => LOGOS[`./assets/logos/${maker
 // Weapons and systems are split into a section per licence (unlicensed, "", first, then by name); everything else
 // has one section. "ranked" (search results across every category) keeps the entries' order instead: groups go
 // by their best match, with one section each.
-export type ArchiveSection = { licence: string; entries: ArchiveEntry[] }
+type ArchiveSection = { licence: string; entries: ArchiveEntry[] }
 export type ArchiveGroup = { key: string; title: string; colour: string; logo: string | null; entries: ArchiveEntry[]; sections: ArchiveSection[] }
 const GEAR_TITLES: Record<string, string> = { Armor: 'Pilot armour', Weapon: 'Pilot weapons', Gear: 'Pilot gear' }
 const BY_LICENCE: ArchiveCategory[] = ['mech weapons', 'mech systems', 'weapon mods']

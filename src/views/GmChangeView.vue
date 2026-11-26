@@ -18,7 +18,7 @@ import { gearPrice, licenceName, mannaSpent, mechCount, pilotProblems, personalS
 import { usePilotAwards, useRequirementAwards } from '../commendations'
 import { cardImages, deleteImage } from '../images'
 import type { Json } from '../lib/database.types'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 import type { PublicMech } from '../pilots'
 import { capitalise, plural } from '../text'
 import { since } from '../time'
@@ -48,7 +48,7 @@ const catalogue = computed(() => ({ ...base.value, ...needs.value }))
 async function load() {
   const { data: row, error: loadError } = await supabase.from('pending_changes').select('*').eq('id', Number(route.params.id)).maybeSingle()
   change.value = row
-  error.value = loadError?.message ?? (row ? '' : 'No change with that ID.')
+  error.value = loadError ? readError(loadError.message) : row ? '' : 'No change with that ID.'
   if (row) {
     const [card, sheetRow] = await Promise.all([
       supabase.from('characters').select('*, player:profiles(display_name)').eq('id', row.character_id).maybeSingle(),
@@ -58,7 +58,7 @@ async function load() {
     approved.value = sheetRow.data
       ? { ...sheetRow.data, sheet: sheetRow.data.sheet as unknown as Sheet }
       : null
-    error.value = card.error?.message ?? sheetRow.error?.message ?? (!card.data || !sheetRow.data ? "The pilot record didn't load fully." : '')
+    error.value = readError(card.error?.message ?? sheetRow.error?.message ?? '') || (!card.data || !sheetRow.data ? "The pilot record didn't load fully." : '')
   }
   loading.value = false
 }
@@ -166,7 +166,7 @@ async function approve() {
     note: note.value,
   })
   busy.value = false
-  error.value = approveError?.message ?? ''
+  error.value = readError(approveError?.message ?? '')
   if (!error.value) {
     // The approved card's pictures that this change replaced or removed (best effort).
     const kept = cardImages({ ...pilot.value!, ...proposedCard.value })
@@ -183,7 +183,7 @@ async function reject() {
   busy.value = true
   const { error: rejectError } = await supabase.rpc('reject_change', { change_id: change.value!.id, reason: note.value })
   busy.value = false
-  error.value = rejectError?.message ?? ''
+  error.value = readError(rejectError?.message ?? '')
   if (!error.value) router.push({ name: 'gm-changes' })
 }
 </script>

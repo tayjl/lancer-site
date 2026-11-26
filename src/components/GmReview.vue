@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { confirmAction } from '../confirm'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 import { plural } from '../text'
 import type { Character } from '../myPilot'
 import RuleCheck from './RuleCheck.vue'
@@ -26,7 +26,7 @@ const submitted = computed(() => props.pilot.status === 'pending' && !!props.pil
 
 async function load() {
   const { data, error: loadError } = await supabase.from('character_sheets').select('review_note').eq('character_id', props.pilot.id).maybeSingle()
-  error.value = loadError?.message ?? ''
+  error.value = loadError ? `The decision note didn't load: ${readError(loadError.message)}` : ''
   note.value = data?.review_note ?? ''
   loading.value = false
 }
@@ -48,7 +48,7 @@ async function approve() {
     note: note.value,
   })
   busy.value = false
-  error.value = approveError?.message ?? ''
+  error.value = readError(approveError?.message ?? '')
   if (!error.value) emit('reviewed')
 }
 
@@ -59,7 +59,7 @@ async function sendBack() {
   // The note and the pilot going back to a draft are saved together.
   const { error: backError } = await supabase.rpc('send_back_pilot', { target_character_id: props.pilot.id, note: note.value })
   busy.value = false
-  error.value = backError?.message ?? ''
+  error.value = readError(backError?.message ?? '')
   message.value = error.value ? '' : 'Sent back.'
   if (!error.value) emit('reviewed')
 }

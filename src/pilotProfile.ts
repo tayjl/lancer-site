@@ -1,7 +1,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import type { Json } from './lib/database.types'
 import { deleteImage, IMAGE_PATH } from './images'
-import { CHANGED_ELSEWHERE, checkWrite, supabase } from './lib/supabaseClient'
+import { CHANGED_ELSEWHERE, checkWrite, recheckUpdatedAt, supabase } from './lib/supabaseClient'
 import { displayColour } from './pilotColour'
 
 // A pilot's profile customisation (the pilot_profiles table): colour, motto, banner (and its position) and up to four gallery
@@ -82,7 +82,7 @@ export function usePilotProfile(characterId: () => number | undefined) {
     const result = seen
       ? await checkWrite(await supabase.from('pilot_profiles').update(body).eq('character_id', id).eq('updated_at', seen).select('updated_at'), {
           seen,
-          recheck: () => supabase.from('pilot_profiles').select('updated_at').eq('character_id', id).maybeSingle(),
+          recheck: recheckUpdatedAt('pilot_profiles', 'character_id', id),
         })
       : await checkWrite(await supabase.from('pilot_profiles').upsert({ character_id: id, ...body }).select('updated_at'))
     if (result.row) {

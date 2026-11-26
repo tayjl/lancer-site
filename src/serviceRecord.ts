@@ -1,6 +1,6 @@
 import { ref, shallowRef, watch } from 'vue'
 import type { Json, Tables } from './lib/database.types'
-import { checkWrite, fetchAll, supabase } from './lib/supabaseClient'
+import { checkWrite, fetchAll, recheckUpdatedAt, supabase } from './lib/supabaseClient'
 
 // A pilot's service record (the pilot_timeline table): dated entries written by the pilot's player ("player"), by GMs
 // ("gm") and by the site itself when something notable happens ("auto", made by database triggers). Public to every
@@ -68,7 +68,7 @@ export function useServiceRecord(characterId: () => number | undefined) {
   async function edit(entry: TimelineEntry, fields: EntryFields) {
     const result = await checkWrite(await supabase.from('pilot_timeline').update(fields).eq('id', entry.id).eq('updated_at', entry.updated_at).select('*'), {
       seen: entry.updated_at,
-      recheck: () => supabase.from('pilot_timeline').select('updated_at').eq('id', entry.id).maybeSingle(),
+      recheck: recheckUpdatedAt('pilot_timeline', 'id', entry.id),
     })
     if (result.row) entries.value = entries.value.map((e) => (e.id === entry.id ? (result.row as TimelineEntry) : e))
     return result.error

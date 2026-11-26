@@ -11,6 +11,7 @@ import { isGm } from '../auth'
 import RichText from '../components/RichText.vue'
 import { useCopyLink } from '../copyLink'
 import { imageUrl } from '../images'
+import { readError } from '../lib/supabaseClient'
 import { LORE_SECTIONS, entryDate, fileName, fileSize, imageFileName, isDraft, loreMatches } from '../lore'
 import { formatDate } from '../time'
 
@@ -26,7 +27,7 @@ const { copied, copyLink } = useCopyLink()
 const error = ref('')
 const newError = ref('')
 async function load() {
-  error.value = await section.store.load()
+  error.value = readError(await section.store.load())
 }
 load()
 
@@ -47,7 +48,7 @@ function clear() {
 }
 async function newFile() {
   const draft = await section.store.createDraft()
-  if (draft.error) newError.value = draft.error
+  if (draft.error) newError.value = readError(draft.error)
   else router.push({ name: section.edit, params: { id: draft.id } })
 }
 const back = () => router.push({ name: section.list })

@@ -100,7 +100,7 @@ async function choose(id: string) {
       <h2 class="sheet-label">Core bonuses</h2>
       <span class="meter-inline" :class="{ over: left < 0 }"><span class="num">{{ taken.length }}</span> of <span class="num">{{ picks }}</span> picks used</span>
     </header>
-    <p v-if="editable" class="dim note">One pick per 3 licence ranks. Non-GMS bonuses also need 3 ranks with their manufacturer.</p>
+    <p v-if="editable" class="dim note">One pick per 3 licence ranks.</p>
 
     <ul v-if="taken.length || editable" class="slot-grid">
       <li v-for="id in taken" :key="id">

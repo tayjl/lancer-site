@@ -165,10 +165,26 @@ select is((select sheet ->> 'manna' from public.character_sheets where character
 -- A second change goes stale: the pilot changes after it was made (as the database owner, with moddatetime
 -- paused so updated_at can be set to a later time, since now() doesn't move inside a test).
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
-select lives_ok(
+select throws_ok(
   $$ insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, submitted_at)
      values (100, '22222222-2222-2222-2222-222222222222', '{"pilot_name": "Two", "callsign": "Stale", "mechs": []}', '{}', now()) $$,
-  'players can propose another change once the last one is reviewed');
+  'P0001', 'A new change starts as a draft. Save it, then submit it.',
+  'players can''t insert a change already submitted (it would skip the submit rules)');
+select throws_ok(
+  $$ insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, review_reason)
+     values (100, '22222222-2222-2222-2222-222222222222', '{}', '{}', 'Approved by me') $$,
+  'P0001', null, 'players can''t forge a review note on insert');
+select throws_ok(
+  $$ insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, reviewed_at)
+     values (100, '22222222-2222-2222-2222-222222222222', '{}', '{}', now()) $$,
+  'P0001', null, 'players can''t forge a review time on insert');
+select lives_ok(
+  $$ insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet)
+     values (100, '22222222-2222-2222-2222-222222222222', '{"pilot_name": "Two", "callsign": "Stale", "mechs": []}', '{}') $$,
+  'players can propose another change (as a draft) once the last one is reviewed');
+select lives_ok(
+  $$ update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending' $$,
+  'and submit it afterwards');
 
 reset role;
 alter table public.characters disable trigger characters_updated_at;
@@ -260,10 +276,11 @@ set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 -- Approving with no note leaves the note empty.
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 -- (The pilot's last change is in the future after the step above, so this change says it was based on that.)
-insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, submitted_at, based_on)
-  values (100, '22222222-2222-2222-2222-222222222222', '{"pilot_name": "Two", "mechs": []}', '{}', now(),
+insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, based_on)
+  values (100, '22222222-2222-2222-2222-222222222222', '{"pilot_name": "Two", "mechs": []}', '{}',
           (select greatest(c.updated_at, s.updated_at)
            from public.characters c join public.character_sheets s on s.character_id = c.id where c.id = 100));
+update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending';
 set local request.jwt.claim.sub = '33333333-3333-3333-3333-333333333333';
 select lives_ok(
   $$ select public.approve_change((select id from public.pending_changes where character_id = 100 and status = 'pending'),
@@ -275,8 +292,9 @@ select is((select count(*)::int from public.pending_changes where character_id =
 -- Withdrawing a submitted change is still allowed.
 set local request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
 -- A player who loaded the pilot before it last changed keeps their earlier based_on.
-insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, submitted_at, based_on)
-  values (100, '22222222-2222-2222-2222-222222222222', '{"pilot_name": "Two", "mechs": []}', '{}', now(), '2000-01-01');
+insert into public.pending_changes (character_id, submitted_by, proposed_public, proposed_sheet, based_on)
+  values (100, '22222222-2222-2222-2222-222222222222', '{"pilot_name": "Two", "mechs": []}', '{}', '2000-01-01');
+update public.pending_changes set submitted_at = now() where character_id = 100 and status = 'pending';
 select is((select based_on from public.pending_changes where character_id = 100 and status = 'pending'),
   '2000-01-01'::timestamptz, 'an honest earlier based_on is kept');
 with attempt as (

@@ -3,7 +3,7 @@ import { nextTick, ref, useTemplateRef } from 'vue'
 import { loginError } from '../auth'
 import BootSequence from '../components/BootSequence.vue'
 import ThirdPartyNotice from '../components/ThirdPartyNotice.vue'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 
 const error = ref(loginError)
 const booted = ref(false)
@@ -22,7 +22,7 @@ async function uplink() {
     provider: 'discord',
     options: { redirectTo: window.location.origin },
   })
-  if (signInError) error.value = signInError.message
+  if (signInError) error.value = readError(signInError.message)
 }
 </script>
 
@@ -71,6 +71,10 @@ async function uplink() {
 }
 
 .privacy {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 1rem; /* a bigger hit area than the small text */
   color: var(--text-dim);
   font: 400 0.6875rem/1.5 var(--mono);
 }

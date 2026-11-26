@@ -162,7 +162,7 @@ export function placedWeapons(mech: MechPrivate, sheet: Sheet, catalogue: Pick<E
 }
 
 // The equipped weapons and systems that exist in the catalogue (for what they grant). Weapons only where the frame has the place.
-export function equippedItems(mech: MechPrivate, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated'>, placed: (readonly [string, string])[]) {
+function equippedItems(mech: MechPrivate, catalogue: Pick<EffectCatalogue, 'weapons' | 'systems' | 'integrated'>, placed: (readonly [string, string])[]) {
   return [...(mech.systems ?? []).map(id => catalogue.systems.get(id) ?? catalogue.integrated.get(id)), ...placed.map(([, id]) => catalogue.weapons.get(id) ?? catalogue.integrated.get(id))]
     .filter((item): item is Item => !!item)
 }
@@ -187,7 +187,7 @@ export const grantingSources = (mech: MechPrivate, sheet: Sheet, catalogue: Pick
 }
 
 // A source's second replace_mount gets "#1" on its key, so each has its own choice.
-export const choiceKey = (key: string, n: number) => (n ? `${key}#${n}` : key)
+const choiceKey = (key: string, n: number) => (n ? `${key}#${n}` : key)
 // The mount changes a mech's bonuses offer: the mount each replaces is chosen by the player (mech.core_mounts[key]).
 export const mountReplacements = (bonuses: NamedBonus[]) => bonuses.flatMap(({ source, bonus, key }) =>
   bonus.id === 'replace_mount' && key && permanentBonus(bonus) && mountSlots(bonus.val) ? [{ key, name: source, type: String(bonus.val) }] : [])
@@ -221,7 +221,7 @@ export function buildFrame(frame: Frame | null, mech: MechPrivate, sheet: Sheet,
   return { ...frame, mounts, integrated: [...new Set([...(replaces ? frame.integrated.filter(id => !isWeapon(id)) : frame.integrated), ...grants.integrated])] }
 }
 
-export const buildVariables = (sheet: Sheet, frame?: Frame | null) => ({
+const buildVariables = (sheet: Sheet, frame?: Frame | null) => ({
   ll: Object.values(sheet.licences ?? {}).reduce((sum, rank) => sum + rank, 0),
   hull: sheet.mech_skills?.hull ?? 0, agility: sheet.mech_skills?.agility ?? 0,
   systems: sheet.mech_skills?.systems ?? 0, engineering: sheet.mech_skills?.engineering ?? 0,

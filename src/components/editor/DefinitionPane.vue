@@ -7,7 +7,7 @@ import { defIds, defKindInfo, loadDefinitionRows, loadDefinitions, type DefKind 
 import { deleteDefinition, loadListSaveLine, saveDefinitions } from '../../editorStore'
 import { invalidateCatalogues } from '../../gameData'
 import { iconNames, iconUrl } from '../../icons'
-import { CHANGED_ELSEWHERE } from '../../lib/supabaseClient'
+import { CHANGED_ELSEWHERE, readError } from '../../lib/supabaseClient'
 import { useSaveStatus } from '../../saveStatus'
 import { capitalise, plural } from '../../text'
 import ConflictNotice from '../ConflictNotice.vue'
@@ -38,7 +38,7 @@ const savedLine = ref('')
 async function load() {
   const result = await loadDefinitionRows(props.kind)
   loading.value = false
-  loadError.value = result.error ?? ''
+  loadError.value = readError(result.error ?? '')
   if (result.error) return
   rows.value = toEditRows(result.rows)
   baseline.value = clone(rows.value)

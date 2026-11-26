@@ -143,8 +143,8 @@ export async function loadDefinitions() {
 // For the editor: every row of one list, hidden ones too, with the updated_at the save is guarded by.
 export type DefRow = Definition & { sort: number; updatedAt: string }
 export async function loadDefinitionRows(kind: DefKind): Promise<{ rows: DefRow[]; error: string | null }> {
-  const { data, error } = await supabase.from('game_definitions').select('id, label, data, sort, hidden, updated_at').eq('kind', kind).order('sort').order('id').limit(200)
-  if (error) return { rows: [], error: error.message }
+  const { rows: data, error } = await fetchAll((from, to) => supabase.from('game_definitions').select('id, label, data, sort, hidden, updated_at').eq('kind', kind).order('sort').order('id').range(from, to))
+  if (error) return { rows: [], error }
   return { rows: data.map((row) => ({ id: row.id, label: row.label, data: (row.data && typeof row.data === 'object' && !Array.isArray(row.data) ? row.data : {}) as DefData, sort: row.sort, hidden: row.hidden, updatedAt: row.updated_at })), error: null }
 }
 // How many entries each list has and how many are hidden, for the editor's list of lists.

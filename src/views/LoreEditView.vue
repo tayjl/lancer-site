@@ -12,7 +12,7 @@ import SheetField from '../components/SheetField.vue'
 import { confirmAction } from '../confirm'
 import type { Json } from '../lib/database.types'
 import { deleteImage, imageUrl } from '../images'
-import { CHANGED_ELSEWHERE } from '../lib/supabaseClient'
+import { CHANGED_ELSEWHERE, readError } from '../lib/supabaseClient'
 import { KIND_INFO, LORE_KINDS, isDraft, isKind, loreSection, type LoreEntry, type LoreKind } from '../lore'
 
 // The GM's editor for one lore entry. Every field saves itself (title, summary and related entries when you leave
@@ -30,7 +30,7 @@ const { entries } = section.store
 const loadError = ref('')
 const fresh = ref(false)
 onMounted(async () => {
-  loadError.value = await section.store.load()
+  loadError.value = readError(await section.store.load())
   fresh.value = !loadError.value
 })
 const entry = computed(() => entries.value.find((other) => other.id === id))
@@ -73,7 +73,7 @@ async function save(extra: { published_at?: string | null } = {}) {
   const fields = { title: name, kind: kind.value, summary: summary.value, body, related: related.value, ...(section.plain && { image: image.value }), ...extra }
   const failed = !name ? 'A title is needed.' : conflict.value ? CHANGED_ELSEWHERE : await section.store.save(id, fields)
   saving.value--
-  error.value = failed ?? ''
+  error.value = readError(failed ?? '')
   saved.value = !failed
   if (failed === CHANGED_ELSEWHERE) conflict.value = true
   return failed
@@ -130,7 +130,7 @@ async function remove() {
   if (!(await confirmAction(`Delete ${entry.value?.title}? Links to it stop working. This can't be undone.`, { confirmLabel: 'Delete entry', danger: true }))) return
   const picture = image.value
   const failed = await section.store.remove(id)
-  deleteError.value = failed ?? ''
+  deleteError.value = readError(failed ?? '')
   if (failed) return
   if (picture) deleteImage(picture) // best effort, so the picture doesn't outlive its entry
   router.push({ name: section.list })

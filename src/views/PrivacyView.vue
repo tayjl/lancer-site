@@ -7,7 +7,7 @@ import Icon from '../components/Icon.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { confirmAction } from '../confirm'
 import { deleteAllImages } from '../images'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 
 const router = useRouter()
 const deleting = ref(false)
@@ -23,7 +23,7 @@ async function deleteAccount() {
   const imageError = profile.value?.role === 'player' ? await deleteAllImages(user.id) : null
   const { error: rpcError } = imageError ? { error: { message: imageError } } : await supabase.rpc('delete_my_account')
   if (rpcError) {
-    error.value = `Not deleted: ${rpcError.message}`
+    error.value = `Not deleted: ${readError(rpcError.message)}`
     deleting.value = false
     return
   }
@@ -137,7 +137,7 @@ async function deleteAccount() {
 .rows dd { margin: 0; }
 @media (max-width: 40rem) { .rows > div { grid-template-columns: minmax(0, 1fr); } }
 
-/* The promise as three centred tiles (a showcase, so centred). */
+/* The promise as three tiles, left-aligned like the rest of the page. */
 .pledge {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -150,9 +150,9 @@ async function deleteAccount() {
   background: var(--rule);
   list-style: none;
 }
-.pledge li { display: flex; flex-direction: column; align-items: center; gap: var(--space-s); padding: var(--space-l) var(--space-m); background: var(--panel); font-weight: 700; text-align: center; }
+.pledge li { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-s); padding: var(--space-l) var(--space-m); background: var(--panel); font-weight: 700; text-align: left; }
 .pledge .icon { font-size: 24px; color: var(--text-dim); }
-.pledge-note { max-width: none; margin: var(--space-m) 0 0; font-size: var(--fs-s); text-align: center; }
+.pledge-note { max-width: none; margin: var(--space-m) 0 0; font-size: var(--fs-s); text-align: left; }
 @media (max-width: 40rem) {
   .pledge li { padding: var(--space-m) var(--space-s); font-size: var(--fs-s); }
   .pledge .icon { font-size: 20px; }

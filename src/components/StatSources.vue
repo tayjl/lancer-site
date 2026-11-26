@@ -37,6 +37,12 @@ const sourced = computed(() => props.stats.filter((stat) => stat.contributors?.l
   cursor: pointer;
 }
 
+@media (pointer: coarse), (max-width: 40rem) {
+  .how summary {
+    min-height: 44px;
+  }
+}
+
 .how dl {
   display: grid;
   grid-template-columns: max-content 1fr;

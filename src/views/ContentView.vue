@@ -3,7 +3,8 @@ import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { isOwner, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
 import FileSection from '../components/FileSection.vue'
-import { fetchAll, supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
+import { loadContentIndex } from '../catalogue'
 import type { Json } from '../lib/database.types'
 import { invalidateCatalogues } from '../gameData'
 import { confirmAction } from '../confirm'
@@ -74,18 +75,16 @@ async function load() {
     ])
     if (packRows.error) throw packRows.error
     if (modRows.error) throw modRows.error
-    // Catalogue metadata can exceed the API's 1,000-row response limit.
-    // "edited_id" is only there to say whether the campaign has edited the item (the edit itself is big).
-    const all = await fetchAll((from, to) => supabase.from('content_items').select('id, pack_id, kind, edited_id:edited->>id').order('id').range(from, to))
+    const all = await loadContentIndex()
     if (all.error) throw new Error(all.error)
     packs.value = packRows.data ?? []
-    items.value = all.rows.map((row) => ({ id: row.id, pack_id: row.pack_id, kind: row.kind, edited: (row as unknown as { edited_id: string | null }).edited_id !== null }))
+    items.value = all.rows.map((row) => ({ id: row.id, pack_id: row.pack_id, kind: row.kind, edited: row.edited_id !== null }))
     // A failed check only blocks removing, never importing.
     usage.value = usageRows.data ?? []
     usageError.value = usageRows.error ? "Couldn't check who uses it." : ''
     biomods.value = modRows.count ?? 0
   } catch (error) {
-    loadError.value = `Content didn't load: ${message(error)}`
+    loadError.value = `Content didn't load: ${readError(message(error))}`
   } finally { loading.value = false }
 }
 watch(isOwner, owner => owner && load(), { immediate: true })
@@ -140,7 +139,7 @@ async function loadCoreContent() {
     // A partial or conflicting installation needs the normal conflict preview.
     if (!plan.value?.conflicts.length) await importPack()
   } catch (error) {
-    fileError.value = `Core content didn't load: ${error instanceof Error ? error.message : 'Try again.'}`
+    fileError.value = `Core content didn't load: ${error instanceof Error ? readError(error.message) : 'Try again.'}`
   } finally {
     reading.value = false
     loadingCore.value = false
@@ -167,7 +166,7 @@ async function importPack() {
     filename.value = ''
     await load()
   } catch (error) {
-    saveError.value = `Not imported: ${message(error)}`
+    saveError.value = `Not imported: ${readError(message(error))}`
     // Refresh metadata so a retry previews the current catalogue after a conflict.
     await load()
   } finally { saving.value = false }
@@ -185,7 +184,7 @@ async function removePack(pack: InstalledPack) {
     removal.value = { ok: true, text: `Removed ${pack.name}.` }
     invalidateCatalogues()
   } catch (error) {
-    removal.value = { ok: false, text: `Not removed: ${message(error)}` }
+    removal.value = { ok: false, text: `Not removed: ${readError(message(error))}` }
   } finally { saving.value = false }
   await load()
 }
@@ -264,7 +263,7 @@ async function removePack(pack: InstalledPack) {
       </FileSection>
 
       <FileSection id="installed-packs" :no="candidate ? '02' : '01'" title="Installed packs" fixed>
-        <p class="dim summary"><span class="num">{{ packs.length }}</span> {{ packs.length === 1 ? 'pack' : 'packs' }}, <span class="num">{{ items.length }}</span> items</p>
+        <p v-if="!loadError" class="dim summary"><span class="num">{{ packs.length }}</span> {{ packs.length === 1 ? 'pack' : 'packs' }}, <span class="num">{{ items.length }}</span> items</p>
         <div v-if="packs.length" class="search">
           <label class="field"><span>Search</span><input v-model="search" type="search" placeholder="Pack name or author" /></label>
         </div>

@@ -167,11 +167,14 @@ const isNormalSize = () => !is('textStyle', { fontSize: XSMALL }) && !is('textSt
   border-left: 1px solid var(--rule);
 }
 
-/* Phones: narrower buttons (still 44px tall) so the whole strip fits one row. */
+/* Touch sizes: the buttons are 44px wide too, and the groups wrap onto more rows. */
+@media (pointer: coarse), (max-width: 30rem) {
+  .tool { min-width: 44px; }
+  .tool.colour { width: 44px; }
+}
 @media (max-width: 30rem) {
   .toolbar { gap: var(--space-xs); }
-  .tool { min-width: 34px; padding: 0; }
-  .tool.colour { width: 34px; }
+  .tool { padding: 0; }
 }
 
 .tool:focus-visible {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { confirmAction } from '../confirm'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 import { EXPERIENCE_MAX, award, levelUp, rewardsProblem } from '../rewards'
 import { useSaveStatus } from '../saveStatus'
 import type { Character } from '../myPilot'
@@ -19,6 +19,7 @@ const reason = ref('')
 // What the database held when the fields were filled, so only the fields the GM changed are sent.
 const loaded = ref({ level: 0, manna: 0, experience: 0 })
 const loading = ref(true)
+const loadError = ref('')
 const status = useSaveStatus()
 
 async function load() {
@@ -26,11 +27,14 @@ async function load() {
     supabase.from('character_sheets').select('level, manna').eq('character_id', props.pilot.id).maybeSingle(),
     supabase.from('pilot_progress').select('experience').eq('character_id', props.pilot.id).maybeSingle(),
   ])
-  status.error.value = error?.message ?? progressError?.message ?? ''
-  level.value = data?.level ?? 0
-  manna.value = data?.manna ?? 0
-  experience.value = progress?.experience ?? 0
-  loaded.value = { level: level.value, manna: manna.value, experience: experience.value }
+  const failed = error?.message ?? progressError?.message
+  loadError.value = failed ? readError(failed) : ''
+  if (!loadError.value) {
+    level.value = data?.level ?? 0
+    manna.value = data?.manna ?? 0
+    experience.value = progress?.experience ?? 0
+    loaded.value = { level: level.value, manna: manna.value, experience: experience.value }
+  }
   loading.value = false
 }
 
@@ -69,6 +73,10 @@ async function levelUpNow() {
 
 <template>
   <p v-if="loading" class="dim">Loading…</p>
+  <p v-else-if="loadError" class="notice warn" role="alert">
+    Rewards didn't load: {{ loadError }}
+    <button type="button" class="small" @click="load">Retry</button>
+  </p>
   <form v-else class="rewards" @submit.prevent="saveRewards">
     <label class="field">
       <span>Level</span>

@@ -6,7 +6,7 @@ import ReviewQueue from '../components/ReviewQueue.vue'
 import type { Json } from '../lib/database.types'
 import { PILOT_FIELDS, type PublicPilot } from '../pilots'
 import { confirmAction } from '../confirm'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 import { EXPERIENCE_MAX, award, levelUp, rewardsProblem, type Rewards } from '../rewards'
 import type { Sheet } from '../myPilot'
 import { useGameData } from '../gameData'
@@ -54,9 +54,13 @@ const withMechs = (pilot: { mechs: unknown }) => ({ ...pilot, mechs: Array.isArr
 
 async function load() {
   loading.value = true
-  const { data, error: loadError } = await pilotQuery().order('created_at')
-  items.value = (data ?? []).map(withMechs)
-  error.value = loadError?.message ?? ''
+  try {
+    const { data, error: loadError } = await pilotQuery().order('created_at')
+    items.value = (data ?? []).map(withMechs)
+    error.value = loadError ? readError(loadError.message) : ''
+  } catch (e) {
+    error.value = readError((e as Error).message)
+  }
   loading.value = false
 }
 
@@ -87,7 +91,7 @@ async function run(pilot: Pilot, write: () => Promise<string | null>) {
   if (!failure) {
     const { data, error: loadError } = await pilotQuery().eq('id', pilot.id).maybeSingle()
     if (data) items.value = items.value.map((item) => item.id === pilot.id ? withMechs(data) : item)
-    failure = loadError?.message ? `Saved, but couldn't refresh the row: ${loadError.message}` : null
+    failure = loadError?.message ? `Saved, but couldn't refresh the row: ${readError(loadError.message)}` : null
     delete typed[pilot.id]
   }
   saving[pilot.id] = false
@@ -128,7 +132,10 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
     <p v-if="!profile" class="dim">Loading…</p>
     <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
     <p v-else-if="loading" class="dim">Loading…</p>
-    <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
+    <p v-else-if="error" class="notice warn" role="alert">
+      Pilots didn't load: {{ error }}
+      <button type="button" class="small" @click="load">Retry</button>
+    </p>
     <template v-else>
       <ReviewQueue :items="queueCards" description="New pilots, oldest first." />
 
@@ -149,9 +156,7 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
           <table class="table">
             <thead>
               <tr>
-                <th scope="col">Callsign</th>
-                <th scope="col">Name</th>
-                <th scope="col">Player</th>
+                <th scope="col">Pilot</th>
                 <th scope="col">Status</th>
                 <th scope="col" class="number">Level</th>
                 <th scope="col" class="number">Experience</th>
@@ -159,14 +164,24 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <th scope="col" class="number">Manna received</th>
                 <th scope="col" class="number">Manna left</th>
                 <th scope="col">Mechs</th>
-                <th scope="col">Record</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="pilot in roster" :key="pilot.id">
-                <td data-label="Callsign" class="callsign">{{ pilot.callsign || '–' }}</td>
-                <td data-label="Name">{{ pilot.pilot_name }}</td>
-                <td data-label="Player">{{ pilot.player?.display_name || 'Unknown player' }}</td>
+                <td data-label="Pilot" class="who">
+                  <div>
+                    <RouterLink :to="sheetLink(pilot)" class="callsign">{{ pilot.callsign || pilot.pilot_name }}</RouterLink>
+                    <span v-if="pilot.callsign" class="sub">{{ pilot.pilot_name }}</span>
+                    <span class="sub">{{ pilot.player?.display_name || 'Unknown player' }}</span>
+                    <span v-if="!pilot.sheet" class="save-message error">Sheet missing</span>
+                    <span v-if="rowError[pilot.id]" class="save-message error" role="alert">
+                      Not saved: {{ rowError[pilot.id] }}
+                      <button v-if="typed[pilot.id]" type="button" class="small quiet" @click="save(pilot, {})">Retry</button>
+                    </span>
+                    <span v-else-if="saving[pilot.id]" class="save-message dim" role="status">Saving…</span>
+                    <span v-else-if="saved[pilot.id]" class="save-message dim" role="status">Saved</span>
+                  </div>
+                </td>
                 <td data-label="Status">
                   <span
                     class="badge"
@@ -216,16 +231,6 @@ watch(isGm, (gm) => gm && load(), { immediate: true })
                 <td data-label="Mechs" class="mech-names" :title="pilot.mechs.map((mech) => mech.name).join(', ')">
                   {{ pilot.mechs.map((mech) => mech.name).join(', ') || '–' }}
                 </td>
-                <td data-label="Record">
-                  <RouterLink :to="sheetLink(pilot)" class="link-button">Open sheet</RouterLink>
-                  <span v-if="!pilot.sheet" class="save-message error">Sheet missing</span>
-                  <span v-if="rowError[pilot.id]" class="save-message error" role="alert">
-                    Not saved: {{ rowError[pilot.id] }}
-                    <button v-if="typed[pilot.id]" type="button" class="small quiet" @click="save(pilot, {})">Retry</button>
-                  </span>
-                  <span v-else-if="saving[pilot.id]" class="save-message dim" role="status">Saving…</span>
-                  <span v-else-if="saved[pilot.id]" class="save-message dim" role="status">Saved</span>
-                </td>
               </tr>
             </tbody>
           </table>
@@ -243,22 +248,23 @@ section + section { margin-top: var(--space-l); }
 /* Scrolls inside its box on narrow screens; the header row stays put while the rows scroll. */
 .record-window { max-height: 70dvh; overflow: auto; border: 1px solid var(--rule); border-radius: var(--radius); }
 .table th { position: sticky; top: 0; z-index: 1; background: var(--panel); }
-.table input { width: 8rem; text-align: right; }
+.table input { width: 6rem; text-align: right; }
 .table input.level { width: 5rem; }
 .xp { width: 9rem; text-align: right; }
 .xp input { width: 6rem; }
 .ready { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-xs); margin-top: var(--space-xs); }
-.callsign { font-weight: 700; }
+.callsign { display: inline-block; padding-block: var(--space-xs); font-weight: 700; }
+@media (pointer: coarse), (max-width: 40rem) {
+  .callsign { min-height: 44px; display: inline-flex; align-items: center; }
+}
+.who > div { display: grid; justify-items: start; }
+.sub { color: var(--text-dim); font-size: var(--fs-xs); }
 .balance { font-weight: 700; }
 .balance.over { color: var(--danger); }
 .spent { display: block; color: var(--text-dim); font-size: var(--fs-xs); }
-.mech-names { max-width: 15rem; overflow: hidden; text-overflow: ellipsis; }
+.mech-names { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; }
 .save-message { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-xs); font-size: var(--fs-xs); white-space: normal; }
 .save-message.error { color: var(--danger); }
-/* A link drawn like a small button. */
-.link-button { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border: 1px solid var(--edge); border-radius: var(--radius); font: 700 var(--fs-xs) / 1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; }
-.link-button:hover, .link-button:focus-visible { border-color: var(--lilac); color: var(--lilac); }
-@media (pointer: coarse), (max-width: 40rem) { .link-button { min-height: var(--tap); } }
 @media (max-width: 40rem) {
   /* Each pilot becomes a card with a label beside every value, so no column (Status) is cut off. */
   .record-window { max-height: none; overflow: visible; border: 0; }

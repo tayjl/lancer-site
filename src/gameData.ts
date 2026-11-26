@@ -1,5 +1,5 @@
 import { computed, shallowRef, watch } from 'vue'
-import { cached, clearCatalogues, loadKind, reloads } from './catalogue'
+import { cached, clearCatalogues, loadContentIndex, loadKind, reloads } from './catalogue'
 import { BASE_ACTIONS, baseActions, toBaseAction, type BaseAction } from './baseActions'
 import { rule, ruleItems, toRuleItem } from './rulesData'
 import { loadDefinitions } from './definitions'
@@ -106,7 +106,7 @@ export const tagNames = shallowRef(new Map<string, string>())
 export const packNames = shallowRef(new Map<string, string>())
 export const sourceOf = (id: string) => packNames.value.get(id) ?? ''
 export async function loadSources() {
-  const { rows } = await cached('sources', () => fetchAll((from, to) => supabase.from('content_items').select('id, content_packs(name)').order('id').range(from, to)))
+  const { rows } = await loadContentIndex()
   packNames.value = new Map(rows.map(({ id, content_packs }) => [id, content_packs?.name ?? '']))
 }
 // Tags the data marks hidden: notes for the app (e.g. "Set Max Uses"), not something a player reads.
@@ -212,7 +212,7 @@ export const loadPilotStats = () =>
   })
 // A talent: three ranks, each with a name and rules text (simple HTML). A core bonus: its manufacturer and
 // rules text. Both from the imported LANCER packs.
-export type TalentRank = { name: string; description: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; exclusive?: boolean; [key: string]: unknown }
+type TalentRank = { name: string; description: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; exclusive?: boolean; [key: string]: unknown }
 export type Talent = { id: string; name: string; terse: string; ranks: TalentRank[]; requires?: unknown; hidden?: boolean }
 // integrated / special_equipment: items it builds in or unlocks. replace_integrated: its integrated weapons replace the frame's own.
 export type CoreBonus = { id: string; name: string; source: string; effect: string; bonuses?: Bonus[]; integrated?: string[]; special_equipment?: string[]; replace_integrated?: boolean; hidden?: boolean; [key: string]: unknown }
@@ -248,7 +248,7 @@ export function loadoutSlots(ids: string[], typeOf: (id: string) => string | und
 }
 
 // LANCER's mech skills (HASE). Fixed by the game, so they aren't a table.
-export const MECH_SKILLS: PilotStat[] = [
+const MECH_SKILLS: PilotStat[] = [
   { id: 'hull', name: 'hull' },
   { id: 'agility', name: 'agility' },
   { id: 'systems', name: 'systems' },

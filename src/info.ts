@@ -21,9 +21,9 @@ export type InfoCard = { heading: string; html: string; activation?: string; fre
 // "stack": cards one above another, for rules read in order (an item's effect, then on attack, on hit...).
 // "tags": tag chips, each with what it means. "look" draws a frame's groups as item cards (ItemCard.vue): "traits"
 // a card per trait in the frame colour, "core" the whole group as one card in the core colour, titled by the group.
-export type InfoGroup = { title?: string; lore?: string; stack?: boolean; tags?: boolean; look?: 'traits' | 'core'; cards: InfoCard[] }
+type InfoGroup = { title?: string; lore?: string; stack?: boolean; tags?: boolean; look?: 'traits' | 'core'; cards: InfoCard[] }
 // Facts under the name.
-export type InfoFact = { text: string }
+type InfoFact = { text: string }
 // "kind" is an item stat's (itemDetails): range, damage, bonus or sp.
 export type InfoStat = { label: string; value: string; icon?: string | null; kind?: string }
 // "source": the manufacturer's id, if it has one, so the dialog takes that manufacturer's colour.
@@ -216,7 +216,7 @@ export function manufacturerInfo(manufacturer: Manufacturer, frames: Frame[] = [
 
 // A link to one entry in the archives (the url ArchivesView.vue reads: ?cat= and ?item=). Only for things the archives
 // list: frames, and the weapons, systems and mods a pilot can pick (not built-in or talent-only equipment).
-export const archiveLink = (category: ArchiveCategory, id: string): RouteLocationRaw => ({ name: 'archives', query: { cat: category, item: `${category}:${id}` } })
+const archiveLink = (category: ArchiveCategory, id: string): RouteLocationRaw => ({ name: 'archives', query: { cat: category, item: `${category}:${id}` } })
 // "to" links to its archive entry (the licence's information); "info" opens its full information (the sheet's ladder and
 // the editor, which shouldn't navigate away).
 // A hidden one has no archive entry, so its "to" is left out where it's shown (UnlockList.vue).

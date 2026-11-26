@@ -35,7 +35,8 @@ vi.mock('./lib/supabaseClient', async (original) => {
     })
     return b
   }
-  return { ...real, supabase: { from, rpc: async () => ({ data: [{ sheet: {}, level: 0, updated_at: 's0' }], error: null }) } }
+  // The real helper reads through the real client, so the fake stands in for it too.
+  return { ...real, recheckUpdatedAt: (table: string, column: string, value: unknown) => () => (from(table) as any).select('updated_at').eq(column, value).maybeSingle(), supabase: { from, rpc: async () => ({ data: [{ sheet: {}, level: 0, updated_at: 's0' }], error: null }) } }
 })
 
 import { isGm } from './auth'

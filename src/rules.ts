@@ -19,7 +19,7 @@ import { mountIs } from './definitions'
 // Balance numbers owners can edit (rulesData.ts NUMBER_KEYS), so these are functions: read them where they are used.
 export const maxLicenceRank = () => rule('max_licence_rank')
 export const maxTalentRank = () => rule('max_talent_rank')
-export const MAX_SKILL = 6
+const MAX_SKILL = 6
 export const personalStatMin = () => rule('personal_stat_min')
 export const personalStatMax = () => rule('personal_stat_max')
 export const personalStatPoints = () => rule('personal_stat_points')
@@ -57,9 +57,9 @@ export const nextMechPrice = (mechs: number) => (mechs > 0 ? PRICES.extraMech : 
 // - HORUS and NHC: blocked for players in every picker, free for GMs and owners anywhere ("GM only"). Matched by name,
 //   ignoring case, because NHC content comes from packs imported on the live site, not from this repo.
 // - Exotic (isExotic): selectable only in a GM's edit mode, even for GMs and owners on their own pilots ("GM edit only").
-export const GM_ONLY_NAMES = ['HORUS', 'NHC']
-export const GM_ONLY_REASON = 'GM only'
-export const EXOTIC_REASON = 'GM edit only'
+const GM_ONLY_NAMES = ['HORUS', 'NHC']
+const GM_ONLY_REASON = 'GM only'
+const EXOTIC_REASON = 'GM edit only'
 // The Exotic pseudo-manufacturer (a code constant, not a content row) and the tag every Exotic item carries.
 export const EXOTIC = 'EXOTIC'
 export const EXOTIC_TAG = 'tg_exotic'
@@ -87,7 +87,7 @@ export const restrictionOf = (thing: Restrictable, frames: Frame[] = []): Restri
 export const restrictionReason = (r: Partial<Restriction>, viewer: { gm: boolean; gmEdit: boolean }) =>
   r.exotic ? (viewer.gmEdit ? '' : EXOTIC_REASON) : r.gmOnly && !viewer.gm ? GM_ONLY_REASON : ''
 
-export const sum = (values: Record<string, number> | undefined) => Object.values(values ?? {}).reduce((a, b) => a + (Number.isFinite(b) ? Math.max(0, b) : 0), 0)
+const sum = (values: Record<string, number> | undefined) => Object.values(values ?? {}).reduce((a, b) => a + (Number.isFinite(b) ? Math.max(0, b) : 0), 0)
 
 // From level: HASE points and the mod limit (a base number, one more per level).
 export const skillPoints = (level: number) => rule('skill_points_base') + level

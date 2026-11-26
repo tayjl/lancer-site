@@ -10,9 +10,9 @@ export type LcpKind = keyof typeof LCP_KINDS
 const IMPORTED_KINDS = Object.keys(LCP_KINDS) as LcpKind[]
 // The campaign's own wording: an official action or rule keeps its seed id, so a pack can only add its own (hb_ ids), and a bad row is skipped, not fatal.
 const HOMEBREW_ONLY: LcpKind[] = ['actions', 'rules']
-export const HOMEBREW_ID_PREFIX = 'hb_'
-export type LcpManifest = { name: string; author: string; version: string; description: string } & Record<string, Json>
-export type LcpItem = { id: string; kind: LcpKind; data: Record<string, Json> }
+const HOMEBREW_ID_PREFIX = 'hb_'
+type LcpManifest = { name: string; author: string; version: string; description: string } & Record<string, Json>
+type LcpItem = { id: string; kind: LcpKind; data: Record<string, Json> }
 export type LcpPack = { manifest: LcpManifest; items: LcpItem[]; ignored: string[]; warnings: string[] }
 export type InstalledPack = Tables<'content_packs'>
 // "edited": an owner has edited this item in the content editor (content_items.edited), and pack updates keep that edit.

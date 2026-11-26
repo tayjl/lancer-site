@@ -866,6 +866,11 @@ label.field .error {
   margin: 0;
 }
 
+/* A notice's Retry is as wide as its text, not stretched across the column. */
+.notice > button {
+  align-self: flex-start;
+}
+
 .notice ul {
   margin: 0;
   padding-left: 1.2em;

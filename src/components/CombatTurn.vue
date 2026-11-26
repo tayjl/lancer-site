@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { catalogueError } from '../catalogue'
 import { frameInfo } from '../info'
+import { readError } from '../lib/supabaseClient'
 import { half } from '../itemDetails'
 import type { Frame } from '../mechData'
 import type { PublicMech } from '../pilots'
@@ -34,7 +35,7 @@ const shown = computed(() => props.vitals.filter((vital) => vital.value !== null
     <div class="turn-mech">
       <p v-if="loading" class="dim" role="status">Loading…</p>
       <template v-else-if="loadError">
-        <p class="notice warn" role="alert">Your pilot didn't load: {{ loadError }}</p>
+        <p class="notice warn" role="alert">Your pilot didn't load: {{ readError(loadError) }}</p>
         <button type="button" class="small" @click="emit('retry')">Retry</button>
       </template>
       <p v-else-if="!hasPilot" class="empty">No pilot yet.</p>

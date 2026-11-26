@@ -410,6 +410,10 @@ function key(event: KeyboardEvent) {
   border-color: var(--rule);
 }
 
+@media (pointer: coarse), (max-width: 40rem) {
+  .inline { min-height: 44px; }
+}
+
 /* The motto in quotation marks of the pilot's colour, which aren't part of the stored text. */
 .motto {
   max-width: 60ch;

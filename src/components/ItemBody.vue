@@ -80,8 +80,16 @@ const rules = computed(() => cardRules(props.item))
 }
 
 .sources summary {
+  display: flex;
+  align-items: center;
   color: var(--lilac);
   cursor: pointer;
+}
+
+@media (pointer: coarse), (max-width: 40rem) {
+  .sources summary {
+    min-height: 44px;
+  }
 }
 
 .sources p {

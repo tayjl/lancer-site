@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { readError } from '../lib/supabaseClient'
 import { ref, useTemplateRef } from 'vue'
 import { imageUrl, uploadImage } from '../images'
 import { CAPTION_MAX, GALLERY_MAX, addPicture, removePicture, replacePicture, setCaption, type GalleryItem } from '../pilotProfile'
@@ -21,7 +22,7 @@ async function change(doing: string, next: () => Promise<string | null>) {
   try {
     error.value = (await next()) ?? ''
   } catch (e) {
-    error.value = (e as Error).message
+    error.value = readError((e as Error).message)
   }
   busy.value = ''
 }
@@ -57,7 +58,7 @@ const title = (item: GalleryItem, at: number) => item.caption || `Picture ${at +
       <span v-if="editable && items.length >= GALLERY_MAX"><span class="num">{{ GALLERY_MAX }}</span> of <span class="num">{{ GALLERY_MAX }}</span> pictures</span>
       <button v-if="editable && items.length < GALLERY_MAX" type="button" class="small" :disabled="!!busy" @click="choose(-1)">Add picture</button>
     </Teleport>
-    <input ref="input" type="file" accept="image/*" class="sr-only" tabindex="-1" @change="picked" />
+    <input ref="input" type="file" accept="image/*" class="sr-only" tabindex="-1" aria-label="Add gallery image" @change="picked" />
 
     <ul v-if="items.length" class="pictures">
       <li v-for="(item, at) in items" :key="item.path" class="picture">

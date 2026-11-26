@@ -1,6 +1,6 @@
 import { ref, shallowRef, watch } from 'vue'
 import type { Json } from './lib/database.types'
-import { supabase } from './lib/supabaseClient'
+import { readError, supabase } from './lib/supabaseClient'
 
 // A pilot's backstory is private (it's in the private sheet) unless its player makes it public. A public one has a copy in
 // pilot_public_backstory, which every logged-in user can read; the database keeps the copy equal to the pilot's sheet.
@@ -10,23 +10,30 @@ export function useBackstoryVisibility(characterId: () => number | undefined) {
   const isPublic = ref(false)
   const copy = shallowRef<Json | null>(null)
   const loading = ref(true)
+  const error = ref('')
 
   async function load() {
     const id = characterId()
     if (id === undefined) return
-    const { data } = await supabase.from('pilot_public_backstory').select('backstory').eq('character_id', id).maybeSingle()
-    isPublic.value = !!data
-    copy.value = data?.backstory ?? null
+    const read = await supabase.from('pilot_public_backstory').select('backstory').eq('character_id', id).maybeSingle()
+    // A failed read is not "private": the toggle would show the wrong state.
+    error.value = read.error ? readError(read.error.message) : ''
+    if (!read.error) {
+      isPublic.value = !!read.data
+      copy.value = read.data?.backstory ?? null
+    }
     loading.value = false
   }
   watch(characterId, load, { immediate: true })
 
   async function set(makePublic: boolean) {
-    const { error } = await supabase.rpc('set_backstory_public', { target_character_id: characterId()!, make_public: makePublic })
-    if (error) return error.message
+    const id = characterId()
+    if (id === undefined) return 'Pilot not found.'
+    const { error } = await supabase.rpc('set_backstory_public', { target_character_id: id, make_public: makePublic })
+    if (error) return readError(error.message)
     await load()
     return null
   }
 
-  return { isPublic, copy, loading, set }
+  return { isPublic, copy, loading, error, set }
 }

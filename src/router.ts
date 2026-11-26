@@ -136,6 +136,11 @@ router.beforeEach(async (to) => {
   if (to.name === 'login' && session.value) return { name: 'home' }
 })
 
+// The tab's title: the page's own, then the site name (the login screen has none).
+router.afterEach((to) => {
+  document.title = to.meta.title ? `${to.meta.title} - HOR_OS` : 'HOR_OS'
+})
+
 // The list a pilot is in, by status: a link to it and its label (the record's breadcrumb).
 export const pilotList = (status: string | undefined) =>
   status === 'pending' ? { to: { name: 'registry', query: { list: 'pending' } }, label: 'Pending' }

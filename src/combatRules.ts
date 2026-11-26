@@ -6,7 +6,7 @@
 // "gist" is the one short line a collapsed row shows; a row without one shows its text's first sentence.
 // Which card an action sits in under the "1 full" and "2 quick" steps. "move" (Boost, Disengage) is for the Movement step.
 // Core Power and reactions have none.
-export type ActionGroup = 'attack' | 'tech' | 'other' | 'move'
+type ActionGroup = 'attack' | 'tech' | 'other' | 'move'
 export type CombatAction = { name: string; activation?: string; frequency?: string; gist?: string; group?: ActionGroup; text: string }
 // short: a narrower value for the
 // value column of a row list, where "7 or less" wouldn't fit.

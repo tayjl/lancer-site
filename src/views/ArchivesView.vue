@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import InfoBody from '../components/InfoBody.vue'
 import InfoButton from '../components/InfoButton.vue'
 import CatalogueNotice from '../components/CatalogueNotice.vue'
-import { retrying } from '../catalogue'
+import { catalogueError, retrying } from '../catalogue'
 import PageHeader from '../components/PageHeader.vue'
 import RulesText from '../components/RulesText.vue'
 import SheetTabs from '../components/SheetTabs.vue'
@@ -161,7 +161,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
 <template>
   <main class="page archives list-pane">
     <PageHeader title="Archives" summary="Every piece of game content, by manufacturer.">
-      <span class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
+      <span v-if="!catalogueError && !retrying" class="dim"><span class="num">{{ entries.length }}</span> {{ entries.length === 1 ? 'entry' : 'entries' }}</span>
     </PageHeader>
     <CatalogueNotice />
 
@@ -175,7 +175,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
 
     <!-- Sticky under the top bar, one row that scrolls sideways when narrow. -->
     <div ref="bar" class="cat-bar">
-      <SheetTabs v-model="view" :tabs="tabs" :counts="tabCounts" label="Archive categories" />
+      <SheetTabs v-model="view" :tabs="tabs" :counts="catalogueError || retrying ? undefined : tabCounts" label="Archive categories" />
     </div>
 
     <div v-if="makerChips.length" class="maker-filter" role="group" aria-label="Filter by manufacturer">
@@ -207,14 +207,14 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
             <li v-for="c in counts(maker)" :key="c.made">
               <!-- A zero is a plain row: a click would only open an empty list. -->
               <button v-if="c.count" type="button" class="made" @click="setQuery({ cat: c.made, maker: maker.id })">
-                <span class="made-name">{{ c.made }}</span><span class="num">{{ c.count }}</span>
+                <span class="made-name">{{ c.made }}</span><span v-if="!catalogueError && !retrying" class="num">{{ c.count }}</span>
               </button>
-              <div v-else class="made"><span class="made-name">{{ c.made }}</span><span class="num">{{ c.count }}</span></div>
+              <div v-else class="made"><span class="made-name">{{ c.made }}</span><span v-if="!catalogueError && !retrying" class="num">{{ c.count }}</span></div>
             </li>
           </ul>
         </li>
       </ul>
-      <p v-else-if="!retrying" class="empty">No content yet.</p>
+      <p v-else-if="!retrying && !catalogueError" class="empty">No content yet.</p>
     </template>
 
     <!-- Everything else: the list (a box per manufacturer or gear type, licence sub-headings for weapons and systems)
@@ -260,7 +260,7 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
     <p v-else-if="searching" class="empty" role="status">Nothing matches that search.</p>
     <!-- The catalogues don't say when they've finished loading, so "nothing at all" can mean either. -->
     <p v-else-if="entries.length" class="empty">No entries.</p>
-    <p v-else-if="!retrying" class="empty">No content yet.</p>
+    <p v-else-if="!retrying && !catalogueError" class="empty">No content yet.</p>
   </main>
 </template>
 
@@ -360,6 +360,14 @@ watch(shownInfo, (info) => { if (!info && route.query.item && !paneMode.value) s
   font-size: 2.25rem;
   font-weight: 700;
   line-height: 1.1;
+}
+
+@media (pointer: coarse), (max-width: 40rem) {
+  .maker-id {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 
 .maker:hover,

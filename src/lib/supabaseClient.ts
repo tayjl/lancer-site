@@ -29,6 +29,10 @@ export async function checkWrite<T>(
   return { row: null, error: now && now.updated_at !== guard.seen ? CHANGED_ELSEWHERE : NOT_ALLOWED }
 }
 
+// The "recheck" for checkWrite: reads the row's updated_at again, by the column that finds it (id, character_id).
+export const recheckUpdatedAt = (table: keyof Database['public']['Tables'], column: string, value: string | number) => () =>
+  (supabase.from(table).select('updated_at') as unknown as { eq: (column: string, value: string | number) => { maybeSingle: () => PromiseLike<{ data: { updated_at: string } | null }> } }).eq(column, value).maybeSingle()
+
 // Supabase returns at most 1,000 rows a request (max_rows in supabase/config.toml), so a long list is read a page at a time.
 const PAGE_SIZE = 1000
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { readError } from '../lib/supabaseClient'
 import { ref, useTemplateRef } from 'vue'
 import { uploadImage } from '../images'
 
@@ -17,7 +18,7 @@ async function change(doing: string, next: () => Promise<string | null>) {
   try {
     error.value = (await next()) ?? ''
   } catch (e) {
-    error.value = (e as Error).message
+    error.value = readError((e as Error).message)
   }
   busy.value = ''
 }
@@ -31,7 +32,7 @@ function pick(event: Event) {
 
 <template>
   <div class="image-upload">
-    <input ref="input" type="file" accept="image/*" class="sr-only" tabindex="-1" @change="pick" />
+    <input ref="input" type="file" accept="image/*" class="sr-only" tabindex="-1" :aria-label="`${path ? 'Replace' : 'Upload'} ${noun}`" @change="pick" />
     <div class="buttons">
       <button type="button" class="small" :disabled="!!busy" @click="input?.click()">{{ path ? 'Replace' : 'Upload' }} {{ noun }}</button>
       <button v-if="path" type="button" class="quiet small" :disabled="!!busy" @click="change('Saving…', () => save(null))">Remove {{ noun }}</button>

@@ -5,7 +5,7 @@ import type { Sheet } from '../myPilot'
 import { isGm, profile } from '../auth'
 import PageHeader from '../components/PageHeader.vue'
 import ReviewQueue from '../components/ReviewQueue.vue'
-import { supabase } from '../lib/supabaseClient'
+import { readError, supabase } from '../lib/supabaseClient'
 import { capitalise } from '../text'
 import { since } from '../time'
 
@@ -45,7 +45,8 @@ async function load() {
       .select(`id, submitted_at, proposed_sheet, proposed_public, character:characters(id, callsign, pilot_name, pilot_image, ${PUBLIC_COLUMNS.join(', ')}, player:profiles(display_name), sheet:character_sheets(sheet))`)
       .eq('status', 'pending')
       .not('submitted_at', 'is', null)
-      .order('submitted_at'),
+      .order('submitted_at')
+      .overrideTypes<Waiting[], { merge: false }>(),
     supabase
       .from('pending_changes')
       .select('id, status, review_reason, reviewed_at, character:characters(id, callsign, pilot_name), reviewer:profiles!reviewed_by(display_name)')
@@ -53,9 +54,9 @@ async function load() {
       .order('reviewed_at', { ascending: false })
       .limit(20),
   ])
-  waiting.value = (queue.data ?? []) as unknown as Waiting[]
+  waiting.value = queue.data ?? []
   reviewed.value = (history.data ?? []) as Reviewed[]
-  error.value = queue.error?.message ?? history.error?.message ?? ''
+  error.value = readError(queue.error?.message ?? history.error?.message ?? '')
   loading.value = false
 }
 
@@ -73,7 +74,10 @@ const nameOf = (pilot: Pilot) => pilot?.callsign ?? pilot?.pilot_name ?? 'A dele
     <p v-else-if="!isGm" class="notice warn" role="alert">Only GMs can see this page.</p>
     <template v-else>
       <p v-if="loading" class="dim">Loading…</p>
-      <p v-else-if="error" class="notice warn" role="alert">{{ error }}</p>
+      <p v-else-if="error" class="notice warn" role="alert">
+        Changes didn't load: {{ error }}
+        <button type="button" class="small" @click="load">Retry</button>
+      </p>
       <ReviewQueue v-else :items="queueCards" description="Changes to approved pilots, oldest first." />
 
       <section v-if="!loading && !error" class="panel" aria-labelledby="history-title">

@@ -22,6 +22,11 @@ const NAME = 'HOR_OS'
 }
 
 .legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
+  padding-inline: 0.25rem; /* a bigger hit area than the small text */
   color: inherit;
 }
 

@@ -60,6 +60,15 @@ export const loadKind = (kind: string) =>
     return { rows: rows.map(({ id, kind, data, edited }) => ({ id, kind, data: edited ?? data })), error } as Loaded<{ id: string; kind: string; data: Json }>
   })
 
+// One light row per content item, drafts too (id, pack, kind, pack name, whether the campaign edited it). The "Source:" lines,
+// the editor's taken ids and the content page's pack counts all read this one load.
+export const loadContentIndex = () =>
+  cached('content-index', async () => {
+    const result = await fetchAll((from, to) =>
+      supabase.from('content_items').select('id, pack_id, kind, edited_id:edited->>id, content_packs(name)').order('id').range(from, to))
+    return result as Loaded<{ id: string; pack_id: number; kind: string; edited_id: string | null; content_packs: { name: string } | null }>
+  })
+
 // Items an owner hid (data.hidden, or edited.hidden: loadKind already merges the two) stay in every list so a pilot who has
 // one still sees it on the sheet. Pickers and archive lists leave them out with this, keeping any "keep" says is in use.
 export const offered = <T extends { hidden?: boolean }>(list: T[], keep: (item: T) => boolean = () => false) => list.filter((item) => !item.hidden || keep(item))

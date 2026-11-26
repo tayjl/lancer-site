@@ -34,7 +34,7 @@ export type CombatEntry = {
 // An action's "Trigger: … Effect: …" shows its effect only.
 export const firstSentence = (text: string) => plainText(text).replace(/^Trigger:.*?Effect:\s*/, '').split(/(?<=\.)\s/)[0]
 
-export const actionEntry = (a: CombatAction): CombatEntry => ({ name: a.name, activation: a.activation, frequency: a.frequency, gist: a.gist ?? firstSentence(a.text), text: a.text })
+const actionEntry = (a: CombatAction): CombatEntry => ({ name: a.name, activation: a.activation, frequency: a.frequency, gist: a.gist ?? firstSentence(a.text), text: a.text })
 
 // A table row as a list row. By default its value is its name (a status, a tag); "column" puts a short value before the
 // name (a Speed gateway, a range), and "gist: false" leaves the gist out where the name already says it.
@@ -44,8 +44,6 @@ export const rowEntry = (row: CombatRow, options: { column?: boolean; gist?: boo
   text: row.text,
   icon: row.icon,
 })
-
-export const plainEntry = (text: string, value?: string): CombatEntry => ({ plain: true, value, text })
 
 // An action with its placeholders filled in (another action's name, a number).
 const filled = (a: BaseAction): BaseAction => ({ ...a, text: fill(a.text) })
@@ -151,7 +149,7 @@ export function stepActions(stepName: string, kitActions: KitAction[], pilot = f
 
 // The Rules section's chips. Each opens a popup of stacked cards, so tables become cards and InfoDialog needs no change.
 // "text" is the topic's plain words, for search.
-export type Topic = { name: string; info: () => Info; text: string }
+type Topic = { name: string; info: () => Info; text: string }
 export type TopicCard = { title: string; icon: string; topics: Topic[] }
 
 const note = (html: string, heading = ''): InfoCard => ({ heading, html })

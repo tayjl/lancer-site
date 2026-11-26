@@ -5,6 +5,7 @@ import { isGm } from '../auth'
 import Icon from '../components/Icon.vue'
 import LoreEntry from '../components/LoreEntry.vue'
 import PageHeader from '../components/PageHeader.vue'
+import { readError } from '../lib/supabaseClient'
 import { useListPane } from '../listPane'
 import { KIND_INFO, LORE_KINDS, entryMeta, isDraft, loreMatches, loreSection, type LoreKind } from '../lore'
 
@@ -19,7 +20,8 @@ const router = useRouter()
 const id = computed(() => String(route.params.id ?? ''))
 
 const error = ref('')
-onMounted(async () => (error.value = await section.store.load()))
+const load = async () => (error.value = readError(await section.store.load()))
+onMounted(load)
 
 // Search, and the kind filter (none chosen shows every kind).
 const query = ref('')
@@ -56,7 +58,7 @@ const entryPage = computed(() => !wide.value && Boolean(id.value))
 
 async function newEntry() {
   const draft = await section.store.createDraft()
-  if (draft.error) error.value = draft.error
+  if (draft.error) error.value = readError(draft.error)
   else router.push({ name: section.edit, params: { id: draft.id } })
 }
 
@@ -79,7 +81,10 @@ async function newEntry() {
         <button v-if="isGm" type="button" class="primary" @click="newEntry"><Icon name="plus" />New entry</button>
       </PageHeader>
 
-      <p v-if="error" class="notice warn" role="alert">{{ section.name }} didn't load: {{ error }}</p>
+      <p v-if="error" class="notice warn" role="alert">
+        {{ section.name }} didn't load: {{ error }}
+        <button type="button" class="small" @click="load">Retry</button>
+      </p>
 
       <div class="search">
         <label class="field">
@@ -99,7 +104,7 @@ async function newEntry() {
             @click="toggleKind(kind)"
           >
             <Icon :name="KIND_INFO[kind].icon" />{{ KIND_INFO[kind].plural }}
-            <span class="num">{{ found.filter((entry) => entry.kind === kind).length }}</span>
+            <span v-if="!error" class="num">{{ found.filter((entry) => entry.kind === kind).length }}</span>
           </button>
         </div>
         <span v-if="isGm" class="private">Only GMs can see drafts.</span>

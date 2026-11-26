@@ -39,7 +39,7 @@ const SIZE_VALUES: readonly string[] = Object.values(SIZES)
 const BLOCKS = ['paragraph', 'heading', 'bulletList', 'listItem'] as const
 const MAX_DEPTH = 10
 
-export type SafeText = {
+type SafeText = {
   type: 'text'
   text: string
   bold?: true

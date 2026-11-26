@@ -232,11 +232,13 @@ async function chooseFrame(id: string) {
 function saveText(field: 'name' | 'manufacturer_id', event: Event) {
   const input = event.target as HTMLInputElement
   const value = field === 'name' ? input.value.trim() : input.value.trim().toUpperCase()
-  const next = { name: mech.value!.name, manufacturer_id: mech.value!.manufacturer_id, [field]: value }
+  const current = mech.value
+  if (!current) return
+  const next = { name: current.name, manufacturer_id: current.manufacturer_id, [field]: value }
   const problem = mechProblem(next.name, next.manufacturer_id)
   if (problem) {
     saveError.value = problem
-    input.value = mech.value![field]
+    input.value = current[field]
     return
   }
   input.value = value

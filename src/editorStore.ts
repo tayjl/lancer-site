@@ -2,7 +2,8 @@ import { HOMEBREW_PACK, KINDS, isObject, withExoticTag, type Data, type EditorKi
 import type { Json } from './lib/database.types'
 import { defLabel } from './definitions'
 import { LCP_KINDS, writeLcp, type LcpKind } from './lcp'
-import { CHANGED_ELSEWHERE, NOT_ALLOWED, checkWrite, fetchAll, supabase } from './lib/supabaseClient'
+import { CHANGED_ELSEWHERE, NOT_ALLOWED, checkWrite, fetchAll, readError, recheckUpdatedAt, supabase } from './lib/supabaseClient'
+import { loadContentIndex } from './catalogue'
 import { plural } from './text'
 import { formatDate } from './time'
 
@@ -23,17 +24,19 @@ export const message = (error: unknown) => String((error as { message?: string }
 
 export async function loadPacks(): Promise<{ packs: Pack[]; error: string | null }> {
   const { data, error } = await supabase.from('content_packs').select('id, name, manifest').order('name')
-  return error ? { packs: [], error: error.message } : { packs: data ?? [], error: null }
+  return error ? { packs: [], error: readError(error.message) } : { packs: data ?? [], error: null }
 }
 
 // The personal stats (bionic bonuses point at them), and every item id in use (a new id must be unused: they're one
-// namespace across every kind and pack).
+// namespace across every kind and pack). Both throw on a failed read: an empty set would let any id pass as unused.
 export async function loadStats(): Promise<{ id: string; name: string }[]> {
-  const { rows } = await fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))
+  const { rows, error } = await fetchAll((from, to) => supabase.from('pilot_stats').select('id, name').order('sort_order').order('id').range(from, to))
+  if (error) throw new Error(error)
   return rows
 }
 export async function loadIds(): Promise<Set<string>> {
-  const { rows } = await fetchAll((from, to) => supabase.from('content_items').select('id').order('id').range(from, to))
+  const { rows, error } = await loadContentIndex()
+  if (error) throw new Error(error)
   return new Set(rows.map((row) => row.id))
 }
 
@@ -51,7 +54,7 @@ export async function loadCounts(): Promise<Record<string, number>> {
 
 // What a Rules row needs besides the name: where it sits and how it sorts. Edited wins, as for the name.
 const RULE_FIELDS = ', section:data->>section, edited_section:edited->>section, group:data->>group, edited_group:edited->>group, order:data->>order, edited_order:edited->>order, value:data->>value, edited_value:edited->>value, numbers:data->numbers, edited_numbers:edited->numbers'
-export function ruleFields(r: Record<string, string | number[] | null>) {
+function ruleFields(r: Record<string, string | number[] | null>) {
   const pick = (key: string) => (r[`edited_${key}`] ?? r[key]) as string | null
   const section = pick('section') ?? ''
   const numbers = (r.edited_numbers ?? r.numbers) as number[] | null
@@ -170,8 +173,8 @@ export async function saveItem(item: Loaded, edits: Data, homebrew: boolean): Pr
     if (error) return { error: /changed somewhere else/.test(error.message) ? CHANGED_ELSEWHERE : message(error) }
     return saved ? { updatedAt: saved.updated_at } : { error: NOT_ALLOWED }
   }
-  if (item.kind === 'factions') return siteUpdate(item, supabase.from('organisations').update({ name: String(working.name).trim(), hidden: working.hidden === true }).eq('id', Number(item.key)).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('organisations').select('updated_at').eq('id', Number(item.key)).maybeSingle())
-  if (item.kind === 'commendations') return siteUpdate(item, supabase.from('commendations').update(commendationFields(working)).eq('id', item.key).eq('updated_at', item.updatedAt).select('updated_at'), () => supabase.from('commendations').select('updated_at').eq('id', item.key).maybeSingle())
+  if (item.kind === 'factions') return siteUpdate(item, supabase.from('organisations').update({ name: String(working.name).trim(), hidden: working.hidden === true }).eq('id', Number(item.key)).eq('updated_at', item.updatedAt).select('updated_at'), recheckUpdatedAt('organisations', 'id', Number(item.key)))
+  if (item.kind === 'commendations') return siteUpdate(item, supabase.from('commendations').update(commendationFields(working)).eq('id', item.key).eq('updated_at', item.updatedAt).select('updated_at'), recheckUpdatedAt('commendations', 'id', item.key))
   return update(item, homebrew ? { data: working as Json } : { edited: working as Json })
 }
 
@@ -195,7 +198,7 @@ async function update(item: Loaded, changes: { data?: Json; edited?: Json | null
   const seen = item.updatedAt
   const result = await checkWrite(
     await supabase.from('content_items').update(changes).eq('id', item.key).eq('updated_at', seen).select('updated_at'),
-    { seen, recheck: () => supabase.from('content_items').select('updated_at').eq('id', item.key).maybeSingle() },
+    { seen, recheck: recheckUpdatedAt('content_items', 'id', item.key) },
   )
   return result.error !== null ? { error: result.error } : { updatedAt: result.row.updated_at }
 }
@@ -226,7 +229,7 @@ export async function deleteDefinition(kind: string, id: string): Promise<string
 // The pilots using an item, each named once, in their sheet or an open change.
 export async function usageOf(kind: EditorKind, key: string): Promise<{ pilots: string[]; error: string | null }> {
   const { data, error } = await supabase.rpc('item_usage', { item_id: key, is_bionic: kind === 'bionics' })
-  return error ? { pilots: [], error: error.message } : { pilots: [...new Set((data ?? []).map((row) => row.pilot))].sort(), error: null }
+  return error ? { pilots: [], error: readError(error.message) } : { pilots: [...new Set((data ?? []).map((row) => row.pilot))].sort(), error: null }
 }
 
 // The Campaign homebrew pack's published items as an .lcp, for backing up or sharing. Drafts are left out.

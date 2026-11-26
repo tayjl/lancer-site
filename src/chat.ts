@@ -3,7 +3,7 @@
 // Ban notices are wrapped in "// ... //". Inside a message, @mentions are sky blue (like usernames)
 // and <SYSTEM MESSAGES> in angle brackets are lilac. ChatLine.vue draws a parsed line.
 
-export type ChatPart = { text: string; tone?: string }
+type ChatPart = { text: string; tone?: string }
 export type ChatLine = { tone?: string; tag?: string; tagTone?: string; user?: string; parts: ChatPart[] }
 
 // The capturing group makes split() keep the mentions and system messages as their own pieces.

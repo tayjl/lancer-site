@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { defineAsyncComponent, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import type { Json } from '../lib/database.types'
 import { CHANGED_ELSEWHERE } from '../lib/supabaseClient'
 import RichText from './RichText.vue'
-import RichTextEditor from './RichTextEditor.vue'
+// Loaded only when the sheet can be edited, so read-only pages don't download the editor.
+const RichTextEditor = defineAsyncComponent(() => import('./RichTextEditor.vue'))
 
 // One long piece of the pilot sheet (appearance, backstory...): a tag with its name, then a box you write
 // straight into. It saves itself a moment after you stop typing. Read-only when the sheet can't be edited.

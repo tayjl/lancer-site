@@ -4,7 +4,7 @@
 // font size, a #rrggbb colour, the glitch flag and a known game icon survive from it (the editor's formatting).
 import { GAME_ICONS, safeColour, SIZES } from './richTextSafe'
 
-export type RulesTag = 'p' | 'b' | 'i' | 'u' | 'ul' | 'ol' | 'li' | 'br' | 'h3' | 'span'
+type RulesTag = 'p' | 'b' | 'i' | 'u' | 'ul' | 'ol' | 'li' | 'br' | 'h3' | 'span'
 export type RulesNode =
   | string
   | { tag: RulesTag; children: RulesNode[]; size?: string; color?: string; glitch?: true }

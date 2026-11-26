@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { REASON_MAX, loadCommendations, type Commendation, usePilotAwards } from '../commendations'
 import { offered } from '../catalogue'
 import { confirmAction } from '../confirm'
+import { readError } from '../lib/supabaseClient'
 import { formatDate } from '../time'
 import MedalBadge from './MedalBadge.vue'
 
@@ -24,7 +25,7 @@ const message = ref('')
 onMounted(async () => {
   const { rows, error: failed } = await loadCommendations()
   choices.value = offered(rows)
-  choicesError.value = failed ?? ''
+  choicesError.value = readError(failed ?? '')
   loadedChoices.value = true
 })
 
@@ -37,7 +38,7 @@ async function give() {
   message.value = ''
   const failed = await props.awards.award(chosen.value, reason.value)
   busy.value = false
-  if (failed) return (error.value = `Not awarded: ${failed}`)
+  if (failed) return (error.value = `Not awarded: ${readError(failed)}`)
   message.value = `Awarded ${choices.value.find((c) => c.id === chosen.value)?.name ?? 'the commendation'}.`
   chosen.value = ''
   reason.value = ''
@@ -49,7 +50,7 @@ async function revoke(id: string, name: string) {
   error.value = ''
   message.value = ''
   const failed = await props.awards.revoke(id)
-  if (failed) error.value = `Not revoked: ${failed}`
+  if (failed) error.value = `Not revoked: ${readError(failed)}`
 }
 </script>
 

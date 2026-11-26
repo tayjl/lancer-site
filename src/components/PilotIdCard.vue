@@ -24,6 +24,7 @@ const props = defineProps<{
   portrait: string | null // the stored image path
   colour: string | null // the pilot's colour as drawn (displayColour), if they have one
   medals: string[] // the icon of each commendation
+  draft?: boolean // pending but not submitted yet: shown as Draft
   draftOpen?: boolean // the page is showing an open change; the card still shows the approved pilot
   cardVersion?: string | null // the fingerprint of the picture saved to storage
   savePath?: string | null // where to save the picture; null when this viewer may not
@@ -41,6 +42,7 @@ const lamp = computed(() => {
   return status === 'approved' ? cardToken('--ok', '#a9dfb5') : status === 'dead' ? cardToken('--dead', '#b1afba') : cardToken('--wait', '#f2d675')
 })
 
+const statusWord = computed(() => (props.draft ? 'Draft' : props.status))
 const title = computed(() => props.callsign || props.name)
 // The right-hand block runs from x 290 to 820. The callsign is tracked 1px a letter, which measuring leaves out: 20px spare.
 const callsignText = computed(() => fitCardText(title.value.toUpperCase(), 600, 52, SANS_FAMILY, 510))
@@ -54,7 +56,7 @@ const approved = computed(() => (props.approvedAt ? formatDate(props.approvedAt)
 const fields = computed(() => [
   { label: 'LEVEL', value: String(props.level), x: 290, ly: 292, vy: 338, size: 44, lamp: false },
   { label: 'LICENCE LEVEL', value: String(props.licenceLevel), x: 560, ly: 292, vy: 338, size: 44, lamp: false },
-  { label: 'STATUS', value: props.status.toUpperCase(), x: 290, ly: 372, vy: 408, size: 30, lamp: true },
+  { label: 'STATUS', value: statusWord.value.toUpperCase(), x: 290, ly: 372, vy: 408, size: 30, lamp: true },
   { label: 'ISSUED', value: approved.value, x: 560, ly: 372, vy: 408, size: 30, lamp: false },
 ])
 const MAX_MEDALS = 6
@@ -68,7 +70,7 @@ const moreX = 796
 const hex = (x: number) =>
   [[0, -25], [22, -12.5], [22, 12.5], [0, 25], [-22, 12.5], [-22, -12.5]].map(([dx, dy]) => `${x + dx},${MEDAL_Y + dy}`).join(' ')
 
-const label = computed(() => `Pilot ID card for ${title.value}: level ${props.level}, licence level ${props.licenceLevel}, ${props.status}, serial ${serial.value}`)
+const label = computed(() => `Pilot ID card for ${title.value}: level ${props.level}, licence level ${props.licenceLevel}, ${statusWord.value.toLowerCase()}, serial ${serial.value}`)
 
 // Only approved or dead pilots have a preview.
 const fingerprint = computed(() =>

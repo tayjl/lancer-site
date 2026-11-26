@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, defineAsyncComponent, reactive, ref, shallowRef } from 'vue'
 import { confirmAction } from '../confirm'
 import type { Json } from '../lib/database.types'
+import { readError } from '../lib/supabaseClient'
 import { useSaveStatus } from '../saveStatus'
 import { KIND_MARK, SHOWN, TITLE_MAX, entryProblem, formatDay, shownEntries, sortTimeline, today, useServiceRecord, type TimelineEntry } from '../serviceRecord'
 import Icon from './Icon.vue'
 import RichText from './RichText.vue'
-import RichTextEditor from './RichTextEditor.vue'
 import SaveStatus from './SaveStatus.vue'
 
+// Loaded only when the entry form opens, so read-only pages don't download the editor.
+const RichTextEditor = defineAsyncComponent(() => import('./RichTextEditor.vue'))
 // The pilot's service record: a vertical timeline, newest first. Everyone reads it. "canLog": this is your own living
 // pilot, so you add, edit and delete your own log entries. "canGm": a GM in edit mode adds GM entries
 // and edits or deletes any entry (Log, GM and Record). The database enforces it all.
@@ -77,7 +79,7 @@ async function remove(entry: TimelineEntry) {
     </form>
     <SaveStatus v-if="!form.open" :saving="status.saving.value" :saved="status.saved.value" :error="status.error.value" :can-retry="false" />
 
-    <p v-if="record.loadError.value" class="notice warn" role="alert">The service record didn't load: {{ record.loadError.value }}</p>
+    <p v-if="record.loadError.value" class="notice warn" role="alert">The service record didn't load: {{ readError(record.loadError.value) }}</p>
     <p v-else-if="!record.loaded.value" class="dim" role="status">Loading…</p>
     <p v-else-if="!sorted.length" class="empty">No entries yet.</p>
     <ol v-else class="timeline">

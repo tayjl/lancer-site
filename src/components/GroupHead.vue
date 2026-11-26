@@ -3,14 +3,14 @@
 // (the slot) at the right. The box's border and spacing are the list pane's, in style.css.
 import Icon from './Icon.vue'
 
-defineProps<{ title: string; count: number; logo?: string | null }>()
+defineProps<{ title: string; count?: number; logo?: string | null }>()
 </script>
 
 <template>
   <header class="group-head" :class="{ actionable: $slots.default }">
     <Icon v-if="logo" :src="logo" class="group-logo" />
     <h3>{{ title }}</h3>
-    <span class="num dim count">{{ count }}</span>
+    <span v-if="count !== undefined" class="num dim count">{{ count }}</span>
     <slot />
   </header>
 </template>

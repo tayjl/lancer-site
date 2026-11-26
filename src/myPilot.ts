@@ -3,11 +3,14 @@ import { isGm, session } from './auth'
 import type { Entry } from './entries'
 import type { Json, Tables, TablesUpdate } from './lib/database.types'
 import { cardImages, deleteImage } from './images'
-import { CHANGED_ELSEWHERE, checkWrite, readError, supabase } from './lib/supabaseClient'
+import { CHANGED_ELSEWHERE, checkWrite, readError, recheckUpdatedAt, supabase } from './lib/supabaseClient'
 import { PUBLIC_COLUMNS } from './changeDiff'
 import { NOT_SUBMITTED } from './saveStatus'
 import type { PublicMech } from './pilots'
 import { adjustGrants, startingManna, type GmFields, type Grants } from './rules'
+
+// The pilot or change an action needed is gone (deleted or reloaded while it waited).
+const NOT_LOADED = 'Pilot not found.'
 
 // A pilot for pilot_management and the mech pages: the public card (characters table) and the private sheet
 // (character_sheets). With no id it's your own pilot, editable while pending. With an id (a registry record)
@@ -65,7 +68,7 @@ export type Sheet = {
   core_bonuses?: string[]
 }
 
-export const MANUFACTURER_ID = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
+const MANUFACTURER_ID = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/
 
 // Checks a mech's name and manufacturer id before saving. Returns a message for the player, or null.
 export function mechProblem(name: string, manufacturerId: string) {
@@ -127,14 +130,16 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     return (Array.isArray(list) ? list : []) as unknown as PublicMech[]
   })
 
+  // A failed read is shown as loadError, which replaces the page: a hidden open change would let saves overwrite it.
   async function latestChange(characterId: number) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('pending_changes')
       .select(CHANGE_FIELDS)
       .eq('character_id', characterId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
+    if (error) loadError.value = readError(error.message)
     return data
   }
 
@@ -161,9 +166,10 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     // Someone else's pilot: the sheet without the backstory, manna and notes (pilot_sheet, public to every logged-in user).
     let privateRow: { sheet: Json; level: number; manna?: number; gm_grants?: Json; review_note?: string | null; updated_at?: string } | null = fullRow
     if (data && pilotId && !fullRow) privateRow = (await supabase.rpc('pilot_sheet', { target_character_id: data.id })).data?.[0] ?? null
-    character.value = data ? (row as Character) : null
+    const loaded = data ? (row as Character) : null
+    character.value = loaded
     playerName.value = player?.display_name ?? ''
-    if (data) {
+    if (data && loaded) {
       sheet.value = (privateRow?.sheet ?? {}) as unknown as Sheet
       gm.value = { level: privateRow?.level ?? 0, manna: privateRow ? privateRow.manna ?? 0 : startingManna() }
       grants.value = (privateRow?.gm_grants ?? {}) as Grants
@@ -178,27 +184,32 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
         const latest = await latestChange(data.id)
         change.value = latest
         // Show the change in progress instead of the approved pilot (your own only).
-        const proposed = !pilotId && latest?.status === 'pending'
-          ? (await supabase.from('pending_changes').select('proposed_public, proposed_sheet').eq('id', latest.id).maybeSingle()).data
-          : null
+        let proposed = null
+        if (!pilotId && latest?.status === 'pending') {
+          const read = await supabase.from('pending_changes').select('proposed_public, proposed_sheet').eq('id', latest.id).maybeSingle()
+          if (read.error) loadError.value = readError(read.error.message)
+          proposed = read.data
+        }
         if (proposed) {
-          approvedImages = cardImages(character.value!)
-          approved.value = { character: character.value!, sheet: sheet.value }
-          character.value = { ...character.value!, ...(proposed.proposed_public as object) }
+          approvedImages = cardImages(loaded)
+          approved.value = { character: loaded, sheet: sheet.value }
+          character.value = { ...loaded, ...(proposed.proposed_public as object) }
           // What's equipped is always the live list (equipGear below): approving a change keeps it, whatever the draft says.
           sheet.value = { ...(proposed.proposed_sheet as unknown as Sheet), equipped_gear: sheet.value.equipped_gear, misc_items: sheet.value.misc_items }
         }
       }
-      savedImages = cardImages(character.value!)
+      savedImages = cardImages(loaded)
     }
     loading.value = false
   }
 
   // First save of the identity: creates the pending pilot, then its empty private sheet.
   async function create(fields: { pilot_name: string } & TablesUpdate<'characters'>) {
+    const userId = session.value?.user.id
+    if (!userId) return NOT_LOADED
     const { data, error } = await supabase
       .from('characters')
-      .insert({ ...fields, player_id: session.value!.user.id })
+      .insert({ ...fields, player_id: userId })
       .select('id')
       .single()
     if (error) return error.message
@@ -223,7 +234,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const unsavedError = () => (unsaved.size ? 'Your last edit is not saved yet. Retry it first.' : null)
 
   // The card as it is now (only the public columns, which is all a draft holds).
-  const card = () => Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, character.value![column]])) as NonNullable<Json>
+  const card = (c: Character) => Object.fromEntries(PUBLIC_COLUMNS.map((column) => [column, c[column]])) as NonNullable<Json>
 
   // The card with these images was just saved: files it no longer uses can go.
   function swapImages(now: Set<string>) {
@@ -232,18 +243,21 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   }
 
   async function write(kind: Kind) {
-    const c = character.value!
+    const c = character.value
+    if (!c) return NOT_LOADED
     const images = cardImages(c)
     if (kind === 'draft') {
-      const seen = draft.value!.updated_at
+      const d = draft.value
+      if (!d) return NOT_LOADED
+      const seen = d.updated_at
       const result = await checkWrite(
         await supabase
           .from('pending_changes')
-          .update({ proposed_public: card(), proposed_sheet: sheet.value as unknown as NonNullable<Json> })
-          .eq('id', draft.value!.id)
+          .update({ proposed_public: card(c), proposed_sheet: sheet.value as unknown as NonNullable<Json> })
+          .eq('id', d.id)
           .eq('updated_at', seen)
           .select(CHANGE_FIELDS),
-        { seen, recheck: () => supabase.from('pending_changes').select('updated_at').eq('id', draft.value!.id).maybeSingle() },
+        { seen, recheck: recheckUpdatedAt('pending_changes', 'id', d.id) },
       )
       if (result.row) change.value = result.row
       if (!result.error) swapImages(images)
@@ -251,11 +265,11 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     }
     if (kind === 'card') {
       const result = await checkWrite(
-        await supabase.from('characters').update(card() as TablesUpdate<'characters'>).eq('id', c.id).eq('updated_at', c.updated_at).select('updated_at'),
-        { seen: c.updated_at, recheck: () => supabase.from('characters').select('updated_at').eq('id', c.id).maybeSingle() },
+        await supabase.from('characters').update(card(c) as TablesUpdate<'characters'>).eq('id', c.id).eq('updated_at', c.updated_at).select('updated_at'),
+        { seen: c.updated_at, recheck: recheckUpdatedAt('characters', 'id', c.id) },
       )
       // Only the new updated_at: the card on screen may have newer edits that are still waiting their turn.
-      if (result.row) character.value = { ...character.value!, updated_at: result.row.updated_at }
+      if (result.row && character.value) character.value = { ...character.value, updated_at: result.row.updated_at }
       if (!result.error) swapImages(images)
       return result.error
     }
@@ -275,7 +289,7 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
     const result = seen
       ? await checkWrite(await supabase.from('character_sheets').update({ sheet: body, ...extra }).eq('character_id', c.id).eq('updated_at', seen).select('updated_at'), {
           seen,
-          recheck: () => supabase.from('character_sheets').select('updated_at').eq('character_id', c.id).maybeSingle(),
+          recheck: recheckUpdatedAt('character_sheets', 'character_id', c.id),
         })
       : await checkWrite(await supabase.from('character_sheets').upsert({ character_id: c.id, sheet: body, ...extra }).select('updated_at'))
     // Keeps "what this page is showing" current, so a GM approving after editing isn't refused as stale.
@@ -301,8 +315,9 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
 
   // Changes only the given card columns, on screen straight away (so quick edits build on each other), then saves.
   function updateCharacter(changes: TablesUpdate<'characters'>) {
+    if (!character.value) return Promise.resolve(NOT_LOADED)
     const before = mechs.value.length
-    character.value = { ...character.value!, ...changes }
+    character.value = { ...character.value, ...changes }
     const kind = save(draft.value ? 'draft' : 'card')
     // An extra mech added or removed in GM edit mode changes the grants, which are saved with the sheet.
     if (!gmEditing.value || mechs.value.length === before) return kind
@@ -326,12 +341,14 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // pilot's real last change.
   const proposeChange = () =>
     queued(async () => {
-      const c = character.value!
+      const c = character.value
+      const userId = session.value?.user.id
+      if (!c || !userId) return NOT_LOADED
       const basedOn = [c.updated_at, sheetUpdatedAt.value].reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a))
       const { error } = await supabase.from('pending_changes').insert({
         character_id: c.id,
-        submitted_by: session.value!.user.id,
-        proposed_public: card(),
+        submitted_by: userId,
+        proposed_public: card(c),
         proposed_sheet: sheet.value as unknown as NonNullable<Json>,
         based_on: basedOn,
       })
@@ -344,15 +361,17 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const setSubmitted = (submitted: boolean) =>
     queued(async () => {
       if (submitted && unsaved.size) return unsavedError()
-      const seen = draft.value!.updated_at
+      const d = draft.value
+      if (!d) return NOT_LOADED
+      const seen = d.updated_at
       const result = await checkWrite(
         await supabase
           .from('pending_changes')
           .update({ submitted_at: submitted ? new Date().toISOString() : null })
-          .eq('id', draft.value!.id)
+          .eq('id', d.id)
           .eq('updated_at', seen)
           .select(CHANGE_FIELDS),
-        { seen, recheck: () => supabase.from('pending_changes').select('updated_at').eq('id', draft.value!.id).maybeSingle() },
+        { seen, recheck: recheckUpdatedAt('pending_changes', 'id', d.id) },
       )
       if (result.row) change.value = result.row
       if (result.error === CHANGED_ELSEWHERE) conflict.value = true
@@ -362,9 +381,11 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // Withdrawing deletes the change; the approved pilot shows again.
   const withdrawChange = () =>
     queued(async () => {
-      const { error } = await checkWrite(await supabase.from('pending_changes').delete().eq('id', draft.value!.id).select('id'))
+      const d = draft.value
+      if (!d) return NOT_LOADED
+      const { error } = await checkWrite(await supabase.from('pending_changes').delete().eq('id', d.id).select('id'))
       if (!error) {
-        dropImages([...savedImages, ...cardImages(character.value!)])
+        dropImages([...savedImages, ...(character.value ? cardImages(character.value) : [])])
         await load()
       }
       return error
@@ -375,7 +396,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // copy follows it on screen.
   const equipGear = (keys: string[]) =>
     queued(async () => {
-      const { error } = await supabase.rpc('equip_pilot_gear', { target_character_id: character.value!.id, keys })
+      if (!character.value) return NOT_LOADED
+      const { error } = await supabase.rpc('equip_pilot_gear', { target_character_id: character.value.id, keys })
       if (error) return error.message
       if (approved.value) approved.value = { ...approved.value, sheet: { ...approved.value.sheet, equipped_gear: keys } }
       sheet.value = { ...sheet.value, equipped_gear: keys }
@@ -386,7 +408,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // waiting change is withdrawn, and you can register a new pilot.
   const markDead = () =>
     queued(async () => {
-      const { error } = await supabase.rpc('mark_dead', { target_character_id: character.value!.id })
+      if (!character.value) return NOT_LOADED
+      const { error } = await supabase.rpc('mark_dead', { target_character_id: character.value.id })
       if (!error) await load()
       return error?.message ?? null
     })
@@ -397,7 +420,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   const setPilotSubmitted = (submitted: boolean) =>
     queued(async () => {
       if (submitted && unsaved.size) return unsavedError()
-      const c = character.value!
+      const c = character.value
+      if (!c) return NOT_LOADED
       const result = await checkWrite(
         await supabase
           .from('characters')
@@ -405,9 +429,9 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
           .eq('id', c.id)
           .eq('updated_at', c.updated_at)
           .select('updated_at, submitted_at'),
-        { seen: c.updated_at, recheck: () => supabase.from('characters').select('updated_at').eq('id', c.id).maybeSingle() },
+        { seen: c.updated_at, recheck: recheckUpdatedAt('characters', 'id', c.id) },
       )
-      if (result.row) character.value = { ...character.value!, ...result.row }
+      if (result.row && character.value) character.value = { ...character.value, ...result.row }
       if (result.row && submitted) reviewNote.value = ''
       if (result.error === CHANGED_ELSEWHERE) conflict.value = true
       return submitted && result.error ? NOT_SUBMITTED + result.error : result.error
@@ -416,8 +440,9 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   // This clears only the approval message, including while a proposed edit is open.
   const dismissApprovalNote = () =>
     queued(async () => {
+      if (!character.value) return NOT_LOADED
       const { error } = await supabase.rpc('dismiss_approval_note', {
-        target_character_id: character.value!.id,
+        target_character_id: character.value.id,
         expected_note: reviewNote.value,
       })
       if (!error) reviewNote.value = ''
@@ -427,7 +452,8 @@ export function useMyPilot(pilotId?: number, options: { gmEdit?: () => boolean }
   load()
   // Entering edit mode on a record (or the profile arriving late): is the player's change open?
   watch(gmEditing, async (on) => {
-    if (on) change.value = character.value!.status === 'approved' ? await latestChange(character.value!.id) : null
+    const c = character.value
+    if (on) change.value = c?.status === 'approved' ? await latestChange(c.id) : null
   })
 
   return {

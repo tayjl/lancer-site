@@ -12,7 +12,8 @@ import { EXOTIC_MAKER, archiveGroups, makerId, useManufacturers, type ArchiveEnt
 import { confirmAction } from '../confirm'
 import { DEFINITIONS_TAB, HOMEBREW_PACK, KINDS, TAB_GROUPS, blankItem, groupOf, kindInfo, newId, type Data, type EditorKind } from '../contentEditor'
 import { RULE_CATEGORIES, newRule, oldLink, ruleBoxes, ruleCounts } from '../ruleList'
-import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, type ListRow, type Loaded, type Pack } from '../editorStore'
+import { readError } from '../lib/supabaseClient'
+import { exportHomebrew, loadCounts, loadIds, loadItem, loadList, loadPacks, loadStats, message, type ListRow, type Loaded, type Pack } from '../editorStore'
 import { hiddenTags, loadBaseActions, loadRules, loadTagNames, tagNames } from '../gameData'
 import { DEF_BOXES, DEF_KINDS, defKindInfo, loadDefinitionFacts, type DefKind } from '../definitions'
 import { factsText } from '../definitionEditor'
@@ -48,6 +49,7 @@ const takenIds = shallowRef<Set<string> | null>(null)
 const loadingList = ref(true)
 // The packs and ids are read before an item opens, as the editor decides from them whether it's homebrew.
 const ready = ref(false)
+const loadError = ref('')
 const listError = ref('')
 const facts = ref<Record<string, { entries: number; hidden: number }>>({})
 const manufacturers = useManufacturers()
@@ -79,10 +81,16 @@ async function refreshList() {
   counts.value = await loadCounts()
 }
 async function refreshAll() {
-  const [packList, statList] = await Promise.all([loadPacks(), loadStats()])
-  packs.value = packList.packs
-  stats.value = statList
-  takenIds.value = await loadIds()
+  loadError.value = ''
+  try {
+    const [packList, statList] = await Promise.all([loadPacks(), loadStats()])
+    packs.value = packList.packs
+    stats.value = statList
+    takenIds.value = await loadIds()
+  } catch (error) {
+    loadError.value = `The editor didn't load: ${readError(message(error))}`
+    return
+  }
   ready.value = true
   loadTagNames()
   loadBaseActions()
@@ -261,6 +269,12 @@ async function exportLcp() {
     <p v-else-if="!isOwner" class="notice warn" role="alert">Only owners can see this page.</p>
     <template v-else>
       <p v-if="exportNote" class="notice" :class="exportNote.ok ? 'ok' : 'warn'" :role="exportNote.ok ? 'status' : 'alert'">{{ exportNote.text }}</p>
+      <div v-if="loadError" class="notice warn" role="alert">
+        <div class="notice-head">
+          <p>{{ loadError }}</p>
+          <button type="button" class="small" @click="refreshAll">Retry</button>
+        </div>
+      </div>
 
       <div v-show="showList" class="group-bar">
         <SheetTabs :model-value="group.label" :tabs="groupLabels" label="Content group" @update:model-value="chooseGroup" />
@@ -284,7 +298,7 @@ async function exportLcp() {
             <input v-model="query" type="search" :placeholder="`Search ${info.label.toLowerCase()}`" @keydown.esc="query = ''" />
           </label>
           <p v-if="listError" class="notice warn" role="alert">The list didn't load: {{ listError }}</p>
-          <p v-else-if="loadingList" class="dim" role="status">Loading…</p>
+          <p v-else-if="loadingList && !loadError" class="dim" role="status">Loading…</p>
           <template v-else-if="inDefs">
             <section v-for="box in DEF_BOXES" :key="box" class="group">
               <GroupHead :title="box" :count="DEF_KINDS.filter((k) => k.box === box).length" />
@@ -300,7 +314,7 @@ async function exportLcp() {
           </template>
           <template v-else-if="inRules">
             <section v-for="box in boxes" :key="box.key" class="group">
-              <GroupHead :title="box.label" :count="box.total">
+              <GroupHead :title="box.label" :count="loadError || listError ? undefined : box.total">
                 <button v-if="box.add" type="button" class="small" :aria-label="`New rule in ${box.label}`" @click="newRuleIn(box.key)"><Icon name="plus" />New rule</button>
               </GroupHead>
               <template v-for="part in box.parts" :key="part.label ?? ''">
@@ -319,16 +333,16 @@ async function exportLcp() {
                   </li>
                 </ul>
               </template>
-              <p v-if="!box.total" class="empty">No items yet.</p>
+              <p v-if="!box.total && !loadError && !listError" class="empty">No items yet.</p>
               <div v-if="box.more" class="more"><button type="button" class="quiet small" @click="showMore(box.key)">Show {{ box.more }} more</button></div>
             </section>
             <p v-if="query.trim() && !boxes.length" class="empty">Nothing matches that search.</p>
           </template>
           <template v-else>
             <button v-if="newAbove" type="button" class="small add-site" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
-            <p v-if="newAbove && !groups.length" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+            <p v-if="newAbove && !groups.length && !loadError && !listError" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
             <section v-for="group in groups" :key="group.key" class="group" :class="{ branded: group.logo || (group.colour && group.colour !== 'var(--lilac)') }" :style="group.colour ? { '--mf': group.colour } : undefined">
-              <GroupHead :title="group.name" :count="group.total" :logo="group.logo">
+              <GroupHead :title="group.name" :count="loadError || listError ? undefined : group.total" :logo="group.logo">
                 <button v-if="group.add" type="button" class="small" @click="choose('new')"><Icon name="plus" />New {{ info.singular }}</button>
               </GroupHead>
               <ul class="rows">
@@ -344,7 +358,7 @@ async function exportLcp() {
                   </button>
                 </li>
               </ul>
-              <p v-if="!group.rows.length && !group.more" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
+              <p v-if="!group.rows.length && !group.more && !loadError && !listError" class="empty">{{ query.trim() ? 'Nothing matches that search.' : 'No items yet.' }}</p>
               <div v-if="group.more" class="more"><button type="button" class="quiet small" @click="showMore(group.key)">Show {{ group.more }} more</button></div>
             </section>
           </template>
@@ -356,7 +370,9 @@ async function exportLcp() {
             <DefinitionPane v-if="defKey" :key="defKey" ref="editor" :kind="defKey" @changed="refreshList" />
             <p v-else class="empty">Choose a list.</p>
           </template>
-          <p v-else-if="loadingItem || (itemKey && !ready)" class="dim" role="status">Loading…</p>
+          <p v-else-if="(loadingItem && !loadError) || (itemKey && !ready && !loadError)" class="dim" role="status">Loading…</p>
+          <!-- The error above has the Retry; an item must not open without the packs. -->
+          <template v-else-if="itemKey && !ready" />
           <p v-else-if="itemError" class="notice warn" role="alert">{{ itemError }}</p>
           <EditorPane
             v-else-if="loaded"
@@ -398,7 +414,7 @@ async function exportLcp() {
             :wide="wide"
             @created="created"
           />
-          <p v-else class="empty">Choose an item.</p>
+          <p v-else-if="!loadError" class="empty">Choose an item.</p>
         </div>
       </div>
     </template>

@@ -11,6 +11,7 @@ import { formatAmount, freeGear, gearPrice, restrictionOf } from '../rules'
 import { useGmOverride, useRestriction } from '../restriction'
 import { itemPick, type PickGroup, type PickOption } from '../pickerRows'
 import { NOTE_MAX } from '../itemNotes'
+import { readError } from '../lib/supabaseClient'
 import { capitalise, plural } from '../text'
 import Icon from './Icon.vue'
 import ItemDetails from './ItemDetails.vue'
@@ -165,7 +166,7 @@ async function run(save: () => Promise<string | null>, shown: Ref<string> = erro
   try {
     shown.value = (await save()) ?? ''
   } catch (thrown) {
-    shown.value = thrown instanceof Error ? thrown.message : String(thrown)
+    shown.value = readError(thrown instanceof Error ? thrown.message : String(thrown))
   } finally {
     saving.value = false
   }
