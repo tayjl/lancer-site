@@ -10,16 +10,22 @@ Short handoff note. Update at the end of each feature or milestone. Finished wor
 - Branch `main`. Pushing deploys to Cloudflare, so ask before pushing. New migrations go to the hosted project before the site is pushed.
 
 ## Unpushed work
-- Nothing. Talent rank grants shipped (`b3ca22a`, migration `20261126100000` applied to hosted first). Known drifts: the client ignores the published flag, gear slot overflow.
+- **Site audit fixes (2026-11-26, uncommitted).** Security: players can't insert a pending change with `submitted_at`, `review_reason` or `reviewed_at` set. Errors: failed reads show "X didn't load" with Retry and never fill forms with zeros. Speed: rich-text editor loads async, one cached `loadContentIndex()` in `src/catalogue.ts`. UI: per-route tab titles, 44px phone tap targets, `/gm/pilots` fits desktop. Cleanup: `recheckUpdatedAt()` helper, about 30 unused exports removed, `snap1.yml` removed. Tests: 630 unit, 1228 SQL pass.
+- **Hosted migration to apply before the next push:** `20261126110000_block_submitted_insert` (not yet on hosted; `npx supabase migration up` against hosted, ask first).
+- Talent rank grants shipped (`b3ca22a`, migration `20261126100000` applied to hosted first). Known drifts: the client ignores the published flag, gear slot overflow.
 - The New button for factions and commendations (`src/views/ContentEditorView.vue`). Shipped (`b3bb773`).
+- Not browser-tested (no local seed data): approval flow, mech page, lore and pithub entries, LCP import.
 
 ## Latest release
 Pushed 2026-11-25 (`origin/main` `19b8964`): server mount checks, private schema hardening, faction name limit (migrations `20261125220000` and `20261125230000` applied to hosted first). Before it `0c7d1cf`: content editor cleanup step 11 (grants from equipped weapon mods and pilot gear; migration `20261125210000` applied to hosted first). Before it, `b1071df`: steps 9 and 10 (drop `bionic_bonuses`; commendation requirements; a commendation an item or biomod requires can't be deleted). Before it, `c5c79c1` (steps 2 to 8 and 12). Migrations were applied to hosted before each push. Earlier, step 4c (`5f3f1ef`), 4b (`f7207ff`), 4a (`17f91be`), steps 2 and 3 (`c7ff4b7`). The 2026-11-24 release is in [docs/history.md](docs/history.md). What is left is in [docs/content-editor-handoff.md](docs/content-editor-handoff.md).
 
 ## Not yet on hosted
+- `20261126110000_block_submitted_insert` (site audit, 2026-11-26). Apply before the next push.
 - Everything through `20261125230000_faction_name_length` (mount checks, private schema hardening, faction name limit; applied 2026-11-25 before `19b8964`), and before it `20261125210000_grants_on_mods_and_gear` (step 11) and before it `20261125200000_block_required_commendation` is on the hosted project (steps 9 and 10 applied 2026-11-25, before `b1071df`). The full list is in [docs/history.md](docs/history.md).
 
 ## Next steps
+0. **Before the next push:** apply `20261126110000_block_submitted_insert` to hosted, then run the unpushed audit work through a browser check (approval flow, mech page, lore, LCP import) on 360 and 1280.
+0b. **Known low items (2026-11-26 audit, not fixed):** `pilot_card` and `mech_card` callable by anon (callsigns enumerable through link previews); `mark_dead` lets a player kill their own pilot and recreate one for fresh starting manna; storage upload policy has no SQL size or MIME limit (check the hosted bucket limits); check the hosted dashboard has email signup off.
 1. **Check live:** the combat page (see the list below), not browser-tested since 0.2. Then the 2026-11-24 deploy checks below. Also check whether 3b touched owner-edited rows: the CLI printed no NOTICE, so look at hosted `content_items` rows with an `edited` value.
 2. **Commit and ship the New button** for factions and commendations (shipped `b3bb773`, nothing left to do).
 3. **Open for the developer:** what granting licences means; export and import for Definitions, factions, commendations and biomods (low priority); the phantom mounts server check; a blanket revoke of execute on the `private` schema. Nothing else is in the plan. Resume list: [handoff, Next session: start here](docs/content-editor-handoff.md#next-session-start-here).

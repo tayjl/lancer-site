@@ -76,6 +76,8 @@
 - **Players must NOT be able to update the characters table directly.** They can only add pending changes for their own characters, or anyone could skip approval with browser developer tools. Only GMs (or the approval function) can change approved characters.
 - **Only owners can delete characters** (it cascades to their sheet, changes and reputation). Players can still withdraw their own pending pilot.
 - **Players must NOT be able to change their own role** in profiles, or anyone could make themselves a GM.
+- **Pilot sheets are visible to every logged-in player** (decided by the developer, 2026-11-26), including drafts and pending pilots, via the `pilot_sheet` RPC. This is intended, not a leak.
+- **Players can't insert a pending change with `submitted_at`, `review_reason` or `reviewed_at` set** (trigger `private.guard_change_insert`, migration `20261126110000_block_submitted_insert.sql`, tested in `approval.test.sql`). Otherwise a player could skip the submit-time rule checks.
 - **Only owners can add, change or remove LCP content.**
 - **Picker rules checked at submit** (2026-11-19, migration `20261119170000_enforce_picker_rules.sql`, `private.guard_submit_rules()`, tested in `supabase/tests/submit_rules.test.sql`). When a **player** submits (a new pilot: `characters.submitted_at` null to set, a change: `pending_changes.submitted_at` null to set) the database refuses it if:
   - it **newly adds GM-only content** (HORUS or NHC source, or an item or licence of a HORUS or NHC frame, biomods by `bionics.source`) or **Exotic content** (source `EXOTIC`, the `tg_exotic` tag, biomod source `EXOTIC`, any case).
